@@ -4,13 +4,13 @@
   "manifest_version": 1,
   "description": "New Scolos dice roller with shared roll history",
   "author": "Jake",
-  "icon": "icon.svg",
+  "icon": "/New-Scolos-OBR/icon.svg",
   "action": {
     "title": "New Scolos Dice",
-    "icon": "icon.svg",
-    "popover": "index.html",
+    "icon": "/New-Scolos-OBR/icon.svg",
+    "popover": "/New-Scolos-OBR/index.html",
     "width": 380,
     "height": 600
   },
-  "background_url": "background.html"
+  "background_url": "/New-Scolos-OBR/background.html"
 }
