@@ -1,0 +1,158 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>New Scolos Dice</title>
+<link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
+<style>
+  :root { --bg:#1e2231; --paper:#222639; --ink:#f1f3f9; --dim:#9aa0b8; --accent:#bb99ff; --plus:#5fd38d; --minus:#ff6b6b; }
+  * { box-sizing: border-box; }
+  body { margin:0; font-family: system-ui, sans-serif; background:var(--bg); color:var(--ink); font-size:14px; }
+  header { background:#000; padding:8px 12px; display:flex; justify-content:space-between; align-items:center; }
+  header h1 { font-family:'Bangers', Impact, sans-serif; font-weight:400; letter-spacing:1px; margin:0; font-size:26px; }
+  header span { font-family:'Bangers', Impact, sans-serif; font-size:16px; color:var(--dim); }
+  main { padding:10px 12px; }
+  label { display:block; font-size:11px; font-weight:700; text-transform:uppercase; color:var(--dim); margin:6px 0 3px; }
+  input { width:100%; padding:7px 8px; border-radius:6px; border:2px solid #444a66; background:var(--paper); color:var(--ink); font-size:14px; }
+  .row { display:flex; gap:8px; }
+  .row > div { flex:1; }
+  .mod { display:flex; align-items:center; gap:6px; }
+  .mod button { width:34px; height:34px; font-size:18px; font-weight:700; border-radius:6px; border:2px solid #444a66; background:var(--paper); color:var(--ink); cursor:pointer; }
+  .mod output { min-width:42px; text-align:center; font-size:20px; font-weight:800; }
+  #roll { width:100%; margin-top:10px; padding:10px; font-family:'Bangers', Impact, sans-serif; font-size:24px; letter-spacing:1px; border:3px solid #000; border-radius:8px; background:var(--accent); color:#000; cursor:pointer; }
+  #roll:disabled { opacity:.5; }
+  .card { background:var(--paper); border:2px solid #444a66; border-radius:10px; padding:10px; margin-top:12px; }
+  .card.big { border:3px solid var(--accent); }
+  .who { font-weight:700; }
+  .who small { color:var(--dim); font-weight:400; margin-left:4px; }
+  .dice { display:flex; gap:6px; align-items:center; margin-top:6px; }
+  .die { width:30px; height:30px; border:2px solid var(--ink); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:20px; font-weight:900; background:#15182a; }
+  .big .die { width:42px; height:42px; font-size:28px; }
+  .die.p { color:var(--plus); border-color:var(--plus); }
+  .die.m { color:var(--minus); border-color:var(--minus); }
+  .modtag { color:var(--dim); font-weight:700; margin-left:2px; }
+  .total { margin-left:auto; font-family:'Bangers', Impact, sans-serif; font-size:30px; }
+  .big .total { font-size:44px; }
+  h2 { font-family:'Bangers', Impact, sans-serif; font-weight:400; font-size:20px; margin:16px 0 0; letter-spacing:1px; }
+  .histbtn { width:100%; margin-top:14px; padding:7px; font-family:'Bangers', Impact, sans-serif; font-size:18px; letter-spacing:1px; border:2px solid #444a66; border-radius:8px; background:var(--paper); color:var(--ink); cursor:pointer; }
+  .line { display:flex; align-items:center; gap:8px; padding:5px 2px; border-bottom:1px solid #333a55; }
+  .line .n { flex:1; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .line .t { color:var(--dim); font-size:11px; width:52px; text-align:right; }
+  .line .die { width:20px; height:20px; font-size:14px; border-width:1.5px; }
+  .line .tot { font-family:'Bangers', Impact, sans-serif; font-size:22px; width:36px; text-align:right; }
+  .err { color:var(--minus); margin-top:8px; font-weight:700; }
+  .empty { color:var(--dim); margin-top:8px; }
+</style>
+</head>
+<body>
+<header><h1>NEW SCOLOS</h1><span>DICE</span></header>
+<main>
+  <label>Modifier</label>
+  <input id="modin" inputmode="numeric" placeholder="0" style="font-size:22px;font-weight:800;text-align:center;width:110px">
+  <button id="roll">ROLL</button>
+  <div id="err" class="err" hidden></div>
+  <div id="last"></div>
+  <button id="histbtn" class="histbtn">SHOW ROLL HISTORY</button>
+  <div id="history" hidden><div class="empty">No rolls yet.</div></div>
+</main>
+<script type="module">
+import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
+import { KEEP, rollKey, allRolls, fmt } from "./shared.js";
+
+const $ = (id) => document.getElementById(id);
+let mod = 0, me = null, standalone = !OBR.isAvailable, localRolls = [];
+
+// Type the modifier: "+3", "-1", "3" or blank (0). Enter rolls.
+function readMod() {
+  const t = $("modin").value.trim().replace(/^\+/, "").replace("−", "-");
+  if (t === "") return 0;
+  const n = Number(t);
+  return Number.isInteger(n) && Math.abs(n) <= 30 ? n : null;
+}
+$("modin").onkeydown = (e) => { if (e.key === "Enter") $("roll").click(); };
+
+function rollDie() { const a = new Uint32Array(1); crypto.getRandomValues(a); return (a[0] % 3) - 1; }
+
+function card(r, big) {
+  const dice = r.dice.map(d => `<div class="die ${d > 0 ? "p" : d < 0 ? "m" : ""}">${d > 0 ? "+" : d < 0 ? "−" : ""}</div>`).join("");
+  const time = new Date(r.ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  return `<div class="card ${big ? "big" : ""}">
+    <div class="who">${esc(r.who)}${r.label ? ` <small>${esc(r.label)}</small>` : ""}<small>${time}</small></div>
+    <div class="dice">${dice}${r.mod ? `<span class="modtag">${fmt(r.mod)}</span>` : ""}<span class="total">${fmt(r.total)}</span></div>
+  </div>`;
+}
+
+// Slot-machine reel: faces flicker, then each die locks in left to right, then the total.
+const face = (d) => d > 0 ? "+" : d < 0 ? "−" : "";
+const cls = (d) => `die ${d > 0 ? "p" : d < 0 ? "m" : ""}`;
+function spin(r) {
+  return new Promise((done) => {
+    $("last").innerHTML = `<div class="card big"><div class="who">Rolling…</div><div class="dice">${
+      r.dice.map((_, i) => `<div class="die" id="d${i}"></div>`).join("")}${r.mod ? `<span class="modtag">${fmt(r.mod)}</span>` : ""}<span class="total" id="tot">?</span></div></div>`;
+    let locked = 0;
+    const tick = setInterval(() => {
+      for (let i = locked; i < 4; i++) { const d = rollDie(), el = $("d" + i); el.className = cls(d); el.textContent = face(d); }
+    }, 70);
+    const lockNext = () => {
+      const el = $("d" + locked); el.className = cls(r.dice[locked]); el.textContent = face(r.dice[locked]);
+      locked++;
+      if (locked < 4) return setTimeout(lockNext, 350);
+      clearInterval(tick);
+      setTimeout(() => { $("last").innerHTML = card(r, true); done(); }, 300);
+    };
+    setTimeout(lockNext, 900);
+  });
+}
+
+// Compact history: one line per roll, newest first.
+function line(r) {
+  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const time = new Date(r.ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  return `<div class="line"><span class="n">${esc(r.who)}</span><span class="dice" style="margin:0">${
+    r.dice.map(d => `<div class="${cls(d)}">${face(d)}</div>`).join("")}</span><span class="modtag">${r.mod ? fmt(r.mod) : ""}</span><span class="tot">${fmt(r.total)}</span><span class="t">${time}</span></div>`;
+}
+function render(rolls) {
+  $("history").innerHTML = rolls.length ? rolls.slice(0, 30).map(line).join("") : `<div class="empty">No rolls yet.</div>`;
+}
+$("histbtn").onclick = () => {
+  const h = $("history"); h.hidden = !h.hidden;
+  $("histbtn").textContent = h.hidden ? "SHOW ROLL HISTORY" : "HIDE ROLL HISTORY";
+};
+
+function showErr(msg) { $("err").textContent = msg; $("err").hidden = !msg; }
+
+$("roll").onclick = async () => {
+  showErr("");
+  mod = readMod();
+  if (mod === null) { showErr("Modifier must be a whole number, like +3 or -1."); return; }
+  const dice = [rollDie(), rollDie(), rollDie(), rollDie()];
+  const who = standalone ? "Test" : await OBR.player.getName();
+  const r = { id: crypto.randomUUID(), pid: me || "local", who, dice, mod, total: dice.reduce((a, b) => a + b, 0) + mod, ts: Date.now() };
+  $("roll").disabled = true;
+  await spin(r);
+  if (standalone) { localRolls = [r, ...localRolls]; render(localRolls); $("roll").disabled = false; return; }
+  try {
+    const key = rollKey(me);
+    const md = await OBR.room.getMetadata();
+    const mine = Array.isArray(md[key]) ? md[key] : [];
+    await OBR.room.setMetadata({ [key]: [r, ...mine].slice(0, KEEP) });
+    const check = await OBR.room.getMetadata(); // over-cap writes fail silently, so read back
+    if (!(check[key] || []).some(x => x.id === r.id)) showErr("Roll didn't reach the table (room storage may be full). Others may not see it.");
+  } catch (e) { showErr("Roll didn't reach the table: " + (e?.message || e)); }
+  $("roll").disabled = false;
+};
+
+if (standalone) {
+  document.querySelector("header span").textContent = "DICE · TEST MODE";
+} else {
+  OBR.onReady(async () => {
+    me = await OBR.player.getId();
+    render(allRolls(await OBR.room.getMetadata()));
+    OBR.room.onMetadataChange((md) => render(allRolls(md)));
+  });
+}
+</script>
+</body>
+</html>

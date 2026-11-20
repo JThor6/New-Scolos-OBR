@@ -1,0 +1,16 @@
+{
+  "name": "New Scolos",
+  "version": "0.1.0",
+  "manifest_version": 1,
+  "description": "New Scolos dice roller with shared roll history",
+  "author": "Jake",
+  "icon": "icon.svg",
+  "action": {
+    "title": "New Scolos Dice",
+    "icon": "icon.svg",
+    "popover": "index.html",
+    "width": 380,
+    "height": 600
+  },
+  "background_url": "background.html"
+}

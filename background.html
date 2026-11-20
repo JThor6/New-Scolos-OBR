@@ -1,0 +1,17 @@
+<!doctype html><html><head><meta charset="utf-8"></head><body>
+<script type="module">
+import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
+import { allRolls, summary } from "./shared.js";
+// Runs all session, even when the dice panel is closed: pops a notice for other players' rolls.
+OBR.onReady(async () => {
+  const me = await OBR.player.getId();
+  let seen = new Set(allRolls(await OBR.room.getMetadata()).map(r => r.id));
+  OBR.room.onMetadataChange((md) => {
+    for (const r of allRolls(md)) {
+      if (seen.has(r.id)) continue;
+      seen.add(r.id);
+      if (r.pid !== me) OBR.notification.show(summary(r)).catch(() => {});
+    }
+  });
+});
+</script></body></html>
