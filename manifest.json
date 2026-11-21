@@ -1,12 +1,12 @@
 {
-  "name": "New Scolos",
-  "version": "0.6.3",
+  "name": "New Scolos Manager",
+  "version": "0.6.4",
   "manifest_version": 1,
-  "description": "New Scolos dice roller with shared roll history",
+  "description": "New Scolos dice, character sheets, party overview and rules",
   "author": "Jake",
   "icon": "/New-Scolos-OBR/icon.svg",
   "action": {
-    "title": "New Scolos Dice",
+    "title": "New Scolos Manager",
     "icon": "/New-Scolos-OBR/icon.svg",
     "popover": "/New-Scolos-OBR/index.html?v=6",
     "width": 264,
