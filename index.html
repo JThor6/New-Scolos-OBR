@@ -257,7 +257,7 @@ async function quickRoll(modText) {
     const ref = new URLSearchParams(location.search).get("obrref"); if (ref) u.searchParams.set("obrref", ref);
     u.searchParams.set("who", who); u.searchParams.set("dice", dice.join(",")); u.searchParams.set("mod", m); u.searchParams.set("total", r.total); u.searchParams.set("spin", "1");
     const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
-    OBR.popover.open({ id: "com.newscolos.dice/toast", url: u.href, width: 270, height: 64, anchorReference: "POSITION",
+    OBR.popover.open({ id: "com.newscolos.dice/toast", url: u.href, width: 270, height: 80, anchorReference: "POSITION",
       anchorPosition: { left: vw - 80, top: vh - 70 }, anchorOrigin: { horizontal: "RIGHT", vertical: "BOTTOM" },
       transformOrigin: { horizontal: "RIGHT", vertical: "BOTTOM" }, disableClickAway: true }).catch(() => {});
   }
