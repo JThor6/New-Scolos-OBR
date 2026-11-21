@@ -67,6 +67,8 @@
   .fld small, .att small { display:block; font-size:9px; font-weight:800; text-transform:uppercase; color:var(--dim); }
   .fld > div { font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .fld.c { text-align:center; }
+  .pwl { font-size:11px; line-height:1.35; white-space:normal; margin-top:2px; }
+  .pwl span { color:var(--dim); font-weight:800; font-size:9px; }
   .g2, .g3, .g4, .g5, .g2b { display:grid; gap:5px; margin-top:5px; }
   .g2 { grid-template-columns:1fr 1fr; } .g3 { grid-template-columns:1fr 1fr auto; } .g4 { grid-template-columns:repeat(4,1fr); }
   .g5 { grid-template-columns:repeat(5,1fr); } .g2b { grid-template-columns:1fr auto; }
@@ -274,7 +276,7 @@ function drawSheet() {
   $("shbody").innerHTML = `
     <div class="g2">${F("Name", V("C3"))}${F("Type", V("C4"))}</div>
     <div class="g3">${F("Level", V("F5"))}${F("Credits", V("F7"))}<button id="reload" class="sbtn" title="Reload from Google Sheet">↻</button></div>
-    <div class="g2b"><div class="fld"><small>Extraordinary Power</small><div>${esc2(V("C5"))}</div></div>
+    <div class="g2b"><div class="fld"><small>Extraordinary Power</small><div>${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div></div>
       <div class="fld c"><small>Used today</small><button id="pw" class="chk ${used ? "x" : ""}">${used ? "✕" : ""}</button></div></div>
     <div class="g4">${F("Current XP", V("F3"))}${F("Spent XP", V("F4"))}${F("Attr. spent", V("F10"))}${F("Attr. left", V("F12"))}</div>
     <div class="stab">ATTRIBUTES</div>
@@ -292,6 +294,7 @@ function drawSheet() {
     ${box("INVENTORY", inv)}
     <div id="sherr" class="err" hidden></div>
     ${isGM ? "" : `<button id="disc" class="histbtn">DISCONNECT SHEET</button>`}`;
+  fillPowers();
   $("reload").onclick = loadSheet;
   if ($("disc")) $("disc").onclick = () => { store.set("ns.sheetId", ""); connectForm(); };
   document.querySelectorAll(".box").forEach(b => b.onclick = () => save({ wound: +b.dataset.w, on: !b.classList.contains("x") }, () => { const c = "BCDEFGH"[+b.dataset.w] + "16"; setCell(c, b.classList.contains("x") ? "" : "X"); }));
@@ -299,6 +302,24 @@ function drawSheet() {
   const copMax = parseInt(V("H28")); const cop = (d) => { let n = Math.max(0, (parseInt(V("H29")) || 0) + d); if (!isNaN(copMax)) n = Math.min(n, copMax); if (String(n) === (V("H29") || "0")) return; save({ copSpent: n }, () => setCell("H29", String(n))); };
   $("copm").onclick = () => cop(-1); $("copp").onclick = () => cop(1);
   if (!isNaN(copMax) && (parseInt(V("H29")) || 0) >= copMax) $("copp").disabled = true;
+}
+// Always-on power and the daily Extraordinary Power options, read from the character's type tab in the Master file
+async function fillPowers() {
+  const type = V("C4").trim().toLowerCase();
+  const tab = TYPES.find(t => t.trim().toLowerCase() === type);
+  if (!tab || !$("pwlist")) return;
+  try {
+    const v = await getTab(tab);
+    const always = [], daily = [];
+    for (const row of v) {
+      const b = String(row[1] || "").trim(), c = String(row[2] || "").trim();
+      if (/^always on/i.test(b)) always.push(b.replace(/^always on:?\s*/i, "") || c);
+      else if (/^extraordinary power/i.test(b) && c) daily.push(c);
+    }
+    if ($("pwlist")) $("pwlist").innerHTML =
+      (always.length ? `<div><span>ALWAYS ON:</span> ${always.map(esc2).join(", ")}</div>` : "") +
+      (daily.length ? `<div><span>DAILY (pick 1):</span> ${daily.map(esc2).join(" · ")}</div>` : "");
+  } catch { /* the sheet still works without it */ }
 }
 function setCell(a1, v) { const m = a1.match(/^([A-L])(\d+)$/); sheetVals[+m[2] - 1][m[1].charCodeAt(0) - 65] = v; }
 
