@@ -67,7 +67,7 @@
 </style>
 </head>
 <body>
-<header><h1>NEW SCOLOS</h1><nav><button class="tab on" data-t="dice">DICE</button><button class="tab" data-t="sheet">SHEET</button><button class="tab" data-t="rules">RULES</button></nav></header>
+<header><h1>NEW SCOLOS</h1><nav><button class="tab on" data-t="dice">DICE</button><button class="tab" data-t="sheet">SHEET</button><button class="tab" data-t="rules">RULES</button><button id="size" class="tab" title="Change panel size" style="margin-left:auto">S</button></nav></header>
 <section id="sheet" hidden><div id="sh"></div></section>
 <section id="rules" hidden><div id="ru"></div></section>
 <main id="dice">
@@ -277,6 +277,15 @@ async function save(body, apply) {
   if (!r.ok) { sheetVals = JSON.parse(before); drawSheet(); $("sherr").hidden = false; $("sherr").textContent = "Didn't save to the sheet: " + (r.error || "unknown error") + " (Is the sheet shared with Jake as Editor?)"; }
 }
 
+// ---------------- PANEL SIZE (S / M / L, remembered per player) ----------------
+const SIZES = { S: [264, 470], M: [380, 640], L: [520, 820] };
+function applySize() {
+  const k = SIZES[store.get("ns.size")] ? store.get("ns.size") : "S";
+  $("size").textContent = k;
+  if (!standalone) { OBR.action.setWidth(SIZES[k][0]).catch(() => {}); OBR.action.setHeight(SIZES[k][1]).catch(() => {}); }
+}
+$("size").onclick = () => { const order = ["S", "M", "L"]; const cur = store.get("ns.size") || "S"; store.set("ns.size", order[(order.indexOf(cur) + 1) % 3]); applySize(); };
+
 // ---------------- RULES TAB ----------------
 // Read live from the Master character file, in Jake's own words, so it stays current as the rules change.
 const MASTER = "1_cnTDLNHIsaVMAOkOKSKK0YawUHt38ZewW1o5-yWbhU";
@@ -329,6 +338,7 @@ if (standalone) {
   OBR.onReady(async () => {
     me = await OBR.player.getId();
     isGM = (await OBR.player.getRole()) === "GM";
+    applySize();
     render(allRolls(await OBR.room.getMetadata()));
     OBR.room.onMetadataChange((md) => render(allRolls(md)));
   });
