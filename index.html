@@ -57,6 +57,7 @@
   .box { border:2px solid #444a66; border-radius:6px; background:var(--paper); color:var(--ink); font-size:11px; font-weight:700; line-height:1.15; padding:4px 1px; cursor:pointer; min-height:52px; }
   .box.x { background:var(--minus); color:#000; border-color:#000; font-weight:800; }
   .ctl { display:flex; align-items:center; gap:6px; }
+  .ctl button:disabled { opacity:.35; cursor:default; }
   .ctl button, .sbtn { background:var(--paper); color:var(--ink); border:2px solid #444a66; border-radius:6px; padding:3px 9px; font-weight:800; cursor:pointer; }
   .sbtn.on { background:var(--accent); color:#000; }
   .sk { display:flex; justify-content:space-between; font-size:13px; padding:2px 0; border-bottom:1px solid #2c3250; }
@@ -295,8 +296,9 @@ function drawSheet() {
   if ($("disc")) $("disc").onclick = () => { store.set("ns.sheetId", ""); connectForm(); };
   document.querySelectorAll(".box").forEach(b => b.onclick = () => save({ wound: +b.dataset.w, on: !b.classList.contains("x") }, () => { const c = "BCDEFGH"[+b.dataset.w] + "16"; setCell(c, b.classList.contains("x") ? "" : "X"); }));
   $("pw").onclick = () => save({ power: !used }, () => setCell("F6", used ? "FALSE" : "TRUE"));
-  const cop = (d) => { const n = Math.max(0, (parseInt(V("H29")) || 0) + d); save({ copSpent: n }, () => setCell("H29", String(n))); };
+  const copMax = parseInt(V("H28")); const cop = (d) => { let n = Math.max(0, (parseInt(V("H29")) || 0) + d); if (!isNaN(copMax)) n = Math.min(n, copMax); if (String(n) === (V("H29") || "0")) return; save({ copSpent: n }, () => setCell("H29", String(n))); };
   $("copm").onclick = () => cop(-1); $("copp").onclick = () => cop(1);
+  if (!isNaN(copMax) && (parseInt(V("H29")) || 0) >= copMax) $("copp").disabled = true;
 }
 function setCell(a1, v) { const m = a1.match(/^([A-L])(\d+)$/); sheetVals[+m[2] - 1][m[1].charCodeAt(0) - 65] = v; }
 
