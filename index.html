@@ -125,7 +125,8 @@
   .pvit em.bad { color:var(--minus); }
   .rd { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; padding:0; margin-left:4px; border:none; border-radius:5px; background:transparent; color:var(--accent); cursor:pointer; opacity:.8; vertical-align:middle; }
   .rd:hover { opacity:1; background:rgba(187,153,255,.18); }
-  .tot2 { display:inline-flex; align-items:center; white-space:nowrap; }
+  .skt .rdc { width:26px; padding:0; text-align:center; border-left:none; }
+  .skt .rdc .rd { margin:0; }
   .att { position:relative; }
   .rd.ra { position:absolute; bottom:3px; right:3px; margin:0; width:18px; height:18px; }
   .err { color:var(--minus); margin-top:8px; font-weight:700; }
@@ -340,8 +341,8 @@ async function loadSheet(quiet) {
 function list(cells) { return cells.map(V).filter(Boolean); }
 function drawSheet() {
   const F = (label, val, cls = "") => `<div class="fld ${cls}"><small>${label}</small><div>${esc2(val)}</div></div>`;
-  const skillRows = (from, to) => { let h = ""; for (let i = from; i <= to; i++) if (V("B" + i)) h += `<tr><td>${esc2(V("B" + i))}</td><td>${esc2(V("C" + i))}</td><td>${esc2(V("D" + i))}</td><td>${esc2(V("E" + i))}</td><td><span class="tot2"><b>${esc2(V("F" + i))}</b><button class="rd" data-m="${esc2(V("F" + i))}" title="Roll ${esc2(V("B" + i))}">${ROLL_ICON}</button></span></td></tr>`; return h; };
-  const table = (t, from, to) => { const rows = skillRows(from, to); return rows ? `<div class="stab">${t}</div><table class="skt"><tr><th>SKILL</th><th>ATTR.</th><th>RANK</th><th>LVL</th><th>TOT.</th></tr>${rows}</table>` : ""; };
+  const skillRows = (from, to) => { let h = ""; for (let i = from; i <= to; i++) if (V("B" + i)) h += `<tr><td>${esc2(V("B" + i))}</td><td>${esc2(V("C" + i))}</td><td>${esc2(V("D" + i))}</td><td>${esc2(V("E" + i))}</td><td><b>${esc2(V("F" + i))}</b></td><td class="rdc"><button class="rd" data-m="${esc2(V("F" + i))}" title="Roll ${esc2(V("B" + i))}">${ROLL_ICON}</button></td></tr>`; return h; };
+  const table = (t, from, to) => { const rows = skillRows(from, to); return rows ? `<div class="stab">${t}</div><table class="skt"><tr><th>SKILL</th><th>ATTR.</th><th>RANK</th><th>LVL</th><th>TOT.</th><th class="rdc"></th></tr>${rows}</table>` : ""; };
   const inv = [], eq = [];
   for (let i = 46; i <= 80 && V("B" + i) !== "Combat Rules"; i++) {
     const t = [V("B" + i), V("C" + i), V("D" + i)].filter(Boolean).join(" - "); if (t) inv.push(t);
