@@ -1,0 +1,69 @@
+/**
+ * New Scolos Sheet Bridge — lets the Owlbear add-on read a character's Main Sheet
+ * and update three live-play things: vitality track, Extraordinary Power used today, COP spent.
+ *
+ * Owned and deployed by Jake as a web app ("Execute as: Me", "Who has access: Anyone").
+ * Only works on sheets inside the New Scolos character folder, and only with the table code.
+ */
+
+const TABLE_CODE = 'CHANGE-ME';                          // pick a code; players type it once in Owlbear
+const CHARACTER_FOLDER_ID = '1AGoMytVf6xI8DWzMewiEtZF65M9kie88';
+const WOUND_CELLS = ['B16', 'C16', 'D16', 'E16', 'F16', 'G16', 'H16'];
+const POWER_CELL = 'F6';
+const COP_SPENT_CELL = 'H29';
+
+function json(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function openMain(id) {
+  const file = DriveApp.getFileById(id);
+  const parents = file.getParents();
+  let ok = false;
+  while (parents.hasNext()) if (parents.next().getId() === CHARACTER_FOLDER_ID) ok = true;
+  if (!ok) throw new Error('That sheet is not in the New Scolos character folder.');
+  const ss = SpreadsheetApp.openById(id);
+  return ss.getSheetByName('Main Sheet') || ss.getSheets()[0];
+}
+
+// GET ?code=...&id=SHEET_ID        -> the Main Sheet (display values, A1:L60)
+// GET ?code=...&list=1             -> every character sheet in the folder (for the GM)
+function doGet(e) {
+  try {
+    const p = e.parameter;
+    if (p.code !== TABLE_CODE) return json({ ok: false, error: 'Wrong table code.' });
+    if (p.list) {
+      const out = [], it = DriveApp.getFolderById(CHARACTER_FOLDER_ID).getFilesByType(MimeType.GOOGLE_SHEETS);
+      while (it.hasNext()) { const f = it.next(); out.push({ id: f.getId(), name: f.getName() }); }
+      return json({ ok: true, sheets: out });
+    }
+    const sh = openMain(p.id);
+    return json({ ok: true, values: sh.getRange('A1:L60').getDisplayValues() });
+  } catch (err) {
+    return json({ ok: false, error: String(err.message || err) });
+  }
+}
+
+// POST body (text/plain JSON): {code, id, wound: 0-6, on: true/false} or {code, id, power: true/false} or {code, id, copSpent: n}
+function doPost(e) {
+  try {
+    const b = JSON.parse(e.postData.contents);
+    if (b.code !== TABLE_CODE) return json({ ok: false, error: 'Wrong table code.' });
+    const sh = openMain(b.id);
+    if (b.wound !== undefined) {
+      const cell = WOUND_CELLS[Number(b.wound)];
+      if (!cell) throw new Error('Bad wound box.');
+      sh.getRange(cell).setValue(b.on ? 'X' : '');
+    } else if (b.power !== undefined) {
+      sh.getRange(POWER_CELL).setValue(!!b.power);
+    } else if (b.copSpent !== undefined) {
+      const n = Math.max(0, Math.min(20, Math.round(Number(b.copSpent) || 0)));
+      sh.getRange(COP_SPENT_CELL).setValue(n);
+    } else {
+      throw new Error('Nothing to change.');
+    }
+    return json({ ok: true });
+  } catch (err) {
+    return json({ ok: false, error: String(err.message || err) });
+  }
+}
