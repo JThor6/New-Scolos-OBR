@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
+<style>
+  html, body { margin:0; background:transparent; color:#f1f3f9; font-family:system-ui, sans-serif; }
+  body { zoom:0.85; }
+  header { display:flex; align-items:center; gap:6px; background:rgba(0,0,0,.6); padding:7px 10px; position:sticky; top:0; }
+  header h1 { flex:1; margin:0; font-family:'Bangers', Impact, sans-serif; font-weight:400; font-size:20px; letter-spacing:1px; color:#bb99ff; }
+  select { background:rgba(15,17,28,.7); color:#f1f3f9; border:2px solid #444a66; border-radius:6px; padding:3px; max-width:130px; }
+  #x { background:transparent; border:2px solid #444a66; color:#f1f3f9; border-radius:6px; width:26px; height:26px; cursor:pointer; font-weight:800; }
+  main { padding:6px 10px 12px; }
+  .rr { padding:4px 4px 6px; font-size:13px; border-top:1px solid #333a55; }
+  .rr b { display:block; }
+  .rr.ep { background:rgba(255,176,32,.22); border-left:4px solid #ffb020; }
+  .rr.ep b { color:#ffc94d; }
+  .rh { padding:8px 4px 2px; font-weight:800; color:#9aa0b8; text-transform:uppercase; font-size:11px; }
+  .err { color:#ff6b6b; font-weight:700; }
+</style></head>
+<body>
+<header><h1 id="t">RULES</h1><select id="pick"></select><button id="x" title="Close">✕</button></header>
+<main id="m"><div class="rr">Loading…</div></main>
+<script type="module">
+import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
+import { SECTIONS, sectionHtml, esc2 } from "./rules.js";
+const q = new URLSearchParams(location.search);
+const pick = document.getElementById("pick");
+pick.innerHTML = SECTIONS.map(([t, k]) => `<option value="${esc2(k)}">${esc2(t)}</option>`).join("");
+async function show(k) {
+  pick.value = k;
+  document.getElementById("t").textContent = (SECTIONS.find(s => s[1] === k)?.[0] || "Rules").toUpperCase();
+  const m = document.getElementById("m");
+  m.innerHTML = `<div class="rr">Loading…</div>`;
+  try { m.innerHTML = await sectionHtml(k) || `<div class="rr">Nothing here yet.</div>`; }
+  catch (e) { m.innerHTML = `<div class="rr err">Couldn't load: ${esc2(e.message || e)}</div>`; }
+}
+pick.onchange = () => show(pick.value);
+document.getElementById("x").onclick = () => OBR.isAvailable ? OBR.popover.close("com.newscolos.rules") : window.close();
+show(q.get("k") || SECTIONS[0][1]);
+</script></body></html>

@@ -39,6 +39,8 @@
   nav { display:flex; gap:4px; flex-basis:100%; }
   #ru { padding:8px 12px; }
   details.rs { border:2px solid #444a66; border-radius:8px; background:var(--paper); margin:6px 0; }
+  .pop { float:right; background:transparent; border:none; color:var(--dim); cursor:pointer; padding:0 2px; }
+  .pop:hover { color:var(--accent); }
   details.rs summary { font-family:'Bangers', Impact, sans-serif; font-size:17px; letter-spacing:1px; padding:6px 8px; cursor:pointer; color:var(--accent); }
   .rr { padding:3px 8px 5px; font-size:13px; border-top:1px solid #333a55; }
   .rr b { display:block; }
@@ -137,6 +139,7 @@
 <script type="module">
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
 import { KEEP, rollKey, allRolls, fmt } from "./shared.js";
+import { TYPES, SECTIONS, getTab, sectionHtml } from "./rules.js";
 
 const $ = (id) => document.getElementById(id);
 let mod = 0, me = null, standalone = !OBR.isAvailable, localRolls = [];
@@ -451,42 +454,25 @@ function applySize() {
 $("size").onclick = () => { store.set("ns.size", store.get("ns.size") === "L" ? "S" : "L"); applySize(); };
 
 // ---------------- RULES TAB ----------------
-// Read live from the Master character file, in Jake's own words, so it stays current as the rules change.
-const MASTER = "1_cnTDLNHIsaVMAOkOKSKK0YawUHt38ZewW1o5-yWbhU";
-const TYPES = ["Priest", "Mage", "Mentalist", "Mercenary ", "Wraith", "Revenant", "Hacker", "Subject Zero"];
-const SECTIONS = [["Your Turn & Movement", "turn"], ["Attacking & Damage", "attack"], ["Combat Options", "tab:Combat Options"],
-  ...TYPES.map(t => [t.trim(), "tab:" + t]), ["The Gods", "gods"], ["Skill List", "tab:Skill List"]];
-const tabCache = {};
-async function getTab(tab) {
-  if (!tabCache[tab]) {
-    const r = await bridgeGet(tab === "Main Sheet" ? { id: MASTER } : { id: MASTER, tab });
-    if (!r.ok) throw new Error(r.error);
-    tabCache[tab] = r.values;
-  }
-  return tabCache[tab];
-}
-function rowsHtml(values) {
-  return values.map(row => row.map(c => String(c).trim()).filter(Boolean)).filter(c => c.length).map(c =>
-    c.length === 1 ? (c[0].length < 40 ? `<div class="rh">${esc2(c[0])}</div>` : `<div class="rr">${esc2(c[0])}</div>`)
-    : `<div class="rr ${/^extraordinary power/i.test(c[0]) ? "ep" : ""}"><b>${esc2(c.slice(0, -1).join(" · "))}</b>${esc2(c[c.length - 1])}</div>`).join("");
-}
-function col(values, letter, from, to) { const i = letter.charCodeAt(0) - 65; const out = []; for (let r = from; r <= to; r++) out.push([values[r - 1]?.[i] || ""]); return out; }
-async function sectionHtml(key) {
-  if (key.startsWith("tab:")) {
-    const v = await getTab(key.slice(4));
-    if (key.includes("Priest")) { const g = v.findIndex(r => r.join("").trim() === "THE GODS"); return rowsHtml(g > 0 ? v.slice(0, g) : v); }
-    return rowsHtml(v);
-  }
-  if (key === "gods") { const v = await getTab("Priest"); const g = v.findIndex(r => r.join("").trim() === "THE GODS"); return g > 0 ? rowsHtml(v.slice(g + 1)) : "<div class='rr'>No gods list found.</div>"; }
-  const m = await getTab("Main Sheet");
-  if (key === "turn") return rowsHtml(col(m, "G", 46, 56));
-  return rowsHtml([...col(m, "B", 57, 70), ...col(m, "G", 57, 60), ...col(m, "E", 61, 70)]);
+const POP_ICON = `<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+// Opens one rules section in its own see-through panel in the upper right; it stays up while you use the sheet.
+async function popOut(k) {
+  if (standalone) return window.open("popout.html?k=" + encodeURIComponent(k));
+  const u = new URL("popout.html", location.href);
+  const ref = new URLSearchParams(location.search).get("obrref"); if (ref) u.searchParams.set("obrref", ref);
+  u.searchParams.set("k", k);
+  const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
+  OBR.popover.open({ id: "com.newscolos.rules", url: u.href, width: 340, height: Math.max(360, Math.round(vh * 0.75)),
+    anchorReference: "POSITION", anchorPosition: { left: vw - 70, top: 70 },
+    anchorOrigin: { horizontal: "RIGHT", vertical: "TOP" }, transformOrigin: { horizontal: "RIGHT", vertical: "TOP" },
+    disableClickAway: true }).catch(() => {});
 }
 function showRules() {
   if (!store.get("ns.code")) { $("ru").innerHTML = `<div class="empty">Connect on the SHEET tab first (it needs the table code).</div>`; return; }
   if ($("ru").dataset.ready) return;
   $("ru").dataset.ready = "1";
-  $("ru").innerHTML = SECTIONS.map(([t, k]) => `<details class="rs" data-k="${k}"><summary>${esc2(t.toUpperCase())}</summary><div class="rb"></div></details>`).join("");
+  $("ru").innerHTML = SECTIONS.map(([t, k]) => `<details class="rs" data-k="${k}"><summary>${esc2(t.toUpperCase())}<button class="pop" data-k="${k}" title="Pop out">${POP_ICON}</button></summary><div class="rb"></div></details>`).join("");
+  document.querySelectorAll(".pop").forEach(b => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); popOut(b.dataset.k); });
   document.querySelectorAll("details.rs").forEach(d => d.addEventListener("toggle", async () => {
     const body = d.querySelector(".rb");
     if (!d.open || body.dataset.done) return;
