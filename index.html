@@ -259,9 +259,12 @@ async function showSheetTab() {
   $("sh").innerHTML = `<div class="empty">Loading…</div>`;
   try {
     if (isGM) {
-      const list = await bridgeGet({ list: 1 });
-      if (!list.ok) { store.set("ns.code", ""); return connectForm(list.error); }
-      const cur = store.get("ns.sheetId") || list.sheets[0]?.id || "";
+      $("sh").innerHTML = `<div class="empty">Finding characters…</div>`;
+      let list;
+      try { list = { sheets: await characterSheets() }; }
+      catch (e) { if (/code/i.test(e.message)) store.set("ns.code", ""); return connectForm(e.message); }
+      let cur = store.get("ns.sheetId");
+      if (cur !== "__party" && !list.sheets.some(f => f.id === cur)) cur = list.sheets[0]?.id || "__party";
       store.set("ns.sheetId", cur);
       $("sh").innerHTML = `<select id="pick"><option value="__party" ${cur === "__party" ? "selected" : ""}>★ Party overview</option>${list.sheets.map(f => `<option value="${f.id}" ${f.id === cur ? "selected" : ""}>${esc2(f.name)}</option>`).join("")}</select><div id="shbody"></div>`;
       $("pick").onchange = () => { store.set("ns.sheetId", $("pick").value); $("pick").value === "__party" ? showParty() : loadSheet(); };
@@ -364,6 +367,19 @@ async function save(body, apply) {
 // Keep the sheet current while it's open (picks up edits made in Google Sheets too)
 setInterval(() => { if ($("sheet").hidden || busy || !$("shbody")) return; partyOn ? showParty() : (sheetVals && loadSheet(true)); }, 30000);
 
+// Only real characters: a Main Sheet titled "New Scolos Character Sheet" with a name filled in, and not the Master file
+async function characterSheets() {
+  const list = await bridgeGet({ list: 1 });
+  if (!list.ok) throw new Error(list.error);
+  const all = await Promise.all(list.sheets.filter(f => !/master/i.test(f.name)).map(async f => {
+    const r = await bridgeGet({ id: f.id }).catch(() => null);
+    if (!r || !r.ok) return null;
+    const v = r.values, title = String(v[1]?.[1] || "").trim(), name = String(v[2]?.[2] || "").trim();
+    return /character sheet/i.test(title) && name ? { id: f.id, name, values: v } : null;
+  }));
+  return all.filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
+}
+
 // ---------------- PARTY OVERVIEW ----------------
 // Everyone's name, type, power used today and vitality track, read-only. For healers and the GM.
 let partyOn = false;
@@ -372,12 +388,7 @@ async function showParty() {
   const body = $("shbody") || ($("sh").insertAdjacentHTML("beforeend", `<div id="shbody"></div>`), $("shbody"));
   body.innerHTML = `<div class="empty">Loading party…</div>`;
   try {
-    const list = await bridgeGet({ list: 1 });
-    if (!list.ok) throw new Error(list.error);
-    const chars = (await Promise.all(list.sheets.filter(f => !/master/i.test(f.name)).map(async f => {
-      const r = await bridgeGet({ id: f.id }).catch(() => null);
-      return r && r.ok ? r.values : null;
-    }))).filter(v => v && String(v[2]?.[2] || "").trim());
+    const chars = (await characterSheets()).map(c => c.values);
     const cell = (v, a1) => { const m = a1.match(/^([A-L])(\d+)$/); return String(v[+m[2] - 1]?.[m[1].charCodeAt(0) - 65] ?? "").trim(); };
     body.innerHTML = chars.length ? chars.map(v => {
       const marks = "BCDEFGH".split("").map(c => !!cell(v, c + "16"));
