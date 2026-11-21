@@ -37,6 +37,8 @@
   .line .die { width:20px; height:20px; font-size:14px; border-width:1.5px; }
   .line .tot { margin-left:auto; font-family:'Bangers', Impact, sans-serif; font-size:22px; width:36px; text-align:right; }
   nav { display:flex; gap:4px; flex-basis:100%; }
+  html.solid, html.solid body { background:#222639 !important; }
+  html.solid header { background:#000; }
   #ru { padding:8px 12px; }
   details.rs { border:2px solid #444a66; border-radius:8px; background:var(--paper); margin:6px 0; }
   .pop { float:right; background:transparent; border:none; color:var(--dim); cursor:pointer; padding:0 2px; }
@@ -124,7 +126,7 @@
 </style>
 </head>
 <body>
-<header><h1>NEW SCOLOS</h1><nav><button class="tab on" data-t="dice">DICE</button><button class="tab" data-t="sheet">SHEET</button><button class="tab" data-t="rules">RULES</button><button id="size" class="tab" title="Change panel size" style="margin-left:auto">S</button></nav></header>
+<header><h1>NEW SCOLOS</h1><nav><button class="tab on" data-t="dice">DICE</button><button class="tab" data-t="sheet">SHEET</button><button class="tab" data-t="rules">RULES</button><button id="solid" class="tab" title="See-through / solid" style="margin-left:auto">◐</button><button id="size" class="tab" title="Change panel size">S</button></nav></header>
 <section id="sheet" hidden><div id="sh"></div></section>
 <section id="rules" hidden><div id="ru"></div></section>
 <main id="dice">
@@ -440,6 +442,11 @@ async function showParty() {
     }).join("") : `<div class="empty">No characters found.</div>`;
   } catch (e) { body.innerHTML = `<div class="err">Couldn't load the party: ${esc2(e.message || e)}</div>`; }
 }
+
+// See-through by default; ◐ switches the whole panel to solid gray (remembered per player)
+function applySolid() { const on = store.get("ns.solid") === "1"; document.documentElement.classList.toggle("solid", on); $("solid").classList.toggle("on", on); }
+$("solid").onclick = () => { store.set("ns.solid", store.get("ns.solid") === "1" ? "" : "1"); applySolid(); };
+applySolid();
 
 // ---------------- PANEL SIZE (S / M / L, remembered per player) ----------------
 const SIZES = { S: [264, 680], L: [520, 1400] };
