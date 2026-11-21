@@ -10,6 +10,7 @@ let hideTimer = null;
 
 async function showRoll(r) {
   const url = new URL("toast.html", location.href);
+  const ref = new URLSearchParams(location.search).get("obrref"); if (ref) url.searchParams.set("obrref", ref);
   url.searchParams.set("who", r.who);
   url.searchParams.set("dice", r.dice.join(","));
   url.searchParams.set("mod", r.mod || 0);

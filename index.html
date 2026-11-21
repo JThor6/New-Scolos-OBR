@@ -112,6 +112,11 @@
   .pvit span.x { background:var(--minus); border-color:#000; }
   .pvit em { font-style:normal; font-size:12px; font-weight:700; margin-left:6px; }
   .pvit em.bad { color:var(--minus); }
+  .rd { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; padding:0; margin-left:4px; border:none; border-radius:5px; background:transparent; color:var(--accent); cursor:pointer; opacity:.8; vertical-align:middle; }
+  .rd:hover { opacity:1; background:rgba(187,153,255,.18); }
+  .tot2 { display:inline-flex; align-items:center; white-space:nowrap; }
+  .att { position:relative; }
+  .rd.ra { position:absolute; bottom:3px; right:3px; margin:0; width:18px; height:18px; }
   .err { color:var(--minus); margin-top:8px; font-weight:700; }
   .empty { color:var(--dim); margin-top:8px; }
 </style>
@@ -205,17 +210,44 @@ $("roll").onclick = async () => {
   const r = { id: crypto.randomUUID(), pid: me || "local", who, dice, mod, total: dice.reduce((a, b) => a + b, 0) + mod, ts: Date.now() };
   $("roll").disabled = true;
   await spin(r);
-  if (standalone) { localRolls = [r, ...localRolls]; render(localRolls); $("roll").disabled = false; return; }
+  const err = await saveRoll(r);
+  if (err) showErr(err);
+  $("roll").disabled = false;
+};
+
+// Puts a roll in the shared history. Returns an error message, or "" when it worked.
+async function saveRoll(r) {
+  if (standalone) { localRolls = [r, ...localRolls]; render(localRolls); return ""; }
   try {
     const key = rollKey(me);
     const md = await OBR.room.getMetadata();
     const mine = Array.isArray(md[key]) ? md[key] : [];
     await OBR.room.setMetadata({ [key]: [r, ...mine].slice(0, KEEP) });
     const check = await OBR.room.getMetadata(); // over-cap writes fail silently, so read back
-    if (!(check[key] || []).some(x => x.id === r.id)) showErr("Roll didn't reach the table (room storage may be full). Others may not see it.");
-  } catch (e) { showErr("Roll didn't reach the table: " + (e?.message || e)); }
-  $("roll").disabled = false;
-};
+    if (!(check[key] || []).some(x => x.id === r.id)) return "Roll didn't reach the table (room storage may be full). Others may not see it.";
+    return "";
+  } catch (e) { return "Roll didn't reach the table: " + (e?.message || e); }
+}
+
+// Quick roll from the sheet: rolls with that number as the modifier and shows it spinning in the bottom-right.
+const ROLL_ICON = `<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M8 12h8M12 8v8" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>`;
+async function quickRoll(modText) {
+  const m = parseInt(String(modText).replace("−", "-"), 10) || 0;
+  const dice = [rollDie(), rollDie(), rollDie(), rollDie()];
+  const who = standalone ? "Test" : await OBR.player.getName();
+  const r = { id: crypto.randomUUID(), pid: me || "local", who, dice, mod: m, total: dice.reduce((a, b) => a + b, 0) + m, ts: Date.now() };
+  if (!standalone) {
+    const u = new URL("toast.html", location.href);
+    const ref = new URLSearchParams(location.search).get("obrref"); if (ref) u.searchParams.set("obrref", ref);
+    u.searchParams.set("who", who); u.searchParams.set("dice", dice.join(",")); u.searchParams.set("mod", m); u.searchParams.set("total", r.total); u.searchParams.set("spin", "1");
+    const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
+    OBR.popover.open({ id: "com.newscolos.dice/toast", url: u.href, width: 270, height: 46, anchorReference: "POSITION",
+      anchorPosition: { left: vw - 80, top: vh - 70 }, anchorOrigin: { horizontal: "RIGHT", vertical: "BOTTOM" },
+      transformOrigin: { horizontal: "RIGHT", vertical: "BOTTOM" }, disableClickAway: true }).catch(() => {});
+  }
+  const err = await saveRoll(r);
+  if (err && $("sherr")) { $("sherr").hidden = false; $("sherr").textContent = err; }
+}
 
 // ---------------- SHEET TAB ----------------
 const BRIDGE = "https://script.google.com/macros/s/AKfycbx5cjtXVGyFeoQx0EzJ-47gk4uXT6mXdgs90zaBmUB-zctUFm6OxD8fyWZWWuUQT0ua/exec";
@@ -296,7 +328,7 @@ async function loadSheet(quiet) {
 function list(cells) { return cells.map(V).filter(Boolean); }
 function drawSheet() {
   const F = (label, val, cls = "") => `<div class="fld ${cls}"><small>${label}</small><div>${esc2(val)}</div></div>`;
-  const skillRows = (from, to) => { let h = ""; for (let i = from; i <= to; i++) if (V("B" + i)) h += `<tr><td>${esc2(V("B" + i))}</td><td>${esc2(V("C" + i))}</td><td>${esc2(V("D" + i))}</td><td>${esc2(V("E" + i))}</td><td><b>${esc2(V("F" + i))}</b></td></tr>`; return h; };
+  const skillRows = (from, to) => { let h = ""; for (let i = from; i <= to; i++) if (V("B" + i)) h += `<tr><td>${esc2(V("B" + i))}</td><td>${esc2(V("C" + i))}</td><td>${esc2(V("D" + i))}</td><td>${esc2(V("E" + i))}</td><td><span class="tot2"><b>${esc2(V("F" + i))}</b><button class="rd" data-m="${esc2(V("F" + i))}" title="Roll ${esc2(V("B" + i))}">${ROLL_ICON}</button></span></td></tr>`; return h; };
   const table = (t, from, to) => { const rows = skillRows(from, to); return rows ? `<div class="stab">${t}</div><table class="skt"><tr><th>SKILL</th><th>ATTR.</th><th>RANK</th><th>LVL</th><th>TOT.</th></tr>${rows}</table>` : ""; };
   const inv = [], eq = [];
   for (let i = 46; i <= 80 && V("B" + i) !== "Combat Rules"; i++) {
@@ -313,7 +345,7 @@ function drawSheet() {
       <div class="fld c"><small>Used today</small><button id="pw" class="chk ${used ? "x" : ""}">${used ? "✕" : ""}</button></div></div>
     <div class="g4">${F("Current XP", V("F3"))}${F("Spent XP", V("F4"))}${F("Attr. spent", V("F10"))}${F("Attr. left", V("F12"))}</div>
     <div class="stab">ATTRIBUTES</div>
-    <div class="g5">${[["Adroitness", "C7"], ["Raw Str.", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att"><small>${n}</small><b>${esc2(V(c))}</b></div>`).join("")}
+    <div class="g5">${[["Adroitness", "C7"], ["Raw Str.", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att"><small>${n}</small><b>${esc2(V(c))}</b><button class="rd ra" data-m="${esc2(V(c))}" title="Roll ${n}">${ROLL_ICON}</button></div>`).join("")}
       <div class="att dp"><small>Dmg Penalty</small><b>${esc2(V("C12"))}</b></div></div>
     <div class="stab">VITALITY TRACK</div>
     <div class="vit">${["B", "C", "D", "E", "F", "G", "H"].map((c, i) => { const t = V(c + "15"); const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<button class="box ${V(c + "16") ? "x" : ""}" data-w="${i}"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk ${V(c + "16") ? "x" : ""}">${V(c + "16") ? "✕" : ""}</span></button>`; }).join("")}</div>
@@ -328,6 +360,7 @@ function drawSheet() {
     <div id="sherr" class="err" hidden></div>
     ${isGM ? "" : `<button id="disc" class="histbtn">DISCONNECT SHEET</button>`}`;
   fillPowers();
+  document.querySelectorAll("#shbody .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m); });
   $("reload").onclick = () => loadSheet();
   if ($("disc")) $("disc").onclick = () => { store.set("ns.sheetId", ""); connectForm(); };
   document.querySelectorAll(".box").forEach(b => b.onclick = () => save({ wound: +b.dataset.w, on: !b.classList.contains("x") }, () => { const c = "BCDEFGH"[+b.dataset.w] + "16"; setCell(c, b.classList.contains("x") ? "" : "X"); }));

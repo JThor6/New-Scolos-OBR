@@ -11,8 +11,9 @@
   .tot { font-family:'Bangers', Impact, sans-serif; font-size:28px; min-width:34px; text-align:right; }
 </style></head>
 <body><div class="t" id="t"></div>
-<script>
-  // Shows one roll passed in the address: ?who=Zak&dice=1,0,-1,1&mod=3&total=4
+<script type="module">
+  import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
+  // Shows one roll passed in the address: ?who=Zak&dice=1,0,-1,1&mod=3&total=4 (&spin=1 for a slot-machine reveal)
   const q = new URLSearchParams(location.search);
   const fmt = (n) => (n > 0 ? "+" : "") + n;
   const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -22,5 +23,18 @@
     `<span class="who">${esc(q.get("who") || "")}</span>` +
     dice.map(d => `<span class="die ${d > 0 ? "p" : d < 0 ? "m" : ""}">${d > 0 ? "+" : d < 0 ? "−" : ""}</span>`).join("") +
     (mod ? `<span class="mod">${fmt(mod)}</span>` : "") +
-    `<span class="tot">${fmt(Number(q.get("total") || 0))}</span>`;
+    `<span class="tot" id="tot">${fmt(Number(q.get("total") || 0))}</span>`;
+  const faces = [...document.querySelectorAll(".die")];
+  let showFor = 5000;
+  if (q.get("spin")) {
+    showFor = 7000;
+    const set = (el, d) => { el.className = "die " + (d > 0 ? "p" : d < 0 ? "m" : ""); el.textContent = d > 0 ? "+" : d < 0 ? "−" : ""; };
+    const tot = document.getElementById("tot"); tot.style.visibility = "hidden";
+    let locked = 0;
+    const tick = setInterval(() => { for (let i = locked; i < faces.length; i++) set(faces[i], Math.floor(Math.random() * 3) - 1); }, 70);
+    const lock = () => { set(faces[locked], dice[locked]); locked++; if (locked < faces.length) return setTimeout(lock, 300); clearInterval(tick); tot.style.visibility = "visible"; };
+    setTimeout(lock, 700);
+  }
+  // close this card on its own (works even if the panel that opened it is closed)
+  if (OBR.isAvailable) OBR.onReady(() => setTimeout(() => OBR.popover.close("com.newscolos.dice/toast").catch(() => {}), showFor));
 </script></body></html>
