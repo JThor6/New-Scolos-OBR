@@ -132,6 +132,7 @@
   .syncdot { color:var(--dim); font-size:13px; align-self:center; animation:spin 1s linear infinite; display:inline-block; }
   .syncdot[hidden] { display:none; }
   @keyframes spin { to { transform:rotate(360deg); } }
+  .line .lbl { flex:1; min-width:0; text-align:center; font-size:12px; font-weight:700; color:var(--accent); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .err { color:var(--minus); margin-top:8px; font-weight:700; }
   .empty { color:var(--dim); margin-top:8px; }
 </style>
@@ -205,7 +206,7 @@ function line(r) {
   const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const time = new Date(r.ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   return `<div class="line"><span class="n">${esc(r.who)} <span class="t">${time}</span></span><span class="dice" style="margin:0">${
-    r.dice.map(d => `<div class="${cls(d)}">${face(d)}</div>`).join("")}</span><span class="modtag">${r.mod ? fmt(r.mod) : ""}</span><span class="tot">${fmt(r.total)}</span></div>`;
+    r.dice.map(d => `<div class="${cls(d)}">${face(d)}</div>`).join("")}</span><span class="modtag">${r.mod ? fmt(r.mod) : ""}</span>${r.label ? `<span class="lbl">${esc(r.label)}</span>` : ""}<span class="tot">${fmt(r.total)}</span></div>`;
 }
 function render(rolls) {
   $("history").innerHTML = rolls.length ? rolls.slice(0, 30).map(line).join("") : `<div class="empty">No rolls yet.</div>`;
@@ -247,11 +248,11 @@ async function saveRoll(r) {
 
 // Quick roll from the sheet: rolls with that number as the modifier and shows it spinning in the bottom-right.
 const ROLL_ICON = `<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M8 12h8M12 8v8" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>`;
-async function quickRoll(modText) {
+async function quickRoll(modText, label) {
   const m = parseInt(String(modText).replace("−", "-"), 10) || 0;
   const dice = [rollDie(), rollDie(), rollDie(), rollDie()];
   const who = standalone ? "Test" : await OBR.player.getName();
-  const r = { id: crypto.randomUUID(), pid: me || "local", who, dice, mod: m, total: dice.reduce((a, b) => a + b, 0) + m, ts: Date.now() };
+  const r = { id: crypto.randomUUID(), pid: me || "local", who, label: String(label || "").slice(0, 40), dice, mod: m, total: dice.reduce((a, b) => a + b, 0) + m, ts: Date.now() };
   if (!standalone) {
     const u = new URL("toast.html", location.href);
     const ref = new URLSearchParams(location.search).get("obrref"); if (ref) u.searchParams.set("obrref", ref);
@@ -365,7 +366,7 @@ async function loadSheet(quiet) {
 function list(cells) { return cells.map(V).filter(Boolean); }
 function drawSheet() {
   const F = (label, val, cls = "") => `<div class="fld ${cls}"><small>${label}</small><div>${esc2(val)}</div></div>`;
-  const skillRows = (from, to) => { let h = ""; for (let i = from; i <= to; i++) if (V("B" + i)) h += `<tr><td>${esc2(V("B" + i))}</td><td>${esc2(V("C" + i))}</td><td>${esc2(V("D" + i))}</td><td>${esc2(V("E" + i))}</td><td><b>${esc2(V("F" + i))}</b></td><td class="rdc"><button class="rd" data-m="${esc2(V("F" + i))}" title="Roll ${esc2(V("B" + i))}">${ROLL_ICON}</button></td></tr>`; return h; };
+  const skillRows = (from, to) => { let h = ""; for (let i = from; i <= to; i++) if (V("B" + i)) h += `<tr><td>${esc2(V("B" + i))}</td><td>${esc2(V("C" + i))}</td><td>${esc2(V("D" + i))}</td><td>${esc2(V("E" + i))}</td><td><b>${esc2(V("F" + i))}</b></td><td class="rdc"><button class="rd" data-m="${esc2(V("F" + i))}" data-l="${esc2(V("B" + i))}" title="Roll ${esc2(V("B" + i))}">${ROLL_ICON}</button></td></tr>`; return h; };
   const table = (t, from, to) => { const rows = skillRows(from, to); return rows ? `<div class="stab">${t}</div><table class="skt"><tr><th>SKILL</th><th>ATTR.</th><th>RANK</th><th>LVL</th><th>TOT.</th><th class="rdc"></th></tr>${rows}</table>` : ""; };
   const inv = [], eq = [];
   for (let i = 46; i <= 80 && V("B" + i) !== "Combat Rules"; i++) {
@@ -383,7 +384,7 @@ function drawSheet() {
     <div class="g4">${F("Current XP", V("F3"))}${F("Spent XP", V("F4"))}${F("Attr. spent", V("F10"))}${F("Attr. left", V("F12"))}</div>
     ${V("E13") ? `<div class="g2"><div class="fld"><small>${esc2(V("E13"))}</small><div class="ctl"><button id="ptm">−</button><b>${esc2(V("F13") || "0")}</b><button id="ptp">+</button></div></div></div>` : ""}
     <div class="stab">ATTRIBUTES</div>
-    <div class="g5">${[["Adroitness", "C7"], ["Raw Str.", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att"><small>${n}</small><b>${esc2(V(c))}</b><button class="rd ra" data-m="${esc2(V(c))}" title="Roll ${n}">${ROLL_ICON}</button></div>`).join("")}
+    <div class="g5">${[["Adroitness", "C7"], ["Raw Str.", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att"><small>${n}</small><b>${esc2(V(c))}</b><button class="rd ra" data-m="${esc2(V(c))}" data-l="${{ "Raw Str.": "Raw Strength" }[n] || n}" title="Roll ${n}">${ROLL_ICON}</button></div>`).join("")}
       <div class="att dp"><small>Dmg Penalty</small><b>${esc2(V("C12"))}</b></div></div>
     <div class="stab">VITALITY TRACK</div>
     <div class="vit">${["B", "C", "D", "E", "F", "G", "H"].map((c, i) => { const t = V(c + "15"); const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<button class="box ${V(c + "16") ? "x" : ""}" data-w="${i}"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk ${V(c + "16") ? "x" : ""}">${V(c + "16") ? "✕" : ""}</span></button>`; }).join("")}</div>
@@ -398,7 +399,7 @@ function drawSheet() {
     <div id="sherr" class="err" hidden></div>
     ${isGM ? "" : `<button id="disc" class="histbtn">DISCONNECT SHEET</button>`}`;
   fillPowers();
-  document.querySelectorAll("#shbody .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m); });
+  document.querySelectorAll("#shbody .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l); });
   $("reload").onclick = () => loadSheet();
   if ($("disc")) $("disc").onclick = () => { store.set("ns.sheetId", ""); connectForm(); };
   document.querySelectorAll(".box").forEach(b => b.onclick = () => save({ wound: +b.dataset.w, on: !b.classList.contains("x") }, () => { const c = "BCDEFGH"[+b.dataset.w] + "16"; setCell(c, b.classList.contains("x") ? "" : "X"); }));
