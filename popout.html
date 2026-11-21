@@ -9,6 +9,10 @@
   header { display:flex; align-items:center; gap:6px; background:rgba(0,0,0,.55); border-radius:12px 12px 0 0; padding:7px 10px; position:sticky; top:0; }
   header h1 { flex:1; margin:0; font-family:'Bangers', Impact, sans-serif; font-weight:400; font-size:20px; letter-spacing:1px; color:#bb99ff; }
   select { background:rgba(15,17,28,.7); color:#f1f3f9; border:2px solid #444a66; border-radius:6px; padding:3px; max-width:130px; }
+  body.solid { background:#222639; }
+  body.solid header { background:#000; }
+  .hb, #x { background:transparent; border:2px solid #444a66; color:#f1f3f9; border-radius:6px; width:26px; height:26px; cursor:pointer; font-weight:800; padding:0; }
+  body.solid .hb { background:#bb99ff; color:#000; }
   #x { background:transparent; border:2px solid #444a66; color:#f1f3f9; border-radius:6px; width:26px; height:26px; cursor:pointer; font-weight:800; }
   main { padding:6px 10px 12px; }
   .rr { padding:4px 4px 6px; font-size:13px; border-top:1px solid #333a55; }
@@ -19,7 +23,7 @@
   .err { color:#ff6b6b; font-weight:700; }
 </style></head>
 <body>
-<header><h1 id="t">RULES</h1><select id="pick"></select><button id="x" title="Close">✕</button></header>
+<header><h1 id="t">RULES</h1><select id="pick"></select><button id="op" class="hb" title="See-through / solid">◐</button><button id="x" title="Close">✕</button></header>
 <main id="m"><div class="rr">Loading…</div></main>
 <script type="module">
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
@@ -36,6 +40,10 @@ async function show(k) {
   catch (e) { m.innerHTML = `<div class="rr err">Couldn't load: ${esc2(e.message || e)}</div>`; }
 }
 pick.onchange = () => show(pick.value);
+// See-through by default; ◐ switches to a solid gray background (remembered)
+const solid = (on) => { document.body.classList.toggle("solid", on); try { localStorage.setItem("ns.popSolid", on ? "1" : ""); } catch {} };
+try { solid(localStorage.getItem("ns.popSolid") === "1"); } catch {}
+document.getElementById("op").onclick = () => solid(!document.body.classList.contains("solid"));
 document.getElementById("x").onclick = () => OBR.isAvailable ? OBR.popover.close("com.newscolos.rules") : window.close();
 show(q.get("k") || SECTIONS[0][1]);
 </script></body></html>
