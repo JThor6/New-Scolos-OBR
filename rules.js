@@ -34,14 +34,18 @@ async function oddsHtml() {
   const hdr = v.findIndex(row => /your skill total/i.test(row[1] || ""));
   let html = cell(2, 1) ? `<div class="rr">${esc2(cell(2, 1))}</div>` : "";
   if (hdr >= 0) {
-    const cols = []; for (let c = 2; c < 13 && cell(hdr, c); c++) cols.push(c);
+    // header row: difficulties start in column C; find the last filled column
+    const cols = []; for (let c = 2; c < (v[hdr]?.length || 0); c++) { if (!cell(hdr, c)) break; cols.push(c); }
+    const rows = []; for (let r = hdr + 1; r < v.length; r++) { if (!/^[+\-−]?\d/.test(cell(r, 1))) break; rows.push(r); }
     const heat = (t) => { const p = parseFloat(t); if (isNaN(p)) return ""; return p >= 90 ? "o5" : p >= 70 ? "o4" : p >= 50 ? "o3" : p >= 25 ? "o2" : p >= 10 ? "o1" : "o0"; };
-    html += `<div class="rh">Chance to succeed · skill total ↓ vs difficulty →</div><div class="oddsw"><table class="odds"><tr><th></th>${cols.map(c => `<th>${esc2(cell(hdr, c))}</th>`).join("")}</tr>`;
-    for (let r = hdr + 1; r < v.length && cell(r, 1); r++) html += `<tr><th>${esc2(cell(r, 1))}</th>${cols.map(c => `<td class="${heat(cell(r, c))}">${esc2(cell(r, c).replace(".0%", "%"))}</td>`).join("")}</tr>`;
-    html += `</table></div>`;
+    if (cols.length && rows.length) {
+      html += `<div class="rh">Chance to succeed · skill total ↓ vs difficulty →</div><div class="oddsw"><table class="odds"><tr><th></th>${cols.map(c => `<th>${esc2(cell(hdr, c))}</th>`).join("")}</tr>`;
+      for (const r of rows) html += `<tr><th>${esc2(cell(r, 1))}</th>${cols.map(c => `<td class="${heat(cell(r, c))}">${esc2(cell(r, c).replace(".0%", "%"))}</td>`).join("")}</tr>`;
+      html += `</table></div>`;
+    } else html += `<div class="rr err">Couldn't read the odds chart (found ${cols.length} columns, ${rows.length} rows).</div>`;
     const key = []; for (let r = hdr; r < hdr + 12; r++) if (cell(r, 14) && !/color key/i.test(cell(r, 14))) key.push(cell(r, 14));
     if (key.length) html += `<div class="rh">Color key</div>` + key.map(k => `<div class="rr">${esc2(k)}</div>`).join("");
-  }
+  } else html += `<div class="rr err">Couldn't find the odds chart in the Dice Odds sheet.</div>`;
   const diff = v.findIndex(row => /setting the difficulty/i.test(row[1] || ""));
   if (diff >= 0) {
     html += `<div class="rh">Setting the difficulty</div>`;
