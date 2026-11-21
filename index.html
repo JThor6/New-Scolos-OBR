@@ -10,7 +10,7 @@
   html, body { background:transparent !important; }
   * { box-sizing: border-box; }
   body { margin:0; zoom:0.85; font-family: system-ui, sans-serif; background:var(--bg); color:var(--ink); font-size:14px; }
-  header { background:rgba(0,0,0,.6); padding:8px 12px; display:flex; justify-content:space-between; align-items:center; }
+  header { background:rgba(0,0,0,.6); padding:8px 12px; display:flex; flex-wrap:wrap; row-gap:4px; justify-content:space-between; align-items:center; }
   header h1 { font-family:'Bangers', Impact, sans-serif; font-weight:400; letter-spacing:1px; margin:0; font-size:22px; white-space:nowrap; }
   header span { font-family:'Bangers', Impact, sans-serif; font-size:16px; color:var(--dim); }
   main { padding:10px 12px; }
@@ -36,7 +36,13 @@
   .line .t { color:var(--dim); font-size:10px; font-weight:400; margin-left:4px; }
   .line .die { width:20px; height:20px; font-size:14px; border-width:1.5px; }
   .line .tot { margin-left:auto; font-family:'Bangers', Impact, sans-serif; font-size:22px; width:36px; text-align:right; }
-  nav { display:flex; gap:4px; }
+  nav { display:flex; gap:4px; flex-basis:100%; }
+  #ru { padding:8px 12px; }
+  details.rs { border:2px solid #444a66; border-radius:8px; background:var(--paper); margin:6px 0; }
+  details.rs summary { font-family:'Bangers', Impact, sans-serif; font-size:17px; letter-spacing:1px; padding:6px 8px; cursor:pointer; color:var(--accent); }
+  .rr { padding:3px 8px 5px; font-size:13px; border-top:1px solid #333a55; }
+  .rr b { display:block; }
+  .rh { padding:6px 8px 2px; font-weight:800; color:var(--dim); text-transform:uppercase; font-size:11px; }
   .tab { font-family:'Bangers', Impact, sans-serif; font-size:16px; letter-spacing:1px; background:transparent; color:var(--dim); border:2px solid transparent; border-radius:6px; padding:1px 7px; cursor:pointer; }
   .tab.on { color:#000; background:var(--accent); }
   #sh { padding:10px 12px; }
@@ -61,8 +67,9 @@
 </style>
 </head>
 <body>
-<header><h1>NEW SCOLOS</h1><nav><button class="tab on" data-t="dice">DICE</button><button class="tab" data-t="sheet">SHEET</button></nav></header>
+<header><h1>NEW SCOLOS</h1><nav><button class="tab on" data-t="dice">DICE</button><button class="tab" data-t="sheet">SHEET</button><button class="tab" data-t="rules">RULES</button></nav></header>
 <section id="sheet" hidden><div id="sh"></div></section>
+<section id="rules" hidden><div id="ru"></div></section>
 <main id="dice">
   <label>Modifier</label>
   <input id="modin" inputmode="numeric" placeholder="0" style="font-size:22px;font-weight:800;text-align:center;width:110px">
@@ -169,8 +176,9 @@ const V = (a1) => { const m = a1.match(/^([A-L])(\d+)$/); const row = sheetVals?
 
 document.querySelectorAll(".tab").forEach(b => b.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === b));
-  $("dice").hidden = b.dataset.t !== "dice"; $("sheet").hidden = b.dataset.t !== "sheet";
+  for (const t of ["dice", "sheet", "rules"]) $(t).hidden = b.dataset.t !== t;
   if (b.dataset.t === "sheet") showSheetTab();
+  if (b.dataset.t === "rules") showRules();
 });
 
 function idFromLink(t) { const m = String(t).match(/\/d\/([a-zA-Z0-9_-]{20,})/); return m ? m[1] : (/^[a-zA-Z0-9_-]{20,}$/.test(t.trim()) ? t.trim() : ""); }
@@ -267,6 +275,52 @@ async function save(body, apply) {
   const r = await bridgePost(body).catch(e => ({ ok: false, error: e.message }));
   busy = false;
   if (!r.ok) { sheetVals = JSON.parse(before); drawSheet(); $("sherr").hidden = false; $("sherr").textContent = "Didn't save to the sheet: " + (r.error || "unknown error") + " (Is the sheet shared with Jake as Editor?)"; }
+}
+
+// ---------------- RULES TAB ----------------
+// Read live from the Master character file, in Jake's own words, so it stays current as the rules change.
+const MASTER = "1_cnTDLNHIsaVMAOkOKSKK0YawUHt38ZewW1o5-yWbhU";
+const TYPES = ["Priest", "Mage", "Mentalist", "Mercenary ", "Wraith", "Revenant", "Hacker", "Subject Zero"];
+const SECTIONS = [["Your Turn & Movement", "turn"], ["Attacking & Damage", "attack"], ["Combat Options", "tab:Combat Options"],
+  ...TYPES.map(t => [t.trim(), "tab:" + t]), ["The Gods", "gods"], ["Skill List", "tab:Skill List"]];
+const tabCache = {};
+async function getTab(tab) {
+  if (!tabCache[tab]) {
+    const r = await bridgeGet(tab === "Main Sheet" ? { id: MASTER } : { id: MASTER, tab });
+    if (!r.ok) throw new Error(r.error);
+    tabCache[tab] = r.values;
+  }
+  return tabCache[tab];
+}
+function rowsHtml(values) {
+  return values.map(row => row.map(c => String(c).trim()).filter(Boolean)).filter(c => c.length).map(c =>
+    c.length === 1 ? (c[0].length < 40 ? `<div class="rh">${esc2(c[0])}</div>` : `<div class="rr">${esc2(c[0])}</div>`)
+    : `<div class="rr"><b>${esc2(c.slice(0, -1).join(" · "))}</b>${esc2(c[c.length - 1])}</div>`).join("");
+}
+function col(values, letter, from, to) { const i = letter.charCodeAt(0) - 65; const out = []; for (let r = from; r <= to; r++) out.push([values[r - 1]?.[i] || ""]); return out; }
+async function sectionHtml(key) {
+  if (key.startsWith("tab:")) {
+    const v = await getTab(key.slice(4));
+    if (key.includes("Priest")) { const g = v.findIndex(r => r.join("").trim() === "THE GODS"); return rowsHtml(g > 0 ? v.slice(0, g) : v); }
+    return rowsHtml(v);
+  }
+  if (key === "gods") { const v = await getTab("Priest"); const g = v.findIndex(r => r.join("").trim() === "THE GODS"); return g > 0 ? rowsHtml(v.slice(g + 1)) : "<div class='rr'>No gods list found.</div>"; }
+  const m = await getTab("Main Sheet");
+  if (key === "turn") return rowsHtml(col(m, "G", 46, 56));
+  return rowsHtml([...col(m, "B", 57, 70), ...col(m, "G", 57, 60), ...col(m, "E", 61, 70)]);
+}
+function showRules() {
+  if (!store.get("ns.code")) { $("ru").innerHTML = `<div class="empty">Connect on the SHEET tab first (it needs the table code).</div>`; return; }
+  if ($("ru").dataset.ready) return;
+  $("ru").dataset.ready = "1";
+  $("ru").innerHTML = SECTIONS.map(([t, k]) => `<details class="rs" data-k="${k}"><summary>${esc2(t.toUpperCase())}</summary><div class="rb"></div></details>`).join("");
+  document.querySelectorAll("details.rs").forEach(d => d.addEventListener("toggle", async () => {
+    const body = d.querySelector(".rb");
+    if (!d.open || body.dataset.done) return;
+    body.innerHTML = `<div class="rr">Loading…</div>`;
+    try { body.innerHTML = await sectionHtml(d.dataset.k) || "<div class='rr'>Nothing here yet.</div>"; body.dataset.done = "1"; }
+    catch (e) { body.innerHTML = `<div class="rr err">Couldn't load: ${esc2(e.message || e)}</div>`; }
+  }));
 }
 
 if (standalone) {

@@ -27,6 +27,7 @@ function openMain(id) {
 }
 
 // GET ?code=...&id=SHEET_ID        -> the Main Sheet (display values, A1:L60)
+// GET ?code=...&id=SHEET_ID&tab=Priest -> that whole tab
 // GET ?code=...&list=1             -> every character sheet in the folder (for the GM)
 function doGet(e) {
   try {
@@ -37,8 +38,15 @@ function doGet(e) {
       while (it.hasNext()) { const f = it.next(); out.push({ id: f.getId(), name: f.getName() }); }
       return json({ ok: true, sheets: out });
     }
+    if (p.tab) { // a whole tab, e.g. Combat Options or Priest (used by the Rules tab)
+      openMain(p.id); // folder check
+      const t = SpreadsheetApp.openById(p.id).getSheetByName(p.tab);
+      if (!t) throw new Error('No tab named ' + p.tab);
+      const last = Math.min(t.getLastRow(), 200), cols = Math.min(t.getLastColumn(), 8);
+      return json({ ok: true, values: last ? t.getRange(1, 1, last, cols).getDisplayValues() : [] });
+    }
     const sh = openMain(p.id);
-    return json({ ok: true, values: sh.getRange('A1:L60').getDisplayValues() });
+    return json({ ok: true, values: sh.getRange('A1:L80').getDisplayValues() });
   } catch (err) {
     return json({ ok: false, error: String(err.message || err) });
   }
