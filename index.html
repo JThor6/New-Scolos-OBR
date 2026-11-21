@@ -11,7 +11,7 @@
   * { box-sizing: border-box; }
   body { margin:0; zoom:0.85; font-family: system-ui, sans-serif; background:var(--bg); color:var(--ink); font-size:14px; }
   header { background:rgba(0,0,0,.6); padding:8px 12px; display:flex; justify-content:space-between; align-items:center; }
-  header h1 { font-family:'Bangers', Impact, sans-serif; font-weight:400; letter-spacing:1px; margin:0; font-size:26px; }
+  header h1 { font-family:'Bangers', Impact, sans-serif; font-weight:400; letter-spacing:1px; margin:0; font-size:22px; white-space:nowrap; }
   header span { font-family:'Bangers', Impact, sans-serif; font-size:16px; color:var(--dim); }
   main { padding:10px 12px; }
   label { display:block; font-size:11px; font-weight:700; text-transform:uppercase; color:var(--dim); margin:6px 0 3px; }
@@ -36,13 +36,34 @@
   .line .t { color:var(--dim); font-size:11px; width:52px; text-align:right; }
   .line .die { width:20px; height:20px; font-size:14px; border-width:1.5px; }
   .line .tot { font-family:'Bangers', Impact, sans-serif; font-size:22px; width:36px; text-align:right; }
+  nav { display:flex; gap:4px; }
+  .tab { font-family:'Bangers', Impact, sans-serif; font-size:16px; letter-spacing:1px; background:transparent; color:var(--dim); border:2px solid transparent; border-radius:6px; padding:1px 7px; cursor:pointer; }
+  .tab.on { color:#000; background:var(--accent); }
+  #sh { padding:10px 12px; }
+  .sec { font-family:'Bangers', Impact, sans-serif; font-size:17px; letter-spacing:1px; margin:12px 0 4px; color:var(--accent); }
+  .kv { display:flex; justify-content:space-between; padding:2px 0; border-bottom:1px solid #333a55; }
+  .kv b { font-weight:800; }
+  .grid4 { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; }
+  .att { background:var(--paper); border:2px solid #444a66; border-radius:8px; text-align:center; padding:4px 2px; }
+  .att small { display:block; font-size:9px; color:var(--dim); text-transform:uppercase; font-weight:700; }
+  .att b { font-size:20px; }
+  .vit { display:grid; grid-template-columns:repeat(7,1fr); gap:3px; }
+  .box { border:2px solid #444a66; border-radius:6px; background:var(--paper); color:var(--ink); font-size:8px; line-height:1.1; padding:3px 1px; cursor:pointer; min-height:40px; }
+  .box.x { background:var(--minus); color:#000; border-color:#000; font-weight:800; }
+  .ctl { display:flex; align-items:center; gap:6px; }
+  .ctl button, .sbtn { background:var(--paper); color:var(--ink); border:2px solid #444a66; border-radius:6px; padding:3px 9px; font-weight:800; cursor:pointer; }
+  .sbtn.on { background:var(--accent); color:#000; }
+  .sk { display:flex; justify-content:space-between; font-size:13px; padding:2px 0; border-bottom:1px solid #2c3250; }
+  .pre { white-space:pre-line; font-size:13px; }
+  select { width:100%; padding:6px; border-radius:6px; background:var(--paper); color:var(--ink); border:2px solid #444a66; }
   .err { color:var(--minus); margin-top:8px; font-weight:700; }
   .empty { color:var(--dim); margin-top:8px; }
 </style>
 </head>
 <body>
-<header><h1>NEW SCOLOS</h1><span>DICE</span></header>
-<main>
+<header><h1>NEW SCOLOS</h1><nav><button class="tab on" data-t="dice">DICE</button><button class="tab" data-t="sheet">SHEET</button></nav></header>
+<section id="sheet" hidden><div id="sh"></div></section>
+<main id="dice">
   <label>Modifier</label>
   <input id="modin" inputmode="numeric" placeholder="0" style="font-size:22px;font-weight:800;text-align:center;width:110px">
   <button id="roll">ROLL</button>
@@ -139,11 +160,121 @@ $("roll").onclick = async () => {
   $("roll").disabled = false;
 };
 
+// ---------------- SHEET TAB ----------------
+const BRIDGE = "https://script.google.com/macros/s/AKfycbx5cjtXVGyFeoQx0EzJ-47gk4uXT6mXdgs90zaBmUB-zctUFm6OxD8fyWZWWuUQT0ua/exec";
+const store = { get: (k) => { try { return localStorage.getItem(k) || ""; } catch { return ""; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+let isGM = false, sheetVals = null, busy = false;
+const esc2 = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const V = (a1) => { const m = a1.match(/^([A-L])(\d+)$/); const row = sheetVals?.[+m[2] - 1] || []; return String(row[m[1].charCodeAt(0) - 65] ?? "").trim(); };
+
+document.querySelectorAll(".tab").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === b));
+  $("dice").hidden = b.dataset.t !== "dice"; $("sheet").hidden = b.dataset.t !== "sheet";
+  if (b.dataset.t === "sheet") showSheetTab();
+});
+
+function idFromLink(t) { const m = String(t).match(/\/d\/([a-zA-Z0-9_-]{20,})/); return m ? m[1] : (/^[a-zA-Z0-9_-]{20,}$/.test(t.trim()) ? t.trim() : ""); }
+
+function connectForm(msg) {
+  $("sh").innerHTML = `<div class="sec">CONNECT YOUR SHEET</div>
+    ${isGM ? "" : `<label>Your Google Sheet link</label><input id="slink" placeholder="Paste the link from your browser">`}
+    <label>Table code</label><input id="scode" type="password" placeholder="Ask your GM">
+    <button id="sgo" class="histbtn">CONNECT</button>
+    <div class="err" ${msg ? "" : "hidden"}>${esc2(msg)}</div>`;
+  $("sgo").onclick = () => {
+    const code = $("scode").value.trim();
+    if (!code) return connectForm("Type the table code.");
+    if (!isGM) { const id = idFromLink($("slink").value); if (!id) return connectForm("That doesn't look like a Google Sheet link."); store.set("ns.sheetId", id); }
+    store.set("ns.code", code); showSheetTab();
+  };
+}
+
+async function bridgeGet(params) {
+  const u = new URL(BRIDGE); Object.entries({ code: store.get("ns.code"), ...params }).forEach(([k, v]) => u.searchParams.set(k, v));
+  const res = await fetch(u); return res.json();
+}
+async function bridgePost(body) {
+  const res = await fetch(BRIDGE, { method: "POST", body: JSON.stringify({ code: store.get("ns.code"), id: store.get("ns.sheetId"), ...body }) });
+  return res.json();
+}
+
+async function showSheetTab() {
+  if (!store.get("ns.code") || (!isGM && !store.get("ns.sheetId"))) return connectForm();
+  $("sh").innerHTML = `<div class="empty">Loading…</div>`;
+  try {
+    if (isGM) {
+      const list = await bridgeGet({ list: 1 });
+      if (!list.ok) { store.set("ns.code", ""); return connectForm(list.error); }
+      const cur = store.get("ns.sheetId") || list.sheets[0]?.id || "";
+      store.set("ns.sheetId", cur);
+      $("sh").innerHTML = `<select id="pick">${list.sheets.map(f => `<option value="${f.id}" ${f.id === cur ? "selected" : ""}>${esc2(f.name)}</option>`).join("")}</select><div id="shbody"></div>`;
+      $("pick").onchange = () => { store.set("ns.sheetId", $("pick").value); loadSheet(); };
+    } else $("sh").innerHTML = `<div id="shbody"></div>`;
+    await loadSheet();
+  } catch (e) { $("sh").innerHTML = `<div class="err">Couldn't reach the sheet bridge: ${esc2(e.message || e)}</div>`; }
+}
+
+async function loadSheet() {
+  $("shbody").innerHTML = `<div class="empty">Loading sheet…</div>`;
+  const r = await bridgeGet({ id: store.get("ns.sheetId") }).catch(e => ({ ok: false, error: e.message }));
+  if (!r.ok) {
+    if (/code/i.test(r.error || "")) store.set("ns.code", "");
+    if (!isGM) store.set("ns.sheetId", "");
+    return connectForm(r.error);
+  }
+  sheetVals = r.values; drawSheet();
+}
+
+function list(cells) { return cells.map(V).filter(Boolean); }
+function drawSheet() {
+  const rows = (from, to) => { let h = ""; for (let i = from; i <= to; i++) if (V("B" + i)) h += `<div class="sk"><span>${esc2(V("B" + i))}</span><b>${esc2(V("F" + i))}</b></div>`; return h; };
+  const inv = []; for (let i = 46; i <= 60 && V("B" + i) !== "Combat Rules"; i++) { const t = [V("B" + i), V("C" + i), V("D" + i)].filter(Boolean).join(" - "); if (t) inv.push(t); }
+  const eq = []; for (let i = 46; i <= 60 && V("B" + i) !== "Combat Rules"; i++) if (V("E" + i)) eq.push(V("E" + i));
+  const used = V("F6").toUpperCase() === "TRUE";
+  $("shbody").innerHTML = `
+    <div class="sec">${esc2(V("C3"))}</div>
+    <div class="kv"><span>${esc2(V("C4"))} · Level ${esc2(V("F5"))}</span><span>Credits <b>${esc2(V("F7"))}</b></span></div>
+    <div class="kv"><span>XP ${esc2(V("F3"))} · Spent ${esc2(V("F4"))}</span><button id="reload" class="sbtn">↻</button></div>
+    <div class="sec">ATTRIBUTES</div>
+    <div class="grid4">${[["Adroit.", "C7"], ["Raw Str", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att"><small>${n}</small><b>${esc2(V(c))}</b></div>`).join("")}</div>
+    <div class="kv"><span>Damage Penalty</span><b>${esc2(V("C12"))}</b></div>
+    <div class="sec">VITALITY</div>
+    <div class="vit">${["B", "C", "D", "E", "F", "G", "H"].map((c, i) => `<button class="box ${V(c + "16") ? "x" : ""}" data-w="${i}">${esc2(V(c + "15"))}</button>`).join("")}</div>
+    <div class="sec">POWER &amp; COMBAT</div>
+    <div class="kv"><span>${esc2(V("C5"))}</span><button id="pw" class="sbtn ${used ? "on" : ""}">${used ? "USED TODAY" : "AVAILABLE"}</button></div>
+    <div class="kv"><span>COP spent (of ${esc2(V("H28"))})</span><span class="ctl"><button id="copm">−</button><b id="copv">${esc2(V("H29") || "0")}</b><button id="copp">+</button></span></div>
+    <div class="kv"><span>Melee / Ranged / Armor</span><b>${esc2(V("H23"))} / ${esc2(V("H24"))} / ${esc2(V("H25"))}</b></div>
+    ${list(["G32", "G33", "G34", "G35"]).length ? `<div class="pre">${esc2(list(["G32", "G33", "G34", "G35"]).join("\n"))}</div>` : ""}
+    <div class="sec">TRAINED SKILLS</div>${rows(20, 35)}
+    ${rows(37, 44) ? `<div class="sec">UNTRAINED SKILLS</div>${rows(37, 44)}` : ""}
+    ${eq.length ? `<div class="sec">EQUIPPED</div><div class="pre">${esc2(eq.join("\n"))}</div>` : ""}
+    ${inv.length ? `<div class="sec">INVENTORY</div><div class="pre">${esc2(inv.join("\n"))}</div>` : ""}
+    <div id="sherr" class="err" hidden></div>
+    ${isGM ? "" : `<button id="disc" class="histbtn">DISCONNECT SHEET</button>`}`;
+  $("reload").onclick = loadSheet;
+  if ($("disc")) $("disc").onclick = () => { store.set("ns.sheetId", ""); connectForm(); };
+  document.querySelectorAll(".box").forEach(b => b.onclick = () => save({ wound: +b.dataset.w, on: !b.classList.contains("x") }, () => { const c = "BCDEFGH"[+b.dataset.w] + "16"; setCell(c, b.classList.contains("x") ? "" : "X"); }));
+  $("pw").onclick = () => save({ power: !used }, () => setCell("F6", used ? "FALSE" : "TRUE"));
+  const cop = (d) => { const n = Math.max(0, (parseInt(V("H29")) || 0) + d); save({ copSpent: n }, () => setCell("H29", String(n))); };
+  $("copm").onclick = () => cop(-1); $("copp").onclick = () => cop(1);
+}
+function setCell(a1, v) { const m = a1.match(/^([A-L])(\d+)$/); sheetVals[+m[2] - 1][m[1].charCodeAt(0) - 65] = v; }
+
+async function save(body, apply) {
+  if (busy) return; busy = true;
+  const before = JSON.stringify(sheetVals);
+  apply(); drawSheet(); // show it right away
+  const r = await bridgePost(body).catch(e => ({ ok: false, error: e.message }));
+  busy = false;
+  if (!r.ok) { sheetVals = JSON.parse(before); drawSheet(); $("sherr").hidden = false; $("sherr").textContent = "Didn't save to the sheet: " + (r.error || "unknown error") + " (Is the sheet shared with Jake as Editor?)"; }
+}
+
 if (standalone) {
-  document.querySelector("header span").textContent = "DICE · TEST MODE";
+  document.querySelector("nav").insertAdjacentHTML("beforeend", `<span style="color:var(--dim);font-size:10px">TEST</span>`);
 } else {
   OBR.onReady(async () => {
     me = await OBR.player.getId();
+    isGM = (await OBR.player.getRole()) === "GM";
     render(allRolls(await OBR.room.getMetadata()));
     OBR.room.onMetadataChange((md) => render(allRolls(md)));
   });
