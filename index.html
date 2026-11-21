@@ -129,12 +129,15 @@
   .skt .rdc .rd { margin:0; }
   .att { position:relative; }
   .rd.ra { position:absolute; bottom:3px; right:3px; margin:0; width:18px; height:18px; }
+  .syncdot { color:var(--dim); font-size:13px; align-self:center; animation:spin 1s linear infinite; display:inline-block; }
+  .syncdot[hidden] { display:none; }
+  @keyframes spin { to { transform:rotate(360deg); } }
   .err { color:var(--minus); margin-top:8px; font-weight:700; }
   .empty { color:var(--dim); margin-top:8px; }
 </style>
 </head>
 <body>
-<header><h1>NEW SCOLOS</h1><nav><button class="tab on" data-t="dice">DICE</button><button class="tab" data-t="sheet">SHEET</button><button class="tab" data-t="rules">RULES</button><button id="solid" class="tab" title="See-through / solid" style="margin-left:auto">◐</button><button id="size" class="tab" title="Change panel size">S</button></nav></header>
+<header><h1>NEW SCOLOS</h1><nav><button class="tab on" data-t="dice">DICE</button><button class="tab" data-t="sheet">SHEET</button><button class="tab" data-t="rules">RULES</button><span id="syncdot" class="syncdot" hidden title="Syncing with Google Sheets">⟳</span><button id="solid" class="tab" title="See-through / solid" style="margin-left:auto">◐</button><button id="size" class="tab" title="Change panel size">S</button></nav></header>
 <section id="sheet" hidden><div id="sh"></div></section>
 <section id="rules" hidden><div id="ru"></div></section>
 <main id="dice">
@@ -301,15 +304,27 @@ async function bridgePost(body) {
   return res.json();
 }
 
+// Saved copies so the last thing you saw shows instantly, while a fresh copy loads in the background
+const cache = {
+  get: (k) => { try { return JSON.parse(localStorage.getItem("ns.cache." + k) || "null"); } catch { return null; } },
+  set: (k, v) => { try { localStorage.setItem("ns.cache." + k, JSON.stringify(v)); } catch {} },
+};
+let syncing = 0;
+function sync(d) { syncing = Math.max(0, syncing + d); const el = $("syncdot"); if (el) el.hidden = !syncing; }
+
 async function showSheetTab() {
   if (!store.get("ns.code") || (!isGM && !store.get("ns.sheetId"))) return connectForm();
   $("sh").innerHTML = `<div class="empty">Loading…</div>`;
   try {
     if (isGM) {
-      $("sh").innerHTML = `<div class="empty">Finding characters…</div>`;
       let list;
-      try { list = { sheets: await characterSheets() }; }
-      catch (e) { if (/code/i.test(e.message)) store.set("ns.code", ""); return connectForm(e.message); }
+      const saved = cache.get("chars");
+      if (saved?.length) { list = { sheets: saved }; refreshCharList(); }
+      else {
+        $("sh").innerHTML = `<div class="empty">Finding characters…</div>`;
+        try { list = { sheets: await characterSheets() }; }
+        catch (e) { if (/code/i.test(e.message)) store.set("ns.code", ""); return connectForm(e.message); }
+      }
       let cur = store.get("ns.sheetId");
       if (cur !== "__party" && !list.sheets.some(f => f.id === cur)) cur = list.sheets[0]?.id || "__party";
       store.set("ns.sheetId", cur);
@@ -327,14 +342,23 @@ async function showSheetTab() {
 
 async function loadSheet(quiet) {
   partyOn = false;
-  if (!quiet) $("shbody").innerHTML = `<div class="empty">Loading sheet…</div>`;
-  const r = await bridgeGet({ id: store.get("ns.sheetId") }).catch(e => ({ ok: false, error: e.message }));
+  const id = store.get("ns.sheetId"), saved = cache.get("sheet." + id);
+  if (!quiet) {
+    if (saved) { sheetVals = saved; drawSheet(); quiet = true; } // show the saved copy right away
+    else $("shbody").innerHTML = `<div class="empty">Loading sheet…</div>`;
+  }
+  sync(1);
+  const r = await bridgeGet({ id }).catch(e => ({ ok: false, error: e.message }));
+  sync(-1);
+  if (id !== store.get("ns.sheetId") || partyOn) return; // switched away while loading
   if (!r.ok && quiet) return; // background refresh failed: keep what's on screen
   if (!r.ok) {
     if (/code/i.test(r.error || "")) store.set("ns.code", "");
     if (!isGM) store.set("ns.sheetId", "");
     return connectForm(r.error);
   }
+  cache.set("sheet." + id, r.values);
+  if (JSON.stringify(r.values) === JSON.stringify(sheetVals) && $("shbody")?.querySelector(".fld")) return; // nothing changed
   sheetVals = r.values; drawSheet();
 }
 
@@ -428,7 +452,20 @@ async function characterSheets() {
     const v = r.values, title = String(v[1]?.[1] || "").trim(), name = String(v[2]?.[2] || "").trim();
     return /character sheet/i.test(title) && name ? { id: f.id, name, values: v } : null;
   }));
-  return all.filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
+  const out = all.filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
+  cache.set("chars", out);
+  for (const c of out) cache.set("sheet." + c.id, c.values);
+  return out;
+}
+// GM: refresh the character list in the background and add any new names to the dropdown
+async function refreshCharList() {
+  sync(1);
+  try {
+    const fresh = await characterSheets();
+    const pick = $("pick"); if (!pick) return;
+    const have = new Set([...pick.options].map(o => o.value));
+    for (const c of fresh) if (!have.has(c.id)) pick.insertAdjacentHTML("beforeend", `<option value="${c.id}">${esc2(c.name)}</option>`);
+  } catch {} finally { sync(-1); }
 }
 
 // ---------------- PARTY OVERVIEW ----------------
@@ -437,9 +474,19 @@ let partyOn = false;
 async function showParty() {
   partyOn = true;
   const body = $("shbody") || ($("sh").insertAdjacentHTML("beforeend", `<div id="shbody"></div>`), $("shbody"));
-  body.innerHTML = `<div class="empty">Loading party…</div>`;
+  const saved = cache.get("chars");
+  if (saved?.length) drawParty(body, saved.map(c => c.values));
+  else body.innerHTML = `<div class="empty">Loading party…</div>`;
+  sync(1);
   try {
     const chars = (await characterSheets()).map(c => c.values);
+    if (!partyOn) return;
+    drawParty(body, chars);
+  } catch (e) { if (!saved?.length) body.innerHTML = `<div class="err">Couldn't load the party: ${esc2(e.message || e)}</div>`; }
+  finally { sync(-1); }
+}
+function drawParty(body, chars) {
+  {
     const cell = (v, a1) => { const m = a1.match(/^([A-L])(\d+)$/); return String(v[+m[2] - 1]?.[m[1].charCodeAt(0) - 65] ?? "").trim(); };
     body.innerHTML = chars.length ? chars.map(v => {
       const marks = "BCDEFGH".split("").map(c => !!cell(v, c + "16"));
@@ -451,7 +498,7 @@ async function showParty() {
         <div class="pvit">${marks.map((m, i) => `<i><small>${["LW", "LW", "LW", "MW", "CW", "KO", "D"][i]}</small><span class="${m ? "x" : ""}"></span></i>`).join("")}<em class="${worst >= 4 ? "bad" : ""}">${esc2(status)}</em></div>
       </div>`;
     }).join("") : `<div class="empty">No characters found.</div>`;
-  } catch (e) { body.innerHTML = `<div class="err">Couldn't load the party: ${esc2(e.message || e)}</div>`; }
+  }
 }
 
 // See-through by default; ◐ switches the whole panel to solid gray (remembered per player)

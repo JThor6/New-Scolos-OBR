@@ -12,13 +12,21 @@ export const TYPES = ["Priest", "Mage", "Mentalist", "Mercenary ", "Wraith", "Re
 export const SECTIONS = [["Your Turn & Movement", "turn"], ["Attacking & Damage", "attack"], ["Combat Options", "tab:Combat Options"],
   ...TYPES.map(t => [t.trim(), "tab:" + t]), ["The Gods", "gods"], ["Skill List", "tab:Skill List"], ["Dice Odds", "odds"]];
 const tabCache = {};
+const saved = {
+  get: (k) => { try { return JSON.parse(localStorage.getItem("ns.cache.rules." + k) || "null"); } catch { return null; } },
+  set: (k, v) => { try { localStorage.setItem("ns.cache.rules." + k, JSON.stringify(v)); } catch {} },
+};
+// Show the saved copy instantly; fetch a fresh one in the background for next time
+async function fetchTab(id, tab, key) {
+  const r = await bridgeGet(tab ? { id, tab } : { id });
+  if (!r.ok) throw new Error(r.error);
+  saved.set(key, r.values); tabCache[key] = r.values; return r.values;
+}
 export async function getTab(tab) {
-  if (!tabCache[tab]) {
-    const r = await bridgeGet(tab === "Main Sheet" ? { id: MASTER } : { id: MASTER, tab });
-    if (!r.ok) throw new Error(r.error);
-    tabCache[tab] = r.values;
-  }
-  return tabCache[tab];
+  if (tabCache[tab]) return tabCache[tab];
+  const id = MASTER, t = tab === "Main Sheet" ? "" : tab, old = saved.get(tab);
+  if (old) { tabCache[tab] = old; fetchTab(id, t, tab).catch(() => {}); return old; }
+  return fetchTab(id, t, tab);
 }
 function rowsHtml(values) {
   return values.map(row => row.map(c => String(c).trim()).filter(Boolean)).filter(c => c.length).map(c =>
@@ -29,7 +37,7 @@ function col(values, letter, from, to) { const i = letter.charCodeAt(0) - 65; co
 const DICE_ODDS = "1wLo5GU3ONGhv8PvGhQopZzPBAJZZSzClj0-RnwlX8SE"; // "New Scolos Dice Odds" sheet in the character folder
 let oddsCache = null;
 async function oddsHtml() {
-  if (!oddsCache) { const r = await bridgeGet({ id: DICE_ODDS, tab: "Dice Odds" }); if (!r.ok) throw new Error(r.error); oddsCache = r.values; }
+  if (!oddsCache) { const old = saved.get("odds"); if (old) { oddsCache = old; bridgeGet({ id: DICE_ODDS, tab: "Dice Odds" }).then(r => r.ok && saved.set("odds", r.values)).catch(() => {}); } else { const r = await bridgeGet({ id: DICE_ODDS, tab: "Dice Odds" }); if (!r.ok) throw new Error(r.error); oddsCache = r.values; saved.set("odds", r.values); } }
   const v = oddsCache, cell = (row, col) => String(v[row]?.[col] ?? "").trim();
   const hdr = v.findIndex(row => /^\s*your skill total\s*$/i.test(row[1] || "")); // the header cell itself, not the intro sentence
   let html = cell(2, 1) ? `<div class="rr">${esc2(cell(2, 1))}</div>` : "";
