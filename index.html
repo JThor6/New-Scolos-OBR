@@ -62,6 +62,30 @@
   .sk { display:flex; justify-content:space-between; font-size:13px; padding:2px 0; border-bottom:1px solid #2c3250; }
   .pre { white-space:pre-line; font-size:13px; }
   select { width:100%; padding:6px; border-radius:6px; background:var(--paper); color:var(--ink); border:2px solid #444a66; }
+  .fld { border:2px solid #000; outline:1px solid #444a66; border-radius:7px; background:var(--paper); padding:2px 6px 4px; min-width:0; }
+  .fld small, .att small { display:block; font-size:9px; font-weight:800; text-transform:uppercase; color:var(--dim); }
+  .fld > div { font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .fld.c { text-align:center; }
+  .g2, .g3, .g4, .g5, .g2b { display:grid; gap:5px; margin-top:5px; }
+  .g2 { grid-template-columns:1fr 1fr; } .g3 { grid-template-columns:1fr 1fr auto; } .g4 { grid-template-columns:repeat(4,1fr); }
+  .g5 { grid-template-columns:repeat(5,1fr); } .g2b { grid-template-columns:1fr auto; }
+  .g3:has(.fld:nth-child(3)) { grid-template-columns:1fr 1fr 1fr; }
+  .stab { display:inline-block; background:#000; color:#fff; font-weight:800; font-size:12px; letter-spacing:.5px; padding:2px 10px; border-radius:6px 6px 0 0; margin-top:10px; }
+  .att { border:3px solid #000; outline:1px solid #444a66; border-radius:8px; background:var(--paper); text-align:center; padding:4px 2px; }
+  .att b { font-size:22px; }
+  .att.dp { background:rgba(120,120,130,.35); border-width:2px; }
+  .vit { display:grid; grid-template-columns:repeat(7,1fr); gap:0; border:2px solid #000; outline:1px solid #444a66; border-radius:7px; background:var(--paper); }
+  .box { border:none; border-left:1px solid #444a66; background:transparent; color:var(--ink); font-size:9px; font-weight:700; line-height:1.15; padding:4px 1px; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:2px; text-transform:uppercase; }
+  .box:first-child { border-left:none; }
+  .box b { font-size:12px; }
+  .box.x { background:transparent; color:var(--ink); }
+  .chk { width:20px; height:20px; border:2px solid var(--ink); border-radius:3px; background:transparent; color:var(--ink); font-weight:900; display:inline-flex; align-items:center; justify-content:center; cursor:pointer; padding:0; }
+  .chk.x { background:var(--minus); color:#000; border-color:#000; }
+  .skt { width:100%; border-collapse:collapse; border:2px solid #000; background:var(--paper); font-size:12px; }
+  .skt th { font-size:9px; text-align:left; color:var(--dim); padding:2px 3px; border-bottom:1px solid #444a66; }
+  .skt td { padding:3px; border-top:1px solid #333a55; border-left:1px solid #333a55; }
+  .skt td:first-child { border-left:none; }
+  .lbox { border:2px solid #000; outline:1px solid #444a66; border-radius:0 7px 7px 7px; background:var(--paper); padding:5px 7px; font-size:13px; line-height:1.4; }
   .err { color:var(--minus); margin-top:8px; font-weight:700; }
   .empty { color:var(--dim); margin-top:8px; }
 </style>
@@ -235,28 +259,36 @@ async function loadSheet() {
 
 function list(cells) { return cells.map(V).filter(Boolean); }
 function drawSheet() {
-  const rows = (from, to) => { let h = ""; for (let i = from; i <= to; i++) if (V("B" + i)) h += `<div class="sk"><span>${esc2(V("B" + i))}</span><b>${esc2(V("F" + i))}</b></div>`; return h; };
-  const inv = []; for (let i = 46; i <= 60 && V("B" + i) !== "Combat Rules"; i++) { const t = [V("B" + i), V("C" + i), V("D" + i)].filter(Boolean).join(" - "); if (t) inv.push(t); }
-  const eq = []; for (let i = 46; i <= 60 && V("B" + i) !== "Combat Rules"; i++) if (V("E" + i)) eq.push(V("E" + i));
+  const F = (label, val, cls = "") => `<div class="fld ${cls}"><small>${label}</small><div>${esc2(val)}</div></div>`;
+  const skillRows = (from, to) => { let h = ""; for (let i = from; i <= to; i++) if (V("B" + i)) h += `<tr><td>${esc2(V("B" + i))}</td><td>${esc2(V("C" + i))}</td><td>${esc2(V("D" + i))}</td><td>${esc2(V("E" + i))}</td><td><b>${esc2(V("F" + i))}</b></td></tr>`; return h; };
+  const table = (t, from, to) => { const rows = skillRows(from, to); return rows ? `<div class="stab">${t}</div><table class="skt"><tr><th>SKILL</th><th>ATTR.</th><th>RANK</th><th>LVL</th><th>TOT.</th></tr>${rows}</table>` : ""; };
+  const inv = [], eq = [];
+  for (let i = 46; i <= 80 && V("B" + i) !== "Combat Rules"; i++) {
+    const t = [V("B" + i), V("C" + i), V("D" + i)].filter(Boolean).join(" - "); if (t) inv.push(t);
+    if (V("E" + i)) eq.push(V("E" + i));
+  }
+  const opts = list(["G32", "G33", "G34", "G35"]);
   const used = V("F6").toUpperCase() === "TRUE";
+  const box = (t, items) => `<div class="stab">${t}</div><div class="lbox">${items.length ? items.map(esc2).join("<br>") : "&nbsp;"}</div>`;
   $("shbody").innerHTML = `
-    <div class="sec">${esc2(V("C3"))}</div>
-    <div class="kv"><span>${esc2(V("C4"))} · Level ${esc2(V("F5"))}</span><span>Credits <b>${esc2(V("F7"))}</b></span></div>
-    <div class="kv"><span>XP ${esc2(V("F3"))} · Spent ${esc2(V("F4"))}</span><button id="reload" class="sbtn">↻</button></div>
-    <div class="sec">ATTRIBUTES</div>
-    <div class="grid4">${[["Adroit.", "C7"], ["Raw Str", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att"><small>${n}</small><b>${esc2(V(c))}</b></div>`).join("")}</div>
-    <div class="kv"><span>Damage Penalty</span><b>${esc2(V("C12"))}</b></div>
-    <div class="sec">VITALITY</div>
-    <div class="vit">${["B", "C", "D", "E", "F", "G", "H"].map((c, i) => `<button class="box ${V(c + "16") ? "x" : ""}" data-w="${i}">${esc2(V(c + "15"))}</button>`).join("")}</div>
-    <div class="sec">POWER &amp; COMBAT</div>
-    <div class="kv"><span>${esc2(V("C5"))}</span><button id="pw" class="sbtn ${used ? "on" : ""}">${used ? "USED TODAY" : "AVAILABLE"}</button></div>
-    <div class="kv"><span>COP spent (of ${esc2(V("H28"))})</span><span class="ctl"><button id="copm">−</button><b id="copv">${esc2(V("H29") || "0")}</b><button id="copp">+</button></span></div>
-    <div class="kv"><span>Melee / Ranged / Armor</span><b>${esc2(V("H23"))} / ${esc2(V("H24"))} / ${esc2(V("H25"))}</b></div>
-    ${list(["G32", "G33", "G34", "G35"]).length ? `<div class="pre">${esc2(list(["G32", "G33", "G34", "G35"]).join("\n"))}</div>` : ""}
-    <div class="sec">TRAINED SKILLS</div>${rows(20, 35)}
-    ${rows(37, 44) ? `<div class="sec">UNTRAINED SKILLS</div>${rows(37, 44)}` : ""}
-    ${eq.length ? `<div class="sec">EQUIPPED</div><div class="pre">${esc2(eq.join("\n"))}</div>` : ""}
-    ${inv.length ? `<div class="sec">INVENTORY</div><div class="pre">${esc2(inv.join("\n"))}</div>` : ""}
+    <div class="g2">${F("Name", V("C3"))}${F("Type", V("C4"))}</div>
+    <div class="g3">${F("Level", V("F5"))}${F("Credits", V("F7"))}<button id="reload" class="sbtn" title="Reload from Google Sheet">↻</button></div>
+    <div class="g2b"><div class="fld"><small>Extraordinary Power</small><div>${esc2(V("C5"))}</div></div>
+      <div class="fld c"><small>Used today</small><button id="pw" class="chk ${used ? "x" : ""}">${used ? "✕" : ""}</button></div></div>
+    <div class="g4">${F("Current XP", V("F3"))}${F("Spent XP", V("F4"))}${F("Attr. spent", V("F10"))}${F("Attr. left", V("F12"))}</div>
+    <div class="stab">ATTRIBUTES</div>
+    <div class="g5">${[["Adroitness", "C7"], ["Raw Str.", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att"><small>${n}</small><b>${esc2(V(c))}</b></div>`).join("")}
+      <div class="att dp"><small>Dmg Penalty</small><b>${esc2(V("C12"))}</b></div></div>
+    <div class="stab">VITALITY TRACK</div>
+    <div class="vit">${["B", "C", "D", "E", "F", "G", "H"].map((c, i) => { const t = V(c + "15"); const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<button class="box ${V(c + "16") ? "x" : ""}" data-w="${i}"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk ${V(c + "16") ? "x" : ""}">${V(c + "16") ? "✕" : ""}</span></button>`; }).join("")}</div>
+    <div class="stab">COMBAT</div>
+    <div class="g3">${F("Melee Dmg", V("H23"))}${F("Ranged Dmg", V("H24"))}${F("Armor", V("H25"))}</div>
+    <div class="g2">${F("COP per combat", V("H28"))}<div class="fld"><small>COP spent</small><div class="ctl"><button id="copm">−</button><b id="copv">${esc2(V("H29") || "0")}</b><button id="copp">+</button></div></div></div>
+    ${box("COMBAT OPTIONS", opts)}
+    ${table("TRAINED SKILLS", 20, 35)}
+    ${table("UNTRAINED SKILLS", 37, 44)}
+    ${box("EQUIPPED", eq)}
+    ${box("INVENTORY", inv)}
     <div id="sherr" class="err" hidden></div>
     ${isGM ? "" : `<button id="disc" class="histbtn">DISCONNECT SHEET</button>`}`;
   $("reload").onclick = loadSheet;
