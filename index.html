@@ -98,6 +98,16 @@
   body { overflow-x:hidden; }
   .box { hyphens:auto; -webkit-hyphens:auto; }
   .skt td:first-child { overflow-wrap:anywhere; }
+  .pcard { border:2px solid #000; outline:1px solid #444a66; border-radius:8px; background:var(--paper); padding:6px 8px; margin-top:6px; }
+  .ptop { display:flex; align-items:baseline; gap:6px; }
+  .ptop b { font-size:15px; } .ptop small { color:var(--dim); font-size:11px; flex:1; }
+  .ppw { font-size:9px; font-weight:800; padding:2px 5px; border-radius:4px; background:var(--plus); color:#000; }
+  .ppw.u { background:#555b75; color:var(--ink); }
+  .pvit { display:flex; align-items:center; gap:3px; margin-top:5px; }
+  .pvit span { width:16px; height:16px; border:2px solid var(--ink); border-radius:3px; }
+  .pvit span.x { background:var(--minus); border-color:#000; }
+  .pvit em { font-style:normal; font-size:12px; font-weight:700; margin-left:6px; }
+  .pvit em.bad { color:var(--minus); }
   .err { color:var(--minus); margin-top:8px; font-weight:700; }
   .empty { color:var(--dim); margin-top:8px; }
 </style>
@@ -251,14 +261,20 @@ async function showSheetTab() {
       if (!list.ok) { store.set("ns.code", ""); return connectForm(list.error); }
       const cur = store.get("ns.sheetId") || list.sheets[0]?.id || "";
       store.set("ns.sheetId", cur);
-      $("sh").innerHTML = `<select id="pick">${list.sheets.map(f => `<option value="${f.id}" ${f.id === cur ? "selected" : ""}>${esc2(f.name)}</option>`).join("")}</select><div id="shbody"></div>`;
-      $("pick").onchange = () => { store.set("ns.sheetId", $("pick").value); loadSheet(); };
-    } else $("sh").innerHTML = `<div id="shbody"></div>`;
+      $("sh").innerHTML = `<select id="pick"><option value="__party" ${cur === "__party" ? "selected" : ""}>★ Party overview</option>${list.sheets.map(f => `<option value="${f.id}" ${f.id === cur ? "selected" : ""}>${esc2(f.name)}</option>`).join("")}</select><div id="shbody"></div>`;
+      $("pick").onchange = () => { store.set("ns.sheetId", $("pick").value); $("pick").value === "__party" ? showParty() : loadSheet(); };
+      return cur === "__party" ? showParty() : loadSheet();
+    }
+    // players: switch between their own sheet and the party overview
+    $("sh").innerHTML = `<div class="g2" style="margin:0 0 4px"><button id="vMine" class="sbtn on">MY SHEET</button><button id="vParty" class="sbtn">PARTY</button></div><div id="shbody"></div>`;
+    $("vMine").onclick = () => { $("vMine").classList.add("on"); $("vParty").classList.remove("on"); loadSheet(); };
+    $("vParty").onclick = () => { $("vParty").classList.add("on"); $("vMine").classList.remove("on"); showParty(); };
     await loadSheet();
   } catch (e) { $("sh").innerHTML = `<div class="err">Couldn't reach the sheet bridge: ${esc2(e.message || e)}</div>`; }
 }
 
 async function loadSheet(quiet) {
+  partyOn = false;
   if (!quiet) $("shbody").innerHTML = `<div class="empty">Loading sheet…</div>`;
   const r = await bridgeGet({ id: store.get("ns.sheetId") }).catch(e => ({ ok: false, error: e.message }));
   if (!r.ok && quiet) return; // background refresh failed: keep what's on screen
@@ -344,7 +360,35 @@ async function save(body, apply) {
 }
 
 // Keep the sheet current while it's open (picks up edits made in Google Sheets too)
-setInterval(() => { if (!$("sheet").hidden && !busy && $("shbody") && sheetVals) loadSheet(true); }, 30000);
+setInterval(() => { if ($("sheet").hidden || busy || !$("shbody")) return; partyOn ? showParty() : (sheetVals && loadSheet(true)); }, 30000);
+
+// ---------------- PARTY OVERVIEW ----------------
+// Everyone's name, type, power used today and vitality track, read-only. For healers and the GM.
+let partyOn = false;
+async function showParty() {
+  partyOn = true;
+  const body = $("shbody") || ($("sh").insertAdjacentHTML("beforeend", `<div id="shbody"></div>`), $("shbody"));
+  body.innerHTML = `<div class="empty">Loading party…</div>`;
+  try {
+    const list = await bridgeGet({ list: 1 });
+    if (!list.ok) throw new Error(list.error);
+    const chars = (await Promise.all(list.sheets.filter(f => !/master/i.test(f.name)).map(async f => {
+      const r = await bridgeGet({ id: f.id }).catch(() => null);
+      return r && r.ok ? r.values : null;
+    }))).filter(v => v && String(v[2]?.[2] || "").trim());
+    const cell = (v, a1) => { const m = a1.match(/^([A-L])(\d+)$/); return String(v[+m[2] - 1]?.[m[1].charCodeAt(0) - 65] ?? "").trim(); };
+    body.innerHTML = chars.length ? chars.map(v => {
+      const marks = "BCDEFGH".split("").map(c => !!cell(v, c + "16"));
+      const worst = marks.lastIndexOf(true);
+      const status = worst < 0 ? "Unhurt" : cell(v, "BCDEFGH"[worst] + "15").replace(/^\S+\s+/, "");
+      const used = cell(v, "F6").toUpperCase() === "TRUE";
+      return `<div class="pcard">
+        <div class="ptop"><b>${esc2(cell(v, "C3"))}</b><small>${esc2(cell(v, "C4"))}</small><span class="ppw ${used ? "u" : ""}">${used ? "POWER USED" : "POWER READY"}</span></div>
+        <div class="pvit">${marks.map(m => `<span class="${m ? "x" : ""}"></span>`).join("")}<em class="${worst >= 4 ? "bad" : ""}">${esc2(status)}</em></div>
+      </div>`;
+    }).join("") : `<div class="empty">No characters found.</div>`;
+  } catch (e) { body.innerHTML = `<div class="err">Couldn't load the party: ${esc2(e.message || e)}</div>`; }
+}
 
 // ---------------- PANEL SIZE (S / M / L, remembered per player) ----------------
 const SIZES = { S: [264, 680], L: [520, 1400] };
