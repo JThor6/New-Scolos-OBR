@@ -43,8 +43,6 @@ async function oddsHtml() {
       for (const r of rows) html += `<tr><th>${esc2(cell(r, 1))}</th>${cols.map(c => `<td class="${heat(cell(r, c))}">${esc2(cell(r, c).replace(".0%", "%"))}</td>`).join("")}</tr>`;
       html += `</table></div>`;
     } else html += `<div class="rr err">Couldn't read the odds chart (found ${cols.length} columns, ${rows.length} rows).</div>`;
-    const key = []; for (let r = hdr; r < hdr + 12; r++) if (cell(r, 14) && !/color key/i.test(cell(r, 14))) key.push(cell(r, 14));
-    if (key.length) html += `<div class="rh">Color key</div>` + key.map(k => `<div class="rr">${esc2(k)}</div>`).join("");
   } else html += `<div class="rr err">Couldn't find the odds chart in the Dice Odds sheet.</div>`;
   const diff = v.findIndex(row => /setting the difficulty/i.test(row[1] || ""));
   if (diff >= 0) {
