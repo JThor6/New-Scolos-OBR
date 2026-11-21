@@ -1,5 +1,5 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -89,6 +89,15 @@
   .skt td { padding:3px; border-top:1px solid #333a55; border-left:1px solid #333a55; }
   .skt td:first-child { border-left:none; }
   .lbox { border:2px solid #000; outline:1px solid #444a66; border-radius:0 7px 7px 7px; background:var(--paper); padding:5px 7px; font-size:13px; line-height:1.4; }
+  @media (max-width: 330px) {
+    .g4 { grid-template-columns:1fr 1fr; } .g5 { grid-template-columns:repeat(3,1fr); }
+    .skt th:nth-child(3), .skt td:nth-child(3), .skt th:nth-child(4), .skt td:nth-child(4) { display:none; }
+    .box { font-size:8.5px; } .box b { font-size:12px; } .chk { width:16px; height:16px; }
+    .att b { font-size:18px; }
+  }
+  body { overflow-x:hidden; }
+  .box { hyphens:auto; -webkit-hyphens:auto; }
+  .skt td:first-child { overflow-wrap:anywhere; }
   .err { color:var(--minus); margin-top:8px; font-weight:700; }
   .empty { color:var(--dim); margin-top:8px; }
 </style>
@@ -313,12 +322,12 @@ async function fillPowers() {
     const always = [], daily = [];
     for (const row of v) {
       const b = String(row[1] || "").trim(), c = String(row[2] || "").trim();
-      if (/^always on/i.test(b)) always.push(b.replace(/^always on:?\s*/i, "") || c);
-      else if (/^extraordinary power/i.test(b) && c) daily.push(c);
+      if (/^always on/i.test(b)) always.push((b.replace(/^always on:?\s*/i, "") || c).replace(/\s*\((once|one) per day\)\s*/ig, " ").trim());
+      else if (/^extraordinary power/i.test(b) && c) daily.push(c.replace(/\s*\((once|one) per day\)\s*/ig, " ").trim());
     }
     if ($("pwlist")) $("pwlist").innerHTML =
       (always.length ? `<div><span>ALWAYS ON:</span> ${always.map(esc2).join(", ")}</div>` : "") +
-      (daily.length ? `<div><span>DAILY (pick 1):</span> ${daily.map(esc2).join(" · ")}</div>` : "");
+      (daily.length ? `<div><span>DAILY:</span> ${daily.map(esc2).join(" · ")}</div>` : "");
   } catch { /* the sheet still works without it */ }
 }
 function setCell(a1, v) { const m = a1.match(/^([A-L])(\d+)$/); sheetVals[+m[2] - 1][m[1].charCodeAt(0) - 65] = v; }
