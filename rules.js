@@ -31,7 +31,7 @@ let oddsCache = null;
 async function oddsHtml() {
   if (!oddsCache) { const r = await bridgeGet({ id: DICE_ODDS, tab: "Dice Odds" }); if (!r.ok) throw new Error(r.error); oddsCache = r.values; }
   const v = oddsCache, cell = (row, col) => String(v[row]?.[col] ?? "").trim();
-  const hdr = v.findIndex(row => /your skill total/i.test(row[1] || ""));
+  const hdr = v.findIndex(row => /^\s*your skill total\s*$/i.test(row[1] || "")); // the header cell itself, not the intro sentence
   let html = cell(2, 1) ? `<div class="rr">${esc2(cell(2, 1))}</div>` : "";
   if (hdr >= 0) {
     // header row: difficulties start in column C; find the last filled column
