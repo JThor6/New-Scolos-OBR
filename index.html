@@ -346,7 +346,10 @@ const SIZES = { S: [264, 680], L: [520, 1400] };
 function applySize() {
   const k = SIZES[store.get("ns.size")] ? store.get("ns.size") : "S";
   $("size").textContent = k;
-  if (!standalone) { OBR.action.setWidth(SIZES[k][0]).catch(() => {}); OBR.action.setHeight(SIZES[k][1]).catch(() => {}); }
+  if (standalone) return;
+  OBR.action.setWidth(SIZES[k][0]).catch(() => {});
+  if (k === "L") OBR.viewport.getHeight().then(vh => OBR.action.setHeight(Math.max(500, vh - 70))).catch(() => OBR.action.setHeight(SIZES.L[1]).catch(() => {})); // fill the screen top to bottom
+  else OBR.action.setHeight(SIZES[k][1]).catch(() => {});
 }
 $("size").onclick = () => { store.set("ns.size", store.get("ns.size") === "L" ? "S" : "L"); applySize(); };
 
