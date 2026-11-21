@@ -258,9 +258,10 @@ async function showSheetTab() {
   } catch (e) { $("sh").innerHTML = `<div class="err">Couldn't reach the sheet bridge: ${esc2(e.message || e)}</div>`; }
 }
 
-async function loadSheet() {
-  $("shbody").innerHTML = `<div class="empty">Loading sheet…</div>`;
+async function loadSheet(quiet) {
+  if (!quiet) $("shbody").innerHTML = `<div class="empty">Loading sheet…</div>`;
   const r = await bridgeGet({ id: store.get("ns.sheetId") }).catch(e => ({ ok: false, error: e.message }));
+  if (!r.ok && quiet) return; // background refresh failed: keep what's on screen
   if (!r.ok) {
     if (/code/i.test(r.error || "")) store.set("ns.code", "");
     if (!isGM) store.set("ns.sheetId", "");
@@ -304,7 +305,7 @@ function drawSheet() {
     <div id="sherr" class="err" hidden></div>
     ${isGM ? "" : `<button id="disc" class="histbtn">DISCONNECT SHEET</button>`}`;
   fillPowers();
-  $("reload").onclick = loadSheet;
+  $("reload").onclick = () => loadSheet();
   if ($("disc")) $("disc").onclick = () => { store.set("ns.sheetId", ""); connectForm(); };
   document.querySelectorAll(".box").forEach(b => b.onclick = () => save({ wound: +b.dataset.w, on: !b.classList.contains("x") }, () => { const c = "BCDEFGH"[+b.dataset.w] + "16"; setCell(c, b.classList.contains("x") ? "" : "X"); }));
   $("pw").onclick = () => save({ power: !used }, () => setCell("F6", used ? "FALSE" : "TRUE"));
@@ -338,8 +339,12 @@ async function save(body, apply) {
   apply(); drawSheet(); // show it right away
   const r = await bridgePost(body).catch(e => ({ ok: false, error: e.message }));
   busy = false;
+  if (r.ok) { loadSheet(true); return; } // re-read so the sheet's own formulas (like Damage Penalty) show up
   if (!r.ok) { sheetVals = JSON.parse(before); drawSheet(); $("sherr").hidden = false; $("sherr").textContent = "Didn't save to the sheet: " + (r.error || "unknown error") + " (Is the sheet shared with Jake as Editor?)"; }
 }
+
+// Keep the sheet current while it's open (picks up edits made in Google Sheets too)
+setInterval(() => { if (!$("sheet").hidden && !busy && $("shbody") && sheetVals) loadSheet(true); }, 30000);
 
 // ---------------- PANEL SIZE (S / M / L, remembered per player) ----------------
 const SIZES = { S: [264, 680], L: [520, 1400] };
