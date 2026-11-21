@@ -465,7 +465,7 @@ async function popOut(k) {
   OBR.popover.open({ id: "com.newscolos.rules", url: u.href, width: 340, height: Math.max(360, Math.round(vh * 0.75)),
     anchorReference: "POSITION", anchorPosition: { left: vw - 70, top: 70 },
     anchorOrigin: { horizontal: "RIGHT", vertical: "TOP" }, transformOrigin: { horizontal: "RIGHT", vertical: "TOP" },
-    disableClickAway: true }).catch(() => {});
+    disableClickAway: true, hidePaper: true }).catch(() => {});
 }
 function showRules() {
   if (!store.get("ns.code")) { $("ru").innerHTML = `<div class="empty">Connect on the SHEET tab first (it needs the table code).</div>`; return; }
