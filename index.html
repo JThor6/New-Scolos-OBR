@@ -342,7 +342,7 @@ async function save(body, apply) {
 }
 
 // ---------------- PANEL SIZE (S / M / L, remembered per player) ----------------
-const SIZES = { S: [264, 470], L: [520, 1000] };
+const SIZES = { S: [264, 680], L: [520, 1300] };
 function applySize() {
   const k = SIZES[store.get("ns.size")] ? store.get("ns.size") : "S";
   $("size").textContent = k;

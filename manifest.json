@@ -1,6 +1,6 @@
 {
   "name": "New Scolos",
-  "version": "0.4.6",
+  "version": "0.4.7",
   "manifest_version": 1,
   "description": "New Scolos dice roller with shared roll history",
   "author": "Jake",
@@ -10,7 +10,7 @@
     "icon": "/New-Scolos-OBR/icon.svg",
     "popover": "/New-Scolos-OBR/index.html?v=6",
     "width": 264,
-    "height": 470
+    "height": 680
   },
   "background_url": "/New-Scolos-OBR/background.html?v=4"
 }
