@@ -1,16 +1,40 @@
 <!doctype html><html><head><meta charset="utf-8"></head><body>
 <script type="module">
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
-import { allRolls, summary } from "./shared.js";
-// Runs all session, even when the dice panel is closed: pops a notice for other players' rolls.
+import { allRolls } from "./shared.js";
+// Runs all session, even when the dice panel is closed.
+// Shows other players' rolls as a small card in the bottom-right corner for a few seconds.
+const TOAST = "com.newscolos.dice/toast";
+const W = 270, H = 46, SHOW_MS = 5000;
+let hideTimer = null;
+
+async function showRoll(r) {
+  const url = new URL("toast.html", location.href);
+  url.searchParams.set("who", r.who);
+  url.searchParams.set("dice", r.dice.join(","));
+  url.searchParams.set("mod", r.mod || 0);
+  url.searchParams.set("total", r.total);
+  const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
+  await OBR.popover.open({
+    id: TOAST, url: url.href, width: W, height: H,
+    anchorReference: "POSITION",
+    anchorPosition: { left: vw - 80, top: vh - 70 }, // clear of the zoom/grid button in the corner
+    anchorOrigin: { horizontal: "RIGHT", vertical: "BOTTOM" },
+    transformOrigin: { horizontal: "RIGHT", vertical: "BOTTOM" },
+    disableClickAway: true,
+  });
+  clearTimeout(hideTimer);
+  hideTimer = setTimeout(() => OBR.popover.close(TOAST).catch(() => {}), SHOW_MS);
+}
+
 OBR.onReady(async () => {
   const me = await OBR.player.getId();
-  let seen = new Set(allRolls(await OBR.room.getMetadata()).map(r => r.id));
+  const seen = new Set(allRolls(await OBR.room.getMetadata()).map(r => r.id));
   OBR.room.onMetadataChange((md) => {
-    for (const r of allRolls(md)) {
+    for (const r of allRolls(md).reverse()) { // oldest first, so the newest ends up showing
       if (seen.has(r.id)) continue;
       seen.add(r.id);
-      if (r.pid !== me) OBR.notification.show(summary(r)).catch(() => {});
+      if (r.pid !== me) showRoll(r).catch(() => {});
     }
   });
 });
