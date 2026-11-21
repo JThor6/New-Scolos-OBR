@@ -42,6 +42,8 @@
   details.rs summary { font-family:'Bangers', Impact, sans-serif; font-size:17px; letter-spacing:1px; padding:6px 8px; cursor:pointer; color:var(--accent); }
   .rr { padding:3px 8px 5px; font-size:13px; border-top:1px solid #333a55; }
   .rr b { display:block; }
+  .rr.ep { background:rgba(255,176,32,.22); border-left:4px solid #ffb020; }
+  .rr.ep b { color:#ffc94d; }
   .rh { padding:6px 8px 2px; font-weight:800; color:var(--dim); text-transform:uppercase; font-size:11px; }
   .tab { font-family:'Bangers', Impact, sans-serif; font-size:16px; letter-spacing:1px; background:transparent; color:var(--dim); border:2px solid transparent; border-radius:6px; padding:1px 7px; cursor:pointer; }
   .tab.on { color:#000; background:var(--accent); }
@@ -433,7 +435,7 @@ async function getTab(tab) {
 function rowsHtml(values) {
   return values.map(row => row.map(c => String(c).trim()).filter(Boolean)).filter(c => c.length).map(c =>
     c.length === 1 ? (c[0].length < 40 ? `<div class="rh">${esc2(c[0])}</div>` : `<div class="rr">${esc2(c[0])}</div>`)
-    : `<div class="rr"><b>${esc2(c.slice(0, -1).join(" · "))}</b>${esc2(c[c.length - 1])}</div>`).join("");
+    : `<div class="rr ${/^extraordinary power/i.test(c[0]) ? "ep" : ""}"><b>${esc2(c.slice(0, -1).join(" · "))}</b>${esc2(c[c.length - 1])}</div>`).join("");
 }
 function col(values, letter, from, to) { const i = letter.charCodeAt(0) - 65; const out = []; for (let r = from; r <= to; r++) out.push([values[r - 1]?.[i] || ""]); return out; }
 async function sectionHtml(key) {
