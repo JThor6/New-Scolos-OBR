@@ -103,7 +103,9 @@
   .ptop b { font-size:15px; } .ptop small { color:var(--dim); font-size:11px; flex:1; }
   .ppw { font-size:9px; font-weight:800; padding:2px 5px; border-radius:4px; background:var(--plus); color:#000; }
   .ppw.u { background:#555b75; color:var(--ink); }
-  .pvit { display:flex; align-items:center; gap:3px; margin-top:5px; }
+  .pvit { display:flex; align-items:flex-end; gap:4px; margin-top:5px; }
+  .pvit i { display:flex; flex-direction:column; align-items:center; font-style:normal; gap:1px; }
+  .pvit i small { font-size:9px; font-weight:800; color:var(--dim); }
   .pvit span { width:16px; height:16px; border:2px solid var(--ink); border-radius:3px; }
   .pvit span.x { background:var(--minus); border-color:#000; }
   .pvit em { font-style:normal; font-size:12px; font-weight:700; margin-left:6px; }
@@ -384,7 +386,7 @@ async function showParty() {
       const used = cell(v, "F6").toUpperCase() === "TRUE";
       return `<div class="pcard">
         <div class="ptop"><b>${esc2(cell(v, "C3"))}</b><small>${esc2(cell(v, "C4"))}</small><span class="ppw ${used ? "u" : ""}">${used ? "POWER USED" : "POWER READY"}</span></div>
-        <div class="pvit">${marks.map(m => `<span class="${m ? "x" : ""}"></span>`).join("")}<em class="${worst >= 4 ? "bad" : ""}">${esc2(status)}</em></div>
+        <div class="pvit">${marks.map((m, i) => `<i><small>${["LW", "LW", "LW", "MW", "CW", "KO", "D"][i]}</small><span class="${m ? "x" : ""}"></span></i>`).join("")}<em class="${worst >= 4 ? "bad" : ""}">${esc2(status)}</em></div>
       </div>`;
     }).join("") : `<div class="empty">No characters found.</div>`;
   } catch (e) { body.innerHTML = `<div class="err">Couldn't load the party: ${esc2(e.message || e)}</div>`; }
