@@ -44,7 +44,7 @@ function doGet(e) {
       openMain(p.id); // folder check
       const t = SpreadsheetApp.openById(p.id).getSheetByName(p.tab);
       if (!t) throw new Error('No tab named ' + p.tab);
-      const last = Math.min(t.getLastRow(), 200), cols = Math.min(t.getLastColumn(), 8);
+      const last = Math.min(t.getLastRow(), 200), cols = Math.min(t.getLastColumn(), 20);
       return json({ ok: true, values: last ? t.getRange(1, 1, last, cols).getDisplayValues() : [] });
     }
     const sh = openMain(p.id);
