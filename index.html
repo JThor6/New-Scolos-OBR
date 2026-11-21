@@ -349,6 +349,7 @@ function drawSheet() {
     <div class="g2b"><div class="fld"><small>Extraordinary Power</small><div>${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div></div>
       <div class="fld c"><small>Used today</small><button id="pw" class="chk ${used ? "x" : ""}">${used ? "✕" : ""}</button></div></div>
     <div class="g4">${F("Current XP", V("F3"))}${F("Spent XP", V("F4"))}${F("Attr. spent", V("F10"))}${F("Attr. left", V("F12"))}</div>
+    ${V("E13") ? `<div class="g2"><div class="fld"><small>${esc2(V("E13"))}</small><div class="ctl"><button id="ptm">−</button><b>${esc2(V("F13") || "0")}</b><button id="ptp">+</button></div></div></div>` : ""}
     <div class="stab">ATTRIBUTES</div>
     <div class="g5">${[["Adroitness", "C7"], ["Raw Str.", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att"><small>${n}</small><b>${esc2(V(c))}</b><button class="rd ra" data-m="${esc2(V(c))}" title="Roll ${n}">${ROLL_ICON}</button></div>`).join("")}
       <div class="att dp"><small>Dmg Penalty</small><b>${esc2(V("C12"))}</b></div></div>
@@ -372,6 +373,8 @@ function drawSheet() {
   $("pw").onclick = () => save({ power: !used }, () => setCell("F6", used ? "FALSE" : "TRUE"));
   const copMax = parseInt(V("H28")); const cop = (d) => { let n = Math.max(0, (parseInt(V("H29")) || 0) + d); if (!isNaN(copMax)) n = Math.min(n, copMax); if (String(n) === (V("H29") || "0")) return; save({ copSpent: n }, () => setCell("H29", String(n))); };
   $("copm").onclick = () => cop(-1); $("copp").onclick = () => cop(1);
+  if ($("ptm")) { const pts = (d) => { const n = Math.max(0, (parseInt(V("F13")) || 0) + d); if (String(n) === (V("F13") || "0")) return; save({ points: n }, () => setCell("F13", String(n))); };
+    $("ptm").onclick = () => pts(-1); $("ptp").onclick = () => pts(1); }
   if (!isNaN(copMax) && (parseInt(V("H29")) || 0) >= copMax) $("copp").disabled = true;
 }
 // Always-on power and the daily Extraordinary Power options, read from the character's type tab in the Master file

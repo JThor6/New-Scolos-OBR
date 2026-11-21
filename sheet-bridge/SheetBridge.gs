@@ -11,6 +11,8 @@ const CHARACTER_FOLDER_ID = '1AGoMytVf6xI8DWzMewiEtZF65M9kie88';
 const WOUND_CELLS = ['B16', 'C16', 'D16', 'E16', 'F16', 'G16', 'H16'];
 const POWER_CELL = 'F6';
 const COP_SPENT_CELL = 'H29';
+const POINTS_LABEL_CELL = 'E13'; // says "Invocations" or "Spell Points" when the character has them
+const POINTS_CELL = 'F13';
 
 function json(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
@@ -52,7 +54,7 @@ function doGet(e) {
   }
 }
 
-// POST body (text/plain JSON): {code, id, wound: 0-6, on: true/false} or {code, id, power: true/false} or {code, id, copSpent: n}
+// POST body (text/plain JSON): {code, id, wound: 0-6, on: true/false} or {code, id, power: true/false} or {code, id, copSpent: n} or {code, id, points: n}
 function doPost(e) {
   try {
     const b = JSON.parse(e.postData.contents);
@@ -64,6 +66,10 @@ function doPost(e) {
       sh.getRange(cell).setValue(b.on ? 'X' : '');
     } else if (b.power !== undefined) {
       sh.getRange(POWER_CELL).setValue(!!b.power);
+    } else if (b.points !== undefined) { // Invocations (Priest) or Spell Points (Mage), F13
+      if (!String(sh.getRange(POINTS_LABEL_CELL).getDisplayValue()).trim()) throw new Error('This character has no invocations or spell points.');
+      const n = Math.max(0, Math.min(50, Math.round(Number(b.points) || 0)));
+      sh.getRange(POINTS_CELL).setValue(n);
     } else if (b.copSpent !== undefined) {
       const n = Math.max(0, Math.min(20, Math.round(Number(b.copSpent) || 0)));
       sh.getRange(COP_SPENT_CELL).setValue(n);
