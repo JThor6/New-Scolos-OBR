@@ -322,7 +322,7 @@ async function fillPowers() {
     const always = [], daily = [];
     for (const row of v) {
       const b = String(row[1] || "").trim(), c = String(row[2] || "").trim();
-      if (/^always on/i.test(b)) always.push((b.replace(/^always on:?\s*/i, "") || c).replace(/\s*\((once|one) per day\)\s*/ig, " ").trim());
+      if (/^always on/i.test(b)) { const name = b.replace(/^always on/i, "").replace(/\([^)]*\)/g, "").replace(/^[\s:]+/, "").trim(); always.push(name || c); }
       else if (/^extraordinary power/i.test(b) && c) daily.push(c.replace(/\s*\((once|one) per day\)\s*/ig, " ").trim());
     }
     if ($("pwlist")) $("pwlist").innerHTML =
