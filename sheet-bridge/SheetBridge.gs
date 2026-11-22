@@ -67,7 +67,7 @@ function doPost(e) {
       const t = SpreadsheetApp.openById(b.id).getSheetByName(TRACKER_TAB);
       if (!t) throw new Error('No tab named ' + TRACKER_TAB);
       const row = Math.round(Number(b.row)), col = Math.round(Number(b.col));
-      if (!(row >= 2 && row <= 200 && col >= 13 && col <= 20)) throw new Error('That cell is not a wound or Dead box.');
+      if (!(row >= 4 && row <= 200 && col >= 13 && col <= 20)) throw new Error('That cell is not a wound or Dead box.');
       t.getRange(row, col).setValue(b.on ? (col === 20 ? true : 'X') : '');
       return json({ ok: true });
     }

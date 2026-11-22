@@ -145,6 +145,14 @@
   .mw.x { background:var(--minus); border-color:#000; }
   .mtext { font-size:12px; line-height:1.35; margin-top:6px; color:var(--ink); }
   .mnote { color:#ffc94d; }
+  .initbox { border:2px solid #000; outline:1px solid #6b5aa0; border-radius:8px; background:var(--paper); padding:6px 8px 8px; }
+  .irow { display:flex; align-items:center; gap:6px; padding:4px 2px; border-bottom:1px solid #333a55; font-size:13px; }
+  .irow.cur { background:rgba(187,153,255,.25); }
+  .irow .n { color:var(--dim); width:16px; } .irow b { flex:0 1 auto; } .irow small { color:var(--dim); flex:1; font-size:10px; }
+  .irow .t { font-family:'Bangers', Impact, sans-serif; font-size:18px; }
+  .ix { background:transparent; border:none; color:var(--dim); cursor:pointer; font-weight:900; }
+  .iadd { display:grid; grid-template-columns:1fr 54px auto; gap:5px; margin-top:6px; }
+  .iadd input { padding:4px 6px; }
   .err { color:var(--minus); margin-top:8px; font-weight:700; }
   .empty { color:var(--dim); margin-top:8px; }
 </style>
@@ -165,7 +173,7 @@
 </main>
 <script type="module">
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
-import { KEEP, rollKey, allRolls, fmt } from "./shared.js";
+import { KEEP, rollKey, allRolls, fmt, INIT, initEntries } from "./shared.js";
 import { TYPES, SECTIONS, getTab, sectionHtml } from "./rules.js";
 
 const $ = (id) => document.getElementById(id);
@@ -263,6 +271,12 @@ async function saveRoll(r) {
 const ROLL_ICON = `<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M8 12h8M12 8v8" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>`;
 async function quickRoll(modText, label, whoName) {
   const m = parseInt(String(modText).replace("−", "-"), 10) || 0;
+  // If the GM called for initiative, a player's next Adroitness roll is their initiative
+  let initSid = "";
+  if (!standalone && !whoName && label === "Adroitness") {
+    const st = (await OBR.room.getMetadata())[INIT];
+    if (st?.open && store.get("ns.initDone") !== st.sid) { initSid = st.sid; label = "Adroitness · Initiative"; }
+  }
   const dice = [rollDie(), rollDie(), rollDie(), rollDie()];
   const who = whoName || (standalone ? "Test" : await OBR.player.getName());
   const r = { id: crypto.randomUUID(), pid: me || "local", who, label: String(label || "").slice(0, 40), dice, mod: m, total: dice.reduce((a, b) => a + b, 0) + m, ts: Date.now() };
@@ -270,6 +284,11 @@ async function quickRoll(modText, label, whoName) {
   try { localStorage.setItem("ns.toastReq", JSON.stringify(r)); } catch {}
   const err = await saveRoll(r);
   if (err && $("sherr")) { $("sherr").hidden = false; $("sherr").textContent = err; }
+  if (initSid) {
+    const name = String(sheetVals?.[2]?.[2] || "").trim() || who;
+    await OBR.room.setMetadata({ [`${INIT}/p/${me}`]: { id: me, sid: initSid, name, total: r.total, adr: m, pc: true, r: Math.random() } }).catch(() => {});
+    store.set("ns.initDone", initSid);
+  }
 }
 
 // ---------------- SHEET TAB ----------------
@@ -507,8 +526,14 @@ function bindPicker() {
 }
 function drawMonsters() {
   const v = monVals || [], c = (row, i) => String(v[row]?.[i] ?? "").trim();
-  let html = `<button id="monRe" class="sbtn" style="width:100%">↻ RELOAD MONSTERS</button>`;
-  for (let row = 1; row < v.length; row++) {
+  let html = `<div class="initbox"><div class="sec" style="margin-top:2px">INITIATIVE</div>
+    <div class="g2"><button id="iCall" class="sbtn">⚔ CALL FOR INITIATIVE</button><button id="iMon" class="sbtn">🎲 ROLL MONSTERS</button></div>
+    <div id="iList"></div>
+    <div class="iadd"><input id="iName" placeholder="Add a name"><input id="iNum" placeholder="+0" inputmode="numeric"><button id="iAdd" class="sbtn">ADD</button></div>
+    <button id="iEnd" class="sbtn" style="width:100%;margin-top:5px">END COMBAT</button></div>
+    <button id="monRe" class="sbtn" style="width:100%;margin-top:8px">↻ RELOAD MONSTERS</button>`;
+  const hdr = Math.max(0, v.findIndex(r => String(r?.[0] || "").trim().toLowerCase() === "name"));
+  for (let row = hdr + 1; row < v.length; row++) {
     const name = c(row, 0); if (!name) continue;
     const dead = /^(true|x|yes|dead)$/i.test(c(row, 19));
     const sheetRow = row + 1;
@@ -533,6 +558,9 @@ function drawMonsters() {
   $("mo").innerHTML = html + encounterPicker();
   bindPicker();
   $("monRe").onclick = () => showMonsters();
+  $("iCall").onclick = callInitiative; $("iMon").onclick = rollMonsterInit; $("iEnd").onclick = endInitiative;
+  $("iAdd").onclick = addInitEntry; $("iNum").onkeydown = (e) => { if (e.key === "Enter") addInitEntry(); };
+  drawInitList();
   document.querySelectorAll("#mo .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l, b.dataset.w); });
   document.querySelectorAll("#mo .mw, #mo .mdead").forEach(b => b.onclick = () => monSet(+b.dataset.r, b.dataset.c ? +b.dataset.c : 20, !!b.dataset.on));
 }
@@ -545,6 +573,64 @@ async function monSet(row, col, on) {
   sync(-1);
   if (!r.ok) { monVals = JSON.parse(before); drawMonsters(); $("mo").insertAdjacentHTML("afterbegin", `<div class="err">Didn't save: ${esc2(r.error)}</div>`); }
   else cache.set("mon." + monId(), monVals);
+}
+
+// ---------------- INITIATIVE (GM controls) ----------------
+let initMd = {};
+function drawInitList() {
+  const box = $("iList"); if (!box) return;
+  const st = initMd[INIT], list = st?.open ? initEntries(initMd) : [];
+  box.innerHTML = !st?.open ? `<div class="empty" style="font-size:12px">No combat running. Call for initiative to start.</div>`
+    : list.length ? list.map((e, i) => `<div class="irow ${e.id === st.cur ? "cur" : ""}"><span class="n">${i + 1}</span><b>${esc2(e.name)}</b><small>${e.pc ? "player" : ""}</small><span class="t">${fmt(e.total)}</span><button class="ix" data-id="${esc2(e.id)}" title="Remove">✕</button></div>`).join("")
+    : `<div class="empty" style="font-size:12px">Waiting for rolls… Players roll Adroitness on their SHEET tab.</div>`;
+  box.querySelectorAll(".ix").forEach(b => b.onclick = async () => {
+    const s = (await OBR.room.getMetadata())[INIT]; if (!s) return;
+    await OBR.room.setMetadata({ [INIT]: { ...s, removed: [...(s.removed || []), b.dataset.id] } });
+  });
+}
+async function callInitiative() {
+  const sid = crypto.randomUUID().slice(0, 8);
+  await OBR.room.setMetadata({ [INIT]: { sid, open: true, cur: "", round: 1, removed: [] }, [INIT + "/m"]: [] });
+}
+async function endInitiative() {
+  const s = (await OBR.room.getMetadata())[INIT]; if (s) await OBR.room.setMetadata({ [INIT]: { ...s, open: false } });
+}
+// Each monster group rolls once (4 dice + the first living member's Adroitness) and stays together in the order
+async function rollMonsterInit() {
+  const md = await OBR.room.getMetadata(), st = md[INIT];
+  if (!st?.open) await callInitiative();
+  const sid = (await OBR.room.getMetadata())[INIT].sid;
+  const have = new Set(((await OBR.room.getMetadata())[INIT + "/m"] || []).filter(e => e.sid === sid).map(e => e.id));
+  const v = monVals || [], c = (row, i) => String(v[row]?.[i] ?? "").trim();
+  const hdr = Math.max(0, v.findIndex(r => String(r?.[0] || "").trim().toLowerCase() === "name"));
+  const groups = new Map();
+  for (let row = hdr + 1; row < v.length; row++) {
+    const name = c(row, 0); if (!name || /^(true|x|yes|dead)$/i.test(c(row, 19))) continue;
+    const g = c(row, 1) || name;
+    if (!groups.has(g)) groups.set(g, { adr: parseInt(c(row, 4)) || 0, n: 0 });
+    groups.get(g).n++;
+  }
+  const add = [];
+  for (const [g, info] of groups) {
+    const id = "m:" + g; if (have.has(id)) continue;
+    const dice = [rollDie(), rollDie(), rollDie(), rollDie()], total = dice.reduce((a, b) => a + b, 0) + info.adr;
+    const label = info.n > 1 ? `${g} ×${info.n}` : g;
+    add.push({ id, sid, name: label, total, adr: info.adr, pc: false, r: Math.random() });
+    const roll = { id: crypto.randomUUID(), pid: me || "local", who: label, label: "Adroitness · Initiative", dice, mod: info.adr, total, ts: Date.now() };
+    try { localStorage.setItem("ns.toastReq", JSON.stringify(roll)); } catch {}
+    await saveRoll(roll);
+  }
+  const cur = (await OBR.room.getMetadata())[INIT + "/m"] || [];
+  await OBR.room.setMetadata({ [INIT + "/m"]: [...cur.filter(e => e.sid === sid), ...add] });
+}
+// Add a late arrival by hand (monster or anyone), with their initiative number
+async function addInitEntry() {
+  const name = $("iName").value.trim(), num = parseInt($("iNum").value.replace("−", "-").replace("+", ""), 10);
+  if (!name || isNaN(num)) return;
+  const md = await OBR.room.getMetadata(); if (!md[INIT]?.open) await callInitiative();
+  const sid = (await OBR.room.getMetadata())[INIT].sid, cur = (await OBR.room.getMetadata())[INIT + "/m"] || [];
+  await OBR.room.setMetadata({ [INIT + "/m"]: [...cur.filter(e => e.sid === sid), { id: "x:" + crypto.randomUUID().slice(0, 6), sid, name, total: num, adr: 0, pc: false, r: Math.random() }] });
+  $("iName").value = ""; $("iNum").value = "";
 }
 
 // ---------------- PARTY OVERVIEW ----------------
@@ -633,6 +719,7 @@ if (standalone) {
     me = await OBR.player.getId();
     isGM = (await OBR.player.getRole()) === "GM";
     $("monTab").hidden = !isGM;
+    if (isGM) { initMd = await OBR.room.getMetadata(); OBR.room.onMetadataChange((m) => { initMd = m; drawInitList(); }); }
     applySize();
     render(allRolls(await OBR.room.getMetadata()));
     OBR.room.onMetadataChange((md) => render(allRolls(md)));

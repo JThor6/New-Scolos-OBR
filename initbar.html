@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
+<style>
+  html, body { margin:0; background:transparent; color:#f1f3f9; font-family:system-ui, sans-serif; overflow:hidden; }
+  .bar { display:flex; align-items:center; gap:6px; height:100vh; box-sizing:border-box; padding:6px 8px;
+    background:rgba(24,27,42,.82); border:1px solid rgba(255,255,255,.14); border-radius:12px; }
+  .rnd { font-family:'Bangers', Impact, sans-serif; font-size:16px; letter-spacing:1px; color:#bb99ff; padding:0 4px; white-space:nowrap; }
+  .list { display:flex; gap:5px; overflow-x:auto; flex:1; scrollbar-width:thin; }
+  .chip { display:flex; align-items:center; gap:5px; padding:4px 8px; border-radius:8px; background:rgba(15,17,28,.65); border:2px solid #444a66; white-space:nowrap; font-size:13px; font-weight:700; }
+  .chip .n { color:#9aa0b8; font-size:11px; }
+  .chip .t { font-family:'Bangers', Impact, sans-serif; font-size:17px; color:#f1f3f9; }
+  .chip.mon { border-color:#6b3a44; }
+  .chip.cur { background:#bb99ff; border-color:#000; color:#000; }
+  .chip.cur .n, .chip.cur .t { color:#000; }
+  button { background:#bb99ff; color:#000; border:2px solid #000; border-radius:8px; height:32px; min-width:38px; font-weight:900; font-size:16px; cursor:pointer; }
+</style></head>
+<body>
+<div class="bar"><span class="rnd" id="rnd"></span><div class="list" id="list"></div><button id="next" title="Next turn" hidden>▶|</button></div>
+<script type="module">
+import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
+import { INIT, initEntries } from "./shared.js";
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt = (n) => (n > 0 ? "+" : "") + n;
+let md = {};
+function draw() {
+  const st = md[INIT] || {}, list = initEntries(md);
+  document.getElementById("rnd").textContent = "ROUND " + (st.round || 1);
+  document.getElementById("list").innerHTML = list.map((e, i) =>
+    `<div class="chip ${e.pc ? "" : "mon"} ${e.id === st.cur ? "cur" : ""}" ${e.id === st.cur ? 'id="curchip"' : ""}><span class="n">${i + 1}</span>${esc(e.name)}<span class="t">${fmt(e.total)}</span></div>`).join("");
+  document.getElementById("curchip")?.scrollIntoView({ inline: "center", block: "nearest" });
+}
+OBR.onReady(async () => {
+  md = await OBR.room.getMetadata(); draw();
+  OBR.room.onMetadataChange((m) => { md = m; draw(); });
+  if ((await OBR.player.getRole()) === "GM") {
+    const btn = document.getElementById("next"); btn.hidden = false;
+    btn.onclick = async () => {
+      const m = await OBR.room.getMetadata(), st = m[INIT] || {}, list = initEntries(m);
+      if (!list.length) return;
+      let i = list.findIndex(e => e.id === st.cur), round = st.round || 1;
+      if (i < 0) i = 0; else { i++; if (i >= list.length) { i = 0; round++; } }
+      await OBR.room.setMetadata({ [INIT]: { ...st, cur: list[i].id, round } });
+    };
+  }
+});
+</script></body></html>
