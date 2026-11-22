@@ -134,6 +134,7 @@
   .rd.ra { position:absolute; bottom:3px; right:3px; margin:0; width:18px; height:18px; }
   .syncdot { color:var(--dim); font-size:13px; align-self:center; animation:spin 1s linear infinite; display:inline-block; }
   .syncdot[hidden] { display:none; }
+  body.rollbusy .rd { opacity:.35; pointer-events:none; }
   @keyframes spin { to { transform:rotate(360deg); } }
   .line .lbl { flex:1; min-width:0; text-align:center; font-size:12px; font-weight:700; color:var(--accent); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .mcard { border:2px solid #000; outline:1px solid #444a66; border-radius:8px; background:var(--paper); padding:6px 8px 8px; margin-top:8px; }
@@ -274,7 +275,17 @@ async function saveRoll(r) {
 
 // Quick roll from the sheet: rolls with that number as the modifier and shows it spinning in the bottom-right.
 const ROLL_ICON = `<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M8 12h8M12 8v8" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>`;
+// One roll at a time: extra clicks while a roll is going (or within 1.5s) are ignored, so mashing can't flood Owlbear
+let rollBusy = false;
+function setRollBusy(on) { rollBusy = on; document.body.classList.toggle("rollbusy", on); }
 async function quickRoll(modText, label, whoName) {
+  if (rollBusy) return;
+  setRollBusy(true);
+  const t0 = Date.now();
+  try { await doQuickRoll(modText, label, whoName); }
+  finally { setTimeout(() => setRollBusy(false), Math.max(0, 1500 - (Date.now() - t0))); }
+}
+async function doQuickRoll(modText, label, whoName) {
   const m = parseInt(String(modText).replace("−", "-"), 10) || 0;
   // If the GM called for initiative, a player's next Adroitness roll is their initiative
   let initSid = "";
