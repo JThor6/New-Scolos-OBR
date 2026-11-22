@@ -605,7 +605,13 @@ async function syncDeadGroups() {
   const md = await OBR.room.getMetadata(), st = md[INIT]; if (!st?.open) return;
   const removed = new Set(st.removed || []);
   for (const [g, n] of alive) { const id = "m:" + g; if (n === 0) removed.add(id); else removed.delete(id); }
-  await OBR.room.setMetadata({ [INIT]: { ...st, removed: [...removed] } });
+  // keep the "×3" count on the bar in step with how many are still alive
+  const mlist = (md[INIT + "/m"] || []).map(e => {
+    if (e.sid !== st.sid || !e.id.startsWith("m:")) return e;
+    const g = e.id.slice(2), n = alive.get(g);
+    return n ? { ...e, name: n > 1 ? `${g} ×${n}` : g } : e;
+  });
+  await OBR.room.setMetadata({ [INIT]: { ...st, removed: [...removed] }, [INIT + "/m"]: mlist });
 }
 
 // ---------------- INITIATIVE (GM controls) ----------------
