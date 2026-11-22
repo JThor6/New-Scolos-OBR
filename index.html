@@ -307,6 +307,23 @@
   .ginst { margin-top:5px; padding-top:4px; border-top:1px dashed #444a66; } .ginh { display:flex; align-items:center; gap:4px; } .ginh small { flex:1; color:var(--ink); font-size:11px; } .ginh b { color:var(--plus); }
   .gopt .sbtn:disabled { opacity:.3; cursor:default; }
   .gsnote { font-size:11px; line-height:1.35; color:var(--ink); background:rgba(255,176,32,.12); border-left:3px solid #ffb020; border-radius:5px; padding:4px 7px; margin:0 0 4px; }
+  .gtcards { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
+  .gtc2 { display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left; background:var(--paper); color:var(--ink); border:2px solid #444a66; border-radius:8px; padding:5px 7px 6px; cursor:pointer; font:11px/1.3 system-ui; min-width:0; }
+  .gtc2:hover { border-color:#6b5aa0; } .gtc2.on { border-color:var(--accent); background:#3d3460; }
+  .gtc2 b { font-family:'Bangers', Impact, sans-serif; font-weight:400; font-size:17px; letter-spacing:.5px; line-height:1.1; }
+  .gtat { font-size:8.5px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; background:#000; color:var(--plus); border-radius:4px; padding:1px 5px; }
+  .gtw { color:var(--dim); display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; } .gtc2.on .gtw { color:#d6d0f0; }
+  .gtp { color:#e0a83a; font-weight:700; font-size:10.5px; }
+  .shp { border:2px solid #000; outline:1px solid #6b5aa0; border-radius:10px; background:rgba(10,12,20,.35); padding:6px 7px 8px; }
+  .shp .stab { margin-top:7px; } .shp .box { min-height:0; padding:3px 1px; cursor:default; } .shp .chk { cursor:default; }
+  .shp .g5 { grid-template-columns:repeat(4,1fr); gap:3px; } .shp .att b { font-size:19px; }
+  .shp .gcb { grid-template-columns:1fr 1fr 1fr; } .shp .skc { padding:4px 6px; }
+  .shp .g2b, .shp .g5, .shp .gcb { margin-top:4px; }
+  .shp .fld > div { white-space:normal; } .shp .skg { grid-template-columns:repeat(auto-fill, minmax(112px, 1fr)); }
+  .gcb3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; } .gcb3 .fld > div { font-size:15px; font-weight:800; }
+  .gcop { display:grid; grid-template-columns:1fr auto; gap:4px; margin-top:4px; }
+  .gcop .copl { white-space:normal; font-size:12.5px; line-height:1.4; } .dimn2 { color:var(--dim); }
+  .gcop .ctl { justify-content:center; gap:4px; margin-top:3px; } .gcop .ctl button { padding:0 6px; } .gcop .ctl b { font-size:15px; }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
   .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
@@ -653,8 +670,9 @@ function drawSheet() {
       <div class="fld c"><small>Used today</small><button id="pw" class="chk ${used ? "x" : ""}">${used ? "✕" : ""}</button></div></div>
     ${V("E13") && !ptInEP() ? `<div class="g2">${ptMaxV() ? F(esc2(/\d/.test(V("G13")) || !V("G13") ? "Max " + V("E13") : V("G13")), ptMaxV()) : ""}<div class="fld"><small>${esc2(V("E13"))}</small>${ptCtl()}</div></div>` : ""}
     <div class="stab">COMBAT</div>
-    <div class="gcb">${F("Melee", V("H23"), "c")}${F("Ranged", V("H24"), "c")}${F("Armor", V("H25"), "c")}<div class="fld c"><small>COP${copMaxT !== "" ? ` <span class="dimn">/ ${esc2(copMaxT)}</span>` : ""}</small><div class="ctl"><button id="copm">−</button><b id="copv">${esc2(V("H29") || "0")}</b><button id="copp">+</button></div></div></div>
-    ${opts.length ? `<div class="copts">${lines(opts)}</div>` : ""}
+    <div class="gcb3">${F("Melee", V("H23"), "c")}${F("Ranged", V("H24"), "c")}${F("Armor", V("H25"), "c")}</div>
+    <div class="gcop"><div class="fld"><small>Combat Options</small><div class="copl">${opts.length ? lines(opts) : `<span class="dimn2">None yet</span>`}</div></div>
+      <div class="fld c"><small>COP${copMaxT !== "" ? ` <span class="dimn">/ ${esc2(copMaxT)}</span>` : ""}</small><div class="ctl"><button id="copm">−</button><b id="copv">${esc2(V("H29") || "0")}</b><button id="copp">+</button></div></div></div>
     <div class="stab">ATTRIBUTES</div>
     <div class="g5">${[["Adroitness", "C7"], ["Raw Str.", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att"><small>${n}</small><b>${esc2(V(c))}</b><button class="rd ra" data-m="${esc2(V(c))}" data-l="${{ "Raw Str.": "Raw Strength" }[n] || n}" title="Roll ${n}">${ROLL_ICON}</button></div>`).join("")}
       <div class="att dp"><small>Dmg Pen.</small><b>${esc2(V("C12"))}</b></div></div>
@@ -843,6 +861,30 @@ async function typeInfo(type) { // rundown rows, first Extraordinary Power, gods
   return info;
 }
 
+// Finish step: the new character drawn like the SHEET tab, so players see what they're getting
+async function sheetPreview() {
+  const rs = cg.attrs["Raw Strength"], e = cg.equip;
+  const melee = Math.max(0, (e.melee ? 2 : 0) + rs), ranged = e.ranged ? 4 : 0, armor = e.armor ? Math.max(1, 2 + rs) : Math.max(0, rs);
+  let wounds = ["1-2 Light Wound", "1-2 Light Wound", "1-2 Light Wound", "3-4 Medium Wound", "5-6 Critical Wound (-1)", "7-8 Down & KO'ed (-1)", "9+ Dead"];
+  try { const m = await getTab("Main Sheet"), row = (m[14] || []).slice(1, 8).map(x => String(x || "").trim()); if (row.filter(Boolean).length === 7) wounds = row; } catch {}
+  const F = (l, v) => `<div class="fld c"><small>${l}</small><div>${esc2(v)}</div></div>`;
+  const extra = cg.god ? `God: ${cg.god}` : cg.major ? `Major: ${cg.major} · Minor: ${cg.minor}` : "";
+  const gear = [e.armor, e.melee, e.ranged].filter(Boolean), other = cg.gear.split("\n").map(x => x.trim()).filter(Boolean);
+  return `<div class="shp">
+    <div class="shead"><div class="shn"><b>${esc2(cg.name.trim() || "Unnamed")}</b><small>${esc2(cg.type)} · Level 0 · 1,000 cr${cg.xpOn && cg.xp ? ` · ${cg.xp} XP to spend` : ""}</small></div></div>
+    <div class="stab">VITALITY TRACK</div>
+    <div class="vit">${wounds.map(t => { const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<div class="box"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk"></span></div>`; }).join("")}</div>
+    <div class="g2b"><div class="fld"><small>Extraordinary Power</small><div>${esc2(cg.power || "—")}</div>${extra ? `<div class="pwl">${esc2(extra)}</div>` : ""}</div><div class="fld c"><small>Used today</small><span class="chk"></span></div></div>
+    <div class="stab">COMBAT</div>
+    <div class="gcb">${F("Melee", sgn(melee))}${F("Ranged", sgn(ranged))}${F("Armor", sgn(armor))}</div>
+    <div class="stab">ATTRIBUTES</div>
+    <div class="g5">${ATTRS.map(a => `<div class="att"><small>${{ "Raw Strength": "Raw Str." }[a] || a}</small><b>${sgn(cg.attrs[a])}</b></div>`).join("")}</div>
+    <div class="stab">SKILLS</div>
+    <div class="skg">${cg.skills.slice().sort((a, b) => b.level - a.level).map(s => `<div class="skc"><span>${esc2(s.name)}</span><b>${sgn((cg.attrs[s.attr] ?? 0) + s.level)}</b></div>`).join("") || `<div class="empty">No skills yet.</div>`}</div>
+    ${gear.length ? `<div class="stab">EQUIPPED</div><div class="lbox">${gear.map(esc2).join("<br>")}</div>` : ""}
+    ${other.length ? `<div class="stab">INVENTORY</div><div class="lbox">${other.map(esc2).join("<br>")}</div>` : ""}
+  </div>`;
+}
 // What's still missing on each step ("" = done). Drives the Next button, its message and the clickable step bar.
 const needPickOf = () => cg.type === "Priest" ? !cg.god : cg.type === "Mage" ? !(cg.major && cg.minor && cg.major !== cg.minor) : false;
 const reqSkill = () => cg.type === "Priest" ? /^prayer/i : cg.type === "Mage" ? /^spellcasting/i : null;
@@ -918,8 +960,14 @@ async function showGen() {
     // ---- 1. TYPE ----
     if (cg.step === 0) {
       const info = cg.type ? await typeInfo(cg.type) : null;
+      const sl = await skillList().catch(() => []), names = TYPES.map(t => t.trim());
+      const infos = await Promise.all(names.map(t => typeInfo(t).catch(() => null)));
+      const card = (t, ti) => { const who = String((ti?.rows.find(([a]) => /^who they are/i.test(a)) || [])[1] || "");
+        const nd = ti ? attrNeeds(ti, sl) : null, main = nd ? ATTRS.slice().sort((a, b) => nd[b].w - nd[a].w)[0] : "", pw = ti?.powers[0]?.name || "";
+        return `<button class="gtc2 ${t === cg.type ? "on" : ""}" data-ty="${esc2(t)}"><b>${esc2(t)}</b>${main && nd[main].w ? `<span class="gtat">${esc2(main)}</span>` : ""}<span class="gtw">${esc2(who)}</span>${pw ? `<span class="gtp">⚡ ${esc2(pw)}</span>` : ""}</button>`; };
       box.innerHTML = bar + `<div class="sec">PICK A CHARACTER TYPE</div>
-        <div class="gtypes">${TYPES.map(t => t.trim()).map(t => `<button class="sbtn ${t === cg.type ? "on" : ""}" data-ty="${esc2(t)}">${esc2(t)}</button>`).join("")}</div>
+        <div class="gtcards">${names.map((t, i) => card(t, infos[i])).join("")}</div>
+        ${info ? `<div class="sec">${esc2(cg.type.toUpperCase())}</div>` : ""}
         ${info ? `<div class="grun">${info.rows.map(([a, b]) => `<div><small>${esc2(a)}</small>${esc2(b)}</div>`).join("")}</div>
           ${info.powers.map(p => `<div class="gpow"><div class="gpn">⚡ ${esc2(p.name)}</div>${p.rules.map(([a, b]) => `<div>${a ? `<b>${esc2(a)}:</b> ` : ""}${esc2(b)}</div>`).join("")}</div>`).join("")}` : `<div class="empty">Tap a type to read about it.</div>`}
         ${cg.type === "Priest" && info ? `<div class="sec">YOUR GOD</div>
@@ -1101,13 +1149,8 @@ async function showGen() {
       <label class="gl">Your Google email <small>(the new sheet is shared with you)</small><input id="gEmail" value="${esc2(cg.email)}" placeholder="you@gmail.com" inputmode="email"></label>
       <label class="gchk"><input type="checkbox" id="gXpOn" ${cg.xpOn ? "checked" : ""}> Start with XP (higher level)</label>
       ${cg.xpOn ? `<div class="mrow"><b class="gxp">${cg.xp} XP</b>${xpBtns}</div><div class="gnote">Goes into Current XP, to spend in the Sheet Manager.</div>` : ""}
-      <div class="sec">SUMMARY</div>
-      <div class="grun">
-        <div><small>Type</small>${esc2(cg.type)}${cg.god ? ` · ${esc2(cg.god)}` : ""}${cg.major ? ` · ${esc2(cg.major)} / ${esc2(cg.minor)}` : ""}</div>
-        <div><small>Attributes</small>${ATTRS.map(a => `${a} ${sgn(cg.attrs[a])}`).join(", ")}</div>
-        <div><small>Skills</small>${cg.skills.slice().sort((a, b) => b.level - a.level).map(s => `${esc2(s.name)} ${sgn(s.level)}`).join(", ")}</div>
-        <div><small>Equipped</small>${[cg.equip.armor, cg.equip.melee, cg.equip.ranged].filter(Boolean).map(esc2).join(", ") || "Nothing"}</div>
-        <div><small>Credits</small>1,000</div></div>
+      <div class="sec">YOUR SHEET</div>
+      ${await sheetPreview()}
       ${nav(finishWhy())}`;
     const recheck = () => { const w = finishWhy(); $("gerr").textContent = w; $("gMake").disabled = !!w; };
     genRecheck = recheck;
