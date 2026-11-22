@@ -1,6 +1,6 @@
 {
   "name": "New Scolos Manager",
-  "version": "1.6.8",
+  "version": "2.0.0",
   "manifest_version": 1,
   "description": "New Scolos dice, character sheets, party overview and rules",
   "author": "Jake",
@@ -8,9 +8,9 @@
   "action": {
     "title": "New Scolos Manager",
     "icon": "/New-Scolos-OBR/icon.svg",
-    "popover": "/New-Scolos-OBR/index.html?v=6",
+    "popover": "/New-Scolos-OBR/go.html?p=index",
     "width": 264,
     "height": 680
   },
-  "background_url": "/New-Scolos-OBR/background.html?v=4"
+  "background_url": "/New-Scolos-OBR/go.html?p=background"
 }

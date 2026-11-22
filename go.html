@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"></head><body>
+<script>
+// Loader: always fetch the newest version of a page (no browser caching), then run it in place.
+// Usage: go.html?p=index | background | toast | popout | initbar  (+ that page's own parameters)
+(async () => {
+  const q = new URLSearchParams(location.search);
+  const page = (q.get("p") || "index").replace(/[^a-z]/g, "");
+  const t = Date.now();
+  try {
+    let html = await (await fetch(page + ".html?t=" + t, { cache: "no-store" })).text();
+    html = html.replace(/(["'])\.\/(shared|rules)\.js\1/g, `$1./$2.js?t=${t}$1`);
+    document.open(); document.write(html); document.close();
+  } catch (e) {
+    document.body.style.cssText = "color:#ff6b6b;font:14px system-ui;padding:10px";
+    document.body.textContent = "New Scolos couldn't load. Check your connection and reopen the panel.";
+  }
+})();
+</script></body></html>
