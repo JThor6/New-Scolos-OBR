@@ -44,7 +44,7 @@ OBR.onReady(async () => {
   const isGM = (await OBR.player.getRole()) === "GM";
   // Initiative: tell players to roll, and show the bar across the top while combat is on
   const BAR = "com.newscolos.initbar", LEFT = 440;
-  let barCount = -1, lastSid = (await OBR.room.getMetadata())[INIT]?.sid || "";
+  let barCount = "", lastSid = (await OBR.room.getMetadata())[INIT]?.sid || "";
   let lastCur = "";
   async function initUpdate(md) {
     const st = md[INIT];
@@ -55,18 +55,21 @@ OBR.onReady(async () => {
       if (!isGM) OBR.notification.show("⚔ Roll for initiative! Your next Adroitness roll (on your SHEET) counts.", "INFO").catch(() => {});
     }
     const n = st?.open ? initEntries(md).length : 0;
-    if (n === barCount) return;
-    barCount = n;
+    let small = false; try { small = localStorage.getItem("ns.barMin") === "1"; } catch {}
+    const key = n + (small ? "m" : "");
+    if (key === barCount) return;
+    barCount = key;
     if (!n) { OBR.popover.close(BAR).catch(() => {}); return; }
     const vw = await OBR.viewport.getWidth();
     const url = new URL("initbar.html", location.href);
     const ref = new URLSearchParams(location.search).get("obrref"); if (ref) url.searchParams.set("obrref", ref);
-    OBR.popover.open({ id: BAR, url: url.href, width: Math.max(360, vw - LEFT - 90), height: 54, hidePaper: true,
+    OBR.popover.open({ id: BAR, url: url.href, width: small ? 150 : Math.max(360, vw - LEFT - 90), height: 54, hidePaper: true,
       anchorReference: "POSITION", anchorPosition: { left: LEFT, top: 12 }, // starts right of Owlbear's top-left toolbar
       anchorOrigin: { horizontal: "LEFT", vertical: "TOP" }, transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
       disableClickAway: true }).catch(() => {});
   }
   initUpdate(await OBR.room.getMetadata());
+  window.addEventListener("storage", async (e) => { if (e.key === "ns.barMin") initUpdate(await OBR.room.getMetadata()); });
   // other players' rolls
   OBR.room.onMetadataChange((md) => {
     initUpdate(md);
