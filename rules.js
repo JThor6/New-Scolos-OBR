@@ -33,6 +33,19 @@ function rowsHtml(values) {
     c.length === 1 ? (c[0].length < 40 ? `<div class="rh">${esc2(c[0])}</div>` : `<div class="rr">${esc2(c[0])}</div>`)
     : `<div class="rr ${/^extraordinary power/i.test(c[0]) ? "ep" : ""}"><b>${esc2(c.slice(0, -1).join(" · "))}</b>${esc2(c[c.length - 1])}</div>`).join("");
 }
+// Column K on the Main Sheet is an outline: the first line after a blank row (and any line ending in ":") is a heading,
+// everything else is a bullet. Keeps every line the same size instead of guessing from length.
+function outlineHtml(lines) {
+  let html = "", start = true;
+  for (const raw of lines) {
+    const t = String(raw || "").trim();
+    if (!t) { start = true; continue; }
+    if (start || /:$/.test(t)) html += `<div class="oh">${esc2(t.replace(/:$/, ""))}</div>`;
+    else html += `<div class="ol">${esc2(t)}</div>`;
+    start = false;
+  }
+  return `<div class="ow">${html}</div>`;
+}
 function col(values, letter, from, to) { const i = letter.charCodeAt(0) - 65; const out = []; for (let r = from; r <= to; r++) out.push([values[r - 1]?.[i] || ""]); return out; }
 const DICE_ODDS = "1wLo5GU3ONGhv8PvGhQopZzPBAJZZSzClj0-RnwlX8SE"; // "New Scolos Dice Odds" sheet in the character folder
 let oddsCache = null;
@@ -79,8 +92,7 @@ export async function sectionHtml(key) {
   // Rules panel on the right of the Main Sheet (column K): During Your Turn, then Combat Rules onward
   const K = m.map(r => String(r?.[10] ?? "").trim()), turn = K.indexOf("During Your Turn"), combat = K.indexOf("Combat Rules");
   if (turn >= 0 && combat > turn) {
-    const rows = (a, b) => K.slice(a, b).filter(Boolean).map(x => [x]);
-    return rowsHtml(key === "turn" ? rows(turn + 1, combat) : rows(combat, K.length));
+    return key === "turn" ? outlineHtml(K.slice(turn + 1, combat)) : outlineHtml(K.slice(combat));
   }
   if (key === "turn") return rowsHtml(col(m, "G", 46, 56)); // older layout
   return rowsHtml([...col(m, "B", 57, 70), ...col(m, "G", 57, 60), ...col(m, "E", 61, 70)]);
