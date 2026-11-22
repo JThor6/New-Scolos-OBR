@@ -254,6 +254,7 @@
   .gstep.on { background:var(--accent); color:#000; border-color:var(--accent); } .gstep.done { color:var(--ink); border-color:#6b5aa0; }
   .gstep:disabled { opacity:.4; cursor:default; } .gstep:not(:disabled):not(.on):hover { border-color:var(--accent); }
   .gsets .on small { color:#000; opacity:.75; }
+  .gname { margin:0 0 6px; padding:6px 8px; font-size:15px; font-weight:800; }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
   .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
@@ -802,24 +803,28 @@ function stepWhy(i) {
 }
 const canReach = (i) => { for (let j = 0; j < i; j++) if (stepWhy(j)) return false; return true; };
 const SHORT = { Adroitness: "Adr", "Raw Strength": "Str", Intellect: "Int", Charm: "Cha" };
+let genRecheck = null; // Finish step: re-checks the Create button when the name changes
 let genQ = "", genMove = null, genTarget = null, genInfo = ""; // skills step: search text, slot being moved, slot picked to fill next, last skill tapped
 
 async function showGen() {
   const box = $("cg");
   if (!store.get("ns.code")) { box.innerHTML = `<div class="empty">Open the SHEET tab and enter the table code first.</div>`; return; }
-  const bar = `<div class="gsteps">${GSTEPS.map((s, i) => `<button class="gstep ${i === cg.step ? "on" : i < cg.step ? "done" : ""}" data-go="${i}" ${i === cg.step || canReach(i) ? "" : "disabled"} title="Step ${i + 1}: ${s}">${s}</button>`).join("")}</div>`;
+  const bar = `<div class="gsteps">${GSTEPS.map((s, i) => `<button class="gstep ${i === cg.step ? "on" : i < cg.step ? "done" : ""}" data-go="${i}" ${i === cg.step || canReach(i) ? "" : "disabled"} title="Step ${i + 1}: ${s}">${s}</button>`).join("")}</div>
+    <input id="gNameTop" class="gname" value="${esc2(cg.name)}" maxlength="60" placeholder="Character name (fill in any time)">`;
   const summary = () => `<div class="gsum"><div>${[cg.type ? esc2(cg.type) + (cg.god ? ` (${esc2(cg.god)})` : "") : "No type yet",
       cg.preset != null || cg.custom ? ATTRS.map(a => `${SHORT[a]} ${sgn(cg.attrs[a])}`).join(" ") : "",
-      `Skills ${cg.skills.length}/8`].filter(Boolean).join(" · ")}</div><small>Your progress saves automatically, so you can close this and come back.</small></div>`;
+      `Skills ${cg.skills.length}/8`].filter(Boolean).map((x, i) => i === 0 && cg.name.trim() ? `<b>${esc2(cg.name.trim())}</b> · ${x}` : x).join(" · ")}</div><small>Your progress saves automatically, so you can close this and come back.</small></div>`;
   const nav = (why, info = "") => `<div class="gerr ginfo" id="gerr">${why || info}</div><div class="g2 gnav"><button id="gBack" class="sbtn" ${cg.step ? "" : "disabled"}>◀ BACK</button>${cg.step < 4 ? `<button id="gNext" class="sbtn on" ${why ? "disabled" : ""}>NEXT ▶</button>` : `<button id="gMake" class="sbtn on" ${why ? "disabled" : ""}>CREATE CHARACTER</button>`}</div>
     ${cg.step < 4 ? summary() : ""}<div class="glinks"><button id="gReset" class="glink">Start over</button></div>`;
   const go = (d) => { cg.step = Math.max(0, Math.min(4, cg.step + d)); cgSave(); showGen(); };
   const bind = () => {
+    $("gNameTop").oninput = () => { cg.name = $("gNameTop").value; cgSave(); if (genRecheck) genRecheck(); };
     $("gBack").onclick = () => go(-1); if ($("gNext")) $("gNext").onclick = () => go(1);
     document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { if (+b.dataset.go === cg.step) return; cg.step = +b.dataset.go; cgSave(); showGen(); });
     $("gReset").onclick = () => { if ($("gReset").dataset.armed) { cg = cgNew(); cgSave(); genQ = ""; genMove = genTarget = null; genInfo = ""; return showGen(); } $("gReset").dataset.armed = 1; $("gReset").textContent = "Tap again to clear everything"; };
   };
   box.innerHTML = bar + `<div class="empty">Loading…</div>`;
+  genRecheck = null;
   try {
     // ---- 1. TYPE ----
     if (cg.step === 0) {
@@ -936,10 +941,9 @@ async function showGen() {
     if (!cg.email && store.get("ns.email")) { cg.email = store.get("ns.email"); cgSave(); }
     const finishWhy = () => { for (let j = 0; j < 3; j++) { const w = stepWhy(j); if (w) return `Step ${j + 1} (${GSTEPS[j]}) isn't done: ${w}`; }
       if (cg.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cg.email)) return "That email doesn't look right.";
-      return cg.name.trim() ? "" : "Give your character a name."; };
+      return cg.name.trim() ? "" : "Give your character a name (box at the top)."; };
     const xpBtns = [-10, -1, 1, 10].map(d => `<button class="sbtn" data-xp="${d}">${d > 0 ? "+" : ""}${d}</button>`).join("");
     box.innerHTML = bar + `<div class="sec">FINISH</div>
-      <label class="gl">Character name<input id="gName" value="${esc2(cg.name)}" maxlength="60" placeholder="This becomes the sheet's name"></label>
       <label class="gl">Your Google email <small>(the new sheet is shared with you)</small><input id="gEmail" value="${esc2(cg.email)}" placeholder="you@gmail.com" inputmode="email"></label>
       <label class="gchk"><input type="checkbox" id="gXpOn" ${cg.xpOn ? "checked" : ""}> Start with XP (higher level)</label>
       ${cg.xpOn ? `<div class="mrow"><b class="gxp">${cg.xp} XP</b>${xpBtns}</div><div class="gnote">Goes into Current XP, to spend in the Sheet Manager.</div>` : ""}
@@ -952,7 +956,7 @@ async function showGen() {
         <div><small>Credits</small>1,000</div></div>
       ${nav(finishWhy())}`;
     const recheck = () => { const w = finishWhy(); $("gerr").textContent = w; $("gMake").disabled = !!w; };
-    $("gName").oninput = () => { cg.name = $("gName").value; cgSave(); recheck(); };
+    genRecheck = recheck;
     $("gEmail").oninput = () => { cg.email = $("gEmail").value.trim(); cgSave(); recheck(); };
     $("gXpOn").onchange = () => { cg.xpOn = $("gXpOn").checked; if (!cg.xpOn) cg.xp = 0; cgSave(); showGen(); };
     document.querySelectorAll("[data-xp]").forEach(b => b.onclick = () => { cg.xp = Math.max(0, Math.min(1000, cg.xp + +b.dataset.xp)); cgSave(); showGen(); });
