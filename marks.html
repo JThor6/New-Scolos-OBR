@@ -35,7 +35,7 @@ async function restack(id) {
   const b = await OBR.scene.items.getItemBounds([id]);
   const k = (await OBR.scene.grid.getDpi()) / 150;
   await OBR.scene.items.updateItems(marks.map(m => m.id), (ds) => ds.forEach((d, i) => {
-    d.position = { x: b.center.x, y: b.min.y - 6 * k - i * 44 * k };
+    d.position = { x: b.center.x, y: b.min.y - 4.5 * k - i * 33 * k };
   }));
 }
 
@@ -46,8 +46,8 @@ async function toggle(text) {
     const mine = await marksOn(id), hit = mine.find(m => m.metadata[MARK_ITEM].text === text);
     if (hit) await OBR.scene.items.deleteItems([hit.id]);
     else await OBR.scene.items.addItems([buildLabel().plainText(text).position({ x: 0, y: 0 })
-      .fontSize(22 * k).fontWeight(700).fillColor("#ffffff").padding(6 * k)
-      .backgroundColor("#1b1e2e").backgroundOpacity(0.85).cornerRadius(12 * k)
+      .fontSize(16.5 * k).fontWeight(700).fillColor("#ffffff").padding(4.5 * k)
+      .backgroundColor("#1b1e2e").backgroundOpacity(0.85).cornerRadius(9 * k)
       .pointerDirection("DOWN").pointerHeight(0)
       .attachedTo(id).disableAttachmentBehavior(["ROTATION", "SCALE"])
       .layer("TEXT").locked(true).disableHit(true)
