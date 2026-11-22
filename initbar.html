@@ -10,13 +10,21 @@
   .chip { display:flex; align-items:center; gap:5px; padding:4px 8px; border-radius:8px; background:rgba(15,17,28,.65); border:2px solid #444a66; white-space:nowrap; font-size:13px; font-weight:700; }
   .chip .n { color:#9aa0b8; font-size:11px; }
   .chip .t { font-family:'Bangers', Impact, sans-serif; font-size:17px; color:#f1f3f9; }
-  .chip.mon { border-color:#6b3a44; }
+  .chip.mon { border-color:#000; }
   .chip.cur { background:#bb99ff; border-color:#000; color:#000; }
   .chip.cur .n, .chip.cur .t { color:#000; }
   button { background:#bb99ff; color:#000; border:2px solid #000; border-radius:8px; height:32px; min-width:38px; font-weight:900; font-size:16px; cursor:pointer; }
+  button.sm { background:transparent; color:#f1f3f9; border-color:#444a66; min-width:28px; height:28px; font-size:15px; }
+  .gm { display:flex; gap:5px; align-items:center; }
+  .addf { display:flex; gap:4px; align-items:center; }
+  .addf input { width:90px; height:26px; box-sizing:border-box; border-radius:6px; border:2px solid #444a66; background:rgba(15,17,28,.8); color:#f1f3f9; padding:0 6px; font-size:13px; }
+  .addf input.num { width:44px; text-align:center; }
 </style></head>
 <body>
-<div class="bar"><span class="rnd" id="rnd"></span><div class="list" id="list"></div><button id="next" title="Next turn" hidden>▶|</button></div>
+<div class="bar"><span class="rnd" id="rnd"></span><div class="list" id="list"></div><span class="gm" id="gm" hidden>
+  <span class="addf" id="addf" hidden><input id="an" placeholder="Name"><input id="av" class="num" placeholder="+0"><button class="sm" id="aok" title="Add">✓</button></span>
+  <button class="sm" id="add" title="Add to initiative">+</button>
+  <button id="prev" title="Previous turn">|◀</button><button id="next" title="Next turn">▶|</button></span></div>
 <script type="module">
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
 import { INIT, initEntries } from "./shared.js";
@@ -34,14 +42,30 @@ OBR.onReady(async () => {
   md = await OBR.room.getMetadata(); draw();
   OBR.room.onMetadataChange((m) => { md = m; draw(); });
   if ((await OBR.player.getRole()) === "GM") {
-    const btn = document.getElementById("next"); btn.hidden = false;
-    btn.onclick = async () => {
+    document.getElementById("gm").hidden = false;
+    const step = async (d) => {
       const m = await OBR.room.getMetadata(), st = m[INIT] || {}, list = initEntries(m);
       if (!list.length) return;
       let i = list.findIndex(e => e.id === st.cur), round = st.round || 1;
-      if (i < 0) i = 0; else { i++; if (i >= list.length) { i = 0; round++; } }
+      if (i < 0) i = d > 0 ? 0 : list.length - 1;
+      else { i += d; if (i >= list.length) { i = 0; round++; } if (i < 0) { i = list.length - 1; round = Math.max(1, round - 1); } }
       await OBR.room.setMetadata({ [INIT]: { ...st, cur: list[i].id, round } });
     };
+    document.getElementById("next").onclick = () => step(1);
+    document.getElementById("prev").onclick = () => step(-1);
+    const addf = document.getElementById("addf");
+    document.getElementById("add").onclick = () => { addf.hidden = !addf.hidden; if (!addf.hidden) document.getElementById("an").focus(); };
+    const addIt = async () => {
+      const name = document.getElementById("an").value.trim();
+      const num = parseInt(document.getElementById("av").value.replace("−", "-").replace("+", ""), 10);
+      if (!name || isNaN(num)) return;
+      const m = await OBR.room.getMetadata(), st = m[INIT]; if (!st?.sid) return;
+      const cur = (m[INIT + "/m"] || []).filter(e => e.sid === st.sid);
+      await OBR.room.setMetadata({ [INIT + "/m"]: [...cur, { id: "x:" + crypto.randomUUID().slice(0, 6), sid: st.sid, name, total: num, adr: 0, pc: false, r: Math.random() }] });
+      document.getElementById("an").value = ""; document.getElementById("av").value = ""; addf.hidden = true;
+    };
+    document.getElementById("aok").onclick = addIt;
+    document.getElementById("av").onkeydown = (e) => { if (e.key === "Enter") addIt(); };
   }
 });
 </script></body></html>
