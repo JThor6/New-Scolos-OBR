@@ -224,6 +224,65 @@
   .iadd { display:grid; grid-template-columns:1fr 54px 40px auto; gap:5px; margin-top:6px; }
   .iadd input { padding:4px 6px; }
   .help { font-size:11px; color:var(--dim); line-height:1.35; margin:3px 0 2px; }
+  .shead { display:flex; align-items:center; gap:4px; margin:2px 0 2px; }
+  .shn { flex:1; min-width:0; }
+  .shn b { display:block; font-family:'Bangers', Impact, sans-serif; font-weight:400; font-size:22px; letter-spacing:1px; line-height:1.05; overflow-wrap:anywhere; }
+  .shn small { display:block; color:var(--dim); font-size:12px; font-weight:700; }
+  .ibtn { background:var(--paper); color:var(--ink); border:2px solid #444a66; border-radius:7px; width:30px; height:30px; font-size:16px; cursor:pointer; padding:0; flex:none; }
+  .ibtn:hover { border-color:var(--accent); color:var(--accent); }
+  .gcb { display:grid; grid-template-columns:1fr 1fr 1fr auto; gap:4px; }
+  .gcb .fld > div { font-size:15px; font-weight:800; }
+  .gcb .ctl { justify-content:center; gap:4px; } .gcb .ctl button { padding:0 6px; }
+  .dimn { color:var(--ink); }
+  .copts { font-size:12px; line-height:1.35; color:var(--ink); background:var(--paper); border:1px solid #444a66; border-radius:7px; padding:4px 7px; margin-top:4px; }
+  .skg { display:grid; grid-template-columns:repeat(auto-fill, minmax(135px, 1fr)); gap:3px; }
+  .skc { display:flex; align-items:center; gap:4px; background:var(--paper); border:1px solid #444a66; border-radius:6px; padding:3px 3px 3px 6px; font-size:12px; min-width:0; }
+  .skc span { flex:1; min-width:0; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; line-height:1.2; }
+  .skc b { font-size:14px; min-width:22px; text-align:right; }
+  .skc .rd { margin:0; flex:none; }
+  .drs { margin-top:8px; }
+  details.dr { border:2px solid #000; outline:1px solid #444a66; border-radius:7px; background:var(--paper); margin-top:5px; }
+  details.dr summary { cursor:pointer; font-weight:800; font-size:12px; letter-spacing:.5px; padding:5px 8px; }
+  details.dr summary small { color:var(--dim); font-weight:700; margin-left:4px; }
+  details.dr .drb { padding:0 5px 5px; }
+  details.dr .lbox { border-radius:6px; }
+  #sh .stab { margin-top:7px; }
+  #sh .box { min-height:0; padding:3px 1px; }
+  #sh .g2, #sh .g2b, #sh .g3, #sh .g4, #sh .g5 { margin-top:4px; }
+  .gsteps { display:grid; grid-template-columns:repeat(5,1fr); gap:3px; margin-bottom:6px; }
+  .gstep { padding:3px 1px; border-radius:6px; color:var(--dim); border:1px solid #444a66; background:transparent; font:800 9.5px system-ui; letter-spacing:-.2px; cursor:pointer; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .gstep.on { background:var(--accent); color:#000; border-color:var(--accent); } .gstep.done { color:var(--ink); border-color:#6b5aa0; }
+  .gstep:disabled { opacity:.4; cursor:default; } .gstep:not(:disabled):not(.on):hover { border-color:var(--accent); }
+  .gsets .on small { color:#000; opacity:.75; }
+  .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
+  .ginfo { color:var(--dim) !important; }
+  .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
+  .gsum small { display:block; color:var(--dim); font-weight:500; font-size:10px; margin-top:2px; }
+  .glinks { text-align:right; margin-top:6px; }
+  .glink { background:none; border:none; color:var(--dim); font:600 11px system-ui; text-decoration:underline; cursor:pointer; padding:2px; }
+  .glink:hover { color:var(--minus); }
+  .gslots { display:flex; flex-direction:column; gap:3px; margin:4px 0 6px; }
+  .gslg { display:flex; gap:4px; align-items:stretch; }
+  .gsll { flex:none; width:28px; display:flex; align-items:center; justify-content:center; font-family:'Bangers', Impact, sans-serif; font-size:18px; background:#000; border-radius:6px; }
+  .gslr { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+  .gslot { display:flex; align-items:center; gap:4px; border-radius:6px; min-height:30px; }
+  .gslot.f { background:var(--paper); border:2px solid #444a66; padding:2px 3px; }
+  .gslot.f.mv { border-color:var(--accent); background:#3d3460; }
+  .gslot.e { width:100%; border:2px dashed #444a66; background:transparent; color:var(--dim); font:700 11px system-ui; cursor:pointer; justify-content:center; }
+  .gslot.e:hover, .gslot.e.tg { border-color:var(--accent); color:var(--accent); }
+  .gslot.e.dest { border-color:var(--plus); color:var(--plus); }
+  .gsi { flex:1; min-width:0; } .gsi small { display:block; color:var(--dim); font-size:10px; margin-top:1px; }
+  .gsi select { background:#1b1e2e; color:var(--ink); border:1px solid #444a66; border-radius:5px; font-size:10px; padding:0 2px; width:auto; }
+  .gmv { background:transparent; border:none; color:var(--dim); cursor:pointer; font-size:14px; padding:0 2px; }
+  .gmv:hover, .gslot.mv .gmv { color:var(--accent); }
+  .gdesc { background:var(--paper); border:2px solid #000; border-left:4px solid var(--accent); border-radius:7px; padding:5px 8px; font-size:12px; line-height:1.35; min-height:30px; }
+  .gdesc small { color:var(--dim); } .gdesc div { margin-top:2px; }
+  .gq { margin-top:6px; padding:5px 8px; font-size:13px; }
+  .gsk.seen { outline:1px solid var(--accent); }
+  .gsk[hidden] { display:none; }
+  #sh .g5 { grid-template-columns:repeat(5,1fr); gap:3px; }
+  #sh .att { padding:4px 1px 5px; } #sh .att small { font-size:7.5px; letter-spacing:-.2px; white-space:nowrap; overflow:hidden; } #sh .att b { font-size:19px; display:block; padding-right:9px; }
+  #sh .rd.ra { width:15px; height:15px; bottom:1px; right:1px; }
   .err { color:var(--minus); margin-top:8px; font-weight:700; }
   .empty { color:var(--dim); margin-top:8px; }
 </style>
@@ -508,45 +567,51 @@ function layout() {
   const cr = at("combat rules", inv + 1) || inv + 14, notes = at("notes", cr + 1) || 71; // older sheets
   return { trained: [tr + 1, ut - 1], untrained: [ut + 1, inv - 1], inv: [inv + 1, cr - 1], notes: [notes + 1, Math.max(notes + 12, sheetVals?.length || 0)], nc: "B" };
 }
+const drawOpen = {}; // which fold-out drawers are open, so the 30-second refresh doesn't snap them shut
 function drawSheet() {
   if (mgrOn) return drawManager();
   const F = (label, val, cls = "") => `<div class="fld ${cls}"><small>${label}</small><div>${esc2(val)}</div></div>`;
-  const skillRows = (from, to) => { let h = ""; for (let i = from; i <= to; i++) if (V("B" + i)) h += `<tr><td>${esc2(V("B" + i))}</td><td>${esc2(V("C" + i))}</td><td>${esc2(V("D" + i))}</td><td>${esc2(V("E" + i))}</td><td><b>${esc2(V("F" + i))}</b></td><td class="rdc"><button class="rd" data-m="${esc2(V("F" + i))}" data-l="${esc2(V("B" + i))}" title="Roll ${esc2(V("B" + i))}">${ROLL_ICON}</button></td></tr>`; return h; };
-  const table = (t, from, to) => { const rows = skillRows(from, to); return rows ? `<div class="stab">${t}</div><table class="skt"><tr><th>SKILL</th><th>ATTR.</th><th>RANK</th><th>LVL</th><th>TOT.</th><th class="rdc"></th></tr>${rows}</table>` : ""; };
+  const chips = (from, to) => { let h = "", n = 0; for (let i = from; i <= to; i++) if (V("B" + i)) { n++;
+    h += `<div class="skc" title="${esc2(V("B" + i))} · ${esc2(V("C" + i))} ${esc2(V("D" + i))} + level ${esc2(V("E" + i))}"><span>${esc2(V("B" + i))}</span><b>${esc2(V("F" + i))}</b><button class="rd" data-m="${esc2(V("F" + i))}" data-l="${esc2(V("B" + i))}" title="Roll ${esc2(V("B" + i))}">${ROLL_ICON}</button></div>`; }
+    return { h: h ? `<div class="skg">${h}</div>` : "", n }; };
+  const drawer = (key, title, count, body) => body ? `<details class="dr" data-k="${key}" ${drawOpen[key] ? "open" : ""}><summary>${title}${count ? ` <small>${count}</small>` : ""}</summary><div class="drb">${body}</div></details>` : "";
   const inv = [], eq = [], L = layout();
   for (let i = L.inv[0]; i <= L.inv[1]; i++) {
     const t = [V("B" + i), V("C" + i), V("D" + i)].filter(Boolean).join(" - "); if (t) inv.push(t);
     if (V("E" + i)) eq.push(V("E" + i));
   }
+  const notes = []; for (let i = L.notes[0]; i <= L.notes[1]; i++) if (V(L.nc + i)) notes.push(V(L.nc + i));
   const opts = list(["G32", "G33", "G34", "G35"]);
   const used = V("F6").toUpperCase() === "TRUE";
-  const box = (t, items) => `<div class="stab">${t}</div><div class="lbox">${items.length ? items.map(esc2).join("<br>") : "&nbsp;"}</div>`;
+  const lines = (items) => items.map(esc2).join("<br>");
+  const trained = chips(...L.trained), untrained = chips(...L.untrained);
+  const copMaxT = V("H28");
   $("shbody").innerHTML = `
-    <button id="mgr" class="sbtn mgrbtn">⚙ MANAGE CHARACTER</button>
-    <div class="g2">${F("Name", V("C3"))}${F("Type", V("C4"))}</div>
-    <div class="g3">${F("Level", V("F5"))}${F("Credits", V("F7"))}<button id="reload" class="sbtn" title="Reload from Google Sheet">↻</button></div>
-    <div class="g2b"><div class="fld ${ptInEP() ? "epx" : ""}"><div class="epl"><small>Extraordinary Power</small><div id="pwname">${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div></div>${ptInEP() ? `<div class="epp"><small>${esc2(V("E13"))}${ptMaxV() ? ` <span>/ ${esc2(ptMaxV())}</span>` : ""}</small>${ptCtl()}</div>` : ""}</div>
-      <div class="fld c"><small>Used today</small><button id="pw" class="chk ${used ? "x" : ""}">${used ? "✕" : ""}</button></div></div>
-    <div class="g4">${F("Current XP", V("F3"))}${F("Spent XP", V("F4"))}${F("Attr. spent", V("F10"))}${F("Attr. left", V("F12"))}</div>
-    ${V("E13") && !ptInEP() ? `<div class="g2">${ptMaxV() ? F(esc2(/\d/.test(V("G13")) || !V("G13") ? "Max " + V("E13") : V("G13")), ptMaxV()) : ""}<div class="fld"><small>${esc2(V("E13"))}</small>${ptCtl()}</div></div>` : ""}
-    <div class="stab">ATTRIBUTES</div>
-    <div class="g5">${[["Adroitness", "C7"], ["Raw Str.", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att"><small>${n}</small><b>${esc2(V(c))}</b><button class="rd ra" data-m="${esc2(V(c))}" data-l="${{ "Raw Str.": "Raw Strength" }[n] || n}" title="Roll ${n}">${ROLL_ICON}</button></div>`).join("")}
-      <div class="att dp"><small>Dmg Penalty</small><b>${esc2(V("C12"))}</b></div></div>
+    <div class="shead"><div class="shn"><b>${esc2(V("C3") || "Unnamed")}</b><small>${[V("C4"), V("F5") !== "" ? "Level " + V("F5") : "", V("F7") !== "" ? V("F7") + " cr" : ""].filter(Boolean).map(esc2).join(" · ")}</small></div>
+      <button id="reload" class="ibtn" title="Reload from Google Sheet">↻</button><button id="mgr" class="ibtn" title="Manage character: XP, skills, gear, notes">⚙</button></div>
     <div class="stab">VITALITY TRACK</div>
     <div class="vit">${["B", "C", "D", "E", "F", "G", "H"].map((c, i) => { const t = V(c + "15"); const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<button class="box ${V(c + "16") ? "x" : ""}" data-w="${i}"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk ${V(c + "16") ? "x" : ""}">${V(c + "16") ? "✕" : ""}</span></button>`; }).join("")}</div>
+    <div class="g2b"><div class="fld ${ptInEP() ? "epx" : ""}"><div class="epl"><small>Extraordinary Power</small><div id="pwname">${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div></div>${ptInEP() ? `<div class="epp"><small>${esc2(V("E13"))}${ptMaxV() ? ` <span>/ ${esc2(ptMaxV())}</span>` : ""}</small>${ptCtl()}</div>` : ""}</div>
+      <div class="fld c"><small>Used today</small><button id="pw" class="chk ${used ? "x" : ""}">${used ? "✕" : ""}</button></div></div>
+    ${V("E13") && !ptInEP() ? `<div class="g2">${ptMaxV() ? F(esc2(/\d/.test(V("G13")) || !V("G13") ? "Max " + V("E13") : V("G13")), ptMaxV()) : ""}<div class="fld"><small>${esc2(V("E13"))}</small>${ptCtl()}</div></div>` : ""}
     <div class="stab">COMBAT</div>
-    <div class="g3">${F("Melee Dmg", V("H23"))}${F("Ranged Dmg", V("H24"))}${F("Armor", V("H25"))}</div>
-    <div class="g2">${F("COP per combat", V("H28"))}<div class="fld"><small>COP spent</small><div class="ctl"><button id="copm">−</button><b id="copv">${esc2(V("H29") || "0")}</b><button id="copp">+</button></div></div></div>
-    ${box("COMBAT OPTIONS", opts)}
-    ${table("TRAINED SKILLS", ...L.trained)}
-    ${table("UNTRAINED SKILLS", ...L.untrained)}
-    ${box("EQUIPPED", eq)}
-    ${box("INVENTORY", inv)}
-    ${box("NOTES", (() => { const n = []; for (let i = L.notes[0]; i <= L.notes[1]; i++) n.push(V(L.nc + i)); return n.filter(Boolean); })())}
+    <div class="gcb">${F("Melee", V("H23"), "c")}${F("Ranged", V("H24"), "c")}${F("Armor", V("H25"), "c")}<div class="fld c"><small>COP${copMaxT !== "" ? ` <span class="dimn">/ ${esc2(copMaxT)}</span>` : ""}</small><div class="ctl"><button id="copm">−</button><b id="copv">${esc2(V("H29") || "0")}</b><button id="copp">+</button></div></div></div>
+    ${opts.length ? `<div class="copts">${lines(opts)}</div>` : ""}
+    <div class="stab">ATTRIBUTES</div>
+    <div class="g5">${[["Adroitness", "C7"], ["Raw Str.", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att"><small>${n}</small><b>${esc2(V(c))}</b><button class="rd ra" data-m="${esc2(V(c))}" data-l="${{ "Raw Str.": "Raw Strength" }[n] || n}" title="Roll ${n}">${ROLL_ICON}</button></div>`).join("")}
+      <div class="att dp"><small>Dmg Pen.</small><b>${esc2(V("C12"))}</b></div></div>
+    ${trained.h ? `<div class="stab">SKILLS</div>${trained.h}` : ""}
+    ${eq.length ? `<div class="stab">EQUIPPED</div><div class="lbox">${lines(eq)}</div>` : ""}
+    <div class="drs">
+    ${drawer("untrained", "UNTRAINED SKILLS", untrained.n, untrained.h)}
+    ${drawer("inv", "INVENTORY", inv.length, inv.length ? `<div class="lbox">${lines(inv)}</div>` : "")}
+    ${drawer("notes", "NOTES", "", notes.length ? `<div class="lbox">${lines(notes)}</div>` : "")}
+    </div>
     <div id="sherr" class="err" hidden></div>
     ${isGM ? "" : `<button id="disc" class="histbtn">SWITCH CHARACTER</button>`}`;
   fillPowers();
   document.querySelectorAll("#shbody .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l); });
+  document.querySelectorAll("#shbody details.dr").forEach(d => d.ontoggle = () => { drawOpen[d.dataset.k] = d.open; });
   $("reload").onclick = () => loadSheet();
   $("mgr").onclick = () => { mgrOn = true; drawSheet(); };
   if ($("disc")) $("disc").onclick = () => { store.set("ns.sheetId", ""); pickCharacter(); };
@@ -592,7 +657,7 @@ function drawManager() {
   $("shbody").innerHTML = `
     <button id="mgr" class="sbtn mgrbtn on">✓ DONE MANAGING</button>
     <div class="mtitle">${esc2(V("C3"))} · Level ${levelOf(xpSpent())}</div>
-    <div class="g2">${`<div class="fld"><small>XP to spend</small><div>${xpNow()}</div></div><div class="fld"><small>Attribute points left</small><div>${attrLeft()}</div></div>`}</div>
+    <div class="g4">${`<div class="fld"><small>XP to spend</small><div>${xpNow()}</div></div><div class="fld"><small>XP spent</small><div>${xpSpent()}</div></div><div class="fld"><small>Attr. pts left</small><div>${attrLeft()}</div></div><div class="fld"><small>Attr. pts spent</small><div>${num(V("F10")) || 0}</div></div>`}</div>
     <div class="mrow"><span class="mtot" title="Current XP + Spent XP">Total earned<b>${xpNow() + xpSpent()}</b></span><input id="xpAdd" inputmode="numeric" placeholder="XP earned"><button id="xpGo" class="sbtn">+ ADD XP</button></div>
     <div class="stab">ATTRIBUTES</div><table class="mtab">${attrRows}</table>
     <div class="stab">TRAINED SKILLS</div><table class="mtab">${skillRows(...L.trained) || `<tr><td class="empty">None yet.</td></tr>`}</table>
@@ -683,8 +748,9 @@ const LEVEL_SLOTS = [["+1", 1, 1], ["0", 0, 3], ["-2", -2, 2], ["-3", -3, 2]]; /
 const GSTEPS = ["Type", "Attributes", "Skills", "Equipment", "Finish"];
 let cg = (() => { try { return JSON.parse(localStorage.getItem("ns.cgDraft") || "null"); } catch { return null; } })();
 const cgNew = () => ({ step: 0, type: "", god: "", major: "", minor: "", attrs: { Adroitness: -3, "Raw Strength": -3, Intellect: -3, Charm: -3 },
-  skills: [], equip: { armor: "", melee: "", ranged: "" }, gear: "", name: "", email: "", xpOn: false, xp: 0 });
+  skills: [], equip: { armor: "", melee: "", ranged: "" }, gear: "", name: "", email: store.get("ns.email"), xpOn: false, xp: 0, preset: null, custom: false });
 if (!cg) cg = cgNew();
+if (cg.custom === undefined) cg.custom = cg.preset == null && ATTRS.some(a => cg.attrs[a] !== -3); // drafts saved before sets came first
 const cgSave = () => { try { localStorage.setItem("ns.cgDraft", JSON.stringify(cg)); } catch {} };
 const attrCost = () => ATTRS.reduce((s, a) => s + ATTR_COST[String(cg.attrs[a])], 0);
 const rows = (v) => (v || []).map(r => [String(r[1] ?? "").trim(), String(r[2] ?? "").trim(), String(r[3] ?? "").trim()]);
@@ -719,23 +785,45 @@ async function typeInfo(type) { // rundown rows, first Extraordinary Power, gods
   return info;
 }
 
+// What's still missing on each step ("" = done). Drives the Next button, its message and the clickable step bar.
+const needPickOf = () => cg.type === "Priest" ? !cg.god : cg.type === "Mage" ? !(cg.major && cg.minor && cg.major !== cg.minor) : false;
+const reqSkill = () => cg.type === "Priest" ? /^prayer/i : cg.type === "Mage" ? /^spellcasting/i : null;
+const usedLvl = (lvl) => cg.skills.filter(s => s.level === lvl).length;
+function stepWhy(i) {
+  if (i === 0) return !cg.type ? "Pick a type to continue." : needPickOf() ? (cg.type === "Priest" ? "Pick your god." : "Pick a major and a different minor school.") : "";
+  if (i === 1) { if (cg.preset == null && !cg.custom) return "Pick a set, or spend the points yourself."; return 42 - attrCost() < 0 ? "You've spent more than 42 points." : ""; }
+  if (i === 2) {
+    const n = 8 - cg.skills.length; if (n > 0) return `Pick ${n} more skill${n === 1 ? "" : "s"}.`;
+    if (!LEVEL_SLOTS.every(([, l, k]) => usedLvl(l) === k)) return "Fix the levels: one +1, three 0, two -2, two -3.";
+    const need = reqSkill(); if (need && !cg.skills.some(s => need.test(s.base))) return `${cg.type}s must take ${cg.type === "Priest" ? "Prayer" : "Spellcasting"}.`;
+    return cg.skills.every(s => s.name.trim()) ? "" : "Every skill needs a name.";
+  }
+  return "";
+}
+const canReach = (i) => { for (let j = 0; j < i; j++) if (stepWhy(j)) return false; return true; };
+const SHORT = { Adroitness: "Adr", "Raw Strength": "Str", Intellect: "Int", Charm: "Cha" };
+let genQ = "", genMove = null, genTarget = null, genInfo = ""; // skills step: search text, slot being moved, slot picked to fill next, last skill tapped
+
 async function showGen() {
   const box = $("cg");
   if (!store.get("ns.code")) { box.innerHTML = `<div class="empty">Open the SHEET tab and enter the table code first.</div>`; return; }
-  const bar = `<div class="gsteps">${GSTEPS.map((s, i) => `<span class="${i === cg.step ? "on" : i < cg.step ? "done" : ""}">${i + 1}. ${s}</span>`).join("")}</div>`;
-  const nav = (ok, why = "") => `<div class="gerr" id="gerr">${why}</div><div class="g2 gnav"><button id="gBack" class="sbtn" ${cg.step ? "" : "disabled"}>◀ BACK</button>${cg.step < 4 ? `<button id="gNext" class="sbtn on" ${ok ? "" : "disabled"}>NEXT ▶</button>` : `<button id="gMake" class="sbtn on" ${ok ? "" : "disabled"}>CREATE CHARACTER</button>`}</div>
-    <button id="gReset" class="histbtn" style="margin-top:8px">START OVER</button>`;
+  const bar = `<div class="gsteps">${GSTEPS.map((s, i) => `<button class="gstep ${i === cg.step ? "on" : i < cg.step ? "done" : ""}" data-go="${i}" ${i === cg.step || canReach(i) ? "" : "disabled"} title="Step ${i + 1}: ${s}">${s}</button>`).join("")}</div>`;
+  const summary = () => `<div class="gsum"><div>${[cg.type ? esc2(cg.type) + (cg.god ? ` (${esc2(cg.god)})` : "") : "No type yet",
+      cg.preset != null || cg.custom ? ATTRS.map(a => `${SHORT[a]} ${sgn(cg.attrs[a])}`).join(" ") : "",
+      `Skills ${cg.skills.length}/8`].filter(Boolean).join(" · ")}</div><small>Your progress saves automatically, so you can close this and come back.</small></div>`;
+  const nav = (why, info = "") => `<div class="gerr ginfo" id="gerr">${why || info}</div><div class="g2 gnav"><button id="gBack" class="sbtn" ${cg.step ? "" : "disabled"}>◀ BACK</button>${cg.step < 4 ? `<button id="gNext" class="sbtn on" ${why ? "disabled" : ""}>NEXT ▶</button>` : `<button id="gMake" class="sbtn on" ${why ? "disabled" : ""}>CREATE CHARACTER</button>`}</div>
+    ${cg.step < 4 ? summary() : ""}<div class="glinks"><button id="gReset" class="glink">Start over</button></div>`;
   const go = (d) => { cg.step = Math.max(0, Math.min(4, cg.step + d)); cgSave(); showGen(); };
   const bind = () => {
     $("gBack").onclick = () => go(-1); if ($("gNext")) $("gNext").onclick = () => go(1);
-    $("gReset").onclick = () => { if ($("gReset").dataset.armed) { cg = cgNew(); cgSave(); return showGen(); } $("gReset").dataset.armed = 1; $("gReset").textContent = "TAP AGAIN TO CLEAR EVERYTHING"; };
+    document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { if (+b.dataset.go === cg.step) return; cg.step = +b.dataset.go; cgSave(); showGen(); });
+    $("gReset").onclick = () => { if ($("gReset").dataset.armed) { cg = cgNew(); cgSave(); genQ = ""; genMove = genTarget = null; genInfo = ""; return showGen(); } $("gReset").dataset.armed = 1; $("gReset").textContent = "Tap again to clear everything"; };
   };
   box.innerHTML = bar + `<div class="empty">Loading…</div>`;
   try {
     // ---- 1. TYPE ----
     if (cg.step === 0) {
       const info = cg.type ? await typeInfo(cg.type) : null;
-      const needPick = cg.type === "Priest" ? !cg.god : cg.type === "Mage" ? !(cg.major && cg.minor && cg.major !== cg.minor) : false;
       box.innerHTML = bar + `<div class="sec">PICK A CHARACTER TYPE</div>
         <div class="gtypes">${TYPES.map(t => t.trim()).map(t => `<button class="sbtn ${t === cg.type ? "on" : ""}" data-ty="${esc2(t)}">${esc2(t)}</button>`).join("")}</div>
         ${info ? `<div class="grun">${info.rows.map(([a, b]) => `<div><small>${esc2(a)}</small>${esc2(b)}</div>`).join("")}</div>
@@ -746,63 +834,83 @@ async function showGen() {
           <div class="g2"><label class="gl">Major (any size)<select id="gMaj"><option value="">Pick…</option>${info.schools.map(([s]) => `<option ${s === cg.major ? "selected" : ""}>${esc2(s)}</option>`).join("")}</select></label>
           <label class="gl">Minor (small spells)<select id="gMin"><option value="">Pick…</option>${info.schools.map(([s]) => `<option ${s === cg.minor ? "selected" : ""}>${esc2(s)}</option>`).join("")}</select></label></div>
           <div class="gnote">${info.schools.filter(s => s[0] === cg.major || s[0] === cg.minor).map(s => `<b>${esc2(s[0])}:</b> ${esc2(s[1])}`).join("<br>")}</div>` : ""}
-        ${nav(cg.type && !needPick, cg.type && needPick ? (cg.type === "Priest" ? "Pick your god." : "Pick a major and a different minor school.") : "")}`;
+        ${nav(stepWhy(0))}`;
       cg.power = info?.power || "";
       document.querySelectorAll("[data-ty]").forEach(b => b.onclick = () => { if (cg.type !== b.dataset.ty) { cg.type = b.dataset.ty; cg.god = cg.major = cg.minor = "";
-        cg.skills = cg.skills.filter(s => !/^(prayer|spellcasting)/i.test(s.name)); } cgSave(); showGen(); });
+        cg.skills = cg.skills.filter(s => !/^(prayer|spellcasting)/i.test(s.base)); } cgSave(); showGen(); });
       if ($("gGod")) $("gGod").onchange = () => { cg.god = $("gGod").value; cgSave(); showGen(); };
       if ($("gMaj")) $("gMaj").onchange = () => { cg.major = $("gMaj").value; cgSave(); showGen(); };
       if ($("gMin")) $("gMin").onchange = () => { cg.minor = $("gMin").value; cgSave(); showGen(); };
       return bind();
     }
-    // ---- 2. ATTRIBUTES ----
+    // ---- 2. ATTRIBUTES (sets first, spending points by hand second) ----
     if (cg.step === 1) {
-      const spent = attrCost(), left = 42 - spent;
-      box.innerHTML = bar + `<div class="sec">STARTING ATTRIBUTES</div>
-        <div class="gnote">Every attribute starts at -3 and you have 42 points. Costs come from the Starting Attribute Calculator.</div>
-        ${cg.preset != null ? `<div class="gnote">Using <b>Set ${cg.preset + 1}</b>. Pick which value goes on each attribute. Changing one swaps it with the attribute that had that value.</div>` : ""}
-        <table class="mtab">${ATTRS.map(a => { const r = cg.attrs[a], up = r < 3 ? ATTR_COST[String(r + 1)] - ATTR_COST[String(r)] : null;
-          if (cg.preset != null) return `<tr><td>${a}</td><td></td><td><select class="gsel" data-pa="${a}">${[...new Set(ATTR_SETS[cg.preset])].sort((x, y) => y - x).map(v => `<option value="${v}" ${v === r ? "selected" : ""}>${sgn(v)}</option>`).join("")}</select></td></tr>`;
-          return `<tr><td>${a}</td><td class="mv">${sgn(r)}</td><td><span class="mctl"><button data-ga="${a}" data-d="-1" ${r > -3 ? "" : "disabled"}>−</button><button data-ga="${a}" data-d="1" ${up != null && up <= left ? "" : "disabled"}>+</button></span><span class="mcost">${up != null ? `+1: ${up} pts` : "max"}</span></td></tr>`; }).join("")}</table>
-        <div class="gpts ${left < 0 ? "bad" : ""}">Points left: <b>${left}</b> of 42</div>
-        <div class="sec">${cg.preset != null ? "PRESET ARRAYS" : "OR USE A PRESET"}</div>
+      const left = 42 - attrCost();
+      const table = cg.preset != null
+        ? `<div class="gnote">Using <b>Set ${cg.preset + 1}</b>. Pick which value goes on each attribute. Changing one swaps it with the attribute that had that value.</div>
+           <table class="mtab">${ATTRS.map(a => `<tr><td>${a}</td><td></td><td><select class="gsel" data-pa="${a}">${[...new Set(ATTR_SETS[cg.preset])].sort((x, y) => y - x).map(v => `<option value="${v}" ${v === cg.attrs[a] ? "selected" : ""}>${sgn(v)}</option>`).join("")}</select></td></tr>`).join("")}</table>`
+        : cg.custom
+        ? `<div class="gnote">Every attribute starts at -3 and you have 42 points. Costs come from the Starting Attribute Calculator.</div>
+           <table class="mtab">${ATTRS.map(a => { const r = cg.attrs[a], up = r < 3 ? ATTR_COST[String(r + 1)] - ATTR_COST[String(r)] : null;
+             return `<tr><td>${a}</td><td class="mv">${sgn(r)}</td><td><span class="mctl"><button data-ga="${a}" data-d="-1" ${r > -3 ? "" : "disabled"}>−</button><button data-ga="${a}" data-d="1" ${up != null && up <= left ? "" : "disabled"}>+</button></span><span class="mcost">${up != null ? `+1: ${up} pts` : "max"}</span></td></tr>`; }).join("")}</table>
+           <div class="gpts ${left < 0 ? "bad" : ""}">Points left: <b>${left}</b> of 42</div>` : "";
+      box.innerHTML = bar + `<div class="sec">PICK A SET</div>
+        <div class="gnote">Most players pick a set. Each one spends all 42 points for you; then you choose which attribute gets which value.</div>
         <div class="gsets">${ATTR_SETS.map((s, i) => `<button class="sbtn ${i === cg.preset ? "on" : ""}" data-set="${i}">Set ${i + 1}<small>${s.map(sgn).join(" / ")}</small></button>`).join("")}</div>
-        ${cg.preset != null ? `<button id="gCustom" class="histbtn" style="margin-top:6px">SPEND POINTS MYSELF INSTEAD</button>` : `<div class="gnote">Pick a set, then choose which attribute gets each value.</div>`}
-        ${nav(left >= 0, left > 0 ? `${left} point${left === 1 ? "" : "s"} left unspent. They don't carry over.` : "")}`;
+        ${table}
+        ${cg.custom ? "" : `<button id="gCustom" class="sbtn gcust">or spend points myself</button>`}
+        ${nav(stepWhy(1), cg.custom && left > 0 ? `${left} point${left === 1 ? "" : "s"} left unspent. They don't carry over.` : "")}`;
       document.querySelectorAll("[data-pa]").forEach(s => s.onchange = () => { // swap values so the set stays whole
         const a = s.dataset.pa, v = +s.value, old = cg.attrs[a], other = ATTRS.find(x => x !== a && cg.attrs[x] === v);
         cg.attrs[a] = v; if (other) cg.attrs[other] = old; cgSave(); showGen(); });
-      if ($("gCustom")) $("gCustom").onclick = () => { cg.preset = null; cgSave(); showGen(); };
+      if ($("gCustom")) $("gCustom").onclick = () => { cg.preset = null; cg.custom = true; cgSave(); showGen(); };
       document.querySelectorAll("[data-ga]").forEach(b => b.onclick = () => { const a = b.dataset.ga; cg.attrs[a] = Math.max(-3, Math.min(3, cg.attrs[a] + +b.dataset.d)); cgSave(); showGen(); });
-      document.querySelectorAll("[data-set]").forEach(b => b.onclick = () => { cg.preset = +b.dataset.set; ATTR_SETS[cg.preset].forEach((v, i) => cg.attrs[ATTRS[i]] = v); cgSave(); showGen(); });
+      document.querySelectorAll("[data-set]").forEach(b => b.onclick = () => { cg.preset = +b.dataset.set; cg.custom = false; ATTR_SETS[cg.preset].forEach((v, i) => cg.attrs[ATTRS[i]] = v); cgSave(); showGen(); });
       return bind();
     }
-    // ---- 3. SKILLS ----
+    // ---- 3. SKILLS: tap a skill to drop it into the next open slot ----
     if (cg.step === 2) {
-      const list = await skillList(), picked = new Set(cg.skills.map(s => s.base));
+      const list = await skillList(), info = cg.type ? await typeInfo(cg.type).catch(() => null) : null;
+      const picked = new Set(cg.skills.map(s => s.base));
       const allowed = (n) => !(/^prayer/i.test(n) && cg.type !== "Priest") && !(/^spellcasting/i.test(n) && cg.type !== "Mage");
-      const need = cg.type === "Priest" ? /^prayer/i : cg.type === "Mage" ? /^spellcasting/i : null;
-      const used = (lvl) => cg.skills.filter(s => s.level === lvl).length;
-      const slotsOk = LEVEL_SLOTS.every(([, lvl, n]) => used(lvl) === n);
-      const needOk = !need || cg.skills.some(s => need.test(s.base));
-      const ok = cg.skills.length === 8 && slotsOk && needOk && cg.skills.every(s => s.name.trim());
+      const need = reqSkill();
+      const sugg = String((info?.rows.find(([a]) => /^suggested skills/i.test(a)) || [])[1] || "").split(/[,;]/).map(s => s.replace(/\(.*?\)/g, "").trim().toLowerCase()).filter(Boolean);
+      const isSugg = (n) => { const b = n.toLowerCase(), head = b.split(/\s*[\/(]\s*/)[0].trim(); return (need && need.test(n)) || sugg.some(s => b === s || head === s || b.startsWith(s + " ")); };
+      const shown = list.filter(s => allowed(s.name)).sort((a, b) => isSugg(b.name) - isSugg(a.name));
+      const slot = (s) => { const i = cg.skills.indexOf(s), sk = list.find(x => x.name === s.base) || { attrs: [s.attr] };
+        return `<div class="gslot f ${genMove === i ? "mv" : ""}"><button class="gmv" data-mvs="${i}" title="Move to another slot">⇅</button>
+          <div class="gsi"><input class="gsn" data-sn="${i}" value="${esc2(s.name)}" title="Add the specialty, e.g. Pilot (Spacecraft)"><small>${sk.attrs.length > 1 ? `<select data-sa="${i}">${sk.attrs.map(a => `<option ${a === s.attr ? "selected" : ""}>${a}</option>`).join("")}</select>` : esc2(s.attr)}</small></div>
+          <button class="mx" data-sx="${i}" title="Remove">✕</button></div>`; };
+      const groups = LEVEL_SLOTS.map(([lab, lvl, n]) => { const inG = cg.skills.filter(s => s.level === lvl), empty = Math.max(0, n - inG.length);
+        return `<div class="gslg"><div class="gsll">${lab}</div><div class="gslr">${inG.map(slot).join("")}${Array.from({ length: empty }, () =>
+          `<button class="gslot e ${genTarget === lvl && genMove == null ? "tg" : ""} ${genMove != null ? "dest" : ""}" data-es="${lvl}">${genMove != null ? "Move here" : genTarget === lvl ? "Next skill goes here" : "Empty"}</button>`).join("")}</div></div>`; }).join("");
+      const di = list.find(x => x.name === genInfo);
       box.innerHTML = bar + `<div class="sec">PICK 8 SKILLS (${cg.skills.length}/8)</div>
-        <div class="gnote">Levels: one at +1, three at 0, two at -2, two at -3. Your attribute is added on top.${need ? ` ${cg.type}s must take ${cg.type === "Priest" ? "Prayer" : "Spellcasting"}.` : ""}</div>
-        ${cg.skills.length ? `<table class="mtab">${cg.skills.map((s, i) => { const info = list.find(x => x.name === s.base) || { attrs: [s.attr] };
-          return `<tr><td><input class="gsn" data-sn="${i}" value="${esc2(s.name)}" title="Add the specialty, e.g. Pilot (Spacecraft)"><small>${info.attrs.length > 1 ? `<select data-sa="${i}">${info.attrs.map(a => `<option ${a === s.attr ? "selected" : ""}>${a}</option>`).join("")}</select>` : esc2(s.attr)}</small></td>
-            <td><select data-sl="${i}">${LEVEL_SLOTS.map(([lab, lvl, n]) => `<option value="${lvl}" ${lvl === s.level ? "selected" : ""}>${lab} (${used(lvl)}/${n})</option>`).join("")}</select></td>
-            <td><button class="mx" data-sx="${i}" title="Remove">✕</button></td></tr>`; }).join("")}</table>` : ""}
-        <div class="gskills">${list.filter(s => allowed(s.name)).map(s => `<button class="gsk ${picked.has(s.name) ? "on" : ""}" data-sk="${esc2(s.name)}" title="${esc2(s.desc)}" ${!picked.has(s.name) && cg.skills.length >= 8 ? "disabled" : ""}><b>${esc2(s.name)}</b><small>${s.attrs.join(" / ")}</small></button>`).join("")}</div>
-        ${nav(ok, cg.skills.length === 8 && !slotsOk ? "Fix the levels: one +1, three 0, two -2, two -3." : cg.skills.length === 8 && !needOk ? `${cg.type}s must take ${cg.type === "Priest" ? "Prayer" : "Spellcasting"}.` : "")}`;
+        <div class="gnote">Tap skills in order of importance: the first fills the +1 slot, then 0, -2, -3. Tap an empty slot to fill that one next, or ⇅ to move a skill. Your attribute is added on top.${need ? ` ${cg.type}s must take ${cg.type === "Priest" ? "Prayer" : "Spellcasting"}.` : ""}</div>
+        <div class="gslots">${groups}</div>
+        <div class="gdesc">${di ? `<b>${esc2(di.name)}</b> <small>${di.attrs.join(" / ")}</small><div>${esc2(di.desc)}</div>` : `<small>Tap a skill to see what it does.${sugg.length || need ? " ★ = suggested for your type." : ""}</small>`}</div>
+        <input id="gq" class="gq" placeholder="Search skills…" value="${esc2(genQ)}">
+        <div class="gskills">${shown.map(s => `<button class="gsk ${picked.has(s.name) ? "on" : ""} ${genInfo === s.name ? "seen" : ""}" data-sk="${esc2(s.name)}"><b>${isSugg(s.name) ? "★ " : ""}${esc2(s.name)}</b><small>${s.attrs.join(" / ")}</small></button>`).join("")}</div>
+        ${nav(stepWhy(2))}`;
+      const filter = () => { const q = genQ.trim().toLowerCase(); document.querySelectorAll("[data-sk]").forEach(b => b.hidden = !!q && !b.dataset.sk.toLowerCase().includes(q)); };
+      filter();
+      $("gq").oninput = () => { genQ = $("gq").value; filter(); };
       document.querySelectorAll("[data-sk]").forEach(b => b.onclick = () => {
-        const n = b.dataset.sk, i = cg.skills.findIndex(s => s.base === n);
-        if (i >= 0) cg.skills.splice(i, 1);
-        else if (cg.skills.length < 8) { const info = list.find(x => x.name === n); const free = LEVEL_SLOTS.find(([, lvl, k]) => used(lvl) < k);
-          cg.skills.push({ base: n, name: n.replace(/\s*\((Choose One[^)]*|Type Restricted[^)]*)\)\s*/i, " ").trim(), attr: info.attrs[0], level: free ? free[1] : -3 }); }
+        const n = b.dataset.sk, i = cg.skills.findIndex(s => s.base === n); genInfo = n;
+        if (i >= 0) { cg.skills.splice(i, 1); genMove = null; }
+        else if (cg.skills.length < 8) { const sk = list.find(x => x.name === n);
+          const lvl = genTarget != null && usedLvl(genTarget) < LEVEL_SLOTS.find(x => x[1] === genTarget)[2] ? genTarget : (LEVEL_SLOTS.find(([, l, k]) => usedLvl(l) < k) || [, -3])[1];
+          cg.skills.push({ base: n, name: n.replace(/\s*\((Choose One[^)]*|Type Restricted[^)]*)\)\s*/i, " ").trim(), attr: sk.attrs[0], level: lvl }); genTarget = null; }
         cgSave(); showGen();
       });
-      document.querySelectorAll("[data-sx]").forEach(b => b.onclick = () => { cg.skills.splice(+b.dataset.sx, 1); cgSave(); showGen(); });
-      document.querySelectorAll("[data-sl]").forEach(s => s.onchange = () => { cg.skills[+s.dataset.sl].level = +s.value; cgSave(); showGen(); });
+      document.querySelectorAll("[data-es]").forEach(b => b.onclick = () => { const lvl = +b.dataset.es;
+        if (genMove != null) { cg.skills[genMove].level = lvl; genMove = null; } else genTarget = genTarget === lvl ? null : lvl;
+        cgSave(); showGen(); });
+      document.querySelectorAll("[data-mvs]").forEach(b => b.onclick = () => { const i = +b.dataset.mvs;
+        if (genMove == null) genMove = i; else if (genMove === i) genMove = null;
+        else { const a = cg.skills[genMove], c = cg.skills[i]; [a.level, c.level] = [c.level, a.level]; genMove = null; }
+        genTarget = null; cgSave(); showGen(); });
+      document.querySelectorAll("[data-sx]").forEach(b => b.onclick = () => { cg.skills.splice(+b.dataset.sx, 1); genMove = null; cgSave(); showGen(); });
       document.querySelectorAll("[data-sa]").forEach(s => s.onchange = () => { cg.skills[+s.dataset.sa].attr = s.value; cgSave(); });
       document.querySelectorAll("[data-sn]").forEach(s => s.onchange = () => { cg.skills[+s.dataset.sn].name = s.value.slice(0, 60); cgSave(); showGen(); });
       return bind();
@@ -819,14 +927,17 @@ async function showGen() {
         <div class="sec">OTHER GEAR (one per line)</div>
         <textarea id="gGear" rows="5" placeholder="Rope&#10;Medkit x2">${esc2(cg.gear)}</textarea>
         <div class="gpts">Starting credits: <b>1,000</b></div>
-        ${nav(true)}`;
+        ${nav("")}`;
       for (const k of ["armor", "melee", "ranged"]) $("ge_" + k).onchange = () => { e[k] = $("ge_" + k).value.trim().slice(0, 60); cgSave(); showGen(); };
       $("gGear").oninput = () => { cg.gear = $("gGear").value; cgSave(); };
       return bind();
     }
     // ---- 5. FINISH ----
+    if (!cg.email && store.get("ns.email")) { cg.email = store.get("ns.email"); cgSave(); }
+    const finishWhy = () => { for (let j = 0; j < 3; j++) { const w = stepWhy(j); if (w) return `Step ${j + 1} (${GSTEPS[j]}) isn't done: ${w}`; }
+      if (cg.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cg.email)) return "That email doesn't look right.";
+      return cg.name.trim() ? "" : "Give your character a name."; };
     const xpBtns = [-10, -1, 1, 10].map(d => `<button class="sbtn" data-xp="${d}">${d > 0 ? "+" : ""}${d}</button>`).join("");
-    const okEmail = !cg.email || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cg.email);
     box.innerHTML = bar + `<div class="sec">FINISH</div>
       <label class="gl">Character name<input id="gName" value="${esc2(cg.name)}" maxlength="60" placeholder="This becomes the sheet's name"></label>
       <label class="gl">Your Google email <small>(the new sheet is shared with you)</small><input id="gEmail" value="${esc2(cg.email)}" placeholder="you@gmail.com" inputmode="email"></label>
@@ -839,9 +950,10 @@ async function showGen() {
         <div><small>Skills</small>${cg.skills.slice().sort((a, b) => b.level - a.level).map(s => `${esc2(s.name)} ${sgn(s.level)}`).join(", ")}</div>
         <div><small>Equipped</small>${[cg.equip.armor, cg.equip.melee, cg.equip.ranged].filter(Boolean).map(esc2).join(", ") || "Nothing"}</div>
         <div><small>Credits</small>1,000</div></div>
-      ${nav(cg.name.trim() && okEmail && cg.type && cg.skills.length === 8, !okEmail ? "That email doesn't look right." : !cg.name.trim() ? "Give your character a name." : "")}`;
-    $("gName").oninput = () => { cg.name = $("gName").value; cgSave(); $("gMake").disabled = !cg.name.trim(); };
-    $("gEmail").onchange = () => { cg.email = $("gEmail").value.trim(); cgSave(); showGen(); };
+      ${nav(finishWhy())}`;
+    const recheck = () => { const w = finishWhy(); $("gerr").textContent = w; $("gMake").disabled = !!w; };
+    $("gName").oninput = () => { cg.name = $("gName").value; cgSave(); recheck(); };
+    $("gEmail").oninput = () => { cg.email = $("gEmail").value.trim(); cgSave(); recheck(); };
     $("gXpOn").onchange = () => { cg.xpOn = $("gXpOn").checked; if (!cg.xpOn) cg.xp = 0; cgSave(); showGen(); };
     document.querySelectorAll("[data-xp]").forEach(b => b.onclick = () => { cg.xp = Math.max(0, Math.min(1000, cg.xp + +b.dataset.xp)); cgSave(); showGen(); });
     $("gMake").onclick = async () => {
@@ -852,8 +964,9 @@ async function showGen() {
         equip: cg.equip, gear: cg.gear.split("\n").map(s => s.trim()).filter(Boolean), notes } };
       const r = await fetch(BRIDGE, { method: "POST", body: JSON.stringify({ code: store.get("ns.code"), ...body }) }).then(x => x.json()).catch(e => ({ ok: false, error: e.message }));
       sync(-1);
-      if (!r.ok) { $("gerr").textContent = "Didn't create the sheet: " + (r.error || "unknown error"); $("gMake").disabled = false; $("gMake").textContent = "CREATE CHARACTER"; return; }
-      cache.set("chars", null); cg = cgNew(); cgSave();
+      if (!r.ok) { $("gerr").classList.remove("ginfo"); $("gerr").textContent = "Didn't create the sheet: " + (r.error || "unknown error"); $("gMake").disabled = false; $("gMake").textContent = "CREATE CHARACTER"; return; }
+      if (body.create.email) store.set("ns.email", body.create.email);
+      cache.set("chars", null); cg = cgNew(); cgSave(); genQ = ""; genInfo = "";
       store.set("ns.sheetId", r.id);
       $("cg").innerHTML = `<div class="sec">DONE!</div><div class="grun"><div><b>${esc2(r.name)}</b> is in the New Scolos Characters folder${body.create.email ? ` and shared with ${esc2(body.create.email)}` : ""}.</div>${r.warn ? `<div class="err">${esc2(r.warn)}</div>` : ""}</div>
         <button id="gOpen" class="sbtn on" style="width:100%;margin-top:8px">OPEN THE NEW SHEET</button>`;
