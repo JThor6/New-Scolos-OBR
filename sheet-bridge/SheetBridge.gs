@@ -17,26 +17,26 @@ const POWER_CELL = 'F6';
 const COP_SPENT_CELL = 'H29';
 const POINTS_LABEL_CELL = 'E13'; // says "Invocations" or "Spell Points" when the character has them
 const POINTS_CELL = 'F13';
-// Sheet Manager: the only Main Sheet cells it may write (never formulas). [first col, last col, first row, last row]
-const MANAGE_CELLS = [
-  ['F', 'F', 3, 4],    // Current XP, Spent XP
-  ['F', 'F', 7, 7],    // Credits
-  ['F', 'F', 10, 10],  // Spent attribute points
-  ['C', 'C', 7, 10],   // Adroitness, Raw Strength, Intellect, Charm
-  ['B', 'C', 20, 35],  // trained skill name + attribute
-  ['E', 'E', 20, 35],  // trained skill level
-  ['B', 'C', 37, 44],  // untrained skill name + attribute
-  ['E', 'E', 37, 44],  // untrained skill level
-  ['B', 'D', 46, 58],  // inventory item + details
-  ['E', 'E', 46, 58],  // equipped
-  ['B', 'B', 72, 80],  // notes
-];
-// The manager only writes to sheets laid out like the master
-const LAYOUT_CHECK = { B19: 'trained skills', B36: 'untrained skills', B45: 'inventory', B71: 'notes' };
-function manageAllowed(a1) {
+// Sheet Manager: the only Main Sheet cells it may write (never formulas).
+// Sections are found by their headings in column B, so sheets with extra rows still work.
+function manageCells(sh) {
+  const b = sh.getRange('B1:B120').getDisplayValues().map(function (r) { return String(r[0]).trim().toLowerCase(); });
+  const at = function (label, from) { for (let i = from || 0; i < b.length; i++) if (b[i] === label) return i + 1; return 0; };
+  const tr = at('trained skills'), ut = at('untrained skills', tr), inv = at('inventory', ut), cr = at('combat rules', inv), notes = at('notes', cr);
+  if (!tr || !ut || !inv || !cr || !notes || b[6] !== 'adroitness' || b[9] !== 'charm') throw new Error('Could not find the sheet sections (Trained Skills, Untrained Skills, Inventory, Combat Rules, Notes), so the manager will not write to it.');
+  return [ // [first col, last col, first row, last row]
+    ['F', 'F', 3, 4], ['F', 'F', 7, 7], ['F', 'F', 10, 10], // XP, credits, spent attribute points
+    ['C', 'C', 7, 10],                                      // attributes
+    ['B', 'C', tr + 1, ut - 1], ['E', 'E', tr + 1, ut - 1], // trained skills
+    ['B', 'C', ut + 1, inv - 1], ['E', 'E', ut + 1, inv - 1], // untrained skills
+    ['B', 'D', inv + 1, cr - 1], ['E', 'E', inv + 1, cr - 1], // inventory, equipped
+    ['B', 'B', notes + 1, notes + 30],                       // notes
+  ];
+}
+function manageAllowed(list, a1) {
   const m = /^([A-L])(\d+)$/.exec(a1); if (!m) return false;
   const c = m[1], n = Number(m[2]);
-  return MANAGE_CELLS.some(function (x) { return c >= x[0] && c <= x[1] && n >= x[2] && n <= x[3]; });
+  return list.some(function (x) { return c >= x[0] && c <= x[1] && n >= x[2] && n <= x[3]; });
 }
 
 function json(obj) {
@@ -79,7 +79,7 @@ function doGet(e) {
       return json({ ok: true, values: last ? t.getRange(1, 1, last, cols).getDisplayValues() : [] });
     }
     const sh = openMain(p.id);
-    return json({ ok: true, values: sh.getRange('A1:L80').getDisplayValues() });
+    return json({ ok: true, values: sh.getRange('A1:L120').getDisplayValues() });
   } catch (err) {
     return json({ ok: false, error: String(err.message || err) });
   }
@@ -101,11 +101,9 @@ function doPost(e) {
     }
     if (b.cells) { // Sheet Manager: several input cells at once
       const keys = Object.keys(b.cells);
-      if (!keys.length || keys.length > 40) throw new Error('Nothing to change.');
-      for (const k in LAYOUT_CHECK) {
-        if (String(sh.getRange(k).getDisplayValue()).trim().toLowerCase() !== LAYOUT_CHECK[k]) throw new Error('This sheet is not laid out like the master sheet (' + k + '), so the manager will not write to it.');
-      }
-      keys.forEach(function (k) { if (!manageAllowed(k)) throw new Error('The manager cannot change ' + k + '.'); });
+      if (!keys.length || keys.length > 60) throw new Error('Nothing to change.');
+      const allowed = manageCells(sh);
+      keys.forEach(function (k) { if (!manageAllowed(allowed, k)) throw new Error('The manager cannot change ' + k + '.'); });
       const lock = LockService.getScriptLock(); lock.waitLock(10000);
       try {
         keys.forEach(function (k) {

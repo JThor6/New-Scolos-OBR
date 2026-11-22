@@ -466,13 +466,20 @@ async function loadSheet(quiet) {
 
 function list(cells) { return cells.map(V).filter(Boolean); }
 let mgrOn = false; // Sheet Manager view on/off (per sheet view)
+// Find each section by its heading in column B, so sheets with extra rows (like a longer inventory) still work
+function layout() {
+  const at = (label, from = 1) => { for (let i = from; i <= (sheetVals?.length || 0); i++) if (V("B" + i).toLowerCase() === label) return i; return 0; };
+  const tr = at("trained skills") || 19, ut = at("untrained skills", tr + 1) || 36, inv = at("inventory", ut + 1) || 45;
+  const cr = at("combat rules", inv + 1) || inv + 14, notes = at("notes", cr + 1) || 71;
+  return { trained: [tr + 1, ut - 1], untrained: [ut + 1, inv - 1], inv: [inv + 1, cr - 1], notes: [notes + 1, Math.max(notes + 12, sheetVals?.length || 0)] };
+}
 function drawSheet() {
   if (mgrOn) return drawManager();
   const F = (label, val, cls = "") => `<div class="fld ${cls}"><small>${label}</small><div>${esc2(val)}</div></div>`;
   const skillRows = (from, to) => { let h = ""; for (let i = from; i <= to; i++) if (V("B" + i)) h += `<tr><td>${esc2(V("B" + i))}</td><td>${esc2(V("C" + i))}</td><td>${esc2(V("D" + i))}</td><td>${esc2(V("E" + i))}</td><td><b>${esc2(V("F" + i))}</b></td><td class="rdc"><button class="rd" data-m="${esc2(V("F" + i))}" data-l="${esc2(V("B" + i))}" title="Roll ${esc2(V("B" + i))}">${ROLL_ICON}</button></td></tr>`; return h; };
   const table = (t, from, to) => { const rows = skillRows(from, to); return rows ? `<div class="stab">${t}</div><table class="skt"><tr><th>SKILL</th><th>ATTR.</th><th>RANK</th><th>LVL</th><th>TOT.</th><th class="rdc"></th></tr>${rows}</table>` : ""; };
-  const inv = [], eq = [];
-  for (let i = 46; i <= 80 && V("B" + i) !== "Combat Rules"; i++) {
+  const inv = [], eq = [], L = layout();
+  for (let i = L.inv[0]; i <= L.inv[1]; i++) {
     const t = [V("B" + i), V("C" + i), V("D" + i)].filter(Boolean).join(" - "); if (t) inv.push(t);
     if (V("E" + i)) eq.push(V("E" + i));
   }
@@ -496,11 +503,11 @@ function drawSheet() {
     <div class="g3">${F("Melee Dmg", V("H23"))}${F("Ranged Dmg", V("H24"))}${F("Armor", V("H25"))}</div>
     <div class="g2">${F("COP per combat", V("H28"))}<div class="fld"><small>COP spent</small><div class="ctl"><button id="copm">−</button><b id="copv">${esc2(V("H29") || "0")}</b><button id="copp">+</button></div></div></div>
     ${box("COMBAT OPTIONS", opts)}
-    ${table("TRAINED SKILLS", 20, 35)}
-    ${table("UNTRAINED SKILLS", 37, 44)}
+    ${table("TRAINED SKILLS", ...L.trained)}
+    ${table("UNTRAINED SKILLS", ...L.untrained)}
     ${box("EQUIPPED", eq)}
     ${box("INVENTORY", inv)}
-    ${box("NOTES", list(["B72", "B73", "B74", "B75", "B76", "B77", "B78", "B79", "B80"]))}
+    ${box("NOTES", (() => { const n = []; for (let i = L.notes[0]; i <= L.notes[1]; i++) n.push(V("B" + i)); return n.filter(Boolean); })())}
     <div id="sherr" class="err" hidden></div>
     ${isGM ? "" : `<button id="disc" class="histbtn">SWITCH CHARACTER</button>`}`;
   fillPowers();
@@ -534,6 +541,7 @@ function mgrSave(cells, done) {
     setCell("F5", String(levelOf(xpSpent()))); setCell("F12", String(attrLeft())); done && done(); });
 }
 function drawManager() {
+  const L = layout();
   const ATTR = [["Adroitness", "C7"], ["Raw Strength", "C8"], ["Intellect", "C9"], ["Charm", "C10"]];
   const pm = (id, up, down, upNote) => `<span class="mctl"><button data-a="${id}" data-d="-1" ${down ? "" : "disabled"}>−</button><button data-a="${id}" data-d="1" ${up ? "" : "disabled"}>+</button></span><span class="mcost">${upNote}</span>`;
   const attrRows = ATTR.map(([n, c]) => {
@@ -544,7 +552,7 @@ function drawManager() {
     const r = skillLvl(i), up = stepCost(r), down = stepCost(r - 1);
     h += `<tr><td>${esc2(V("B" + i))}<small> ${esc2(V("C" + i))}</small></td><td class="mv">${sgn(r)}</td><td>${pm("S" + i, up != null && up <= xpNow(), down != null && r > -4 && down <= xpSpent(), up != null ? `+1: ${up} XP` : "ask GM")}${r <= -4 ? `<button class="mx" data-rm="${i}" title="Remove skill">✕</button>` : ""}</td></tr>`; } return h; };
   const listRows = (from, to, cols, key) => { let h = ""; for (let i = from; i <= to; i++) { const txt = cols.map(c => V(c + i)).filter(Boolean).join(" - "); if (txt) h += `<div class="mli"><span>${esc2(txt)}</span><button class="mx" data-${key}="${i}" title="Remove">✕</button></div>`; } return h || `<div class="empty" style="padding:4px">Nothing yet.</div>`; };
-  const notes = []; for (let i = 72; i <= 80; i++) notes.push(V("B" + i)); while (notes.length && !notes[notes.length - 1]) notes.pop();
+  const notes = []; for (let i = L.notes[0]; i <= L.notes[1]; i++) notes.push(V("B" + i)); while (notes.length && !notes[notes.length - 1]) notes.pop();
   const attrOpts = ["Adroitness", "Raw Strength", "Intellect", "Charm"].map(a => `<option>${a}</option>`).join("");
   $("shbody").innerHTML = `
     <button id="mgr" class="sbtn mgrbtn on">✓ DONE MANAGING</button>
@@ -552,15 +560,15 @@ function drawManager() {
     <div class="g2">${`<div class="fld"><small>XP to spend</small><div>${xpNow()}</div></div><div class="fld"><small>Attribute points left</small><div>${attrLeft()}</div></div>`}</div>
     <div class="mrow"><span class="mtot" title="Current XP + Spent XP">Total earned<b>${xpNow() + xpSpent()}</b></span><input id="xpAdd" inputmode="numeric" placeholder="XP earned"><button id="xpGo" class="sbtn">+ ADD XP</button></div>
     <div class="stab">ATTRIBUTES</div><table class="mtab">${attrRows}</table>
-    <div class="stab">TRAINED SKILLS</div><table class="mtab">${skillRows(20, 35) || `<tr><td class="empty">None yet.</td></tr>`}</table>
-    <div class="stab">UNTRAINED SKILLS</div><table class="mtab">${skillRows(37, 44) || `<tr><td class="empty">None yet.</td></tr>`}</table>
+    <div class="stab">TRAINED SKILLS</div><table class="mtab">${skillRows(...L.trained) || `<tr><td class="empty">None yet.</td></tr>`}</table>
+    <div class="stab">UNTRAINED SKILLS</div><table class="mtab">${skillRows(...L.untrained) || `<tr><td class="empty">None yet.</td></tr>`}</table>
     <div class="madd"><input id="skName" placeholder="New skill name"><select id="skAttr">${attrOpts}</select><button id="skGo" class="sbtn">ADD</button></div>
     <div class="mnote">New skills start Untrained at -4 and move to Trained at -3. Raising a skill spends XP; raising an attribute spends attribute points (costs from the chart on your sheet). − refunds the last step.</div>
     <div class="stab">CREDITS</div>
     <div class="mrow"><b class="mcred">${esc2(V("F7") || "0")}</b><input id="crAmt" inputmode="numeric" placeholder="Amount"><button id="crAdd" class="sbtn">+ ADD</button><button id="crSub" class="sbtn">− SPEND</button></div>
-    <div class="stab">EQUIPPED</div>${listRows(46, 58, ["E"], "eq")}
+    <div class="stab">EQUIPPED</div>${listRows(...L.inv, ["E"], "eq")}
     <div class="mrow"><input id="eqName" placeholder="Equip an item"><button id="eqGo" class="sbtn">ADD</button></div>
-    <div class="stab">INVENTORY</div>${listRows(46, 58, ["B", "C", "D"], "inv")}
+    <div class="stab">INVENTORY</div>${listRows(...L.inv, ["B", "C", "D"], "inv")}
     <div class="mrow"><input id="invName" placeholder="Item"><input id="invDet" placeholder="Detail (x5, +2 def…)" style="max-width:40%"><button id="invGo" class="sbtn">ADD</button></div>
     <div class="stab">NOTES</div>
     <textarea id="notes" rows="5" maxlength="2000">${esc2(notes.join("\n"))}</textarea>
@@ -584,8 +592,8 @@ function drawManager() {
       if (d < 0 && cost > xpSpent()) return;
       const cells = { ["E" + row]: r + d, F3: xpNow() - d * cost, F4: xpSpent() + d * cost };
       // -3 or better is Trained; back down to -4 is Untrained. Move the skill between the two lists to match.
-      const untrained = row >= 37, toList = r + d >= -3 ? [20, 35] : [37, 44];
-      if (untrained !== (toList[0] === 37)) {
+      const untrained = row >= L.untrained[0], toList = r + d >= -3 ? L.trained : L.untrained;
+      if (untrained !== (toList === L.untrained)) {
         let dest = 0; for (let i = toList[0]; i <= toList[1]; i++) if (!V("B" + i)) { dest = i; break; }
         if (!dest && d > 0) return err("The Trained skills list is full on the sheet.");
         if (dest) { Object.assign(cells, { ["B" + row]: "", ["C" + row]: "", ["E" + row]: "", ["B" + dest]: V("B" + row), ["C" + dest]: V("C" + row), ["E" + dest]: r + d }); }
@@ -596,7 +604,7 @@ function drawManager() {
   document.querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { const i = b.dataset.rm; mgrSave({ ["B" + i]: "", ["C" + i]: "", ["E" + i]: "" }); });
   $("skGo").onclick = () => {
     const name = $("skName").value.trim(); if (!name) return;
-    const [from, to] = [37, 44]; // new skills always start Untrained
+    const [from, to] = L.untrained; // new skills always start Untrained
     let row = 0; for (let i = from; i <= to; i++) if (!V("B" + i)) { row = i; break; }
     if (!row) return err("The Untrained skills list is full on the sheet.");
     mgrSave({ ["B" + row]: name, ["C" + row]: $("skAttr").value, ["E" + row]: -4 });
@@ -606,16 +614,16 @@ function drawManager() {
     if (sign < 0 && amt > cur) return err("Not enough credits.");
     mgrSave({ F7: cur + sign * amt }); };
   $("crAdd").onclick = () => cred(1); $("crSub").onclick = () => cred(-1);
-  const firstEmpty = (col) => { for (let i = 46; i <= 58; i++) if (!V(col + i)) return i; return 0; };
+  const firstEmpty = (col) => { for (let i = L.inv[0]; i <= L.inv[1]; i++) if (!V(col + i)) return i; return 0; };
   $("eqGo").onclick = () => { const v = $("eqName").value.trim(); if (!v) return; const i = firstEmpty("E"); if (!i) return err("Equipped list is full."); mgrSave({ ["E" + i]: v }); };
   $("invGo").onclick = () => { const v = $("invName").value.trim(); if (!v) return;
-    let i = 0; for (let j = 46; j <= 58; j++) if (!V("B" + j) && !V("C" + j) && !V("D" + j)) { i = j; break; }
+    let i = 0; for (let j = L.inv[0]; j <= L.inv[1]; j++) if (!V("B" + j) && !V("C" + j) && !V("D" + j)) { i = j; break; }
     if (!i) return err("Inventory is full on the sheet."); mgrSave({ ["B" + i]: v, ["C" + i]: $("invDet").value.trim() }); };
   document.querySelectorAll("[data-eq]").forEach(b => b.onclick = () => mgrSave({ ["E" + b.dataset.eq]: "" }));
   document.querySelectorAll("[data-inv]").forEach(b => b.onclick = () => { const i = b.dataset.inv; mgrSave({ ["B" + i]: "", ["C" + i]: "", ["D" + i]: "" }); });
-  $("noteGo").onclick = () => { const lines = $("notes").value.split("\n").slice(0, 9), cells = {};
-    for (let i = 0; i < 9; i++) cells["B" + (72 + i)] = (lines[i] || "").slice(0, 300);
-    if ($("notes").value.split("\n").length > 9) err("Only the first 9 lines fit in the sheet's notes.");
+  $("noteGo").onclick = () => { const room = Math.min(30, L.notes[1] - L.notes[0] + 1), lines = $("notes").value.split("\n").slice(0, room), cells = {};
+    for (let i = 0; i < room; i++) cells["B" + (L.notes[0] + i)] = (lines[i] || "").slice(0, 300);
+    if ($("notes").value.split("\n").length > room) err(`Only the first ${room} lines fit in the sheet's notes.`);
     mgrSave(cells); };
 }
 
