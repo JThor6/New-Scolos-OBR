@@ -500,6 +500,7 @@ function drawSheet() {
     ${table("UNTRAINED SKILLS", 37, 44)}
     ${box("EQUIPPED", eq)}
     ${box("INVENTORY", inv)}
+    ${box("NOTES", list(["B72", "B73", "B74", "B75", "B76", "B77", "B78", "B79", "B80"]))}
     <div id="sherr" class="err" hidden></div>
     ${isGM ? "" : `<button id="disc" class="histbtn">SWITCH CHARACTER</button>`}`;
   fillPowers();
