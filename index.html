@@ -125,6 +125,7 @@
   .gl { display:block; font-size:12px; font-weight:800; color:var(--dim); margin-top:6px; }
   .gl input, .gl select, #gGear, #gGod { display:block; width:100%; box-sizing:border-box; margin-top:3px; background:#1b1e2e; color:var(--ink); border:1px solid #444a66; border-radius:8px; padding:6px; font:13px system-ui; }
   .gpts { margin:6px 0; font-size:13px; } .gpts.bad b { color:var(--minus); }
+  .gsel { background:#1b1e2e; color:var(--ink); border:1px solid #444a66; border-radius:6px; font:800 14px system-ui; padding:3px 6px; }
   .gsets { display:grid; grid-template-columns:repeat(5,1fr); gap:4px; } .gsets button { font-size:11px; padding:4px 2px; } .gsets small { display:block; font-size:9px; color:var(--dim); font-weight:600; }
   .gskills { display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:6px; }
   .gsk { text-align:left; background:var(--paper); color:var(--ink); border:2px solid #444a66; border-radius:8px; padding:4px 6px; cursor:pointer; font-size:12px; }
@@ -750,15 +751,21 @@ async function showGen() {
       const spent = attrCost(), left = 42 - spent;
       box.innerHTML = bar + `<div class="sec">STARTING ATTRIBUTES</div>
         <div class="gnote">Every attribute starts at -3 and you have 42 points. Costs come from the Starting Attribute Calculator.</div>
+        ${cg.preset != null ? `<div class="gnote">Using <b>Set ${cg.preset + 1}</b>. Pick which value goes on each attribute. Changing one swaps it with the attribute that had that value.</div>` : ""}
         <table class="mtab">${ATTRS.map(a => { const r = cg.attrs[a], up = r < 3 ? ATTR_COST[String(r + 1)] - ATTR_COST[String(r)] : null;
+          if (cg.preset != null) return `<tr><td>${a}</td><td></td><td><select class="gsel" data-pa="${a}">${[...new Set(ATTR_SETS[cg.preset])].sort((x, y) => y - x).map(v => `<option value="${v}" ${v === r ? "selected" : ""}>${sgn(v)}</option>`).join("")}</select></td></tr>`;
           return `<tr><td>${a}</td><td class="mv">${sgn(r)}</td><td><span class="mctl"><button data-ga="${a}" data-d="-1" ${r > -3 ? "" : "disabled"}>−</button><button data-ga="${a}" data-d="1" ${up != null && up <= left ? "" : "disabled"}>+</button></span><span class="mcost">${up != null ? `+1: ${up} pts` : "max"}</span></td></tr>`; }).join("")}</table>
         <div class="gpts ${left < 0 ? "bad" : ""}">Points left: <b>${left}</b> of 42</div>
-        <div class="sec">OR USE A PRESET</div>
-        <div class="gsets">${ATTR_SETS.map((s, i) => `<button class="sbtn" data-set="${i}">Set ${i + 1}<small>${s.map(sgn).join(" / ")}</small></button>`).join("")}</div>
-        <div class="gnote">Order: Adroitness / Raw Strength / Intellect / Charm</div>
+        <div class="sec">${cg.preset != null ? "PRESET ARRAYS" : "OR USE A PRESET"}</div>
+        <div class="gsets">${ATTR_SETS.map((s, i) => `<button class="sbtn ${i === cg.preset ? "on" : ""}" data-set="${i}">Set ${i + 1}<small>${s.map(sgn).join(" / ")}</small></button>`).join("")}</div>
+        ${cg.preset != null ? `<button id="gCustom" class="histbtn" style="margin-top:6px">SPEND POINTS MYSELF INSTEAD</button>` : `<div class="gnote">Pick a set, then choose which attribute gets each value.</div>`}
         ${nav(left >= 0, left > 0 ? `${left} point${left === 1 ? "" : "s"} left unspent. They don't carry over.` : "")}`;
+      document.querySelectorAll("[data-pa]").forEach(s => s.onchange = () => { // swap values so the set stays whole
+        const a = s.dataset.pa, v = +s.value, old = cg.attrs[a], other = ATTRS.find(x => x !== a && cg.attrs[x] === v);
+        cg.attrs[a] = v; if (other) cg.attrs[other] = old; cgSave(); showGen(); });
+      if ($("gCustom")) $("gCustom").onclick = () => { cg.preset = null; cgSave(); showGen(); };
       document.querySelectorAll("[data-ga]").forEach(b => b.onclick = () => { const a = b.dataset.ga; cg.attrs[a] = Math.max(-3, Math.min(3, cg.attrs[a] + +b.dataset.d)); cgSave(); showGen(); });
-      document.querySelectorAll("[data-set]").forEach(b => b.onclick = () => { ATTR_SETS[+b.dataset.set].forEach((v, i) => cg.attrs[ATTRS[i]] = v); cgSave(); showGen(); });
+      document.querySelectorAll("[data-set]").forEach(b => b.onclick = () => { cg.preset = +b.dataset.set; ATTR_SETS[cg.preset].forEach((v, i) => cg.attrs[ATTRS[i]] = v); cgSave(); showGen(); });
       return bind();
     }
     // ---- 3. SKILLS ----

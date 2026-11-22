@@ -108,6 +108,13 @@ function manageAllowed(list, a1) {
   return list.some(function (x) { return c >= x[0] && c <= x[1] && n >= x[2] && n <= x[3]; });
 }
 
+// Run this once from the Apps Script editor (pick it in the function dropdown, press Run, then Allow)
+// so the bridge may copy the Master and share new character sheets.
+function setupPermissions() {
+  const f = DriveApp.getFileById(MASTER_ID);
+  Logger.log('Drive access OK: ' + f.getName() + ' / ' + DriveApp.getFolderById(CHARACTER_FOLDER_ID).getName());
+}
+
 function json(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
