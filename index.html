@@ -98,6 +98,9 @@
   .mctl button, .mx { background:var(--paper); color:var(--ink); border:2px solid #444a66; border-radius:6px; min-width:28px; height:26px; font-weight:800; cursor:pointer; margin-left:3px; }
   .mctl button:disabled { opacity:.3; cursor:default; }
   .mx { min-width:24px; color:var(--dim); }
+  .mord { display:inline-flex; flex-direction:column; margin-right:5px; vertical-align:middle; }
+  .mord button { background:transparent; color:var(--dim); border:0; padding:0 3px; font-size:9px; line-height:11px; cursor:pointer; }
+  .mord button:hover { color:var(--accent); }
   .mcost { display:inline-block; min-width:62px; color:var(--dim); font-size:10px; text-align:right; margin-left:4px; }
   .madd, .mrow { display:flex; gap:5px; margin-top:6px; align-items:center; }
   .madd input, .mrow input { flex:1; min-width:0; }
@@ -553,7 +556,7 @@ function drawManager() {
   }).join("");
   const skillRows = (from, to) => { let h = ""; for (let i = from; i <= to; i++) { if (!V("B" + i)) continue;
     const r = skillLvl(i), up = stepCost(r), down = stepCost(r - 1);
-    h += `<tr><td>${esc2(V("B" + i))}<small> ${esc2(V("C" + i))}</small></td><td class="mv">${sgn(r)}</td><td>${pm("S" + i, up != null && up <= xpNow(), down != null && r > -4 && down <= xpSpent(), up != null ? `+1: ${up} XP` : "ask GM")}${r <= -4 ? `<button class="mx" data-rm="${i}" title="Remove skill">✕</button>` : ""}</td></tr>`; } return h; };
+    h += `<tr><td><span class="mord"><button data-mv="${i}" data-dir="-1" title="Move up">▲</button><button data-mv="${i}" data-dir="1" title="Move down">▼</button></span>${esc2(V("B" + i))}<small> ${esc2(V("C" + i))}</small></td><td class="mv">${sgn(r)}</td><td>${pm("S" + i, up != null && up <= xpNow(), down != null && r > -4 && down <= xpSpent(), up != null ? `+1: ${up} XP` : "ask GM")}${r <= -4 ? `<button class="mx" data-rm="${i}" title="Remove skill">✕</button>` : ""}</td></tr>`; } return h; };
   const listRows = (from, to, cols, key) => { let h = ""; for (let i = from; i <= to; i++) { const txt = cols.map(c => V(c + i)).filter(Boolean).join(" - "); if (txt) h += `<div class="mli"><span>${esc2(txt)}</span><button class="mx" data-${key}="${i}" title="Remove">✕</button></div>`; } return h || `<div class="empty" style="padding:4px">Nothing yet.</div>`; };
   const notes = []; for (let i = L.notes[0]; i <= L.notes[1]; i++) notes.push(V(L.nc + i)); while (notes.length && !notes[notes.length - 1]) notes.pop();
   const attrOpts = ["Adroitness", "Raw Strength", "Intellect", "Charm"].map(a => `<option>${a}</option>`).join("");
@@ -603,6 +606,15 @@ function drawManager() {
       }
       mgrSave(cells);
     }
+  });
+  // ▲▼ reorder a skill within its own list (Trained or Untrained) by swapping it with the next skill up or down
+  document.querySelectorAll("[data-mv]").forEach(b => b.onclick = () => {
+    const row = +b.dataset.mv, dir = +b.dataset.dir, [from, to] = row >= L.untrained[0] ? L.untrained : L.trained;
+    let other = 0; for (let i = row + dir; i >= from && i <= to; i += dir) if (V("B" + i)) { other = i; break; }
+    if (!other) return;
+    const cells = {}; for (const c of ["B", "C", "E"]) { cells[c + row] = V(c + other); cells[c + other] = V(c + row); }
+    for (const c of ["E"]) for (const k of [c + row, c + other]) { const n = num(cells[k]); if (n != null) cells[k] = n; }
+    mgrSave(cells);
   });
   document.querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { const i = b.dataset.rm; mgrSave({ ["B" + i]: "", ["C" + i]: "", ["E" + i]: "" }); });
   $("skGo").onclick = () => {
