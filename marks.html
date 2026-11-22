@@ -35,7 +35,9 @@ async function restack(id) {
   const b = await OBR.scene.items.getItemBounds([id]);
   const k = (await OBR.scene.grid.getDpi()) / 150;
   await OBR.scene.items.updateItems(marks.map(m => m.id), (ds) => ds.forEach((d, i) => {
-    d.position = { x: b.center.x, y: b.min.y - 4.5 * k - i * 33 * k };
+    // the closest one gets a speech-balloon tail pointing at the token; the rest stack above it
+    d.position = { x: b.center.x, y: b.min.y - 2 * k - (i ? 9 * k + i * 33 * k : 0) };
+    d.style.pointerHeight = i ? 0 : 9 * k;
   }));
 }
 
@@ -48,7 +50,8 @@ async function toggle(text) {
     else await OBR.scene.items.addItems([buildLabel().plainText(text).position({ x: 0, y: 0 })
       .fontSize(16.5 * k).fontWeight(700).fillColor("#ffffff").padding(4.5 * k)
       .backgroundColor("#1b1e2e").backgroundOpacity(0.85).cornerRadius(9 * k)
-      .pointerDirection("DOWN").pointerHeight(0)
+      .strokeColor("#bb99ff").strokeWidth(2 * k).strokeOpacity(1)
+      .pointerDirection("DOWN").pointerHeight(9 * k).pointerWidth(12 * k)
       .attachedTo(id).disableAttachmentBehavior(["ROTATION", "SCALE"])
       .layer("TEXT").locked(true).disableHit(true)
       .metadata({ [MARK_ITEM]: { on: id, text, n: Date.now() } }).build()]);
