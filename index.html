@@ -266,6 +266,35 @@
   div.gcard { cursor:default; }
   .gcb2 { display:flex; gap:4px; margin-top:5px; } .gcb2 button { flex:1; font-size:11px; padding:3px; } .gcb2 button:disabled { opacity:.3; cursor:default; }
   .gpicked { font-size:13px; margin:4px 0 6px; }
+  .gtray { position:sticky; top:0; z-index:5; background:rgba(22,24,38,.97); border:2px solid #000; outline:1px solid #6b5aa0; border-radius:8px; padding:5px 5px 6px; margin-bottom:6px; }
+  html.solid .gtray { background:#1b1e2e; }
+  .gtt { font-family:'Bangers', Impact, sans-serif; font-size:16px; letter-spacing:1px; color:var(--accent); margin:0 0 3px 2px; }
+  .gtt small { font-family:system-ui; font-size:10px; color:var(--dim); letter-spacing:0; margin-left:4px; }
+  .gtr { display:flex; gap:4px; align-items:flex-start; margin-top:3px; }
+  .gtl { flex:none; width:24px; height:24px; display:flex; align-items:center; justify-content:center; font-family:'Bangers', Impact, sans-serif; font-size:15px; background:#000; border-radius:5px; }
+  .gtc { flex:1; display:flex; flex-wrap:wrap; gap:3px; min-width:0; }
+  .gchip { display:inline-flex; align-items:center; gap:3px; height:24px; border-radius:12px; font:700 11px system-ui; max-width:100%; }
+  .gchip.f { background:#3d3460; border:1.5px solid var(--accent); color:var(--ink); padding:0 2px 0 8px; cursor:grab; }
+  .gchip.f b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; } .gchip.f em { font-style:normal; color:var(--plus); font-weight:900; }
+  .gchip.f.warn { border-color:#ffb020; } .gchip.f.warn b { color:#ffc94d; }
+  .gchip.f.mv { background:var(--accent); color:#000; } .gchip.f.mv em { color:#000; }
+  .gchip.drag { opacity:.4; } .gchip.over { box-shadow:0 0 0 2px var(--plus); }
+  .gx { background:transparent; border:none; color:inherit; opacity:.6; cursor:pointer; font-size:10px; padding:0 3px; } .gx:hover { opacity:1; }
+  .gchip.e { width:44px; border:1.5px dashed #555b75; background:transparent; color:var(--dim); cursor:pointer; justify-content:center; font-size:9px; text-transform:uppercase; }
+  .gchip.e.tg { border-color:var(--accent); color:var(--accent); } .gchip.e.dest { border-color:var(--plus); color:var(--plus); }
+  .gtools { display:flex; gap:5px; align-items:center; margin-top:6px; } .gtools .gq { margin:0; flex:1; min-width:0; } .gtools .sbtn { white-space:nowrap; font-size:11px; padding:5px 7px; }
+  .gsh { font-size:10px; font-weight:800; letter-spacing:.5px; color:var(--dim); margin:8px 2px 3px; } .gsh span { color:var(--ink); }
+  .gsr { display:flex; flex-wrap:wrap; align-items:stretch; background:var(--paper); border:1.5px solid #444a66; border-radius:7px; margin-top:3px; }
+  .gsr.on { border-color:var(--accent); background:rgba(61,52,96,.7); } .gsr[hidden], .gsh[hidden] { display:none; }
+  .gsk2 { flex:1; min-width:0; display:flex; align-items:center; gap:6px; background:transparent; border:none; color:var(--ink); text-align:left; padding:5px 4px 5px 7px; cursor:pointer; font:12px system-ui; }
+  .gsk2 b { flex:1; min-width:0; font-weight:700; }
+  .gsk2 em { font-style:normal; font-weight:900; color:var(--dim); min-width:22px; text-align:right; } .gsk2 em.on { color:var(--plus); } .gsk2 em.full { font-size:9px; font-weight:700; }
+  .gck { width:16px; height:16px; flex:none; border-radius:4px; border:1.5px solid #555b75; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:900; color:var(--dim); }
+  .gsr.on .gck { background:var(--accent); border-color:var(--accent); color:#000; }
+  .gi { background:transparent; border:none; border-left:1px solid #333a55; color:var(--dim); cursor:pointer; width:28px; font-size:13px; } .gi:hover { color:var(--accent); }
+  .gsd { flex-basis:100%; border-top:1px solid #333a55; padding:5px 8px 6px; font-size:12px; line-height:1.35; color:var(--ink); }
+  .gopt { display:flex; flex-wrap:wrap; align-items:center; gap:4px; margin-top:5px; } .gopt small { flex-basis:100%; font-size:10px; font-weight:800; color:var(--dim); text-transform:uppercase; }
+  .gopt .sbtn { font-size:11px; padding:3px 7px; } .gspec { padding:4px 6px; font-size:12px; }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
   .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
@@ -808,10 +837,16 @@ function stepWhy(i) {
     const n = 8 - cg.skills.length; if (n > 0) return `Pick ${n} more skill${n === 1 ? "" : "s"}.`;
     if (!LEVEL_SLOTS.every(([, l, k]) => usedLvl(l) === k)) return "Fix the levels: one +1, three 0, two -2, two -3.";
     const need = reqSkill(); if (need && !cg.skills.some(s => need.test(s.base))) return `${cg.type}s must take ${cg.type === "Priest" ? "Prayer" : "Spellcasting"}.`;
+    const ns = cg.skills.find(specMissing); if (ns) return `Pick a specialty for ${ns.name} (tap it in the list).`;
     return cg.skills.every(s => s.name.trim()) ? "" : "Every skill needs a name.";
   }
   return "";
 }
+// skills like "Pilot (Choose One: Spacecraft, Watercraft, Land craft)" need a specialty picked
+const chooseOpts = (base) => { const m = String(base).match(/\(Choose One:\s*([^)]*)\)/i); return m ? m[1].split(/\s*,\s*/).filter(Boolean) : null; };
+const needsSpec = (base) => /\(Choose One/i.test(base);
+const baseShort = (base) => String(base).replace(/\s*\((Choose One[^)]*|Type Restricted[^)]*)\)\s*/i, " ").trim();
+const specMissing = (s) => needsSpec(s.base) && !s.spec && s.name === baseShort(s.base);
 const canReach = (i) => { for (let j = 0; j < i; j++) if (stepWhy(j)) return false; return true; };
 const SHORT = { Adroitness: "Adr", "Raw Strength": "Str", Intellect: "Int", Charm: "Cha" };
 let genRecheck = null; // Finish step: re-checks the Create button when the name changes
@@ -888,51 +923,81 @@ async function showGen() {
       document.querySelectorAll("[data-set]").forEach(b => b.onclick = () => { cg.preset = +b.dataset.set; cg.custom = false; ATTR_SETS[cg.preset].forEach((v, i) => cg.attrs[ATTRS[i]] = v); cgSave(); showGen(); });
       return bind();
     }
-    // ---- 3. SKILLS: tap a skill to drop it into the next open slot ----
+    // ---- 3. SKILLS: compact slot tray pinned on top, skill list grouped by attribute below ----
     if (cg.step === 2) {
       const list = await skillList(), info = cg.type ? await typeInfo(cg.type).catch(() => null) : null;
-      const picked = new Set(cg.skills.map(s => s.base));
       const allowed = (n) => !(/^prayer/i.test(n) && cg.type !== "Priest") && !(/^spellcasting/i.test(n) && cg.type !== "Mage");
       const need = reqSkill();
       const sugg = String((info?.rows.find(([a]) => /^suggested skills/i.test(a)) || [])[1] || "").split(/[,;]/).map(s => s.replace(/\(.*?\)/g, "").trim().toLowerCase()).filter(Boolean);
-      const isSugg = (n) => { const b = n.toLowerCase(), head = b.split(/\s*[\/(]\s*/)[0].trim(); return (need && need.test(n)) || sugg.some(s => b === s || head === s || b.startsWith(s + " ")); };
-      const shown = list.filter(s => allowed(s.name)).sort((a, b) => isSugg(b.name) - isSugg(a.name));
-      const slot = (s) => { const i = cg.skills.indexOf(s), sk = list.find(x => x.name === s.base) || { attrs: [s.attr] };
-        return `<div class="gslot f ${genMove === i ? "mv" : ""}"><button class="gmv" data-mvs="${i}" title="Move to another slot">⇅</button>
-          <div class="gsi"><input class="gsn" data-sn="${i}" value="${esc2(s.name)}" title="Add the specialty, e.g. Pilot (Spacecraft)"><small>${sk.attrs.length > 1 ? `<select data-sa="${i}">${sk.attrs.map(a => `<option ${a === s.attr ? "selected" : ""}>${a}</option>`).join("")}</select>` : esc2(s.attr)}</small></div>
-          <button class="mx" data-sx="${i}" title="Remove">✕</button></div>`; };
-      const groups = LEVEL_SLOTS.map(([lab, lvl, n]) => { const inG = cg.skills.filter(s => s.level === lvl), empty = Math.max(0, n - inG.length);
-        return `<div class="gslg"><div class="gsll">${lab}</div><div class="gslr">${inG.map(slot).join("")}${Array.from({ length: empty }, () =>
-          `<button class="gslot e ${genTarget === lvl && genMove == null ? "tg" : ""} ${genMove != null ? "dest" : ""}" data-es="${lvl}">${genMove != null ? "Move here" : genTarget === lvl ? "Next skill goes here" : "Empty"}</button>`).join("")}</div></div>`; }).join("");
-      const di = list.find(x => x.name === genInfo);
-      box.innerHTML = bar + `<div class="sec">PICK 8 SKILLS (${cg.skills.length}/8)</div>
-        <div class="gnote">Tap skills in order of importance: the first fills the +1 slot, then 0, -2, -3. Tap an empty slot to fill that one next, or ⇅ to move a skill. Your attribute is added on top.${need ? ` ${cg.type}s must take ${cg.type === "Priest" ? "Prayer" : "Spellcasting"}.` : ""}</div>
-        <div class="gslots">${groups}</div>
-        <div class="gdesc">${di ? `<b>${esc2(di.name)}</b> <small>${di.attrs.join(" / ")}</small><div>${esc2(di.desc)}</div>` : `<small>Tap a skill to see what it does.${sugg.length || need ? " ★ = suggested for your type." : ""}</small>`}</div>
-        <input id="gq" class="gq" placeholder="Search skills…" value="${esc2(genQ)}">
-        <div class="gskills">${shown.map(s => `<button class="gsk ${picked.has(s.name) ? "on" : ""} ${genInfo === s.name ? "seen" : ""}" data-sk="${esc2(s.name)}"><b>${isSugg(s.name) ? "★ " : ""}${esc2(s.name)}</b><small>${s.attrs.join(" / ")}</small></button>`).join("")}</div>
+      const suggRank = (n) => { const b = n.toLowerCase(), head = b.split(/\s*[\/(]\s*/)[0].trim(); if (need && need.test(n)) return 0;
+        const i = sugg.findIndex(s => b === s || head === s || b.startsWith(s + " ")); return i < 0 ? -1 : i + 1; };
+      const avail = list.filter(s => allowed(s.name));
+      const pickedIdx = (n) => cg.skills.findIndex(s => s.base === n);
+      const total = (s) => sgn((cg.attrs[s.attr] ?? 0) + s.level);
+      const capOf = (lvl) => LEVEL_SLOTS.find(x => x[1] === lvl)[2];
+      const nextLvl = () => genTarget != null && usedLvl(genTarget) < capOf(genTarget) ? genTarget : (LEVEL_SLOTS.find(([, l, k]) => usedLvl(l) < k) || [])[1];
+      const nl = nextLvl();
+      // tray: one row per level, filled chips show name + final total
+      const chip = (s) => { const i = cg.skills.indexOf(s), warn = specMissing(s);
+        return `<span class="gchip f ${genMove === i ? "mv" : ""} ${warn ? "warn" : ""}" draggable="true" data-ci="${i}" title="${genMove === i ? "Now tap another slot to move or swap" : "Tap to move · drag to another slot"}"><b>${esc2(s.name)}${warn ? " ?" : ""}</b><em>${total(s)}</em><button class="gx" data-sx="${i}" title="Remove">✕</button></span>`; };
+      const tray = LEVEL_SLOTS.map(([lab, lvl, n]) => { const inG = cg.skills.filter(s => s.level === lvl);
+        return `<div class="gtr"><span class="gtl">${lab}</span><div class="gtc">${inG.map(chip).join("")}${Array.from({ length: Math.max(0, n - inG.length) }, () =>
+          `<button class="gchip e ${genMove != null ? "dest" : nl === lvl && cg.skills.length < 8 ? "tg" : ""}" data-es="${lvl}" title="${genMove != null ? "Move here" : "Fill this slot next"}">${genMove != null ? "here" : nl === lvl && cg.skills.length < 8 ? "next" : ""}</button>`).join("")}</div></div>`; }).join("");
+      // detail drawer under a skill: description, plus attribute and specialty choices once picked
+      const detail = (sk) => { const i = pickedIdx(sk.name), s = cg.skills[i], opts = chooseOpts(sk.name);
+        let h = `<div class="gsd">${esc2(sk.desc)}`;
+        if (s && sk.attrs.length > 1) h += `<div class="gopt"><small>Roll with</small>${sk.attrs.map(a => `<button class="sbtn ${a === s.attr ? "on" : ""}" data-sa="${i}" data-v="${a}">${a} ${sgn(cg.attrs[a])}</button>`).join("")}</div>`;
+        if (s && opts) h += `<div class="gopt"><small>Pick one</small>${opts.map(o => `<button class="sbtn ${o === s.spec ? "on" : ""}" data-sp="${i}" data-v="${esc2(o)}">${esc2(o)}</button>`).join("")}</div>`;
+        else if (s && needsSpec(sk.name)) h += `<div class="gopt"><small>Your specialty</small><input class="gspec" data-spf="${i}" value="${esc2(s.spec || "")}" placeholder="e.g. Botany"></div>`;
+        return h + `</div>`; };
+      const row = (sk) => { const i = pickedIdx(sk.name), s = cg.skills[i], open = genInfo === sk.name, star = suggRank(sk.name) >= 0;
+        const would = s ? `<em class="on">${total(s)}</em>` : nl != null ? `<em title="Total if it goes in the next slot">${sgn((cg.attrs[sk.attrs[0]] ?? 0) + nl)}</em>` : `<em class="full">full</em>`;
+        return `<div class="gsr ${s ? "on" : ""} ${open ? "open" : ""}" data-row="${esc2(sk.name)}"><button class="gsk2" data-sk="${esc2(sk.name)}" draggable="${s ? "false" : "true"}"><span class="gck">${s ? "✓" : "+"}</span><b>${star ? "★ " : ""}${esc2(sk.name)}</b>${would}</button><button class="gi" data-info="${esc2(sk.name)}" title="What does it do?">${open ? "▴" : "ⓘ"}</button>${open ? detail(sk) : ""}</div>`; };
+      const suggList = avail.filter(s => suggRank(s.name) >= 0).sort((a, b) => suggRank(a.name) - suggRank(b.name));
+      const groups = ATTRS.slice().sort((a, b) => cg.attrs[b] - cg.attrs[a]).map(a => { const rows = avail.filter(s => s.attrs[0] === a && suggRank(s.name) < 0);
+        return rows.length ? `<div class="gsh">${a.toUpperCase()} <span>${sgn(cg.attrs[a])}</span></div>${rows.map(row).join("")}` : ""; }).join("");
+      const canFill = suggList.some(s => pickedIdx(s.name) < 0) && cg.skills.length < 8;
+      box.innerHTML = bar + `<div class="gtray"><div class="gtt">SKILLS ${cg.skills.length}/8 <small>${genMove != null ? "tap a slot to move it there" : "tap a skill below to fill the next slot"}</small></div>${tray}</div>
+        <div class="gnote">Total = attribute + slot level. Tap a filled slot (or drag it) to move it.${need ? ` ${cg.type}s must take ${cg.type === "Priest" ? "Prayer" : "Spellcasting"}.` : ""}</div>
+        <div class="gtools"><input id="gq" class="gq" placeholder="Search skills…" value="${esc2(genQ)}">${canFill ? `<button id="gFill" class="sbtn" title="Put your type's suggested skills in the open slots, in order">★ Fill suggested</button>` : ""}</div>
+        <div id="gsl">${suggList.length ? `<div class="gsh">★ SUGGESTED FOR ${esc2(cg.type.toUpperCase())}</div>${suggList.map(row).join("")}` : ""}${groups}</div>
         ${nav(stepWhy(2))}`;
-      const filter = () => { const q = genQ.trim().toLowerCase(); document.querySelectorAll("[data-sk]").forEach(b => b.hidden = !!q && !b.dataset.sk.toLowerCase().includes(q)); };
+      const addSkill = (n, lvl) => { const sk = list.find(x => x.name === n); if (!sk || cg.skills.length >= 8 || pickedIdx(n) >= 0) return;
+        cg.skills.push({ base: n, name: baseShort(n), attr: sk.attrs[0], level: lvl ?? nextLvl() ?? -3, spec: "" }); };
+      const redraw = () => { cgSave(); showGen(); };
+      const filter = () => { const q = genQ.trim().toLowerCase(); document.querySelectorAll("#gsl .gsr").forEach(r => r.hidden = !!q && !r.dataset.row.toLowerCase().includes(q));
+        document.querySelectorAll("#gsl .gsh").forEach(h => { let n = h.nextElementSibling, any = false; while (n && !n.classList.contains("gsh")) { if (!n.hidden) any = true; n = n.nextElementSibling; } h.hidden = !any; }); };
       filter();
       $("gq").oninput = () => { genQ = $("gq").value; filter(); };
-      document.querySelectorAll("[data-sk]").forEach(b => b.onclick = () => {
-        const n = b.dataset.sk, i = cg.skills.findIndex(s => s.base === n); genInfo = n;
-        if (i >= 0) { cg.skills.splice(i, 1); genMove = null; }
-        else if (cg.skills.length < 8) { const sk = list.find(x => x.name === n);
-          const lvl = genTarget != null && usedLvl(genTarget) < LEVEL_SLOTS.find(x => x[1] === genTarget)[2] ? genTarget : (LEVEL_SLOTS.find(([, l, k]) => usedLvl(l) < k) || [, -3])[1];
-          cg.skills.push({ base: n, name: n.replace(/\s*\((Choose One[^)]*|Type Restricted[^)]*)\)\s*/i, " ").trim(), attr: sk.attrs[0], level: lvl }); genTarget = null; }
-        cgSave(); showGen();
-      });
+      if ($("gFill")) $("gFill").onclick = () => { for (const s of suggList) addSkill(s.name); genTarget = null; genInfo = cg.skills.find(specMissing)?.base || genInfo; redraw(); };
+      document.querySelectorAll("[data-sk]").forEach(b => b.onclick = () => { const n = b.dataset.sk, i = pickedIdx(n);
+        if (i >= 0) { cg.skills.splice(i, 1); genMove = null; if (genInfo === n) genInfo = ""; }
+        else { if (cg.skills.length >= 8) { genInfo = n; return redraw(); } addSkill(n); genTarget = null; genInfo = (needsSpec(n) || (list.find(x => x.name === n)?.attrs.length > 1)) ? n : genInfo; }
+        redraw(); });
+      document.querySelectorAll("[data-info]").forEach(b => b.onclick = () => { genInfo = genInfo === b.dataset.info ? "" : b.dataset.info; redraw(); });
+      // moving: tap a chip to pick it up, tap another chip to swap or an empty slot to move
+      const moveTo = (from, lvl, other) => { if (other != null && other !== from) { const a = cg.skills[from], c = cg.skills[other]; [a.level, c.level] = [c.level, a.level]; }
+        else if (lvl != null) cg.skills[from].level = lvl; genMove = null; genTarget = null; };
+      document.querySelectorAll("[data-ci]").forEach(c => c.onclick = (e) => { if (e.target.closest("[data-sx]")) return; const i = +c.dataset.ci;
+        if (genMove == null) genMove = i; else if (genMove === i) genMove = null; else moveTo(genMove, null, i); redraw(); });
       document.querySelectorAll("[data-es]").forEach(b => b.onclick = () => { const lvl = +b.dataset.es;
-        if (genMove != null) { cg.skills[genMove].level = lvl; genMove = null; } else genTarget = genTarget === lvl ? null : lvl;
-        cgSave(); showGen(); });
-      document.querySelectorAll("[data-mvs]").forEach(b => b.onclick = () => { const i = +b.dataset.mvs;
-        if (genMove == null) genMove = i; else if (genMove === i) genMove = null;
-        else { const a = cg.skills[genMove], c = cg.skills[i]; [a.level, c.level] = [c.level, a.level]; genMove = null; }
-        genTarget = null; cgSave(); showGen(); });
-      document.querySelectorAll("[data-sx]").forEach(b => b.onclick = () => { cg.skills.splice(+b.dataset.sx, 1); genMove = null; cgSave(); showGen(); });
-      document.querySelectorAll("[data-sa]").forEach(s => s.onchange = () => { cg.skills[+s.dataset.sa].attr = s.value; cgSave(); });
-      document.querySelectorAll("[data-sn]").forEach(s => s.onchange = () => { cg.skills[+s.dataset.sn].name = s.value.slice(0, 60); cgSave(); showGen(); });
+        if (genMove != null) moveTo(genMove, lvl); else genTarget = genTarget === lvl ? null : lvl; redraw(); });
+      document.querySelectorAll("[data-sx]").forEach(b => b.onclick = (e) => { e.stopPropagation(); cg.skills.splice(+b.dataset.sx, 1); genMove = null; redraw(); });
+      // drag and drop: chips between slots, or a skill from the list straight into an empty slot
+      document.querySelectorAll("[data-ci]").forEach(c => c.ondragstart = (e) => { e.dataTransfer.setData("text/plain", "c:" + c.dataset.ci); c.classList.add("drag"); });
+      document.querySelectorAll(".gsk2[draggable=true]").forEach(b => b.ondragstart = (e) => e.dataTransfer.setData("text/plain", "s:" + b.dataset.sk));
+      document.querySelectorAll("[data-ci], [data-es]").forEach(t => {
+        t.ondragover = (e) => { e.preventDefault(); t.classList.add("over"); };
+        t.ondragleave = () => t.classList.remove("over");
+        t.ondrop = (e) => { e.preventDefault(); const d = e.dataTransfer.getData("text/plain"), lvl = t.dataset.es != null ? +t.dataset.es : null, other = t.dataset.ci != null ? +t.dataset.ci : null;
+          if (d.startsWith("c:")) moveTo(+d.slice(2), lvl, other);
+          else if (d.startsWith("s:") && lvl != null) addSkill(d.slice(2), lvl);
+          redraw(); };
+      });
+      document.querySelectorAll("[data-sa]").forEach(b => b.onclick = () => { cg.skills[+b.dataset.sa].attr = b.dataset.v; redraw(); });
+      const setSpec = (i, v) => { const s = cg.skills[i]; s.spec = v.trim().slice(0, 40); s.name = s.spec ? `${baseShort(s.base)} (${s.spec})` : baseShort(s.base); };
+      document.querySelectorAll("[data-sp]").forEach(b => b.onclick = () => { setSpec(+b.dataset.sp, b.dataset.v); redraw(); });
+      document.querySelectorAll("[data-spf]").forEach(t => t.onchange = () => { setSpec(+t.dataset.spf, t.value); redraw(); });
       return bind();
     }
     // ---- 4. EQUIPMENT ----
