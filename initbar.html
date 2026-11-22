@@ -10,6 +10,8 @@
   #lst.on { background:#bb99ff; color:#000; }
   body.min .bar { justify-content:center; padding:6px; }
   body.min #min { min-width:38px; height:38px; font-size:18px; }
+  #endturn { font-size:12px; padding:0 10px; white-space:nowrap; }
+  body.min #endturn { display:none !important; }
   #end { font-size:11px; width:auto; padding:0 6px; }
   .rnd { font-family:'Bangers', Impact, sans-serif; font-size:16px; letter-spacing:1px; color:#bb99ff; padding:0 4px; white-space:nowrap; }
   .list { display:flex; gap:5px; overflow-x:auto; flex:1; scrollbar-width:none; min-width:0; }
@@ -34,7 +36,7 @@
 <div class="bar"><span class="rnd" id="rnd"></span><div class="list" id="list"></div><span class="gm" id="gm" hidden>
   <span class="addf" id="addf" hidden><input id="an" placeholder="Name"><input id="av" class="num" placeholder="+0"><button class="sm" id="aok" title="Add">✓</button></span>
   <button class="sm" id="add" title="Add to initiative">+</button>
-  <button id="prev" title="Previous turn">|◀</button><button id="next" title="Next turn">▶|</button><button class="sm" id="end" title="End combat">END</button></span><button class="sm" id="lst" title="Show the order as a list">☰</button><button class="sm" id="min" title="Minimize">–</button></div>
+  <button id="prev" title="Previous turn">|◀</button><button id="next" title="Next turn">▶|</button><button class="sm" id="end" title="End combat">END</button></span><button id="endturn" hidden title="Pass to the next in order">END TURN</button><button class="sm" id="lst" title="Show the order as a list">☰</button><button class="sm" id="min" title="Minimize">–</button></div>
 <script type="module">
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
 import { INIT, initEntries } from "./shared.js";
@@ -46,7 +48,7 @@ function confirmEnd() {
 }
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const fmt = (n) => (n > 0 ? "+" : "") + n;
-let md = {}, gm = false;
+let md = {}, gm = false, me = "";
 const small = () => { try { return localStorage.getItem("ns.barMin") === "1"; } catch { return false; } };
 function draw() {
   document.body.classList.toggle("min", small());
@@ -56,6 +58,7 @@ function draw() {
   document.getElementById("rnd").textContent = "ROUND " + (st.round || 1);
   document.getElementById("list").innerHTML = list.map((e, i) =>
     `<div class="chip ${e.pc ? "" : "mon"} ${e.id === st.cur ? "cur" : ""}" data-id="${esc(e.id)}" ${e.id === st.cur ? 'id="curchip"' : ""}><span class="n">${i + 1}</span>${esc(e.name)}<span class="t">${fmt(e.total)}</span>${gm ? `<span class="x" data-x="${esc(e.id)}" title="Remove">✕</span>` : ""}</div>`).join("");
+  document.getElementById("endturn").hidden = gm || !me || st.cur !== me; // only the player whose turn it is
   document.getElementById("curchip")?.scrollIntoView({ inline: "center", block: "nearest" });
 }
 // Minimize is per person; the background page shrinks the panel to match
@@ -77,7 +80,20 @@ document.getElementById("lst").onclick = async () => {
     anchorOrigin: { horizontal: "RIGHT", vertical: "TOP" }, transformOrigin: { horizontal: "RIGHT", vertical: "TOP" },
     disableClickAway: true }).catch(() => {});
 };
+// Next/previous turn (GM arrows, and the player's END TURN)
+const step = async (d) => {
+  const m = await OBR.room.getMetadata(), st = m[INIT] || {}, list = initEntries(m);
+  if (!list.length) return;
+  let i = list.findIndex(e => e.id === st.cur), round = st.round || 1;
+  if (i < 0) i = d > 0 ? 0 : list.length - 1;
+  else { i += d; if (i >= list.length) { i = 0; round++; } if (i < 0) { i = list.length - 1; round = Math.max(1, round - 1); } }
+  await OBR.room.setMetadata({ [INIT]: { ...st, cur: list[i].id, round } });
+};
+document.getElementById("endturn").onclick = async () => {
+  if ((await OBR.room.getMetadata())[INIT]?.cur === me) step(1); // only if it's still your turn
+};
 OBR.onReady(async () => {
+  me = await OBR.player.getId();
   md = await OBR.room.getMetadata(); draw();
   OBR.room.onMetadataChange((m) => { md = m; draw(); });
   if ((await OBR.player.getRole()) === "GM") {
@@ -89,14 +105,6 @@ OBR.onReady(async () => {
       const m = await OBR.room.getMetadata(), st = m[INIT]; if (!st) return;
       if (x) return OBR.room.setMetadata({ [INIT]: { ...st, removed: [...(st.removed || []), x.dataset.x] } });
       if (chip) return OBR.room.setMetadata({ [INIT]: { ...st, cur: chip.dataset.id } });
-    };
-    const step = async (d) => {
-      const m = await OBR.room.getMetadata(), st = m[INIT] || {}, list = initEntries(m);
-      if (!list.length) return;
-      let i = list.findIndex(e => e.id === st.cur), round = st.round || 1;
-      if (i < 0) i = d > 0 ? 0 : list.length - 1;
-      else { i += d; if (i >= list.length) { i = 0; round++; } if (i < 0) { i = list.length - 1; round = Math.max(1, round - 1); } }
-      await OBR.room.setMetadata({ [INIT]: { ...st, cur: list[i].id, round } });
     };
     document.getElementById("next").onclick = () => step(1);
     document.getElementById("prev").onclick = () => step(-1);
