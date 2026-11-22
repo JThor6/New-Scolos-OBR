@@ -866,7 +866,16 @@ const ATTR_DOES = { Adroitness: "Dodging: attacks roll against it. Also initiati
   Charm: "Talking people around: con, haggling, seduction, public speaking. Prayer for Priests." };
 function attrNeeds(info, list) {
   const raw = String((info?.rows.find(([a]) => /^suggested skills/i.test(a)) || [])[1] || "").split(/[,;]/).map(x => x.trim()).filter(Boolean);
-  const out = Object.fromEntries(ATTRS.map(a => [a, { w: 0, skills: [] }]));
+  const out = Object.fromEntries(ATTRS.map(a => [a, { w: 0, skills: [], powers: [] }]));
+  const AT = "(Adroitness|Raw Strength|Intellect|Charm)";
+  for (const p of info?.powers || []) for (const [a, b] of p.rules) {
+    const hits = new Map(); // attr -> weight; "Roll Intellect" / "Attack with Intellect" = 2, "Intellect or Raw Strength" choices = 1 each
+    for (const m of String(b).matchAll(new RegExp(`(?:^|[.;:!]\\s+|\\byou\\s+)(?:roll|attack with)\\s+${AT}\\b`, "gi"))) hits.set(ATTRS.find(x => x.toLowerCase() === m[1].toLowerCase()), 2);
+    for (const m of String(b).matchAll(new RegExp(`(?<!target's |their |enemy's )\\b${AT}\\s+roll\\b`, "gi"))) hits.set(ATTRS.find(x => x.toLowerCase() === m[1].toLowerCase()), 2);
+    const alt = /roll/i.test(a) && String(b).match(new RegExp(`^${AT}(?:\\s*\\([^)]*\\))?\\s+or\\s+${AT}`, "i"));
+    if (alt) for (const x of [alt[1], alt[2]]) { const k = ATTRS.find(y => y.toLowerCase() === x.toLowerCase()); if (!hits.has(k)) hits.set(k, 1); }
+    for (const [k, w] of hits) { if (!out[k].powers.includes(p.name)) { out[k].powers.push(p.name); out[k].w += w; } }
+  }
   for (const r of raw) {
     const key = r.replace(/\(.*?\)/g, "").trim().toLowerCase(), core = /\((core|required)\)/i.test(r);
     const sk = list.find(x => { const b = x.name.toLowerCase(); return b === key || b.split(/\s*[\/(]\s*/)[0].trim() === key || b.startsWith(key + " "); });
@@ -932,7 +941,7 @@ async function showGen() {
       const needs = cg.type ? attrNeeds(await typeInfo(cg.type).catch(() => null), await skillList().catch(() => [])) : null;
       const order = ATTRS.slice().sort((a, b) => (needs?.[b].w || 0) - (needs?.[a].w || 0) || (a === "Adroitness" ? -1 : b === "Adroitness" ? 1 : 0));
       const advice = needs ? `<div class="gadv"><div class="gadvt">WHAT A ${esc2(cg.type.toUpperCase())} NEEDS</div>${order.map(a => { const n = needs[a];
-          return `<div class="gadr ${n.w >= 2 ? "hi" : n.w ? "mid" : ""}"><b>${a}${n.w >= 2 ? " ★" : ""}</b><span>${n.skills.length ? `Your suggested skills: ${esc2(n.skills.join(", "))}. ` : ""}${ATTR_DOES[a]}</span></div>`; }).join("")}
+          return `<div class="gadr ${n.w >= 2 ? "hi" : n.w ? "mid" : ""}"><b>${a}${n.w >= 2 ? " ★" : ""}</b><span>${n.powers.length ? `Your power rolls it: ${esc2(n.powers.join(", "))}. ` : ""}${n.skills.length ? `Your suggested skills: ${esc2(n.skills.join(", "))}. ` : ""}${ATTR_DOES[a]}</span></div>`; }).join("")}
         ${cg.preset != null ? `<button id="gBest" class="sbtn gbest">★ Put my best values where a ${esc2(cg.type)} needs them</button>` : ""}</div>` : "";
       const table = cg.preset != null
         ? `<div class="gnote">Using <b>Set ${cg.preset + 1}</b>. Pick which value goes on each attribute. Changing one swaps it with the attribute that had that value.</div>
@@ -964,6 +973,11 @@ async function showGen() {
       const allowed = (n) => !(/^prayer/i.test(n) && cg.type !== "Priest") && !(/^spellcasting/i.test(n) && cg.type !== "Mage");
       const need = reqSkill();
       const sugg = String((info?.rows.find(([a]) => /^suggested skills/i.test(a)) || [])[1] || "").split(/[,;]/).map(s => s.replace(/\(.*?\)/g, "").trim().toLowerCase()).filter(Boolean);
+      const rawSugg = String((info?.rows.find(([a]) => /^suggested skills/i.test(a)) || [])[1] || "").split(/[,;]/).map(x => x.trim()).filter(Boolean);
+      const suggSpecOf = (n) => { const o = chooseOpts(n); if (!o) return ""; const b = n.toLowerCase(), head = b.split(/\s*[\/(]\s*/)[0].trim();
+        for (const r of rawSugg) { const key = r.replace(/\(.*?\)/g, "").trim().toLowerCase(), inner = (r.match(/\(([^)]*)\)/) || [])[1] || "";
+          if ((b === key || head === key || b.startsWith(key + " ")) && inner && !/^(core|required)$/i.test(inner)) return o.find(x => x.toLowerCase() === inner.toLowerCase()) || ""; }
+        return ""; };
       const suggRank = (n) => { const b = n.toLowerCase(), head = b.split(/\s*[\/(]\s*/)[0].trim(); if (need && need.test(n)) return 0;
         const i = sugg.findIndex(s => b === s || head === s || b.startsWith(s + " ")); return i < 0 ? -1 : i + 1; };
       const avail = list.filter(s => allowed(s.name));
@@ -1014,7 +1028,8 @@ async function showGen() {
         <div id="gsl">${suggList.length ? `<div class="gsh">★ SUGGESTED FOR ${esc2(cg.type.toUpperCase())}</div>${suggList.map(row).join("")}` : ""}${groups}</div>
         ${nav(stepWhy(2))}`;
       const addSkill = (n, lvl) => { const sk = list.find(x => x.name === n); if (!sk || cg.skills.length >= 8 || copiesOf(n).length >= maxOf(n)) return;
-        cg.skills.push({ base: n, name: baseShort(n), attr: sk.attrs[0], level: lvl ?? nextLvl() ?? -3, spec: "" }); };
+        const sp = suggSpecOf(n), spec = sp && !copiesOf(n).some(([c]) => c.spec === sp) ? sp : "";
+        cg.skills.push({ base: n, name: spec ? `${baseShort(n)} (${spec})` : baseShort(n), attr: sk.attrs[0], level: lvl ?? nextLvl() ?? -3, spec }); };
       const redraw = () => { cgSave(); showGen(); };
       const filter = () => { const q = genQ.trim().toLowerCase(); document.querySelectorAll("#gsl .gsr").forEach(r => r.hidden = !!q && !r.dataset.row.toLowerCase().includes(q));
         document.querySelectorAll("#gsl .gsh").forEach(h => { let n = h.nextElementSibling, any = false; while (n && !n.classList.contains("gsh")) { if (!n.hidden) any = true; n = n.nextElementSibling; } h.hidden = !any; }); };
