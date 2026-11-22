@@ -967,8 +967,8 @@ async function showGen() {
       const sl = await skillList().catch(() => []), names = TYPES.map(t => t.trim());
       const infos = await Promise.all(names.map(t => typeInfo(t).catch(() => null)));
       const card = (t, ti) => { const who = String((ti?.rows.find(([a]) => /^who they are/i.test(a)) || [])[1] || "");
-        const nd = ti ? attrNeeds(ti, sl) : null, main = nd ? ATTRS.slice().sort((a, b) => nd[b].w - nd[a].w)[0] : "", pw = ti?.powers[0]?.name || "";
-        return `<button class="gtc2 ${t === cg.type ? "on" : ""}" data-ty="${esc2(t)}"><b>${esc2(t)}</b>${main && nd[main].w ? `<span class="gtat">${esc2(main)}</span>` : ""}<span class="gtw">${esc2(who)}</span>${pw ? `<span class="gtp">⚡ ${esc2(pw)}</span>` : ""}</button>`; };
+        const nd = ti ? attrNeeds(ti, sl) : null, main = nd ? ATTRS.slice().sort((a, b) => nd[b].w - nd[a].w)[0] : "";
+        return `<button class="gtc2 ${t === cg.type ? "on" : ""}" data-ty="${esc2(t)}"><b>${esc2(t)}</b>${main && nd[main].w ? `<span class="gtat">${esc2(main)}</span>` : ""}<span class="gtw">${esc2(who)}</span></button>`; };
       box.innerHTML = bar + `<div class="sec">PICK A CHARACTER TYPE</div>
         <div class="gtcards">${names.map((t, i) => card(t, infos[i])).join("")}</div>
         ${info ? `<div class="sec">${esc2(cg.type.toUpperCase())}</div>` : ""}
