@@ -31,10 +31,10 @@
   .addf input.num { width:44px; text-align:center; }
 </style></head>
 <body>
-<div class="bar"><button class="sm" id="min" title="Minimize">–</button><span class="rnd" id="rnd"></span><button class="sm" id="lst" title="Show the order as a list">☰</button><div class="list" id="list"></div><span class="gm" id="gm" hidden>
+<div class="bar"><span class="rnd" id="rnd"></span><div class="list" id="list"></div><span class="gm" id="gm" hidden>
   <span class="addf" id="addf" hidden><input id="an" placeholder="Name"><input id="av" class="num" placeholder="+0"><button class="sm" id="aok" title="Add">✓</button></span>
   <button class="sm" id="add" title="Add to initiative">+</button>
-  <button id="prev" title="Previous turn">|◀</button><button id="next" title="Next turn">▶|</button><button class="sm" id="end" title="End combat">END</button></span></div>
+  <button id="prev" title="Previous turn">|◀</button><button id="next" title="Next turn">▶|</button><button class="sm" id="end" title="End combat">END</button></span><button class="sm" id="lst" title="Show the order as a list">☰</button><button class="sm" id="min" title="Minimize">–</button></div>
 <script type="module">
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
 import { INIT, initEntries } from "./shared.js";
