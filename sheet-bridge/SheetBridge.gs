@@ -8,6 +8,9 @@
 
 const TABLE_CODE = 'CHANGE-ME';                          // pick a code; players type it once in Owlbear
 const CHARACTER_FOLDER_ID = '1AGoMytVf6xI8DWzMewiEtZF65M9kie88';
+// Folders the bridge may open: characters, plus the GM's encounter sheets
+const ALLOWED_FOLDER_IDS = [CHARACTER_FOLDER_ID, '1UQ_Zq4skyRzjUcaly95g98C2figf6tQs'];
+const TRACKER_TAB = 'Extension Tracker';
 const WOUND_CELLS = ['B16', 'C16', 'D16', 'E16', 'F16', 'G16', 'H16'];
 const POWER_CELL = 'F6';
 const COP_SPENT_CELL = 'H29';
@@ -22,8 +25,8 @@ function openMain(id) {
   const file = DriveApp.getFileById(id);
   const parents = file.getParents();
   let ok = false;
-  while (parents.hasNext()) if (parents.next().getId() === CHARACTER_FOLDER_ID) ok = true;
-  if (!ok) throw new Error('That sheet is not in the New Scolos character folder.');
+  while (parents.hasNext()) if (ALLOWED_FOLDER_IDS.indexOf(parents.next().getId()) >= 0) ok = true;
+  if (!ok) throw new Error('That sheet is not in a New Scolos folder the bridge can use.');
   const ss = SpreadsheetApp.openById(id);
   return ss.getSheetByName('Main Sheet') || ss.getSheets()[0];
 }
@@ -60,6 +63,14 @@ function doPost(e) {
     const b = JSON.parse(e.postData.contents);
     if (b.code !== TABLE_CODE) return json({ ok: false, error: 'Wrong table code.' });
     const sh = openMain(b.id);
+    if (b.tracker) { // GM monster tracker: wound boxes (columns M-S) and Dead (column T) on the Extension Tracker tab
+      const t = SpreadsheetApp.openById(b.id).getSheetByName(TRACKER_TAB);
+      if (!t) throw new Error('No tab named ' + TRACKER_TAB);
+      const row = Math.round(Number(b.row)), col = Math.round(Number(b.col));
+      if (!(row >= 2 && row <= 200 && col >= 13 && col <= 20)) throw new Error('That cell is not a wound or Dead box.');
+      t.getRange(row, col).setValue(b.on ? (col === 20 ? true : 'X') : '');
+      return json({ ok: true });
+    }
     if (b.wound !== undefined) {
       const cell = WOUND_CELLS[Number(b.wound)];
       if (!cell) throw new Error('Bad wound box.');

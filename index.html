@@ -133,14 +133,27 @@
   .syncdot[hidden] { display:none; }
   @keyframes spin { to { transform:rotate(360deg); } }
   .line .lbl { flex:1; min-width:0; text-align:center; font-size:12px; font-weight:700; color:var(--accent); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .mcard { border:2px solid #000; outline:1px solid #444a66; border-radius:8px; background:var(--paper); padding:6px 8px 8px; margin-top:8px; }
+  .mcard.dead { background:rgba(150,30,40,.45); outline-color:#a33; opacity:.75; }
+  .mcard.dead .mtop b { text-decoration:line-through; }
+  .mtop { display:flex; align-items:center; gap:6px; margin-bottom:4px; }
+  .mtop b { font-size:15px; } .mtop small { color:var(--dim); font-size:11px; flex:1; }
+  .mdead.on { background:var(--minus); color:#000; }
+  .mstats .fld > div { font-size:13px; white-space:normal; display:flex; align-items:center; gap:2px; }
+  .pvit.mv { margin-top:6px; }
+  .mw { width:18px; height:18px; border:2px solid var(--ink); border-radius:3px; background:transparent; cursor:pointer; padding:0; }
+  .mw.x { background:var(--minus); border-color:#000; }
+  .mtext { font-size:12px; line-height:1.35; margin-top:6px; color:var(--ink); }
+  .mnote { color:#ffc94d; }
   .err { color:var(--minus); margin-top:8px; font-weight:700; }
   .empty { color:var(--dim); margin-top:8px; }
 </style>
 </head>
 <body>
-<header><h1>NEW SCOLOS</h1><nav><button class="tab on" data-t="dice">DICE</button><button class="tab" data-t="sheet">SHEET</button><button class="tab" data-t="rules">REFERENCE</button><span id="syncdot" class="syncdot" hidden title="Syncing with Google Sheets">⟳</span><button id="solid" class="tab" title="See-through / solid" style="margin-left:auto">◐</button><button id="size" class="tab" title="Change panel size">S</button></nav></header>
+<header><h1>NEW SCOLOS</h1><nav><button class="tab on" data-t="dice">DICE</button><button class="tab" data-t="sheet">SHEET</button><button class="tab" data-t="rules">REFERENCE</button><button class="tab" data-t="mon" id="monTab" hidden>MONSTERS</button><span id="syncdot" class="syncdot" hidden title="Syncing with Google Sheets">⟳</span><button id="solid" class="tab" title="See-through / solid" style="margin-left:auto">◐</button><button id="size" class="tab" title="Change panel size">S</button></nav></header>
 <section id="sheet" hidden><div id="sh"></div></section>
 <section id="rules" hidden><div id="ru"></div></section>
+<section id="mon" hidden><div id="mo"></div></section>
 <main id="dice">
   <label>Modifier</label>
   <input id="modin" inputmode="numeric" placeholder="0" style="font-size:22px;font-weight:800;text-align:center;width:110px">
@@ -248,10 +261,10 @@ async function saveRoll(r) {
 
 // Quick roll from the sheet: rolls with that number as the modifier and shows it spinning in the bottom-right.
 const ROLL_ICON = `<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4" fill="none" stroke="currentColor" stroke-width="2.4"/><path d="M8 12h8M12 8v8" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>`;
-async function quickRoll(modText, label) {
+async function quickRoll(modText, label, whoName) {
   const m = parseInt(String(modText).replace("−", "-"), 10) || 0;
   const dice = [rollDie(), rollDie(), rollDie(), rollDie()];
-  const who = standalone ? "Test" : await OBR.player.getName();
+  const who = whoName || (standalone ? "Test" : await OBR.player.getName());
   const r = { id: crypto.randomUUID(), pid: me || "local", who, label: String(label || "").slice(0, 40), dice, mod: m, total: dice.reduce((a, b) => a + b, 0) + m, ts: Date.now() };
   // the always-running background page shows it in the bottom-right roll cards
   try { localStorage.setItem("ns.toastReq", JSON.stringify(r)); } catch {}
@@ -268,7 +281,8 @@ const V = (a1) => { const m = a1.match(/^([A-L])(\d+)$/); const row = sheetVals?
 
 document.querySelectorAll(".tab").forEach(b => b.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === b));
-  for (const t of ["dice", "sheet", "rules"]) $(t).hidden = b.dataset.t !== t;
+  for (const t of ["dice", "sheet", "rules", "mon"]) $(t).hidden = b.dataset.t !== t;
+  if (b.dataset.t === "mon") showMonsters();
   if (b.dataset.t === "sheet") showSheetTab();
   if (b.dataset.t === "rules") showRules();
 });
@@ -462,6 +476,77 @@ async function refreshCharList() {
   } catch {} finally { sync(-1); }
 }
 
+// ---------------- MONSTERS (GM only) ----------------
+// Reads the "Extension Tracker" tab of the GM's encounter sheet. One row per monster:
+// A Name, B Group, C Kind, D-G Raw Str/Adroitness/Intellect/Charm, H Attack, I Offense, J Defense, K Armor,
+// L Special, M-S the 7 wound boxes, T Dead, U Loot / Notes.
+const DEFAULT_ENCOUNTER = "1bZy2SITk6KEyIYH-cgiheQbp5-RUFGEkubag49ukPBM"; // Scratch Encounter Tracking Sheet
+const WOUNDS = ["LW", "LW", "LW", "MW", "CW", "KO", "D"];
+let monVals = null;
+const monId = () => store.get("ns.encounter") || DEFAULT_ENCOUNTER;
+async function showMonsters() {
+  const box = $("mo");
+  if (!store.get("ns.code")) { box.innerHTML = `<div class="empty">Connect on the SHEET tab first (it needs the table code).</div>`; return; }
+  const saved = cache.get("mon." + monId());
+  if (saved) { monVals = saved; drawMonsters(); } else box.innerHTML = `<div class="empty">Loading monsters…</div>`;
+  sync(1);
+  const r = await bridgeGet({ id: monId(), tab: "Extension Tracker" }).catch(e => ({ ok: false, error: e.message }));
+  sync(-1);
+  if (!r.ok) { if (!saved) box.innerHTML = `<div class="err">Couldn't load monsters: ${esc2(r.error)}</div>${encounterPicker()}`; bindPicker(); return; }
+  cache.set("mon." + monId(), r.values);
+  if (JSON.stringify(r.values) !== JSON.stringify(monVals)) { monVals = r.values; drawMonsters(); }
+}
+function encounterPicker() {
+  return `<details class="rs" style="margin-top:10px"><summary>USE A DIFFERENT ENCOUNTER SHEET</summary><div style="padding:6px 8px">
+    <input id="encLink" placeholder="Paste the Google Sheet link"><button id="encGo" class="histbtn">USE THIS SHEET</button>
+    <div class="empty" style="font-size:11px">It needs a tab named "Extension Tracker" and must be in your encounter folder.</div></div></details>`;
+}
+function bindPicker() {
+  if (!$("encGo")) return;
+  $("encGo").onclick = () => { const id = idFromLink($("encLink").value); if (!id) return; store.set("ns.encounter", id); monVals = null; showMonsters(); };
+}
+function drawMonsters() {
+  const v = monVals || [], c = (row, i) => String(v[row]?.[i] ?? "").trim();
+  let html = `<button id="monRe" class="sbtn" style="width:100%">↻ RELOAD MONSTERS</button>`;
+  for (let row = 1; row < v.length; row++) {
+    const name = c(row, 0); if (!name) continue;
+    const dead = /^(true|x|yes|dead)$/i.test(c(row, 19));
+    const sheetRow = row + 1;
+    const roll = (label, val) => /^[+\-−]?\d+$/.test(val) ? `<button class="rd" data-m="${esc2(val)}" data-l="${esc2(label)}" data-w="${esc2(name)}" title="Roll ${esc2(label)}">${ROLL_ICON}</button>` : "";
+    const attrs = [["Raw Str", 3], ["Adroitness", 4], ["Intellect", 5], ["Charm", 6]].map(([n, i]) =>
+      `<div class="att"><small>${n}</small><b>${esc2(c(row, i) || "-")}</b>${roll(n, c(row, i)).replace('class="rd"', 'class="rd ra"')}</div>`).join("");
+    html += `<div class="mcard ${dead ? "dead" : ""}">
+      <div class="mtop"><b>${esc2(name)}</b><small>${esc2(c(row, 2))}</small>
+        <button class="sbtn mdead ${dead ? "on" : ""}" data-r="${sheetRow}" data-on="${dead ? "" : "1"}">${dead ? "☠ DEAD" : "DEAD?"}</button></div>
+      <div class="g4">${attrs}</div>
+      <div class="g4 mstats">
+        <div class="fld"><small>Attack</small><div>${esc2(c(row, 7) || "-")} ${roll("Attack", c(row, 7))}</div></div>
+        <div class="fld"><small>Offense</small><div>${esc2(c(row, 8) || "-")}</div></div>
+        <div class="fld"><small>Defense</small><div>${esc2(c(row, 9) || "-")}</div></div>
+        <div class="fld"><small>Armor</small><div>${esc2(c(row, 10) || "-")}</div></div>
+      </div>
+      <div class="pvit mv">${WOUNDS.map((w, i) => { const on = !!c(row, 12 + i); return `<i><small>${w}</small><button class="mw ${on ? "x" : ""}" data-r="${sheetRow}" data-c="${13 + i}" data-on="${on ? "" : "1"}"></button></i>`; }).join("")}</div>
+      ${c(row, 11) ? `<div class="mtext">${esc2(c(row, 11))}</div>` : ""}
+      ${c(row, 20) ? `<div class="mtext mnote">${esc2(c(row, 20))}</div>` : ""}
+    </div>`;
+  }
+  $("mo").innerHTML = html + encounterPicker();
+  bindPicker();
+  $("monRe").onclick = () => showMonsters();
+  document.querySelectorAll("#mo .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l, b.dataset.w); });
+  document.querySelectorAll("#mo .mw, #mo .mdead").forEach(b => b.onclick = () => monSet(+b.dataset.r, b.dataset.c ? +b.dataset.c : 20, !!b.dataset.on));
+}
+async function monSet(row, col, on) {
+  const before = JSON.stringify(monVals);
+  monVals[row - 1] = monVals[row - 1] || []; monVals[row - 1][col - 1] = on ? (col === 20 ? "TRUE" : "X") : "";
+  drawMonsters(); // show it right away
+  sync(1);
+  const r = await fetch(BRIDGE, { method: "POST", body: JSON.stringify({ code: store.get("ns.code"), id: monId(), tracker: 1, row, col, on }) }).then(x => x.json()).catch(e => ({ ok: false, error: e.message }));
+  sync(-1);
+  if (!r.ok) { monVals = JSON.parse(before); drawMonsters(); $("mo").insertAdjacentHTML("afterbegin", `<div class="err">Didn't save: ${esc2(r.error)}</div>`); }
+  else cache.set("mon." + monId(), monVals);
+}
+
 // ---------------- PARTY OVERVIEW ----------------
 // Everyone's name, type, power used today and vitality track, read-only. For healers and the GM.
 let partyOn = false;
@@ -547,6 +632,7 @@ if (standalone) {
   OBR.onReady(async () => {
     me = await OBR.player.getId();
     isGM = (await OBR.player.getRole()) === "GM";
+    $("monTab").hidden = !isGM;
     applySize();
     render(allRolls(await OBR.room.getMetadata()));
     OBR.room.onMetadataChange((md) => render(allRolls(md)));
