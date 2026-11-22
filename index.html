@@ -590,7 +590,12 @@ function drawMonsters() {
   drawInitList();
   markTurn();
   document.querySelectorAll("#mo .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l, b.dataset.w); });
-  document.querySelectorAll("#mo .mw, #mo .mdead").forEach(b => b.onclick = () => monSet(+b.dataset.r, b.dataset.c ? +b.dataset.c : 20, !!b.dataset.on));
+  document.querySelectorAll("#mo .mw, #mo .mdead").forEach(b => b.onclick = async () => {
+    const row = +b.dataset.r, col = b.dataset.c ? +b.dataset.c : 20, on = !!b.dataset.on;
+    await monSet(row, col, on);
+    // the last wound box (D) also flips the DEAD button to match
+    if (col === 19 && !!(monVals[row - 1] || [])[19] !== on) monSet(row, 20, on);
+  });
 }
 async function monSet(row, col, on) {
   const before = JSON.stringify(monVals);
