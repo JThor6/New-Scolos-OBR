@@ -235,9 +235,9 @@
   .gcb .ctl { justify-content:center; gap:4px; } .gcb .ctl button { padding:0 6px; }
   .dimn { color:var(--ink); }
   .copts { font-size:12px; line-height:1.35; color:var(--ink); background:var(--paper); border:1px solid #444a66; border-radius:7px; padding:4px 7px; margin-top:4px; }
-  .skg { display:grid; grid-template-columns:repeat(auto-fill, minmax(135px, 1fr)); gap:3px; }
+  .skg { display:grid; grid-template-columns:repeat(auto-fill, minmax(max(140px, 32%), 1fr)); gap:3px; }
   .skc { display:flex; align-items:center; gap:4px; background:var(--paper); border:1px solid #444a66; border-radius:6px; padding:3px 3px 3px 6px; font-size:12px; min-width:0; }
-  .skc span { flex:1; min-width:0; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; line-height:1.2; }
+  .skc span { flex:1; min-width:0; line-height:1.2; overflow-wrap:anywhere; }
   .skc b { font-size:14px; min-width:22px; text-align:right; }
   .skc .rd { margin:0; flex:none; }
   .drs { margin-top:8px; }
