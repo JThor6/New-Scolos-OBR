@@ -36,7 +36,10 @@
   .line .t { color:var(--dim); font-size:10px; font-weight:400; margin-left:4px; }
   .line .die { width:20px; height:20px; font-size:14px; border-width:1.5px; }
   .line .tot { margin-left:auto; font-family:'Bangers', Impact, sans-serif; font-size:22px; width:36px; text-align:right; }
-  nav { display:flex; gap:4px; flex-basis:100%; }
+  nav { display:flex; flex-wrap:wrap; gap:2px; flex-basis:100%; }
+  header h1 { flex:1; }
+  .hctl { display:flex; gap:3px; align-items:center; }
+  nav .tab { font-size:15px; padding:1px 5px; }
   html.solid, html.solid body { background:#222639 !important; }
   html.solid header { background:#000; }
   #ru { padding:8px 12px; }
@@ -158,7 +161,7 @@
 </style>
 </head>
 <body>
-<header><h1>NEW SCOLOS</h1><nav><button class="tab on" data-t="dice">DICE</button><button class="tab" data-t="sheet">SHEET</button><button class="tab" data-t="rules">REFERENCE</button><button class="tab" data-t="mon" id="monTab" hidden>MONSTERS</button><span id="syncdot" class="syncdot" hidden title="Syncing with Google Sheets">⟳</span><button id="solid" class="tab" title="See-through / solid" style="margin-left:auto">◐</button><button id="size" class="tab" title="Change panel size">S</button></nav></header>
+<header><h1>NEW SCOLOS</h1><span class="hctl"><span id="syncdot" class="syncdot" hidden title="Syncing with Google Sheets">⟳</span><button id="solid" class="tab" title="See-through / solid">◐</button><button id="size" class="tab" title="Change panel size">S</button></span><nav><button class="tab on" data-t="dice">DICE</button><button class="tab" data-t="sheet">SHEET</button><button class="tab" data-t="rules">REFERENCE</button><button class="tab" data-t="mon" id="monTab" hidden>MONSTERS</button></nav></header>
 <section id="sheet" hidden><div id="sh"></div></section>
 <section id="rules" hidden><div id="ru"></div></section>
 <section id="mon" hidden><div id="mo"></div></section>
