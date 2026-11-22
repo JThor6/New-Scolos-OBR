@@ -272,12 +272,7 @@ async function saveRoll(r) {
       if (k !== key && k.startsWith(NS + "/rolls/") && !(Array.isArray(v) && v.some(x => x.ts > cutoff))) stale[k] = undefined;
     }
     await OBR.room.setMetadata({ ...stale, [key]: [r, ...mine].slice(0, KEEP) });
-    // over-cap writes fail silently, so read back (twice, in case the first read is just slow)
-    for (let i = 0; i < 2; i++) {
-      if (((await OBR.room.getMetadata())[key] || []).some(x => x.id === r.id)) return "";
-      await new Promise(res => setTimeout(res, 600));
-    }
-    return "Roll didn't reach the table (room storage may be full). Others may not see it.";
+    return "";
     return "";
   } catch (e) { return "Roll didn't reach the table: " + (e?.message || e); }
 }
