@@ -306,6 +306,7 @@
   .gat { display:inline-block; background:#000; border-radius:4px; padding:0 5px; font-weight:800; font-size:10px; color:var(--ink); }
   .ginst { margin-top:5px; padding-top:4px; border-top:1px dashed #444a66; } .ginh { display:flex; align-items:center; gap:4px; } .ginh small { flex:1; color:var(--ink); font-size:11px; } .ginh b { color:var(--plus); }
   .gopt .sbtn:disabled { opacity:.3; cursor:default; }
+  .gsnote { font-size:11px; line-height:1.35; color:var(--ink); background:rgba(255,176,32,.12); border-left:3px solid #ffb020; border-radius:5px; padding:4px 7px; margin:0 0 4px; }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
   .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
@@ -1023,6 +1024,7 @@ async function showGen() {
       const row = (sk) => { const copies = copiesOf(sk.name), s = copies[0]?.[0], star = suggRank(sk.name) >= 0, max = maxOf(sk.name);
         const would = s ? `<em class="on">${max > 1 ? `×${copies.length}` : total(s)}</em>` : nl != null ? `<em title="Total if it goes in the next slot">${sgn((cg.attrs[sk.attrs[0]] ?? 0) + nl)}</em>` : `<em class="full">full</em>`;
         return `<div class="gsr ${s ? "on" : ""}" data-row="${esc2(sk.name)}"><button class="gsk2" data-sk="${esc2(sk.name)}" draggable="${copies.length < max ? "true" : "false"}"><b>${star ? "★ " : ""}${esc2(sk.name)}</b>${would}</button>${detail(sk)}</div>`; };
+      const suggNote = String((info?.rows.find(([a]) => /^suggested skills note/i.test(a)) || [])[1] || "");
       const suggList = avail.filter(s => suggRank(s.name) >= 0).sort((a, b) => suggRank(a.name) - suggRank(b.name));
       const groups = ATTRS.slice().sort((a, b) => cg.attrs[b] - cg.attrs[a]).map(a => { const rows = avail.filter(s => s.attrs[0] === a && suggRank(s.name) < 0);
         return rows.length ? `<div class="gsh">${a.toUpperCase()} <span>${sgn(cg.attrs[a])}</span></div>${rows.map(row).join("")}` : ""; }).join("");
@@ -1030,7 +1032,7 @@ async function showGen() {
       box.innerHTML = bar + `<div class="gtray"><div class="gtt">SKILLS ${cg.skills.length}/8 <small>${genMove != null ? "tap a slot to move it there" : "tap a skill below to fill the next slot"}</small></div>${tray}</div>
         <div class="gnote">Tap a skill to pick it. Total = attribute + slot level. Tap a filled slot (or drag it) to move it.${need ? ` ${cg.type}s must take ${cg.type === "Priest" ? "Prayer" : "Spellcasting"}.` : ""}</div>
         <div class="gtools"><input id="gq" class="gq" placeholder="Search skills…" value="${esc2(genQ)}">${canFill ? `<button id="gFill" class="sbtn" title="Put your type's suggested skills in the open slots, in order">★ Fill suggested</button>` : ""}</div>
-        <div id="gsl">${suggList.length ? `<div class="gsh">★ SUGGESTED FOR ${esc2(cg.type.toUpperCase())}</div>${suggList.map(row).join("")}` : ""}${groups}</div>
+        <div id="gsl">${suggList.length ? `<div class="gsh">★ SUGGESTED FOR ${esc2(cg.type.toUpperCase())}</div>${suggNote ? `<div class="gsnote">${esc2(suggNote)}</div>` : ""}${suggList.map(row).join("")}` : ""}${groups}</div>
         ${nav(stepWhy(2))}`;
       const addSkill = (n, lvl) => { const sk = list.find(x => x.name === n); if (!sk || cg.skills.length >= 8 || copiesOf(n).length >= maxOf(n)) return;
         const sp = suggSpecOf(n), spec = sp && !copiesOf(n).some(([c]) => c.spec === sp) ? sp : "";
