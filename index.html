@@ -653,7 +653,14 @@ async function save(body, apply) {
   const r = await bridgePost(body).catch(e => ({ ok: false, error: e.message }));
   busy = false;
   if (r.ok) { loadSheet(true); return; } // re-read so the sheet's own formulas (like Damage Penalty) show up
-  if (!r.ok) { sheetVals = JSON.parse(before); drawSheet(); $("sherr").hidden = false; $("sherr").textContent = "Didn't save to the sheet: " + (r.error || "unknown error") + " (Is the sheet shared with Jake as Editor?)"; }
+  if (!r.ok) {
+    sheetVals = JSON.parse(before);
+    // wrong code: ask for it again right away instead of failing every save
+    if (/table code/i.test(r.error || "")) { store.set("ns.code", ""); return connectForm("The table code changed. Type the new one to keep saving."); }
+    drawSheet(); $("sherr").hidden = false;
+    $("sherr").textContent = "Didn't save to the sheet: " + (r.error || "unknown error") +
+      (/permission|access|denied|authoriz/i.test(r.error || "") ? " (The sheet must be shared with Jake as Editor.)" : "");
+  }
 }
 
 // Keep the sheet current while it's open (picks up edits made in Google Sheets too)
