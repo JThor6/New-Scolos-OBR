@@ -83,6 +83,11 @@
   .fld small, .att small { display:block; font-size:9px; font-weight:800; text-transform:uppercase; color:var(--dim); }
   .fld > div { font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .fld.c { text-align:center; }
+  .epx { display:flex; gap:10px; align-items:flex-start; }
+  .epx .epl { flex:1; min-width:0; }
+  .epp { border-left:1px solid #444a66; padding-left:10px; white-space:nowrap; }
+  .epp small span { color:var(--ink, #f1f3f9); }
+  .epp .ctl { margin-top:4px; }
   .pwl { font-size:11px; line-height:1.35; white-space:normal; margin-top:2px; }
   .pwl span { color:var(--dim); font-weight:800; font-size:9px; }
   .g2, .g3, .g4, .g5, .g2b { display:grid; gap:5px; margin-top:5px; }
@@ -453,10 +458,10 @@ function drawSheet() {
   $("shbody").innerHTML = `
     <div class="g2">${F("Name", V("C3"))}${F("Type", V("C4"))}</div>
     <div class="g3">${F("Level", V("F5"))}${F("Credits", V("F7"))}<button id="reload" class="sbtn" title="Reload from Google Sheet">↻</button></div>
-    <div class="g2b"><div class="fld"><small>Extraordinary Power</small><div id="pwname">${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div></div>
+    <div class="g2b"><div class="fld ${ptInEP() ? "epx" : ""}"><div class="epl"><small>Extraordinary Power</small><div id="pwname">${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div></div>${ptInEP() ? `<div class="epp"><small>${esc2(V("E13"))}${ptMaxV() ? ` <span>/ ${esc2(ptMaxV())}</span>` : ""}</small>${ptCtl()}</div>` : ""}</div>
       <div class="fld c"><small>Used today</small><button id="pw" class="chk ${used ? "x" : ""}">${used ? "✕" : ""}</button></div></div>
     <div class="g4">${F("Current XP", V("F3"))}${F("Spent XP", V("F4"))}${F("Attr. spent", V("F10"))}${F("Attr. left", V("F12"))}</div>
-    ${V("E13") ? `<div class="g2">${ptMaxV() ? F(esc2(/\d/.test(V("G13")) || !V("G13") ? "Max " + V("E13") : V("G13")), ptMaxV()) : ""}<div class="fld"><small>${esc2(V("E13"))}</small><div class="ctl"><button id="ptm">−</button><b>${esc2(V("F13") || "0")}</b><button id="ptp">+</button></div></div></div>` : ""}
+    ${V("E13") && !ptInEP() ? `<div class="g2">${ptMaxV() ? F(esc2(/\d/.test(V("G13")) || !V("G13") ? "Max " + V("E13") : V("G13")), ptMaxV()) : ""}<div class="fld"><small>${esc2(V("E13"))}</small>${ptCtl()}</div></div>` : ""}
     <div class="stab">ATTRIBUTES</div>
     <div class="g5">${[["Adroitness", "C7"], ["Raw Str.", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att"><small>${n}</small><b>${esc2(V(c))}</b><button class="rd ra" data-m="${esc2(V(c))}" data-l="${{ "Raw Str.": "Raw Strength" }[n] || n}" title="Roll ${n}">${ROLL_ICON}</button></div>`).join("")}
       <div class="att dp"><small>Dmg Penalty</small><b>${esc2(V("C12"))}</b></div></div>
@@ -505,6 +510,9 @@ async function fillPowers() {
   } catch { /* the sheet still works without it */ }
 }
 // Max invocations / spell points: number in H13 (label in G13); older layout had the number in G13
+// Priest and Mage: their Invocations / Spell Points sit inside the Extraordinary Power box to save space
+function ptInEP() { return !!V("E13") && /^(priest|mage)$/i.test(V("C4")); }
+function ptCtl() { return `<div class="ctl"><button id="ptm">−</button><b>${esc2(V("F13") || "0")}</b><button id="ptp">+</button></div>`; }
 function ptMaxV() { return /^\d+$/.test(V("H13")) ? V("H13") : /^\d+$/.test(V("G13")) ? V("G13") : ""; }
 function setCell(a1, v) { const m = a1.match(/^([A-L])(\d+)$/); sheetVals[+m[2] - 1][m[1].charCodeAt(0) - 65] = v; }
 
