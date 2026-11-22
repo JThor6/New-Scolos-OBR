@@ -137,6 +137,7 @@
   @keyframes spin { to { transform:rotate(360deg); } }
   .line .lbl { flex:1; min-width:0; text-align:center; font-size:12px; font-weight:700; color:var(--accent); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .mcard { border:2px solid #000; outline:1px solid #444a66; border-radius:8px; background:var(--paper); padding:6px 8px 8px; margin-top:8px; }
+  .mcard.turn { outline:2px solid var(--accent); box-shadow:0 0 0 3px rgba(187,153,255,.18); background:rgba(187,153,255,.10); }
   .mcard.dead { background:rgba(150,30,40,.45); outline-color:#a33; opacity:.75; }
   .mcard.dead .mtop b { text-decoration:line-through; }
   .mtop { display:flex; align-items:center; gap:6px; margin-bottom:4px; }
@@ -555,7 +556,7 @@ function drawMonsters() {
     const roll = (label, val) => /^[+\-−]?\d+$/.test(val) ? `<button class="rd" data-m="${esc2(val)}" data-l="${esc2(label)}" data-w="${esc2(name)}" title="Roll ${esc2(label)}">${ROLL_ICON}</button>` : "";
     const attrs = [["Raw Str", 3], ["Adroitness", 4], ["Intellect", 5], ["Charm", 6]].map(([n, i]) =>
       `<div class="att"><small>${n}</small><b>${esc2(c(row, i) || "-")}</b>${roll(n, c(row, i)).replace('class="rd"', 'class="rd ra"')}</div>`).join("");
-    html += `<div class="mcard ${dead ? "dead" : ""}">
+    html += `<div class="mcard ${dead ? "dead" : ""}" data-g="${esc2("m:" + (c(row, 1) || name))}">
       <div class="mtop"><b>${esc2(name)}</b><small>${esc2(c(row, 2))}</small>
         <button class="sbtn mdead ${dead ? "on" : ""}" data-r="${sheetRow}" data-on="${dead ? "" : "1"}">${dead ? "☠ DEAD" : "DEAD?"}</button></div>
       <div class="g4">${attrs}</div>
@@ -576,6 +577,7 @@ function drawMonsters() {
   $("iCall").onclick = callInitiative; $("iMon").onclick = rollMonsterInit; $("iEnd").onclick = endInitiative;
   $("iAdd").onclick = addInitEntry; $("iNum").onkeydown = (e) => { if (e.key === "Enter") addInitEntry(); };
   drawInitList();
+  markTurn();
   document.querySelectorAll("#mo .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l, b.dataset.w); });
   document.querySelectorAll("#mo .mw, #mo .mdead").forEach(b => b.onclick = () => monSet(+b.dataset.r, b.dataset.c ? +b.dataset.c : 20, !!b.dataset.on));
 }
@@ -608,6 +610,11 @@ async function syncDeadGroups() {
 
 // ---------------- INITIATIVE (GM controls) ----------------
 let initMd = {};
+// Subtle highlight on the monster cards whose group is up in initiative
+function markTurn() {
+  const st = initMd[INIT], cur = st?.open ? st.cur : "";
+  document.querySelectorAll("#mo .mcard").forEach(card => card.classList.toggle("turn", !!cur && card.dataset.g === cur));
+}
 function drawInitList() {
   const box = $("iList"); if (!box) return;
   const st = initMd[INIT], list = st?.open ? initEntries(initMd) : [];
@@ -750,7 +757,7 @@ if (standalone) {
     me = await OBR.player.getId();
     isGM = (await OBR.player.getRole()) === "GM";
     $("monTab").hidden = !isGM;
-    if (isGM) { initMd = await OBR.room.getMetadata(); OBR.room.onMetadataChange((m) => { initMd = m; drawInitList(); }); }
+    if (isGM) { initMd = await OBR.room.getMetadata(); OBR.room.onMetadataChange((m) => { initMd = m; drawInitList(); markTurn(); }); }
     applySize();
     render(allRolls(await OBR.room.getMetadata()));
     OBR.room.onMetadataChange((md) => render(allRolls(md)));

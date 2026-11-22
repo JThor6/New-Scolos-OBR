@@ -43,7 +43,7 @@ OBR.onReady(async () => {
   const seen = new Set(allRolls(await OBR.room.getMetadata()).map(r => r.id));
   const isGM = (await OBR.player.getRole()) === "GM";
   // Initiative: tell players to roll, and show the bar across the top while combat is on
-  const BAR = "com.newscolos.initbar", LEFT = 440;
+  const BAR = "com.newscolos.initbar", LEFT = 560; // clear of the toolbar and the New Scolos panel (even at L size)
   let barCount = "", lastSid = (await OBR.room.getMetadata())[INIT]?.sid || "";
   let lastCur = "";
   async function initUpdate(md) {
