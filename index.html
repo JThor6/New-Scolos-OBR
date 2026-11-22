@@ -256,8 +256,16 @@
   .gsets .on small { color:#000; opacity:.75; }
   .gname { margin:0 0 6px; padding:6px 8px; font-size:15px; font-weight:800; }
   .gscl { font-size:11px; font-weight:800; color:var(--dim); text-transform:uppercase; margin:6px 0 3px; }
-  .gsch { display:grid; grid-template-columns:repeat(4,1fr); gap:3px; } .gsch button { font-size:11px; padding:4px 1px; } .gsch button:disabled { opacity:.3; }
   .gpn small { font-size:9px; color:var(--dim); margin-left:4px; }
+  .gcards { display:flex; flex-direction:column; gap:4px; }
+  .gcard { display:block; width:100%; text-align:left; background:var(--paper); color:var(--ink); border:2px solid #444a66; border-radius:8px; padding:5px 8px; font:12px/1.35 system-ui; cursor:pointer; }
+  button.gcard:hover { border-color:var(--accent); }
+  .gcard b { display:block; font-size:14px; } .gcard b small { font-size:9px; color:var(--accent); margin-left:3px; }
+  .gcard span { display:block; } .gcard .gvb { color:var(--dim); margin-top:2px; } .gcard .gvb i { font-style:normal; font-weight:800; }
+  .gcard.on { border-color:var(--accent); background:#3d3460; } .gcard.on2 { border-color:#6b5aa0; background:#2e2a48; }
+  div.gcard { cursor:default; }
+  .gcb2 { display:flex; gap:4px; margin-top:5px; } .gcb2 button { flex:1; font-size:11px; padding:3px; } .gcb2 button:disabled { opacity:.3; cursor:default; }
+  .gpicked { font-size:13px; margin:4px 0 6px; }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
   .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
@@ -836,18 +844,19 @@ async function showGen() {
         <div class="gtypes">${TYPES.map(t => t.trim()).map(t => `<button class="sbtn ${t === cg.type ? "on" : ""}" data-ty="${esc2(t)}">${esc2(t)}</button>`).join("")}</div>
         ${info ? `<div class="grun">${info.rows.map(([a, b]) => `<div><small>${esc2(a)}</small>${esc2(b)}</div>`).join("")}</div>
           ${info.powers.map(p => `<div class="gpow"><div class="gpn">⚡ ${esc2(p.name)}</div>${p.rules.map(([a, b]) => `<div>${a ? `<b>${esc2(a)}:</b> ` : ""}${esc2(b)}</div>`).join("")}</div>`).join("")}` : `<div class="empty">Tap a type to read about it.</div>`}
-        ${cg.type === "Priest" && info ? `<div class="sec">YOUR GOD</div><select id="gGod"><option value="">Pick a god…</option>${info.gods.map(([g, d]) => `<option ${g === cg.god ? "selected" : ""} value="${esc2(g)}">${esc2(g)}</option>`).join("")}</select>
-          <div class="gnote">${esc2((info.gods.find(g => g[0] === cg.god) || [, ""])[1])}</div>` : ""}
+        ${cg.type === "Priest" && info ? `<div class="sec">YOUR GOD</div>
+          <div class="gnote">Your god shapes how your powers look and what your god will do for you. Read them all, then tap one. (Also in REFERENCE → The Gods.)</div>
+          <div class="gcards">${info.gods.map(([g, d]) => `<button class="gcard ${g === cg.god ? "on" : ""}" data-god="${esc2(g)}"><b>${esc2(g)}${g === cg.god ? " ✓" : ""}</b><span>${esc2(d)}</span></button>`).join("")}</div>` : ""}
         ${cg.type === "Mage" && info ? `<div class="sec">YOUR SCHOOLS</div>
-          <div class="gnote">Major: small, big or huge spells. Minor: small spells only. Pick one of each.</div>
-          ${[["Major", "major"], ["Minor", "minor"]].map(([lab, k]) => `<div class="gscl">${lab}</div><div class="gsch">${info.schools.map(([n]) =>
-            `<button class="sbtn ${cg[k] === n ? "on" : ""}" data-sch="${k}" data-n="${esc2(n)}" ${k === "minor" && cg.major === n ? "disabled" : ""}>${esc2(n)}</button>`).join("")}</div>`).join("")}
-          ${info.schools.filter(x => x[0] === cg.major || x[0] === cg.minor).sort(x => x[0] === cg.major ? -1 : 1).map(([n, d, vb]) => `<div class="gpow"><div class="gpn">${esc2(n)} <small>${n === cg.major ? "MAJOR" : "MINOR"}</small></div><div>${esc2(d)}</div>${vb ? `<div><b>Verbs:</b> ${esc2(vb)}</div>` : ""}</div>`).join("")}` : ""}
+          <div class="gnote"><b>Major</b>: small, big or huge spells. <b>Minor</b>: small spells only. Pick one of each. Your spells use your school's verbs. At Level 5 your minor becomes a major. (Also in REFERENCE → Schools of Magic.)</div>
+          <div class="gpicked">Major: <b>${esc2(cg.major || "—")}</b> · Minor: <b>${esc2(cg.minor || "—")}</b></div>
+          <div class="gcards">${info.schools.map(([n, d, vb]) => `<div class="gcard ${n === cg.major ? "on" : n === cg.minor ? "on2" : ""}"><b>${esc2(n)}${n === cg.major ? " <small>MAJOR</small>" : n === cg.minor ? " <small>MINOR</small>" : ""}</b><span>${esc2(d)}</span>${vb ? `<span class="gvb"><i>Verbs:</i> ${esc2(vb)}</span>` : ""}
+            <div class="gcb2"><button class="sbtn ${n === cg.major ? "on" : ""}" data-sch="major" data-n="${esc2(n)}">Major</button><button class="sbtn ${n === cg.minor ? "on" : ""}" data-sch="minor" data-n="${esc2(n)}" ${cg.major === n ? "disabled" : ""}>Minor</button></div></div>`).join("")}</div>` : ""}
         ${nav(stepWhy(0))}`;
       cg.power = info?.power || "";
       document.querySelectorAll("[data-ty]").forEach(b => b.onclick = () => { if (cg.type !== b.dataset.ty) { cg.type = b.dataset.ty; cg.god = cg.major = cg.minor = "";
         cg.skills = cg.skills.filter(s => !/^(prayer|spellcasting)/i.test(s.base)); } cgSave(); showGen(); });
-      if ($("gGod")) $("gGod").onchange = () => { cg.god = $("gGod").value; cgSave(); showGen(); };
+      document.querySelectorAll("[data-god]").forEach(b => b.onclick = () => { cg.god = cg.god === b.dataset.god ? "" : b.dataset.god; cgSave(); showGen(); });
       document.querySelectorAll("[data-sch]").forEach(b => b.onclick = () => { const k = b.dataset.sch, n = b.dataset.n;
         cg[k] = cg[k] === n ? "" : n; if (cg.major && cg.major === cg.minor) cg.minor = ""; cgSave(); showGen(); });
       return bind();

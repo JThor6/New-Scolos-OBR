@@ -10,7 +10,7 @@ async function bridgeGet(params) {
 export const MASTER = "1_cnTDLNHIsaVMAOkOKSKK0YawUHt38ZewW1o5-yWbhU";
 export const TYPES = ["Priest", "Mage", "Mentalist", "Mercenary ", "Wraith", "Revenant", "Hacker", "Subject Zero"];
 export const SECTIONS = [["Your Turn & Movement", "turn"], ["Attacking & Damage", "attack"], ["Combat Options", "tab:Combat Options"],
-  ...TYPES.map(t => [t.trim(), "tab:" + t]), ["The Gods", "gods"], ["Skill List", "tab:Skill List"], ["Dice Odds", "odds"]];
+  ...TYPES.map(t => [t.trim(), "tab:" + t]), ["The Gods", "gods"], ["Schools of Magic", "schools"], ["Skill List", "tab:Skill List"], ["Dice Odds", "odds"]];
 const tabCache = {};
 const saved = {
   get: (k) => { try { return JSON.parse(localStorage.getItem("ns.cache.rules." + k) || "null"); } catch { return null; } },
@@ -66,6 +66,13 @@ export async function sectionHtml(key) {
     const v = await getTab(key.slice(4));
     if (key.includes("Priest")) { const g = v.findIndex(r => r.join("").trim() === "THE GODS"); return rowsHtml(g > 0 ? v.slice(0, g) : v); }
     return rowsHtml(v);
+  }
+  if (key === "schools") { // the chart on the Mage tab: one school per row (name, what it is, suggested verbs), ends at a blank row
+    const v = await getTab("Mage"), t = (r, i) => String(r?.[i] ?? "").trim(), h = v.findIndex(r => /^schools of magic$/i.test(t(r, 1)));
+    if (h < 0) return "<div class='rr'>No schools list found on the Mage tab.</div>";
+    let html = "<div class='rr'>Mages pick a Major school (small, big or huge spells) and a Minor school (small spells only). Spells use the school's verbs.</div>";
+    for (let r = h + 1; r < v.length && t(v[r], 1); r++) html += `<div class="rr"><b>${esc2(t(v[r], 1))}</b>${esc2(t(v[r], 2))}${t(v[r], 3) ? `<br><span style="color:#9aa0b8">Verbs: ${esc2(t(v[r], 3))}</span>` : ""}</div>`;
+    return html;
   }
   if (key === "gods") { const v = await getTab("Priest"); const g = v.findIndex(r => r.join("").trim() === "THE GODS"); return g > 0 ? rowsHtml(v.slice(g + 1)) : "<div class='rr'>No gods list found.</div>"; }
   const m = await getTab("Main Sheet");
