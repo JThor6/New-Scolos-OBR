@@ -104,6 +104,8 @@
   .madd select { max-width:30%; }
   .mnote { color:var(--dim); font-size:11px; margin-top:4px; }
   .mcred { min-width:70px; }
+  .mtot { display:flex; flex-direction:column; font-size:10px; color:var(--dim); font-weight:800; text-transform:uppercase; min-width:80px; }
+  .mtot b { font-size:16px; color:var(--ink); }
   .mli { display:flex; align-items:center; gap:6px; padding:3px 2px; border-bottom:1px solid #333a55; font-size:13px; }
   .mli span { flex:1; }
   #notes { width:100%; box-sizing:border-box; background:#1b1e2e; color:var(--ink); border:1px solid #444a66; border-radius:8px; padding:6px; font:13px system-ui; }
@@ -547,7 +549,7 @@ function drawManager() {
     <button id="mgr" class="sbtn mgrbtn on">✓ DONE MANAGING</button>
     <div class="mtitle">${esc2(V("C3"))} · Level ${levelOf(xpSpent())}</div>
     <div class="g2">${`<div class="fld"><small>XP to spend</small><div>${xpNow()}</div></div><div class="fld"><small>Attribute points left</small><div>${attrLeft()}</div></div>`}</div>
-    <div class="mrow"><input id="xpAdd" inputmode="numeric" placeholder="XP earned"><button id="xpGo" class="sbtn">+ ADD XP</button></div>
+    <div class="mrow"><span class="mtot" title="Current XP + Spent XP">Total earned<b>${xpNow() + xpSpent()}</b></span><input id="xpAdd" inputmode="numeric" placeholder="XP earned"><button id="xpGo" class="sbtn">+ ADD XP</button></div>
     <div class="stab">ATTRIBUTES</div><table class="mtab">${attrRows}</table>
     <div class="stab">TRAINED SKILLS</div><table class="mtab">${skillRows(20, 35) || `<tr><td class="empty">None yet.</td></tr>`}</table>
     <div class="stab">UNTRAINED SKILLS</div><table class="mtab">${skillRows(37, 44) || `<tr><td class="empty">None yet.</td></tr>`}</table>
