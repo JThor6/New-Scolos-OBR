@@ -845,8 +845,10 @@ async function showGen() {
         ${info ? `<div class="grun">${info.rows.map(([a, b]) => `<div><small>${esc2(a)}</small>${esc2(b)}</div>`).join("")}</div>
           ${info.powers.map(p => `<div class="gpow"><div class="gpn">⚡ ${esc2(p.name)}</div>${p.rules.map(([a, b]) => `<div>${a ? `<b>${esc2(a)}:</b> ` : ""}${esc2(b)}</div>`).join("")}</div>`).join("")}` : `<div class="empty">Tap a type to read about it.</div>`}
         ${cg.type === "Priest" && info ? `<div class="sec">YOUR GOD</div>
-          <div class="gnote">Your god shapes how your powers look and what your god will do for you. Read them all, then tap one. (Also in REFERENCE → The Gods.)</div>
-          <div class="gcards">${info.gods.map(([g, d]) => `<button class="gcard ${g === cg.god ? "on" : ""}" data-god="${esc2(g)}"><b>${esc2(g)}${g === cg.god ? " ✓" : ""}</b><span>${esc2(d)}</span></button>`).join("")}</div>` : ""}
+          <div class="gnote">Your god shapes how your powers look and what your god will do for you. Read them all, then choose one. (Also in REFERENCE → The Gods.)</div>
+          <div class="gpicked">Your god: <b>${esc2(cg.god || "—")}</b></div>
+          <div class="gcards">${info.gods.map(([g, d]) => `<div class="gcard ${g === cg.god ? "on" : ""}"><b>${esc2(g)}${g === cg.god ? " <small>YOUR GOD</small>" : ""}</b><span>${esc2(d)}</span>
+            <div class="gcb2"><button class="sbtn ${g === cg.god ? "on" : ""}" data-god="${esc2(g)}">${g === cg.god ? "Chosen" : "Choose"}</button></div></div>`).join("")}</div>` : ""}
         ${cg.type === "Mage" && info ? `<div class="sec">YOUR SCHOOLS</div>
           <div class="gnote"><b>Major</b>: small, big or huge spells. <b>Minor</b>: small spells only. Pick one of each. Your spells use your school's verbs. At Level 5 your minor becomes a major. (Also in REFERENCE → Schools of Magic.)</div>
           <div class="gpicked">Major: <b>${esc2(cg.major || "—")}</b> · Minor: <b>${esc2(cg.minor || "—")}</b></div>
