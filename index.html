@@ -297,6 +297,11 @@
   .gopt .sbtn { font-size:11px; padding:3px 7px; } .gspec { padding:4px 6px; font-size:12px; }
   .greset { width:100%; margin-top:10px; padding:8px; font-family:'Bangers', Impact, sans-serif; font-size:18px; letter-spacing:1px; border:2px solid #6b5aa0; border-radius:8px; background:var(--paper); color:var(--accent); cursor:pointer; }
   .greset:hover { border-color:var(--accent); } .greset.armed { background:var(--accent); color:#000; border-color:#000; }
+  .gadv { background:var(--paper); border:2px solid #000; outline:1px solid #6b5aa0; border-radius:8px; padding:5px 8px 7px; margin:6px 0; }
+  .gadvt { font-family:'Bangers', Impact, sans-serif; font-size:15px; letter-spacing:1px; color:var(--accent); }
+  .gadr { font-size:11px; line-height:1.35; margin-top:4px; color:var(--dim); } .gadr b { display:block; font-size:12px; color:var(--ink); }
+  .gadr.hi b { color:var(--plus); } .gadr.mid b { color:#c9c3e6; } .gadr.hi span, .gadr.mid span { color:var(--ink); }
+  .gbest { width:100%; margin-top:7px; font-size:12px; }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
   .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
@@ -849,6 +854,22 @@ const chooseOpts = (base) => { const m = String(base).match(/\(Choose One:\s*([^
 const needsSpec = (base) => /\(Choose One/i.test(base);
 const baseShort = (base) => String(base).replace(/\s*\((Choose One[^)]*|Type Restricted[^)]*)\)\s*/i, " ").trim();
 const specMissing = (s) => needsSpec(s.base) && !s.spec && s.name === baseShort(s.base);
+// Which attributes a type leans on, read from its "Suggested skills" row and the Skill List. Required/core skills count double.
+const ATTR_DOES = { Adroitness: "Dodging: attacks roll against it. Also initiative, guns, blades, piloting and sneaking.",
+  "Raw Strength": "Adds to melee damage and to your armor bonus. Intimidation.",
+  Intellect: "Knowledge, tech, hacking, investigating. Spellcasting for Mages.",
+  Charm: "Talking people around: con, haggling, seduction, public speaking. Prayer for Priests." };
+function attrNeeds(info, list) {
+  const raw = String((info?.rows.find(([a]) => /^suggested skills/i.test(a)) || [])[1] || "").split(/[,;]/).map(x => x.trim()).filter(Boolean);
+  const out = Object.fromEntries(ATTRS.map(a => [a, { w: 0, skills: [] }]));
+  for (const r of raw) {
+    const key = r.replace(/\(.*?\)/g, "").trim().toLowerCase(), core = /\((core|required)\)/i.test(r);
+    const sk = list.find(x => { const b = x.name.toLowerCase(); return b === key || b.split(/\s*[\/(]\s*/)[0].trim() === key || b.startsWith(key + " "); });
+    if (!sk) continue;
+    const a = sk.attrs[0]; out[a].w += core ? 2 : 1; out[a].skills.push(r.replace(/\s*\((core|required)\)/i, ""));
+  }
+  return out;
+}
 const canReach = (i) => { for (let j = 0; j < i; j++) if (stepWhy(j)) return false; return true; };
 const SHORT = { Adroitness: "Adr", "Raw Strength": "Str", Intellect: "Int", Charm: "Cha" };
 let genRecheck = null; // Finish step: re-checks the Create button when the name changes
@@ -903,6 +924,11 @@ async function showGen() {
     // ---- 2. ATTRIBUTES (sets first, spending points by hand second) ----
     if (cg.step === 1) {
       const left = 42 - attrCost();
+      const needs = cg.type ? attrNeeds(await typeInfo(cg.type).catch(() => null), await skillList().catch(() => [])) : null;
+      const order = ATTRS.slice().sort((a, b) => (needs?.[b].w || 0) - (needs?.[a].w || 0) || (a === "Adroitness" ? -1 : b === "Adroitness" ? 1 : 0));
+      const advice = needs ? `<div class="gadv"><div class="gadvt">WHAT A ${esc2(cg.type.toUpperCase())} NEEDS</div>${order.map(a => { const n = needs[a];
+          return `<div class="gadr ${n.w >= 2 ? "hi" : n.w ? "mid" : ""}"><b>${a}${n.w >= 2 ? " ★" : ""}</b><span>${n.skills.length ? `Your suggested skills: ${esc2(n.skills.join(", "))}. ` : ""}${ATTR_DOES[a]}</span></div>`; }).join("")}
+        ${cg.preset != null ? `<button id="gBest" class="sbtn gbest">★ Put my best values where a ${esc2(cg.type)} needs them</button>` : ""}</div>` : "";
       const table = cg.preset != null
         ? `<div class="gnote">Using <b>Set ${cg.preset + 1}</b>. Pick which value goes on each attribute. Changing one swaps it with the attribute that had that value.</div>
            <table class="mtab">${ATTRS.map(a => `<tr><td>${a}</td><td></td><td><select class="gsel" data-pa="${a}">${[...new Set(ATTR_SETS[cg.preset])].sort((x, y) => y - x).map(v => `<option value="${v}" ${v === cg.attrs[a] ? "selected" : ""}>${sgn(v)}</option>`).join("")}</select></td></tr>`).join("")}</table>`
@@ -913,6 +939,7 @@ async function showGen() {
            <div class="gpts ${left < 0 ? "bad" : ""}">Points left: <b>${left}</b> of 42</div>` : "";
       box.innerHTML = bar + `<div class="sec">PICK A SET</div>
         <div class="gnote">Most players pick a set. Each one spends all 42 points for you; then you choose which attribute gets which value.</div>
+        ${advice}
         <div class="gsets">${ATTR_SETS.map((s, i) => `<button class="sbtn ${i === cg.preset ? "on" : ""}" data-set="${i}">Set ${i + 1}<small>${s.map(sgn).join(" / ")}</small></button>`).join("")}</div>
         ${table}
         ${cg.custom ? "" : `<button id="gCustom" class="sbtn gcust">or spend points myself</button>`}
@@ -920,6 +947,7 @@ async function showGen() {
       document.querySelectorAll("[data-pa]").forEach(s => s.onchange = () => { // swap values so the set stays whole
         const a = s.dataset.pa, v = +s.value, old = cg.attrs[a], other = ATTRS.find(x => x !== a && cg.attrs[x] === v);
         cg.attrs[a] = v; if (other) cg.attrs[other] = old; cgSave(); showGen(); });
+      if ($("gBest")) $("gBest").onclick = () => { const vals = ATTR_SETS[cg.preset].slice().sort((x, y) => y - x); order.forEach((a, i) => cg.attrs[a] = vals[i]); cgSave(); showGen(); };
       if ($("gCustom")) $("gCustom").onclick = () => { cg.preset = null; cg.custom = true; cgSave(); showGen(); };
       document.querySelectorAll("[data-ga]").forEach(b => b.onclick = () => { const a = b.dataset.ga; cg.attrs[a] = Math.max(-3, Math.min(3, cg.attrs[a] + +b.dataset.d)); cgSave(); showGen(); });
       document.querySelectorAll("[data-set]").forEach(b => b.onclick = () => { cg.preset = +b.dataset.set; cg.custom = false; ATTR_SETS[cg.preset].forEach((v, i) => cg.attrs[ATTRS[i]] = v); cgSave(); showGen(); });
