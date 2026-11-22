@@ -551,8 +551,8 @@ function drawManager() {
     <div class="stab">ATTRIBUTES</div><table class="mtab">${attrRows}</table>
     <div class="stab">TRAINED SKILLS</div><table class="mtab">${skillRows(20, 35) || `<tr><td class="empty">None yet.</td></tr>`}</table>
     <div class="stab">UNTRAINED SKILLS</div><table class="mtab">${skillRows(37, 44) || `<tr><td class="empty">None yet.</td></tr>`}</table>
-    <div class="madd"><input id="skName" placeholder="New skill name"><select id="skAttr">${attrOpts}</select><select id="skList"><option value="T">Trained</option><option value="U">Untrained</option></select><button id="skGo" class="sbtn">ADD</button></div>
-    <div class="mnote">New skills start at -4. Raising a skill spends XP; raising an attribute spends attribute points (costs from the chart on your sheet). − refunds the last step.</div>
+    <div class="madd"><input id="skName" placeholder="New skill name"><select id="skAttr">${attrOpts}</select><button id="skGo" class="sbtn">ADD</button></div>
+    <div class="mnote">New skills start Untrained at -4 and move to Trained at -3. Raising a skill spends XP; raising an attribute spends attribute points (costs from the chart on your sheet). − refunds the last step.</div>
     <div class="stab">CREDITS</div>
     <div class="mrow"><b class="mcred">${esc2(V("F7") || "0")}</b><input id="crAmt" inputmode="numeric" placeholder="Amount"><button id="crAdd" class="sbtn">+ ADD</button><button id="crSub" class="sbtn">− SPEND</button></div>
     <div class="stab">EQUIPPED</div>${listRows(46, 58, ["E"], "eq")}
@@ -579,15 +579,23 @@ function drawManager() {
       if (cost == null) return;
       if (d > 0 && cost > xpNow()) return err(`Not enough XP (need ${cost}).`);
       if (d < 0 && cost > xpSpent()) return;
-      mgrSave({ ["E" + row]: r + d, F3: xpNow() - d * cost, F4: xpSpent() + d * cost });
+      const cells = { ["E" + row]: r + d, F3: xpNow() - d * cost, F4: xpSpent() + d * cost };
+      // -3 or better is Trained; back down to -4 is Untrained. Move the skill between the two lists to match.
+      const untrained = row >= 37, toList = r + d >= -3 ? [20, 35] : [37, 44];
+      if (untrained !== (toList[0] === 37)) {
+        let dest = 0; for (let i = toList[0]; i <= toList[1]; i++) if (!V("B" + i)) { dest = i; break; }
+        if (!dest && d > 0) return err("The Trained skills list is full on the sheet.");
+        if (dest) { Object.assign(cells, { ["B" + row]: "", ["C" + row]: "", ["E" + row]: "", ["B" + dest]: V("B" + row), ["C" + dest]: V("C" + row), ["E" + dest]: r + d }); }
+      }
+      mgrSave(cells);
     }
   });
   document.querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { const i = b.dataset.rm; mgrSave({ ["B" + i]: "", ["C" + i]: "", ["E" + i]: "" }); });
   $("skGo").onclick = () => {
     const name = $("skName").value.trim(); if (!name) return;
-    const [from, to] = $("skList").value === "T" ? [20, 35] : [37, 44];
+    const [from, to] = [37, 44]; // new skills always start Untrained
     let row = 0; for (let i = from; i <= to; i++) if (!V("B" + i)) { row = i; break; }
-    if (!row) return err("That skill list is full on the sheet.");
+    if (!row) return err("The Untrained skills list is full on the sheet.");
     mgrSave({ ["B" + row]: name, ["C" + row]: $("skAttr").value, ["E" + row]: -4 });
   };
   $("xpGo").onclick = () => { const n = num($("xpAdd").value); if (!n || n < 0) return; mgrSave({ F3: xpNow() + n }); };
