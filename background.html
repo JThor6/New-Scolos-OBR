@@ -43,7 +43,7 @@ OBR.onReady(async () => {
   const seen = new Set(allRolls(await OBR.room.getMetadata()).map(r => r.id));
   const isGM = (await OBR.player.getRole()) === "GM";
   // Initiative: tell players to roll, and show the bar across the top while combat is on
-  const BAR = "com.newscolos.initbar", LEFT = 560; // clear of the toolbar and the New Scolos panel (even at L size)
+  const BAR = "com.newscolos.initbar", LEFT = 300; // starts where the New Scolos panel ends at S size
   let barCount = "", lastSid = (await OBR.room.getMetadata())[INIT]?.sid || "";
   let lastCur = "";
   async function initUpdate(md) {
@@ -63,7 +63,7 @@ OBR.onReady(async () => {
     const vw = await OBR.viewport.getWidth();
     const url = new URL("go.html", location.href); url.searchParams.set("p", "initbar");
     const ref = new URLSearchParams(location.search).get("obrref"); if (ref) url.searchParams.set("obrref", ref);
-    OBR.popover.open({ id: BAR, url: url.href, width: small ? 54 : Math.max(360, vw - LEFT - 90), height: 54, hidePaper: true,
+    OBR.popover.open({ id: BAR, url: url.href, width: small ? 54 : Math.max(300, vw - LEFT - 110), height: 54, hidePaper: true,
       // full bar starts right of Owlbear's top-left toolbar; minimized it's a small ⚔ box at the top right
       anchorReference: "POSITION", anchorPosition: { left: small ? vw - 90 : LEFT, top: 12 },
       anchorOrigin: { horizontal: small ? "RIGHT" : "LEFT", vertical: "TOP" }, transformOrigin: { horizontal: small ? "RIGHT" : "LEFT", vertical: "TOP" },
