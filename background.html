@@ -63,9 +63,10 @@ OBR.onReady(async () => {
     const vw = await OBR.viewport.getWidth();
     const url = new URL("initbar.html", location.href);
     const ref = new URLSearchParams(location.search).get("obrref"); if (ref) url.searchParams.set("obrref", ref);
-    OBR.popover.open({ id: BAR, url: url.href, width: small ? 150 : Math.max(360, vw - LEFT - 90), height: 54, hidePaper: true,
-      anchorReference: "POSITION", anchorPosition: { left: LEFT, top: 12 }, // starts right of Owlbear's top-left toolbar
-      anchorOrigin: { horizontal: "LEFT", vertical: "TOP" }, transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
+    OBR.popover.open({ id: BAR, url: url.href, width: small ? 54 : Math.max(360, vw - LEFT - 90), height: 54, hidePaper: true,
+      // full bar starts right of Owlbear's top-left toolbar; minimized it's a small ⚔ box at the top right
+      anchorReference: "POSITION", anchorPosition: { left: small ? vw - 90 : LEFT, top: 12 },
+      anchorOrigin: { horizontal: small ? "RIGHT" : "LEFT", vertical: "TOP" }, transformOrigin: { horizontal: small ? "RIGHT" : "LEFT", vertical: "TOP" },
       disableClickAway: true }).catch(() => {});
   }
   initUpdate(await OBR.room.getMetadata());

@@ -6,7 +6,9 @@
   .bar { display:flex; align-items:center; gap:6px; height:100vh; box-sizing:border-box; padding:6px 8px;
     background:rgba(24,27,42,.82); border:1px solid rgba(255,255,255,.14); border-radius:12px; }
   [hidden] { display:none !important; }
-  body.min .list, body.min .gm { display:none !important; }
+  body.min .list, body.min .gm, body.min .rnd { display:none !important; }
+  body.min .bar { justify-content:center; padding:6px; }
+  body.min #min { min-width:38px; height:38px; font-size:18px; }
   #end { font-size:11px; width:auto; padding:0 6px; }
   .rnd { font-family:'Bangers', Impact, sans-serif; font-size:16px; letter-spacing:1px; color:#bb99ff; padding:0 4px; white-space:nowrap; }
   .list { display:flex; gap:5px; overflow-x:auto; flex:1; scrollbar-width:none; min-width:0; }
