@@ -88,6 +88,25 @@
   .epp { border-left:1px solid #444a66; padding-left:10px; white-space:nowrap; }
   .epp small span { color:var(--ink, #f1f3f9); }
   .epp .ctl { margin-top:4px; }
+  .mgrbtn { width:100%; margin:4px 0 6px; } .mgrbtn.on { background:var(--accent); color:#000; }
+  .mtitle { font-weight:800; margin:2px 0 6px; }
+  .mtab { width:100%; border-collapse:collapse; font-size:13px; }
+  .mtab td { padding:4px 2px; border-bottom:1px solid #333a55; vertical-align:middle; }
+  .mtab td small { color:var(--dim); font-size:10px; }
+  .mtab td.mv { font-weight:800; width:34px; text-align:center; }
+  .mtab td:last-child { text-align:right; white-space:nowrap; }
+  .mctl button, .mx { background:var(--paper); color:var(--ink); border:2px solid #444a66; border-radius:6px; min-width:28px; height:26px; font-weight:800; cursor:pointer; margin-left:3px; }
+  .mctl button:disabled { opacity:.3; cursor:default; }
+  .mx { min-width:24px; color:var(--dim); }
+  .mcost { display:inline-block; min-width:62px; color:var(--dim); font-size:10px; text-align:right; margin-left:4px; }
+  .madd, .mrow { display:flex; gap:5px; margin-top:6px; align-items:center; }
+  .madd input, .mrow input { flex:1; min-width:0; }
+  .madd select { max-width:30%; }
+  .mnote { color:var(--dim); font-size:11px; margin-top:4px; }
+  .mcred { min-width:70px; }
+  .mli { display:flex; align-items:center; gap:6px; padding:3px 2px; border-bottom:1px solid #333a55; font-size:13px; }
+  .mli span { flex:1; }
+  #notes { width:100%; box-sizing:border-box; background:#1b1e2e; color:var(--ink); border:1px solid #444a66; border-radius:8px; padding:6px; font:13px system-ui; }
   .pwl { font-size:11px; line-height:1.35; white-space:normal; margin-top:2px; }
   .pwl span { color:var(--dim); font-weight:800; font-size:9px; }
   .g2, .g3, .g4, .g5, .g2b { display:grid; gap:5px; margin-top:5px; }
@@ -421,6 +440,7 @@ async function showSheetTab() {
 }
 
 async function loadSheet(quiet) {
+  if (!quiet) mgrOn = false;
   partyOn = false;
   const id = store.get("ns.sheetId"), saved = cache.get("sheet." + id);
   if (!quiet) {
@@ -443,7 +463,9 @@ async function loadSheet(quiet) {
 }
 
 function list(cells) { return cells.map(V).filter(Boolean); }
+let mgrOn = false; // Sheet Manager view on/off (per sheet view)
 function drawSheet() {
+  if (mgrOn) return drawManager();
   const F = (label, val, cls = "") => `<div class="fld ${cls}"><small>${label}</small><div>${esc2(val)}</div></div>`;
   const skillRows = (from, to) => { let h = ""; for (let i = from; i <= to; i++) if (V("B" + i)) h += `<tr><td>${esc2(V("B" + i))}</td><td>${esc2(V("C" + i))}</td><td>${esc2(V("D" + i))}</td><td>${esc2(V("E" + i))}</td><td><b>${esc2(V("F" + i))}</b></td><td class="rdc"><button class="rd" data-m="${esc2(V("F" + i))}" data-l="${esc2(V("B" + i))}" title="Roll ${esc2(V("B" + i))}">${ROLL_ICON}</button></td></tr>`; return h; };
   const table = (t, from, to) => { const rows = skillRows(from, to); return rows ? `<div class="stab">${t}</div><table class="skt"><tr><th>SKILL</th><th>ATTR.</th><th>RANK</th><th>LVL</th><th>TOT.</th><th class="rdc"></th></tr>${rows}</table>` : ""; };
@@ -456,6 +478,7 @@ function drawSheet() {
   const used = V("F6").toUpperCase() === "TRUE";
   const box = (t, items) => `<div class="stab">${t}</div><div class="lbox">${items.length ? items.map(esc2).join("<br>") : "&nbsp;"}</div>`;
   $("shbody").innerHTML = `
+    <button id="mgr" class="sbtn mgrbtn">⚙ MANAGE CHARACTER</button>
     <div class="g2">${F("Name", V("C3"))}${F("Type", V("C4"))}</div>
     <div class="g3">${F("Level", V("F5"))}${F("Credits", V("F7"))}<button id="reload" class="sbtn" title="Reload from Google Sheet">↻</button></div>
     <div class="g2b"><div class="fld ${ptInEP() ? "epx" : ""}"><div class="epl"><small>Extraordinary Power</small><div id="pwname">${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div></div>${ptInEP() ? `<div class="epp"><small>${esc2(V("E13"))}${ptMaxV() ? ` <span>/ ${esc2(ptMaxV())}</span>` : ""}</small>${ptCtl()}</div>` : ""}</div>
@@ -480,6 +503,7 @@ function drawSheet() {
   fillPowers();
   document.querySelectorAll("#shbody .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l); });
   $("reload").onclick = () => loadSheet();
+  $("mgr").onclick = () => { mgrOn = true; drawSheet(); };
   if ($("disc")) $("disc").onclick = () => { store.set("ns.sheetId", ""); pickCharacter(); };
   document.querySelectorAll(".box").forEach(b => b.onclick = () => save({ wound: +b.dataset.w, on: !b.classList.contains("x") }, () => { const c = "BCDEFGH"[+b.dataset.w] + "16"; setCell(c, b.classList.contains("x") ? "" : "X"); }));
   $("pw").onclick = () => save({ power: !used }, () => setCell("F6", used ? "FALSE" : "TRUE"));
@@ -489,6 +513,101 @@ function drawSheet() {
     $("ptm").onclick = () => pts(-1); $("ptp").onclick = () => pts(1); }
   if (!isNaN(copMax) && (parseInt(V("H29")) || 0) >= copMax) $("copp").disabled = true;
 }
+// ---------------- SHEET MANAGER ----------------
+// Spend XP on skills and attribute points on attributes using the sheet's own cost chart (G4:H12),
+// add skills, credits, equipment and notes. Every change writes straight to the Google Sheet.
+const num = (s) => { const n = parseInt(String(s ?? "").replace(/[,\s+]/g, "").replace("−", "-"), 10); return isNaN(n) ? null : n; };
+const sgn = (n) => (n > 0 ? "+" : "") + n;
+function stepCost(rank) { // cost to go from rank to rank+1, read from the chart on the sheet ("-4 to -3" → 1)
+  for (let row = 4; row <= 12; row++) { const from = num(String(V("G" + row)).split(/\s+to\s+/i)[0]); if (from === rank) return num(V("H" + row)); }
+  return null;
+}
+const xpNow = () => num(V("F3")) || 0, xpSpent = () => num(V("F4")) || 0;
+const levelOf = (spent) => Math.floor(spent / 10);
+const attrLeft = () => levelOf(xpSpent()) - (num(V("F10")) || 0);
+const skillLvl = (row) => { const n = num(V("E" + row)); return n == null ? -4 : n; };
+function mgrSave(cells, done) {
+  save({ cells }, () => { for (const [k, v] of Object.entries(cells)) setCell(k, String(v)); // show it right away
+    setCell("F5", String(levelOf(xpSpent()))); setCell("F12", String(attrLeft())); done && done(); });
+}
+function drawManager() {
+  const ATTR = [["Adroitness", "C7"], ["Raw Strength", "C8"], ["Intellect", "C9"], ["Charm", "C10"]];
+  const pm = (id, up, down, upNote) => `<span class="mctl"><button data-a="${id}" data-d="-1" ${down ? "" : "disabled"}>−</button><button data-a="${id}" data-d="1" ${up ? "" : "disabled"}>+</button></span><span class="mcost">${upNote}</span>`;
+  const attrRows = ATTR.map(([n, c]) => {
+    const r = num(V(c)) ?? 0, up = stepCost(r), down = stepCost(r - 1);
+    return `<tr><td>${n}</td><td class="mv">${sgn(r)}</td><td>${pm("A" + c, up != null && up <= attrLeft(), down != null && down <= (num(V("F10")) || 0), up != null ? `+1: ${up} pt${up === 1 ? "" : "s"}` : "max")}</td></tr>`;
+  }).join("");
+  const skillRows = (from, to) => { let h = ""; for (let i = from; i <= to; i++) { if (!V("B" + i)) continue;
+    const r = skillLvl(i), up = stepCost(r), down = stepCost(r - 1);
+    h += `<tr><td>${esc2(V("B" + i))}<small> ${esc2(V("C" + i))}</small></td><td class="mv">${sgn(r)}</td><td>${pm("S" + i, up != null && up <= xpNow(), down != null && r > -4 && down <= xpSpent(), up != null ? `+1: ${up} XP` : "ask GM")}${r <= -4 ? `<button class="mx" data-rm="${i}" title="Remove skill">✕</button>` : ""}</td></tr>`; } return h; };
+  const listRows = (from, to, cols, key) => { let h = ""; for (let i = from; i <= to; i++) { const txt = cols.map(c => V(c + i)).filter(Boolean).join(" - "); if (txt) h += `<div class="mli"><span>${esc2(txt)}</span><button class="mx" data-${key}="${i}" title="Remove">✕</button></div>`; } return h || `<div class="empty" style="padding:4px">Nothing yet.</div>`; };
+  const notes = []; for (let i = 72; i <= 80; i++) notes.push(V("B" + i)); while (notes.length && !notes[notes.length - 1]) notes.pop();
+  const attrOpts = ["Adroitness", "Raw Strength", "Intellect", "Charm"].map(a => `<option>${a}</option>`).join("");
+  $("shbody").innerHTML = `
+    <button id="mgr" class="sbtn mgrbtn on">✓ DONE MANAGING</button>
+    <div class="mtitle">${esc2(V("C3"))} · Level ${levelOf(xpSpent())}</div>
+    <div class="g2">${`<div class="fld"><small>XP to spend</small><div>${xpNow()}</div></div><div class="fld"><small>Attribute points left</small><div>${attrLeft()}</div></div>`}</div>
+    <div class="mrow"><input id="xpAdd" inputmode="numeric" placeholder="XP earned"><button id="xpGo" class="sbtn">+ ADD XP</button></div>
+    <div class="stab">ATTRIBUTES</div><table class="mtab">${attrRows}</table>
+    <div class="stab">TRAINED SKILLS</div><table class="mtab">${skillRows(20, 35) || `<tr><td class="empty">None yet.</td></tr>`}</table>
+    <div class="stab">UNTRAINED SKILLS</div><table class="mtab">${skillRows(37, 44) || `<tr><td class="empty">None yet.</td></tr>`}</table>
+    <div class="madd"><input id="skName" placeholder="New skill name"><select id="skAttr">${attrOpts}</select><select id="skList"><option value="T">Trained</option><option value="U">Untrained</option></select><button id="skGo" class="sbtn">ADD</button></div>
+    <div class="mnote">New skills start at -4. Raising a skill spends XP; raising an attribute spends attribute points (costs from the chart on your sheet). − refunds the last step.</div>
+    <div class="stab">CREDITS</div>
+    <div class="mrow"><b class="mcred">${esc2(V("F7") || "0")}</b><input id="crAmt" inputmode="numeric" placeholder="Amount"><button id="crAdd" class="sbtn">+ ADD</button><button id="crSub" class="sbtn">− SPEND</button></div>
+    <div class="stab">EQUIPPED</div>${listRows(46, 58, ["E"], "eq")}
+    <div class="mrow"><input id="eqName" placeholder="Equip an item"><button id="eqGo" class="sbtn">ADD</button></div>
+    <div class="stab">INVENTORY</div>${listRows(46, 58, ["B", "C", "D"], "inv")}
+    <div class="mrow"><input id="invName" placeholder="Item"><input id="invDet" placeholder="Detail (x5, +2 def…)" style="max-width:40%"><button id="invGo" class="sbtn">ADD</button></div>
+    <div class="stab">NOTES</div>
+    <textarea id="notes" rows="5" maxlength="2000">${esc2(notes.join("\n"))}</textarea>
+    <button id="noteGo" class="sbtn" style="width:100%;margin-top:4px">SAVE NOTES</button>
+    <div id="sherr" class="err" hidden></div>`;
+  const err = (m) => { $("sherr").hidden = false; $("sherr").textContent = m; };
+  $("mgr").onclick = () => { mgrOn = false; loadSheet(true); drawSheet(); };
+  // attributes (A<cell>) and skills (S<row>): + spends, − refunds the step below
+  document.querySelectorAll(".mctl button").forEach(b => b.onclick = () => {
+    const id = b.dataset.a, d = +b.dataset.d;
+    if (id[0] === "A") {
+      const c = id.slice(1), r = num(V(c)) ?? 0, cost = d > 0 ? stepCost(r) : stepCost(r - 1);
+      if (cost == null) return;
+      if (d > 0 && cost > attrLeft()) return err(`Not enough attribute points (need ${cost}).`);
+      if (d < 0 && cost > (num(V("F10")) || 0)) return;
+      mgrSave({ [c]: r + d, F10: (num(V("F10")) || 0) + d * cost });
+    } else {
+      const row = +id.slice(1), r = skillLvl(row), cost = d > 0 ? stepCost(r) : stepCost(r - 1);
+      if (cost == null) return;
+      if (d > 0 && cost > xpNow()) return err(`Not enough XP (need ${cost}).`);
+      if (d < 0 && cost > xpSpent()) return;
+      mgrSave({ ["E" + row]: r + d, F3: xpNow() - d * cost, F4: xpSpent() + d * cost });
+    }
+  });
+  document.querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { const i = b.dataset.rm; mgrSave({ ["B" + i]: "", ["C" + i]: "", ["E" + i]: "" }); });
+  $("skGo").onclick = () => {
+    const name = $("skName").value.trim(); if (!name) return;
+    const [from, to] = $("skList").value === "T" ? [20, 35] : [37, 44];
+    let row = 0; for (let i = from; i <= to; i++) if (!V("B" + i)) { row = i; break; }
+    if (!row) return err("That skill list is full on the sheet.");
+    mgrSave({ ["B" + row]: name, ["C" + row]: $("skAttr").value, ["E" + row]: -4 });
+  };
+  $("xpGo").onclick = () => { const n = num($("xpAdd").value); if (!n || n < 0) return; mgrSave({ F3: xpNow() + n }); };
+  const cred = (sign) => { const amt = num($("crAmt").value), cur = num(V("F7")) || 0; if (!amt || amt < 0) return;
+    if (sign < 0 && amt > cur) return err("Not enough credits.");
+    mgrSave({ F7: cur + sign * amt }); };
+  $("crAdd").onclick = () => cred(1); $("crSub").onclick = () => cred(-1);
+  const firstEmpty = (col) => { for (let i = 46; i <= 58; i++) if (!V(col + i)) return i; return 0; };
+  $("eqGo").onclick = () => { const v = $("eqName").value.trim(); if (!v) return; const i = firstEmpty("E"); if (!i) return err("Equipped list is full."); mgrSave({ ["E" + i]: v }); };
+  $("invGo").onclick = () => { const v = $("invName").value.trim(); if (!v) return;
+    let i = 0; for (let j = 46; j <= 58; j++) if (!V("B" + j) && !V("C" + j) && !V("D" + j)) { i = j; break; }
+    if (!i) return err("Inventory is full on the sheet."); mgrSave({ ["B" + i]: v, ["C" + i]: $("invDet").value.trim() }); };
+  document.querySelectorAll("[data-eq]").forEach(b => b.onclick = () => mgrSave({ ["E" + b.dataset.eq]: "" }));
+  document.querySelectorAll("[data-inv]").forEach(b => b.onclick = () => { const i = b.dataset.inv; mgrSave({ ["B" + i]: "", ["C" + i]: "", ["D" + i]: "" }); });
+  $("noteGo").onclick = () => { const lines = $("notes").value.split("\n").slice(0, 9), cells = {};
+    for (let i = 0; i < 9; i++) cells["B" + (72 + i)] = (lines[i] || "").slice(0, 300);
+    if ($("notes").value.split("\n").length > 9) err("Only the first 9 lines fit in the sheet's notes.");
+    mgrSave(cells); };
+}
+
 // Always-on power and the daily Extraordinary Power options, read from the character's type tab in the Master file
 async function fillPowers() {
   const type = V("C4").trim().toLowerCase();
@@ -527,7 +646,7 @@ async function save(body, apply) {
 }
 
 // Keep the sheet current while it's open (picks up edits made in Google Sheets too)
-setInterval(() => { if ($("sheet").hidden || busy || !$("shbody")) return; partyOn ? showParty() : (sheetVals && loadSheet(true)); }, 30000);
+setInterval(() => { if ($("sheet").hidden || busy || !$("shbody") || mgrOn) return; partyOn ? showParty() : (sheetVals && loadSheet(true)); }, 30000);
 
 // Only real characters: a Main Sheet titled "New Scolos Character Sheet" with a name filled in, and not the Master file
 async function characterSheets() {

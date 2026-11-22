@@ -17,6 +17,27 @@ const POWER_CELL = 'F6';
 const COP_SPENT_CELL = 'H29';
 const POINTS_LABEL_CELL = 'E13'; // says "Invocations" or "Spell Points" when the character has them
 const POINTS_CELL = 'F13';
+// Sheet Manager: the only Main Sheet cells it may write (never formulas). [first col, last col, first row, last row]
+const MANAGE_CELLS = [
+  ['F', 'F', 3, 4],    // Current XP, Spent XP
+  ['F', 'F', 7, 7],    // Credits
+  ['F', 'F', 10, 10],  // Spent attribute points
+  ['C', 'C', 7, 10],   // Adroitness, Raw Strength, Intellect, Charm
+  ['B', 'C', 20, 35],  // trained skill name + attribute
+  ['E', 'E', 20, 35],  // trained skill level
+  ['B', 'C', 37, 44],  // untrained skill name + attribute
+  ['E', 'E', 37, 44],  // untrained skill level
+  ['B', 'D', 46, 58],  // inventory item + details
+  ['E', 'E', 46, 58],  // equipped
+  ['B', 'B', 72, 80],  // notes
+];
+// The manager only writes to sheets laid out like the master
+const LAYOUT_CHECK = { B19: 'trained skills', B36: 'untrained skills', B45: 'inventory', B71: 'notes' };
+function manageAllowed(a1) {
+  const m = /^([A-L])(\d+)$/.exec(a1); if (!m) return false;
+  const c = m[1], n = Number(m[2]);
+  return MANAGE_CELLS.some(function (x) { return c >= x[0] && c <= x[1] && n >= x[2] && n <= x[3]; });
+}
 
 function json(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
@@ -76,6 +97,26 @@ function doPost(e) {
       const row = Math.round(Number(b.row)), col = Math.round(Number(b.col));
       if (!(row >= 4 && row <= 200 && col >= 13 && col <= 20)) throw new Error('That cell is not a wound or Dead box.');
       t.getRange(row, col).setValue(b.on ? (col === 20 ? true : 'X') : '');
+      return json({ ok: true });
+    }
+    if (b.cells) { // Sheet Manager: several input cells at once
+      const keys = Object.keys(b.cells);
+      if (!keys.length || keys.length > 40) throw new Error('Nothing to change.');
+      for (const k in LAYOUT_CHECK) {
+        if (String(sh.getRange(k).getDisplayValue()).trim().toLowerCase() !== LAYOUT_CHECK[k]) throw new Error('This sheet is not laid out like the master sheet (' + k + '), so the manager will not write to it.');
+      }
+      keys.forEach(function (k) { if (!manageAllowed(k)) throw new Error('The manager cannot change ' + k + '.'); });
+      const lock = LockService.getScriptLock(); lock.waitLock(10000);
+      try {
+        keys.forEach(function (k) {
+          let v = b.cells[k];
+          if (typeof v === 'number') { if (!isFinite(v)) throw new Error('Bad number for ' + k); }
+          else { v = String(v == null ? '' : v).slice(0, 300); if (/^[=@]/.test(v)) v = "'" + v; } // text stays text
+          const cell = sh.getRange(k);
+          if (cell.getFormula()) cell.setFormula(''); // a typed constant like =2 becomes a plain value
+          cell.setValue(v);
+        });
+      } finally { lock.releaseLock(); }
       return json({ ok: true });
     }
     if (b.wound !== undefined) {
