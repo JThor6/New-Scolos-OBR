@@ -63,6 +63,7 @@ OBR.onReady(async () => {
   let lastCur = "";
   async function initUpdate(md) {
     const st = md[INIT];
+    if (!st?.open || !st.cur) lastCur = ""; // new combat starts fresh, so its first turn always pings
     // "Your turn" ping for the player whose turn it is
     if (st?.open && st.cur && st.cur !== lastCur) {
       lastCur = st.cur;
