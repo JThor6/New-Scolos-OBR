@@ -332,6 +332,7 @@
   .inf { cursor:pointer; } .fld.inf:hover, .att.inf:hover, .skc.inf:hover { border-color:#6b5aa0; outline-color:#6b5aa0; }
   .skc.ion, .fld.ion, .att.ion { border-color:var(--accent) !important; outline-color:var(--accent) !important; } .pwb.ion { color:var(--accent); }
   .infp { margin-top:4px; } .infp .gpn { display:flex; align-items:center; } .skc span { text-decoration:underline dotted #555b75; text-underline-offset:3px; }
+  .gtats { display:flex; flex-wrap:wrap; gap:3px; } .gtat.two { color:#c9c3e6; background:#1d1a2e; }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
   .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
@@ -974,8 +975,9 @@ async function showGen() {
       const sl = await skillList().catch(() => []), names = TYPES.map(t => t.trim());
       const infos = await Promise.all(names.map(t => typeInfo(t).catch(() => null)));
       const card = (t, ti) => { const who = String((ti?.rows.find(([a]) => /^who they are/i.test(a)) || [])[1] || "");
-        const nd = ti ? attrNeeds(ti, sl) : null, main = nd ? ATTRS.slice().sort((a, b) => nd[b].w - nd[a].w)[0] : "";
-        return `<button class="gtc2 ${t === cg.type ? "on" : ""}" data-ty="${esc2(t)}"><b>${esc2(t)}</b>${main && nd[main].w ? `<span class="gtat">${esc2(main)}</span>` : ""}<span class="gtw">${esc2(who)}</span></button>`; };
+        const nd = ti ? attrNeeds(ti, sl) : null, rank = nd ? ATTRS.slice().sort((a, b) => nd[b].w - nd[a].w || (a === "Adroitness" ? -1 : b === "Adroitness" ? 1 : 0)) : [];
+        const main = rank[0] || "", second = rank[1] && nd[rank[1]].w >= 1 ? rank[1] : ""; // a second attribute only when the type's skills or powers use it
+        return `<button class="gtc2 ${t === cg.type ? "on" : ""}" data-ty="${esc2(t)}"><b>${esc2(t)}</b>${main && nd[main].w ? `<span class="gtats"><span class="gtat">${esc2(main)}</span>${second ? `<span class="gtat two">${esc2(second)}</span>` : ""}</span>` : ""}<span class="gtw">${esc2(who)}</span></button>`; };
       box.innerHTML = bar + `<div class="sec">PICK A CHARACTER TYPE</div>
         <div class="gtcards">${names.map((t, i) => card(t, infos[i])).join("")}</div>
         ${info ? `<div class="sec">${esc2(cg.type.toUpperCase())}</div>` : ""}
