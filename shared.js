@@ -37,3 +37,9 @@ export function initEntries(md) {
   for (const e of (md[INIT + "/m"] || [])) if (e && e.sid === st.sid && !removed.has(e.id)) out.push(e);
   return out.sort(initCompare);
 }
+
+// Token conditions ("marks"): the list everyone can pick from, kept in room metadata
+export const MARKS = "com.newscolos.marks";
+export const MARK_ITEM = "com.newscolos.mark"; // metadata key on the label items stuck to tokens
+export const DEFAULT_MARKS = ["Dead ☠️", "Unconscious 💤"];
+export const markList = (md) => Array.isArray(md?.[MARKS]) ? md[MARKS] : DEFAULT_MARKS;

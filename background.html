@@ -1,7 +1,7 @@
 <!doctype html><html><head><meta charset="utf-8"></head><body>
 <script type="module">
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
-import { allRolls, INIT, initEntries } from "./shared.js";
+import { allRolls, INIT, initEntries, markList } from "./shared.js";
 // Runs all session, even when the dice panel is closed.
 // Shows rolls as small cards in the bottom-right. Up to 8 at once (two rows of 4, filling right to left),
 // so when everyone rolls together (initiative) the whole table's results are visible.
@@ -39,6 +39,17 @@ async function showRoll(r, spin) {
 }
 
 OBR.onReady(async () => {
+  // Right-click a token → "Mark" panel: Dead, Unconscious, or your own condition, shown above its head
+  const markMenu = async (n) => {
+    const u = new URL("go.html", location.href); u.searchParams.set("p", "marks");
+    const ref = new URLSearchParams(location.search).get("obrref"); if (ref) u.searchParams.set("obrref", ref);
+    OBR.contextMenu.create({ id: "com.newscolos.markmenu",
+      icons: [{ icon: new URL("mark.svg", location.href).pathname, label: "Mark", filter: { every: [{ key: "type", value: "IMAGE" }] } }],
+      embed: { url: u.href, height: 8 + Math.ceil(n / 2) * 42 + 42 + 36 } }).catch(() => {});
+  };
+  let markCount = markList(await OBR.room.getMetadata()).length;
+  markMenu(markCount);
+  OBR.room.onMetadataChange((md) => { const n = markList(md).length; if (n !== markCount) { markCount = n; markMenu(n); } });
   const me = await OBR.player.getId();
   const seen = new Set(allRolls(await OBR.room.getMetadata()).map(r => r.id));
   const isGM = (await OBR.player.getRole()) === "GM";

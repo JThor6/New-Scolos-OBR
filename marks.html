@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<style>
+  html, body { margin:0; background:transparent; color:#f1f3f9; font-family:system-ui, sans-serif; font-size:14px; }
+  body { padding:4px 8px 6px; box-sizing:border-box; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+  .m { position:relative; background:#2b2f45; border:2px solid transparent; color:#f1f3f9; border-radius:8px; height:36px; padding:0 6px;
+       font:600 13px system-ui; cursor:pointer; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .m:hover { background:#363b57; }
+  .m.on { border-color:#bb99ff; background:#3d3460; }
+  .m .x { position:absolute; top:0; right:2px; font-size:10px; color:#9aa0b8; padding:2px; }
+  .m .x:hover { color:#ff7a7a; }
+  .add { display:flex; gap:6px; margin-top:6px; }
+  .add input { flex:1; min-width:0; background:#1b1e2e; border:1px solid #444a66; color:#f1f3f9; border-radius:8px; padding:6px 8px; font:13px system-ui; }
+  .add button { background:#bb99ff; color:#000; border:0; border-radius:8px; font:800 15px system-ui; width:36px; cursor:pointer; }
+  .clr { margin-top:6px; width:100%; background:transparent; border:1px solid #444a66; color:#9aa0b8; border-radius:8px; height:28px; font:600 12px system-ui; cursor:pointer; }
+</style></head>
+<body>
+<div class="grid" id="grid"></div>
+<div class="add"><input id="txt" maxlength="24" placeholder="Other… (e.g. Stunned 💫)"><button id="go" title="Mark with this">+</button></div>
+<button class="clr" id="clr">Clear all marks</button>
+<script type="module">
+import OBR, { buildLabel } from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
+import { MARKS, MARK_ITEM, DEFAULT_MARKS, markList } from "./shared.js";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+let isGM = false, list = DEFAULT_MARKS, sel = [];
+
+const marksOn = async (id) => (await OBR.scene.items.getItems(i => i.metadata?.[MARK_ITEM]?.on === id))
+  .sort((a, b) => (a.metadata[MARK_ITEM].n || 0) - (b.metadata[MARK_ITEM].n || 0));
+
+// Stack a token's marks above its head, oldest closest to the token
+async function restack(id) {
+  const marks = await marksOn(id); if (!marks.length) return;
+  const b = await OBR.scene.items.getItemBounds([id]);
+  const k = (await OBR.scene.grid.getDpi()) / 150;
+  await OBR.scene.items.updateItems(marks.map(m => m.id), (ds) => ds.forEach((d, i) => {
+    d.position = { x: b.center.x, y: b.min.y - 6 * k - i * 44 * k };
+  }));
+}
+
+async function toggle(text) {
+  if (!sel.length) return;
+  const k = (await OBR.scene.grid.getDpi()) / 150;
+  for (const id of sel) {
+    const mine = await marksOn(id), hit = mine.find(m => m.metadata[MARK_ITEM].text === text);
+    if (hit) await OBR.scene.items.deleteItems([hit.id]);
+    else await OBR.scene.items.addItems([buildLabel().plainText(text).position({ x: 0, y: 0 })
+      .fontSize(22 * k).fontWeight(700).fillColor("#ffffff").padding(6 * k)
+      .backgroundColor("#1b1e2e").backgroundOpacity(0.85).cornerRadius(12 * k)
+      .pointerDirection("DOWN").pointerHeight(0)
+      .attachedTo(id).disableAttachmentBehavior(["ROTATION", "SCALE"])
+      .layer("TEXT").locked(true).disableHit(true)
+      .metadata({ [MARK_ITEM]: { on: id, text, n: Date.now() } }).build()]);
+    await restack(id);
+  }
+  draw();
+}
+
+async function draw() {
+  sel = (await OBR.player.getSelection()) || [];
+  const active = new Set(sel.length === 1 ? (await marksOn(sel[0])).map(m => m.metadata[MARK_ITEM].text) : []);
+  $("grid").innerHTML = list.map((t, i) => `<button class="m ${active.has(t) ? "on" : ""}" data-i="${i}" title="${esc(t)}">${esc(t)}${
+    isGM && !DEFAULT_MARKS.includes(t) ? `<span class="x" data-x="${i}" title="Remove from the list">✕</span>` : ""}</button>`).join("");
+  document.querySelectorAll(".m").forEach(b => b.onclick = async (e) => {
+    const x = e.target.dataset.x;
+    if (x != null) { e.stopPropagation(); const nl = list.filter((_, j) => j !== +x); await OBR.room.setMetadata({ [MARKS]: nl }); return; }
+    toggle(list[+b.dataset.i]);
+  });
+}
+
+async function addCustom() {
+  const t = $("txt").value.trim(); if (!t) return;
+  $("txt").value = "";
+  if (!list.includes(t)) await OBR.room.setMetadata({ [MARKS]: [...list, t] }); // saved for everyone to reuse
+  list = list.includes(t) ? list : [...list, t];
+  await toggle(t);
+}
+$("go").onclick = addCustom;
+$("txt").onkeydown = (e) => { if (e.key === "Enter") addCustom(); };
+$("clr").onclick = async () => {
+  for (const id of sel) { const m = await marksOn(id); if (m.length) await OBR.scene.items.deleteItems(m.map(x => x.id)); }
+  draw();
+};
+
+OBR.onReady(async () => {
+  isGM = (await OBR.player.getRole()) === "GM";
+  list = markList(await OBR.room.getMetadata());
+  draw();
+  OBR.room.onMetadataChange((md) => { list = markList(md); draw(); });
+});
+</script></body></html>
