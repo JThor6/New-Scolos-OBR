@@ -6,7 +6,8 @@
   .bar { display:flex; align-items:center; gap:6px; height:100vh; box-sizing:border-box; padding:6px 8px;
     background:rgba(24,27,42,.82); border:1px solid rgba(255,255,255,.14); border-radius:12px; }
   [hidden] { display:none !important; }
-  body.min .list, body.min .gm, body.min .rnd { display:none !important; }
+  body.min .list, body.min .gm, body.min .rnd, body.min #lst { display:none !important; }
+  #lst.on { background:#bb99ff; color:#000; }
   body.min .bar { justify-content:center; padding:6px; }
   body.min #min { min-width:38px; height:38px; font-size:18px; }
   #end { font-size:11px; width:auto; padding:0 6px; }
@@ -30,7 +31,7 @@
   .addf input.num { width:44px; text-align:center; }
 </style></head>
 <body>
-<div class="bar"><button class="sm" id="min" title="Minimize">–</button><span class="rnd" id="rnd"></span><div class="list" id="list"></div><span class="gm" id="gm" hidden>
+<div class="bar"><button class="sm" id="min" title="Minimize">–</button><span class="rnd" id="rnd"></span><button class="sm" id="lst" title="Show the order as a list">☰</button><div class="list" id="list"></div><span class="gm" id="gm" hidden>
   <span class="addf" id="addf" hidden><input id="an" placeholder="Name"><input id="av" class="num" placeholder="+0"><button class="sm" id="aok" title="Add">✓</button></span>
   <button class="sm" id="add" title="Add to initiative">+</button>
   <button id="prev" title="Previous turn">|◀</button><button id="next" title="Next turn">▶|</button><button class="sm" id="end" title="End combat">END</button></span></div>
@@ -59,6 +60,23 @@ function draw() {
 }
 // Minimize is per person; the background page shrinks the panel to match
 document.getElementById("min").onclick = () => { try { localStorage.setItem("ns.barMin", small() ? "" : "1"); } catch {} draw(); };
+// ☰ opens the order as a top-to-bottom list in the reference panel spot (upper right), solid, covering it
+const LIST = "com.newscolos.initlist";
+const listOn = () => { try { return localStorage.getItem("ns.initList") === "1"; } catch { return false; } };
+function markList() { document.getElementById("lst").classList.toggle("on", listOn()); }
+markList();
+window.addEventListener("storage", (e) => { if (e.key === "ns.initList") markList(); });
+document.getElementById("lst").onclick = async () => {
+  if (listOn()) { try { localStorage.setItem("ns.initList", ""); } catch {} markList(); return OBR.popover.close(LIST).catch(() => {}); }
+  try { localStorage.setItem("ns.initList", "1"); } catch {} markList();
+  const u = new URL("go.html", location.href); u.searchParams.set("p", "initlist");
+  const ref = new URLSearchParams(location.search).get("obrref"); if (ref) u.searchParams.set("obrref", ref);
+  const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
+  OBR.popover.open({ id: LIST, url: u.href, width: 340, height: Math.max(360, Math.round(vh * 0.75)), hidePaper: true,
+    anchorReference: "POSITION", anchorPosition: { left: vw - 70, top: 70 },
+    anchorOrigin: { horizontal: "RIGHT", vertical: "TOP" }, transformOrigin: { horizontal: "RIGHT", vertical: "TOP" },
+    disableClickAway: true }).catch(() => {});
+};
 OBR.onReady(async () => {
   md = await OBR.room.getMetadata(); draw();
   OBR.room.onMetadataChange((m) => { md = m; draw(); });

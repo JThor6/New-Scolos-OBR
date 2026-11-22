@@ -59,7 +59,7 @@ OBR.onReady(async () => {
     const key = n + (small ? "m" : "");
     if (key === barCount) return;
     barCount = key;
-    if (!n) { OBR.popover.close(BAR).catch(() => {}); return; }
+    if (!n) { OBR.popover.close(BAR).catch(() => {}); OBR.popover.close("com.newscolos.initlist").catch(() => {}); try { localStorage.setItem("ns.initList", ""); } catch {} return; }
     const vw = await OBR.viewport.getWidth();
     const url = new URL("go.html", location.href); url.searchParams.set("p", "initbar");
     const ref = new URLSearchParams(location.search).get("obrref"); if (ref) url.searchParams.set("obrref", ref);

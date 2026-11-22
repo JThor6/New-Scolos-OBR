@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
+<style>
+  html { margin:0; background:transparent; }
+  body { margin:0; zoom:0.85; color:#f1f3f9; font-family:system-ui, sans-serif; min-height:100vh; box-sizing:border-box;
+    background:#222639; border:1px solid rgba(255,255,255,.12); border-radius:12px; overflow:hidden auto; }
+  header { display:flex; align-items:center; gap:6px; background:#000; padding:7px 10px; position:sticky; top:0; border-radius:12px 12px 0 0; }
+  header h1 { flex:1; margin:0; font-family:'Bangers', Impact, sans-serif; font-weight:400; font-size:20px; letter-spacing:1px; color:#bb99ff; }
+  #x { background:transparent; border:2px solid #444a66; color:#f1f3f9; border-radius:6px; width:26px; height:26px; cursor:pointer; font-weight:800; }
+  .row { display:flex; align-items:center; gap:8px; padding:8px 12px; border-bottom:1px solid #333a55; font-size:15px; }
+  .row .n { color:#9aa0b8; width:20px; font-weight:700; }
+  .row b { flex:1; } .row small { color:#9aa0b8; font-size:11px; }
+  .row .t { font-weight:800; }
+  .row.cur { background:#bb99ff; color:#000; } .row.cur .n, .row.cur small { color:#000; }
+  .empty { padding:14px; color:#9aa0b8; }
+</style></head>
+<body>
+<header><h1 id="t">INITIATIVE</h1><button id="x" title="Close">✕</button></header>
+<div id="list"><div class="empty">Loading…</div></div>
+<script type="module">
+import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
+import { INIT, initEntries } from "./shared.js";
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt = (n) => (n > 0 ? "+" : "") + n;
+function draw(md) {
+  const st = md[INIT] || {}, list = st.open ? initEntries(md) : [];
+  document.getElementById("t").textContent = "INITIATIVE · ROUND " + (st.round || 1);
+  document.getElementById("list").innerHTML = list.length ? list.map((e, i) =>
+    `<div class="row ${e.id === st.cur ? "cur" : ""}"><span class="n">${i + 1}</span><b>${esc(e.name)}</b><small>${e.pc ? "player" : ""}</small><span class="t">${fmt(e.total)}</span></div>`).join("")
+    : `<div class="empty">No combat right now.</div>`;
+}
+document.getElementById("x").onclick = () => { try { localStorage.setItem("ns.initList", ""); } catch {} OBR.popover.close("com.newscolos.initlist").catch(() => {}); };
+OBR.onReady(async () => { draw(await OBR.room.getMetadata()); OBR.room.onMetadataChange(draw); });
+</script></body></html>
