@@ -1,7 +1,7 @@
 // Shared roll storage: each player keeps their own last rolls in room metadata.
 // Per-player keys mean two people rolling at once never overwrite each other.
 export const NS = "com.newscolos.dice";
-export const KEEP = 12; // rolls kept per player (room metadata is capped at ~16 kB total)
+export const KEEP = 10; // rolls kept per player (room metadata is capped at ~16 kB total)
 
 export function rollKey(playerId) { return `${NS}/rolls/${playerId}`; }
 

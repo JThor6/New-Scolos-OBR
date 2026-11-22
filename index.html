@@ -179,7 +179,7 @@
 </main>
 <script type="module">
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
-import { KEEP, rollKey, allRolls, fmt, INIT, initEntries } from "./shared.js";
+import { NS, KEEP, rollKey, allRolls, fmt, INIT, initEntries } from "./shared.js";
 import { TYPES, SECTIONS, getTab, sectionHtml } from "./rules.js";
 
 const $ = (id) => document.getElementById(id);
@@ -251,7 +251,7 @@ $("roll").onclick = async () => {
   if (mod === null) { showErr("Modifier must be a whole number, like +3 or -1."); return; }
   const dice = [rollDie(), rollDie(), rollDie(), rollDie()];
   const who = standalone ? "Test" : await OBR.player.getName();
-  const r = { id: crypto.randomUUID(), pid: me || "local", who, dice, mod, total: dice.reduce((a, b) => a + b, 0) + mod, ts: Date.now() };
+  const r = { id: crypto.randomUUID().slice(0, 8), pid: me || "local", who, dice, mod, total: dice.reduce((a, b) => a + b, 0) + mod, ts: Date.now() };
   $("roll").disabled = true;
   await spin(r);
   const err = await saveRoll(r);
@@ -266,9 +266,18 @@ async function saveRoll(r) {
     const key = rollKey(me);
     const md = await OBR.room.getMetadata();
     const mine = Array.isArray(md[key]) ? md[key] : [];
-    await OBR.room.setMetadata({ [key]: [r, ...mine].slice(0, KEEP) });
-    const check = await OBR.room.getMetadata(); // over-cap writes fail silently, so read back
-    if (!(check[key] || []).some(x => x.id === r.id)) return "Roll didn't reach the table (room storage may be full). Others may not see it.";
+    // Room storage is small (~16 kB): drop roll lists from players who haven't rolled in 2 days (old devices, guests)
+    const stale = {}, cutoff = Date.now() - 2 * 864e5;
+    for (const [k, v] of Object.entries(md)) {
+      if (k !== key && k.startsWith(NS + "/rolls/") && !(Array.isArray(v) && v.some(x => x.ts > cutoff))) stale[k] = undefined;
+    }
+    await OBR.room.setMetadata({ ...stale, [key]: [r, ...mine].slice(0, KEEP) });
+    // over-cap writes fail silently, so read back (twice, in case the first read is just slow)
+    for (let i = 0; i < 2; i++) {
+      if (((await OBR.room.getMetadata())[key] || []).some(x => x.id === r.id)) return "";
+      await new Promise(res => setTimeout(res, 600));
+    }
+    return "Roll didn't reach the table (room storage may be full). Others may not see it.";
     return "";
   } catch (e) { return "Roll didn't reach the table: " + (e?.message || e); }
 }
@@ -295,7 +304,7 @@ async function doQuickRoll(modText, label, whoName) {
   }
   const dice = [rollDie(), rollDie(), rollDie(), rollDie()];
   const who = whoName || (standalone ? "Test" : await OBR.player.getName());
-  const r = { id: crypto.randomUUID(), pid: me || "local", who, label: String(label || "").slice(0, 40), dice, mod: m, total: dice.reduce((a, b) => a + b, 0) + m, ts: Date.now() };
+  const r = { id: crypto.randomUUID().slice(0, 8), pid: me || "local", who, label: String(label || "").slice(0, 40), dice, mod: m, total: dice.reduce((a, b) => a + b, 0) + m, ts: Date.now() };
   // the always-running background page shows it in the bottom-right roll cards
   try { localStorage.setItem("ns.toastReq", JSON.stringify(r)); } catch {}
   const err = await saveRoll(r);
@@ -676,7 +685,7 @@ async function rollMonsterInit() {
     const dice = [rollDie(), rollDie(), rollDie(), rollDie()], total = dice.reduce((a, b) => a + b, 0) + info.adr;
     const label = info.n > 1 ? `${g} ×${info.n}` : g;
     add.push({ id, sid, name: label, total, adr: info.adr, pc: false, r: Math.random() });
-    const roll = { id: crypto.randomUUID(), pid: me || "local", who: label, label: "Adroitness · Initiative", dice, mod: info.adr, total, ts: Date.now() };
+    const roll = { id: crypto.randomUUID().slice(0, 8), pid: me || "local", who: label, label: "Adroitness · Initiative", dice, mod: info.adr, total, ts: Date.now() };
     try { localStorage.setItem("ns.toastReq", JSON.stringify(roll)); } catch {}
     await saveRoll(roll);
   }
