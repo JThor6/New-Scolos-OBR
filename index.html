@@ -295,6 +295,8 @@
   .gsd { flex-basis:100%; padding:0 8px 6px; font-size:11px; line-height:1.35; color:var(--dim); cursor:pointer; } .gsr.on .gsd { color:#c9c3e6; }
   .gopt { display:flex; flex-wrap:wrap; align-items:center; gap:4px; margin-top:5px; } .gopt small { flex-basis:100%; font-size:10px; font-weight:800; color:var(--dim); text-transform:uppercase; }
   .gopt .sbtn { font-size:11px; padding:3px 7px; } .gspec { padding:4px 6px; font-size:12px; }
+  .greset { width:100%; margin-top:10px; padding:8px; font-family:'Bangers', Impact, sans-serif; font-size:18px; letter-spacing:1px; border:2px solid #7a3a44; border-radius:8px; background:var(--paper); color:#ff9aa2; cursor:pointer; }
+  .greset:hover { border-color:var(--minus); } .greset.armed { background:var(--minus); color:#000; border-color:#000; }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
   .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
@@ -861,13 +863,13 @@ async function showGen() {
       cg.preset != null || cg.custom ? ATTRS.map(a => `${SHORT[a]} ${sgn(cg.attrs[a])}`).join(" ") : "",
       `Skills ${cg.skills.length}/8`].filter(Boolean).map((x, i) => i === 0 && cg.name.trim() ? `<b>${esc2(cg.name.trim())}</b> · ${x}` : x).join(" · ")}</div><small>Your progress saves automatically, so you can close this and come back.</small></div>`;
   const nav = (why, info = "") => `<div class="gerr ginfo" id="gerr">${why || info}</div><div class="g2 gnav"><button id="gBack" class="sbtn" ${cg.step ? "" : "disabled"}>◀ BACK</button>${cg.step < 4 ? `<button id="gNext" class="sbtn on" ${why ? "disabled" : ""}>NEXT ▶</button>` : `<button id="gMake" class="sbtn on" ${why ? "disabled" : ""}>CREATE CHARACTER</button>`}</div>
-    ${cg.step < 4 ? summary() : ""}<div class="glinks"><button id="gReset" class="glink">Start over</button></div>`;
+    ${cg.step < 4 ? summary() : ""}<button id="gReset" class="greset">START OVER</button>`;
   const go = (d) => { cg.step = Math.max(0, Math.min(4, cg.step + d)); cgSave(); showGen(); };
   const bind = () => {
     $("gNameTop").oninput = () => { cg.name = $("gNameTop").value; cgSave(); if (genRecheck) genRecheck(); };
     $("gBack").onclick = () => go(-1); if ($("gNext")) $("gNext").onclick = () => go(1);
     document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { if (+b.dataset.go === cg.step) return; cg.step = +b.dataset.go; cgSave(); showGen(); });
-    $("gReset").onclick = () => { if ($("gReset").dataset.armed) { cg = cgNew(); cgSave(); genQ = ""; genMove = genTarget = null; genInfo = ""; return showGen(); } $("gReset").dataset.armed = 1; $("gReset").textContent = "Tap again to clear everything"; };
+    $("gReset").onclick = () => { if ($("gReset").dataset.armed) { cg = cgNew(); cgSave(); genQ = ""; genMove = genTarget = null; genInfo = ""; return showGen(); } $("gReset").dataset.armed = 1; $("gReset").textContent = "TAP AGAIN TO CLEAR EVERYTHING"; $("gReset").classList.add("armed"); };
   };
   box.innerHTML = bar + `<div class="empty">Loading…</div>`;
   genRecheck = null;
