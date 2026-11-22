@@ -135,6 +135,9 @@
   .syncdot { color:var(--dim); font-size:13px; align-self:center; animation:spin 1s linear infinite; display:inline-block; }
   .syncdot[hidden] { display:none; }
   body.rollbusy .rd { opacity:.35; pointer-events:none; }
+  .encpick { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .encpick small { color:var(--dim); font-weight:800; font-size:11px; }
+  .encpick select { flex:1; min-width:0; background:#1b1e2e; color:#f1f3f9; border:1px solid #444a66; border-radius:8px; padding:6px; font:600 13px system-ui; }
   @keyframes spin { to { transform:rotate(360deg); } }
   .line .lbl { flex:1; min-width:0; text-align:center; font-size:12px; font-weight:700; color:var(--accent); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .mcard { border:2px solid #000; outline:1px solid #444a66; border-radius:8px; background:var(--paper); padding:6px 8px 8px; margin-top:8px; }
@@ -538,22 +541,32 @@ async function showMonsters() {
   const box = $("mo");
   if (!store.get("ns.code")) { box.innerHTML = `<div class="empty">Open the SHEET tab and enter the table code first.</div>`; return; }
   const saved = cache.get("mon." + monId());
-  if (saved) { monVals = saved; drawMonsters(); } else box.innerHTML = `<div class="empty">Loading monsters…</div>`;
+  refreshEncList();
+  if (saved) { monVals = saved; drawMonsters(); } else { box.innerHTML = encounterPicker() + `<div class="empty">Loading monsters…</div>`; bindPicker(); }
   sync(1);
   const r = await bridgeGet({ id: monId(), tab: "Extension Tracker" }).catch(e => ({ ok: false, error: e.message }));
   sync(-1);
-  if (!r.ok) { if (!saved) box.innerHTML = `<div class="err">Couldn't load monsters: ${esc2(r.error)}</div>${encounterPicker()}`; bindPicker(); return; }
+  if (!r.ok) { if (!saved) box.innerHTML = `${encounterPicker()}<div class="err">Couldn't load monsters: ${esc2(r.error)}</div>`; bindPicker(); return; }
   cache.set("mon." + monId(), r.values);
   if (JSON.stringify(r.values) !== JSON.stringify(monVals)) { monVals = r.values; drawMonsters(); }
 }
+// Encounter dropdown: every sheet in the encounter folder (one sheet per encounter, each with an "Extension Tracker" tab)
+let encList = cache.get("encList") || [];
 function encounterPicker() {
-  return `<details class="rs" style="margin-top:10px"><summary>USE A DIFFERENT ENCOUNTER SHEET</summary><div style="padding:6px 8px">
-    <input id="encLink" placeholder="Paste the Google Sheet link"><button id="encGo" class="histbtn">USE THIS SHEET</button>
-    <div class="empty" style="font-size:11px">It needs a tab named "Extension Tracker" and must be in your encounter folder.</div></div></details>`;
+  const cur = monId(), known = encList.some(e => e.id === cur);
+  return `<div class="encpick"><small>ENCOUNTER</small><select id="encSel">${
+    (known ? "" : `<option value="${esc2(cur)}">${cur === DEFAULT_ENCOUNTER ? "Scratch Encounter Tracking Sheet" : "Current sheet"}</option>`) +
+    encList.map(e => `<option value="${esc2(e.id)}" ${e.id === cur ? "selected" : ""}>${esc2(e.name)}</option>`).join("")}</select></div>`;
 }
 function bindPicker() {
-  if (!$("encGo")) return;
-  $("encGo").onclick = () => { const id = idFromLink($("encLink").value); if (!id) return; store.set("ns.encounter", id); monVals = null; showMonsters(); };
+  if (!$("encSel")) return;
+  $("encSel").onchange = () => { store.set("ns.encounter", $("encSel").value); monVals = null; showMonsters(); };
+}
+async function refreshEncList() {
+  const r = await bridgeGet({ list: "encounters" }).catch(() => null);
+  if (!r?.ok || JSON.stringify(r.sheets) === JSON.stringify(encList)) return;
+  encList = r.sheets; cache.set("encList", encList);
+  const box = document.querySelector(".encpick"); if (box) { box.outerHTML = encounterPicker(); bindPicker(); }
 }
 function drawMonsters() {
   const v = monVals || [], c = (row, i) => String(v[row]?.[i] ?? "").trim();
@@ -586,7 +599,7 @@ function drawMonsters() {
       ${c(row, 20) ? `<div class="mtext mnote">${esc2(c(row, 20))}</div>` : ""}
     </div>`;
   }
-  $("mo").innerHTML = html + encounterPicker();
+  $("mo").innerHTML = encounterPicker() + html;
   bindPicker();
   $("monRe").onclick = () => showMonsters();
   $("iCall").onclick = callInitiative; $("iMon").onclick = rollMonsterInit; $("iEnd").onclick = endInitiative;

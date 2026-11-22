@@ -9,7 +9,8 @@
 const TABLE_CODE = 'CHANGE-ME';                          // pick a code; players type it once in Owlbear
 const CHARACTER_FOLDER_ID = '1AGoMytVf6xI8DWzMewiEtZF65M9kie88';
 // Folders the bridge may open: characters, plus the GM's encounter sheets
-const ALLOWED_FOLDER_IDS = [CHARACTER_FOLDER_ID, '1UQ_Zq4skyRzjUcaly95g98C2figf6tQs'];
+const ENCOUNTER_FOLDER_ID = '1UQ_Zq4skyRzjUcaly95g98C2figf6tQs';
+const ALLOWED_FOLDER_IDS = [CHARACTER_FOLDER_ID, ENCOUNTER_FOLDER_ID];
 const TRACKER_TAB = 'Extension Tracker';
 const WOUND_CELLS = ['B16', 'C16', 'D16', 'E16', 'F16', 'G16', 'H16'];
 const POWER_CELL = 'F6';
@@ -38,6 +39,12 @@ function doGet(e) {
   try {
     const p = e.parameter;
     if (p.code !== TABLE_CODE) return json({ ok: false, error: 'Wrong table code.' });
+    if (p.list === 'encounters') { // every encounter sheet in the encounter folder, newest edited first
+      const out = [], it = DriveApp.getFolderById(ENCOUNTER_FOLDER_ID).getFilesByType(MimeType.GOOGLE_SHEETS);
+      while (it.hasNext()) { const f = it.next(); out.push({ id: f.getId(), name: f.getName(), t: f.getLastUpdated().getTime() }); }
+      out.sort(function (a, b) { return b.t - a.t; });
+      return json({ ok: true, sheets: out });
+    }
     if (p.list) {
       const out = [], it = DriveApp.getFolderById(CHARACTER_FOLDER_ID).getFilesByType(MimeType.GOOGLE_SHEETS);
       while (it.hasNext()) { const f = it.next(); out.push({ id: f.getId(), name: f.getName() }); }
