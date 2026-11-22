@@ -361,7 +361,7 @@ async function pickCharacter(msg) {
   try { list = await characterSheets(); }
   catch (e) { if (/code/i.test(e.message)) store.set("ns.code", ""); return connectForm(e.message); }
   $("sh").innerHTML = `<div class="sec">WHICH CHARACTER IS YOURS?</div>
-    <div class="help">Tap your character. You only do this once.</div>
+    <div class="help">Tap your character.</div>
     ${list.map(c => `<button class="histbtn pickc" data-id="${c.id}">${esc2(c.name)}</button>`).join("") || `<div class="empty">No characters found. Ask your GM.</div>`}
     <div class="err" ${msg ? "" : "hidden"}>${esc2(msg || "")}</div>
     <button id="chcode" class="sbtn" style="margin-top:10px">Use a different table code</button>`;
