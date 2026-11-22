@@ -325,8 +325,13 @@
   .gcop .copl { white-space:normal; font-size:12.5px; line-height:1.4; } .dimn2 { color:var(--dim); }
   .gcop .ctl { justify-content:center; gap:4px; margin-top:3px; } .gcop .ctl button { padding:0 6px; } .gcop .ctl b { font-size:15px; }
   .pwb { background:none; border:none; padding:0; color:var(--ink); font:inherit; cursor:pointer; text-decoration:underline dotted #6b5aa0; text-underline-offset:3px; }
+  .cob { background:none; border:none; padding:0; color:var(--ink); font:inherit; text-align:left; cursor:pointer; text-decoration:underline dotted #6b5aa0; text-underline-offset:3px; }
+  .cob:hover, .cob.ion { color:var(--accent); }
   .pwb:hover, .pwb.on { color:var(--accent); text-decoration-color:var(--accent); }
   .pwd { margin-top:4px; } .pwd .gpn { display:flex; align-items:center; } .pwx { margin-left:auto; background:none; border:none; color:var(--dim); cursor:pointer; font-size:12px; }
+  .inf { cursor:pointer; } .fld.inf:hover, .att.inf:hover, .skc.inf:hover { border-color:#6b5aa0; outline-color:#6b5aa0; }
+  .skc.ion, .fld.ion, .att.ion { border-color:var(--accent) !important; outline-color:var(--accent) !important; } .pwb.ion { color:var(--accent); }
+  .infp { margin-top:4px; } .infp .gpn { display:flex; align-items:center; } .skc span { text-decoration:underline dotted #555b75; text-underline-offset:3px; }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
   .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
@@ -648,10 +653,10 @@ function layout() {
 const drawOpen = {}; // which fold-out drawers are open, so the 30-second refresh doesn't snap them shut
 function drawSheet() {
   if (mgrOn) return drawManager();
-  const F = (label, val, cls = "") => `<div class="fld ${cls}"><small>${label}</small><div>${esc2(val)}</div></div>`;
-  const chips = (from, to) => { let h = "", n = 0; for (let i = from; i <= to; i++) if (V("B" + i)) { n++;
-    h += `<div class="skc" title="${esc2(V("B" + i))} · ${esc2(V("C" + i))} ${esc2(V("D" + i))} + level ${esc2(V("E" + i))}"><span>${esc2(V("B" + i))}</span><b>${esc2(V("F" + i))}</b><button class="rd" data-m="${esc2(V("F" + i))}" data-l="${esc2(V("B" + i))}" title="Roll ${esc2(V("B" + i))}">${ROLL_ICON}</button></div>`; }
-    return { h: h ? `<div class="skg">${h}</div>` : "", n }; };
+  const F = (label, val, cls = "", inf = "") => `<div class="fld ${cls} ${inf ? "inf" : ""}" ${inf ? `data-inf="${inf}" data-sec="combat"` : ""}><small>${label}</small><div>${esc2(val)}</div></div>`;
+  const chips = (from, to, sec) => { let h = "", n = 0; for (let i = from; i <= to; i++) if (V("B" + i)) { n++;
+    h += `<div class="skc inf" data-inf="sk:${i}" data-sec="${sec}"><span>${esc2(V("B" + i))}</span><b>${esc2(V("F" + i))}</b><button class="rd" data-m="${esc2(V("F" + i))}" data-l="${esc2(V("B" + i))}" title="Roll ${esc2(V("B" + i))}">${ROLL_ICON}</button></div>`; }
+    return { h: h ? `<div class="skg">${h}</div><div class="infp gpow" data-for="${sec}" hidden></div>` : "", n }; };
   const drawer = (key, title, count, body) => body ? `<details class="dr" data-k="${key}" ${drawOpen[key] ? "open" : ""}><summary>${title}${count ? ` <small>${count}</small>` : ""}</summary><div class="drb">${body}</div></details>` : "";
   const inv = [], eq = [], L = layout();
   for (let i = L.inv[0]; i <= L.inv[1]; i++) {
@@ -662,7 +667,7 @@ function drawSheet() {
   const opts = list(["G32", "G33", "G34", "G35"]);
   const used = V("F6").toUpperCase() === "TRUE";
   const lines = (items) => items.map(esc2).join("<br>");
-  const trained = chips(...L.trained), untrained = chips(...L.untrained);
+  const trained = chips(...L.trained, "skills"), untrained = chips(...L.untrained, "untrained");
   const copMaxT = V("H28");
   $("shbody").innerHTML = `
     <div class="shead"><div class="shn"><b>${esc2(V("C3") || "Unnamed")}</b><small>${[V("C4"), V("F5") !== "" ? "Level " + V("F5") : "", V("F7") !== "" ? V("F7") + " cr" : ""].filter(Boolean).map(esc2).join(" · ")}</small></div>
@@ -674,12 +679,14 @@ function drawSheet() {
     <div id="pwd" class="gpow pwd" hidden></div>
     ${V("E13") && !ptInEP() ? `<div class="g2">${ptMaxV() ? F(esc2(/\d/.test(V("G13")) || !V("G13") ? "Max " + V("E13") : V("G13")), ptMaxV()) : ""}<div class="fld"><small>${esc2(V("E13"))}</small>${ptCtl()}</div></div>` : ""}
     <div class="stab">COMBAT</div>
-    <div class="gcb3">${F("Melee", V("H23"), "c")}${F("Ranged", V("H24"), "c")}${F("Armor", V("H25"), "c")}</div>
-    <div class="gcop"><div class="fld"><small>Combat Options</small><div class="copl">${opts.length ? lines(opts) : `<span class="dimn2">None yet</span>`}</div></div>
-      <div class="fld c"><small>COP${copMaxT !== "" ? ` <span class="dimn">/ ${esc2(copMaxT)}</span>` : ""}</small><div class="ctl"><button id="copm">−</button><b id="copv">${esc2(V("H29") || "0")}</b><button id="copp">+</button></div></div></div>
+    <div class="gcb3">${F("Melee", V("H23"), "c", "cb:Melee Damage Bonus")}${F("Ranged", V("H24"), "c", "cb:Ranged Damage Bonus")}${F("Armor", V("H25"), "c", "cb:Armor Bonus")}</div>
+    <div class="gcop"><div class="fld"><small>Combat Options</small><div class="copl">${opts.length ? opts.map(o => `<button class="cob inf" data-inf="co:${esc2(o)}" data-sec="combat">${esc2(o)}</button>`).join("<br>") : `<span class="dimn2">None yet</span>`}</div></div>
+      <div class="fld c inf" data-inf="cop" data-sec="combat"><small>COP${copMaxT !== "" ? ` <span class="dimn">/ ${esc2(copMaxT)}</span>` : ""}</small><div class="ctl"><button id="copm">−</button><b id="copv">${esc2(V("H29") || "0")}</b><button id="copp">+</button></div></div></div>
+    <div class="infp gpow" data-for="combat" hidden></div>
     <div class="stab">ATTRIBUTES</div>
-    <div class="g5">${[["Adroitness", "C7"], ["Raw Str.", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att"><small>${n}</small><b>${esc2(V(c))}</b><button class="rd ra" data-m="${esc2(V(c))}" data-l="${{ "Raw Str.": "Raw Strength" }[n] || n}" title="Roll ${n}">${ROLL_ICON}</button></div>`).join("")}
-      <div class="att dp"><small>Dmg Pen.</small><b>${esc2(V("C12"))}</b></div></div>
+    <div class="g5">${[["Adroitness", "C7"], ["Raw Str.", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att inf" data-inf="at:${{ "Raw Str.": "Raw Strength" }[n] || n}" data-sec="attr"><small>${n}</small><b>${esc2(V(c))}</b><button class="rd ra" data-m="${esc2(V(c))}" data-l="${{ "Raw Str.": "Raw Strength" }[n] || n}" title="Roll ${n}">${ROLL_ICON}</button></div>`).join("")}
+      <div class="att dp inf" data-inf="dp" data-sec="attr"><small>Dmg Pen.</small><b>${esc2(V("C12"))}</b></div></div>
+    <div class="infp gpow" data-for="attr" hidden></div>
     ${trained.h ? `<div class="stab">SKILLS</div>${trained.h}` : ""}
     ${eq.length ? `<div class="stab">EQUIPPED</div><div class="lbox">${lines(eq)}</div>` : ""}
     <div class="drs">
@@ -689,7 +696,7 @@ function drawSheet() {
     </div>
     <div id="sherr" class="err" hidden></div>
     ${isGM ? "" : `<button id="disc" class="histbtn">SWITCH CHARACTER</button>`}`;
-  fillPowers();
+  fillPowers(); bindInfo();
   document.querySelectorAll("#shbody .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l); });
   document.querySelectorAll("#shbody details.dr").forEach(d => d.ontoggle = () => { drawOpen[d.dataset.k] = d.open; });
   $("reload").onclick = () => loadSheet();
@@ -1189,6 +1196,53 @@ async function showGen() {
 }
 
 // Always-on power and the daily Extraordinary Power options, read from the character's type tab in the Master file
+// Tap-to-read panels on the sheet: skills, combat options, COP, damage/armor bonuses, attributes.
+// One panel per section opens right under it; the open one stays open through refreshes.
+let infOpen = "";
+const normName = (x) => String(x).toLowerCase().split(/\s*[(:\/]\s*/)[0].trim().replace(/s\b/g, "");
+async function infoHtml(key) {
+  const row = (a, b) => `<div>${a ? `<b>${esc2(a)}:</b> ` : ""}${esc2(b)}</div>`;
+  if (key.startsWith("sk:")) {
+    const r = +key.slice(3), name = V("B" + r), n = normName(name);
+    let desc = "", alt = "";
+    try { for (const v of await getTab("Skill List")) { const nm = String(v[2] || "").trim(); if (!/^\d+$/.test(String(v[1] || "").trim()) || !nm) continue;
+      const m = normName(nm); if (m === n || m.startsWith(n) || n.startsWith(m)) { const d = String(v[3] || ""); desc = d.replace(/^[A-Za-z ]+:\s*/, "").replace(/^\*/, ""); alt = (d.match(/^[A-Za-z ]+(?=:)/) || [""])[0]; break; } } } catch {}
+    return `<div class="gpn">${esc2(name)}</div>${row("Total", `${V("C" + r)} ${V("D" + r)} + level ${V("E" + r)} = ${V("F" + r)}`)}${desc ? row("", desc) : row("", "Not on the Skill List (ask your GM).")}${alt && alt !== V("C" + r).trim() ? row("Skill List attribute", alt) : ""}`;
+  }
+  if (key.startsWith("co:")) {
+    const name = key.slice(3), n = name.replace(/\([^)]*\)/g, "").trim().toLowerCase();
+    try { for (const v of await getTab("Combat Options")) { const nm = String(v[2] || "").trim(); if (nm && /^\d+$/.test(String(v[1] || "").trim()) && nm.toLowerCase() === n) return `<div class="gpn">${esc2(nm)}</div>${row("", String(v[3] || "").replace(/^\*/, ""))}`; } } catch {}
+    return `<div class="gpn">${esc2(name)}</div>${row("", "Not on the Combat Options list (ask your GM).")}`;
+  }
+  if (key === "cop") {
+    let h = ""; try { const v = await getTab("Combat Options"); const i = v.findIndex(x => /how combat options work/i.test(String(x[1] || ""))); if (i >= 0) for (let j = i + 1; j < v.length && String(v[j][1] || "").trim() && !/^combat options$/i.test(String(v[j][1]).trim()); j++) h += row("", String(v[j][1]).trim()); } catch {}
+    return `<div class="gpn">Combat Option Points</div>${h || row("", "Each Combat Option costs 1 point.")}`;
+  }
+  if (key.startsWith("cb:")) {
+    const k = key.slice(3).toLowerCase(); let h = "";
+    try { const K = (await getTab("Main Sheet")).map(x => String(x?.[10] ?? "").trim());
+      for (const l of K) if (l.toLowerCase().startsWith(k) || (k === "armor bonus" && /^any armor|^ex:/i.test(l))) h += row("", l); } catch {}
+    return `<div class="gpn">${esc2(key.slice(3))}</div>${h || row("", "Damage and armor bonuses come from your gear and Raw Strength.")}`;
+  }
+  if (key.startsWith("at:")) { const a = key.slice(3); return `<div class="gpn">${esc2(a)} ${esc2(V({ Adroitness: "C7", "Raw Strength": "C8", Intellect: "C9", Charm: "C10" }[a]))}</div>${row("", ATTR_DOES[a] || "")}`; }
+  if (key === "dp") return `<div class="gpn">Damage Penalty ${esc2(V("C12"))}</div>${row("", "Comes from your Vitality Track: wounds marked (-1) add to it as they're checked.")}`;
+  return "";
+}
+function bindInfo() {
+  const show = async () => {
+    document.querySelectorAll("#shbody [data-inf]").forEach(e => e.classList.toggle("ion", e.dataset.inf === infOpen));
+    const el = [...document.querySelectorAll("#shbody [data-inf]")].find(e => e.dataset.inf === infOpen);
+    document.querySelectorAll("#shbody .infp").forEach(p => { if (!el || p.dataset.for !== el.dataset.sec) { p.hidden = true; p.innerHTML = ""; } });
+    if (!el) return;
+    const p = document.querySelector(`#shbody .infp[data-for="${el.dataset.sec}"]`); if (!p) return;
+    const key = infOpen, h = await infoHtml(key); if (key !== infOpen) return;
+    p.hidden = false; p.innerHTML = h.replace("</div>", `<button class="pwx" title="Close">✕</button></div>`);
+    p.querySelector(".pwx").onclick = () => { infOpen = ""; show(); };
+  };
+  document.querySelectorAll("#shbody [data-inf]").forEach(e => e.onclick = (ev) => { if (ev.target.closest("button:not([data-inf])")) return; ev.stopPropagation();
+    infOpen = infOpen === e.dataset.inf ? "" : e.dataset.inf; show(); });
+  if (infOpen) show();
+}
 let pwOpen = ""; // which power's rules are open under the Extraordinary Power box (kept across refreshes)
 async function fillPowers() {
   const type = V("C4").trim().toLowerCase();
