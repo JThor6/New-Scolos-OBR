@@ -112,6 +112,30 @@
   .mli { display:flex; align-items:center; gap:6px; padding:3px 2px; border-bottom:1px solid #333a55; font-size:13px; }
   .mli span { flex:1; }
   #notes { width:100%; box-sizing:border-box; background:#1b1e2e; color:var(--ink); border:1px solid #444a66; border-radius:8px; padding:6px; font:13px system-ui; }
+  .gsteps { display:flex; gap:4px; flex-wrap:wrap; margin-bottom:6px; font-size:11px; font-weight:800; }
+  .gsteps span { padding:2px 6px; border-radius:6px; color:var(--dim); border:1px solid #444a66; }
+  .gsteps span.on { background:var(--accent); color:#000; border-color:var(--accent); } .gsteps span.done { color:var(--ink); }
+  .gtypes { display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-bottom:8px; }
+  .gtypes .on, .gnav .on, .gsets .on { background:var(--accent); color:#000; }
+  .grun { background:var(--paper); border:2px solid #000; border-radius:8px; padding:6px 8px; font-size:13px; }
+  .grun div { margin:4px 0; } .grun small { display:block; color:var(--dim); font-weight:800; font-size:10px; text-transform:uppercase; }
+  .gnote { color:var(--dim); font-size:11px; margin:4px 0; }
+  .gerr { color:var(--minus); font-size:12px; min-height:14px; margin-top:6px; }
+  .gnav { margin-top:4px; }
+  .gl { display:block; font-size:12px; font-weight:800; color:var(--dim); margin-top:6px; }
+  .gl input, .gl select, #gGear, #gGod { display:block; width:100%; box-sizing:border-box; margin-top:3px; background:#1b1e2e; color:var(--ink); border:1px solid #444a66; border-radius:8px; padding:6px; font:13px system-ui; }
+  .gpts { margin:6px 0; font-size:13px; } .gpts.bad b { color:var(--minus); }
+  .gsets { display:grid; grid-template-columns:repeat(5,1fr); gap:4px; } .gsets button { font-size:11px; padding:4px 2px; } .gsets small { display:block; font-size:9px; color:var(--dim); font-weight:600; }
+  .gskills { display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:6px; }
+  .gsk { text-align:left; background:var(--paper); color:var(--ink); border:2px solid #444a66; border-radius:8px; padding:4px 6px; cursor:pointer; font-size:12px; }
+  .gsk.on { border-color:var(--accent); background:#3d3460; } .gsk:disabled { opacity:.35; cursor:default; }
+  .gsk small { display:block; color:var(--dim); font-size:10px; }
+  .gsn { width:100%; box-sizing:border-box; background:#1b1e2e; color:var(--ink); border:1px solid #444a66; border-radius:6px; padding:3px 5px; font:13px system-ui; }
+  .mtab select { background:#1b1e2e; color:var(--ink); border:1px solid #444a66; border-radius:6px; font-size:12px; }
+  .gchk { display:flex !important; gap:6px; align-items:center; justify-content:flex-start; margin:8px 0 4px; font-weight:700; font-size:13px; text-transform:none; color:var(--ink); }
+  .gchk input { width:auto; margin:0; }
+  #cg .sbtn:disabled { opacity:.35; cursor:default; }
+  .gxp { min-width:70px; }
   .pwl { font-size:11px; line-height:1.35; white-space:normal; margin-top:2px; }
   .pwl span { color:var(--dim); font-weight:800; font-size:9px; }
   .g2, .g3, .g4, .g5, .g2b { display:grid; gap:5px; margin-top:5px; }
@@ -202,10 +226,11 @@
 </style>
 </head>
 <body>
-<header><h1>NEW SCOLOS</h1><span class="hctl"><span id="syncdot" class="syncdot" hidden title="Syncing with Google Sheets">⟳</span><button id="solid" class="tab" title="See-through / solid">◐</button><button id="size" class="tab" title="Change panel size">S</button></span><nav><button class="tab on" data-t="dice">DICE</button><button class="tab" data-t="sheet">SHEET</button><button class="tab" data-t="rules">REFERENCE</button><button class="tab" data-t="mon" id="monTab" hidden>MONSTERS</button></nav></header>
+<header><h1>NEW SCOLOS</h1><span class="hctl"><span id="syncdot" class="syncdot" hidden title="Syncing with Google Sheets">⟳</span><button id="solid" class="tab" title="See-through / solid">◐</button><button id="size" class="tab" title="Change panel size">S</button></span><nav><button class="tab on" data-t="dice">DICE</button><button class="tab" data-t="sheet">SHEET</button><button class="tab" data-t="rules">REFERENCE</button><button class="tab" data-t="gen">CHARACTER GENERATOR</button><button class="tab" data-t="mon" id="monTab" hidden>MONSTERS</button></nav></header>
 <div id="initban" class="initban" hidden><span>⚔ Initiative! Your next Adroitness roll counts.</span><button id="initgo">ROLL</button><button id="initx" title="Hide">✕</button></div>
 <section id="sheet" hidden><div id="sh"></div></section>
 <section id="rules" hidden><div id="ru"></div></section>
+<section id="gen" hidden><div id="cg"></div></section>
 <section id="mon" hidden><div id="mo"></div></section>
 <main id="dice">
   <label>Modifier</label>
@@ -366,7 +391,8 @@ const V = (a1) => { const m = a1.match(/^([A-L])(\d+)$/); const row = sheetVals?
 
 document.querySelectorAll(".tab").forEach(b => b.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === b));
-  for (const t of ["dice", "sheet", "rules", "mon"]) $(t).hidden = b.dataset.t !== t;
+  for (const t of ["dice", "sheet", "rules", "mon", "gen"]) $(t).hidden = b.dataset.t !== t;
+  if (b.dataset.t === "gen") showGen();
   if (b.dataset.t === "mon") showMonsters();
   if (b.dataset.t === "sheet") showSheetTab();
   if (b.dataset.t === "rules") showRules();
@@ -642,6 +668,183 @@ function drawManager() {
     for (let i = 0; i < Math.max(lines.length, used); i++) cells[L.nc + (L.notes[0] + i)] = (lines[i] || "").slice(0, 300);
     if ($("notes").value.split("\n").length > room) err(`Only the first ${room} lines fit in the sheet's notes.`);
     mgrSave(cells); };
+}
+
+
+// ---------------- CHARACTER GENERATOR ----------------
+// Walks a player through type, attributes, skills and gear, then the bridge copies the Master into a new character sheet.
+const ATTRS = ["Adroitness", "Raw Strength", "Intellect", "Charm"];
+const ATTR_COST = { "-3": 0, "-2": 1, "-1": 3, "0": 7, "1": 14, "2": 25, "3": 41 }; // from the Starting Attribute Calculator
+const ATTR_SETS = [[1, 1, 0, 0], [2, -1, 0, 0], [3, -2, -3, -3], [1, 1, 1, -3], [2, 1, -1, -3]]; // its preset arrays (42 each)
+const LEVEL_SLOTS = [["+1", 1, 1], ["0", 0, 3], ["-2", -2, 2], ["-3", -3, 2]]; // label, level, how many
+const GSTEPS = ["Type", "Attributes", "Skills", "Equipment", "Finish"];
+let cg = (() => { try { return JSON.parse(localStorage.getItem("ns.cgDraft") || "null"); } catch { return null; } })();
+const cgNew = () => ({ step: 0, type: "", god: "", major: "", minor: "", attrs: { Adroitness: -3, "Raw Strength": -3, Intellect: -3, Charm: -3 },
+  skills: [], equip: { armor: "", melee: "", ranged: "" }, gear: "", name: "", email: "", xpOn: false, xp: 0 });
+if (!cg) cg = cgNew();
+const cgSave = () => { try { localStorage.setItem("ns.cgDraft", JSON.stringify(cg)); } catch {} };
+const attrCost = () => ATTRS.reduce((s, a) => s + ATTR_COST[String(cg.attrs[a])], 0);
+const rows = (v) => (v || []).map(r => [String(r[1] ?? "").trim(), String(r[2] ?? "").trim(), String(r[3] ?? "").trim()]);
+
+async function skillList() { // [{name, attrs:[...], desc}] from the Master's Skill List tab
+  const out = [];
+  for (const [num, name, desc] of rows(await getTab("Skill List"))) {
+    if (!/^\d+$/.test(num) || !name) continue;
+    const main = (desc.match(/^(Adroitness|Raw Strength|Intellect|Charm)/) || [])[1] || "Intellect";
+    const alt = (desc.match(/Can use (Adroitness|Raw Strength|Intellect|Charm) or (Adroitness|Raw Strength|Intellect|Charm)/) || []).slice(1).filter(a => ATTRS.includes(a));
+    out.push({ name, attrs: alt.length ? alt : [main], desc: desc.replace(/^[A-Za-z ]+:\s*/, "") });
+  }
+  return out;
+}
+async function typeInfo(type) { // rundown rows, first Extraordinary Power, gods (Priest) and schools (Mage)
+  const v = rows(await getTab(type)), info = { rows: [], power: "", gods: [], schools: [] };
+  let mode = "";
+  for (const [a, b] of v) {
+    if (/^the gods$/i.test(a)) { mode = "gods"; continue; }
+    if (/^schools of magic$/i.test(a)) { mode = "schools"; continue; }
+    if (mode === "gods" && a) { info.gods.push([a, b]); continue; }
+    if (mode === "schools" && a) { info.schools.push([a, b]); continue; }
+    if (/^extraordinary power/i.test(a) && b && !info.power) info.power = b;
+    if (/^(who they are|suggested skills|always on|extraordinary power)/i.test(a) && b) info.rows.push([a, b]);
+  }
+  return info;
+}
+
+async function showGen() {
+  const box = $("cg");
+  if (!store.get("ns.code")) { box.innerHTML = `<div class="empty">Open the SHEET tab and enter the table code first.</div>`; return; }
+  const bar = `<div class="gsteps">${GSTEPS.map((s, i) => `<span class="${i === cg.step ? "on" : i < cg.step ? "done" : ""}">${i + 1}. ${s}</span>`).join("")}</div>`;
+  const nav = (ok, why = "") => `<div class="gerr" id="gerr">${why}</div><div class="g2 gnav"><button id="gBack" class="sbtn" ${cg.step ? "" : "disabled"}>◀ BACK</button>${cg.step < 4 ? `<button id="gNext" class="sbtn on" ${ok ? "" : "disabled"}>NEXT ▶</button>` : `<button id="gMake" class="sbtn on" ${ok ? "" : "disabled"}>CREATE CHARACTER</button>`}</div>
+    <button id="gReset" class="histbtn" style="margin-top:8px">START OVER</button>`;
+  const go = (d) => { cg.step = Math.max(0, Math.min(4, cg.step + d)); cgSave(); showGen(); };
+  const bind = () => {
+    $("gBack").onclick = () => go(-1); if ($("gNext")) $("gNext").onclick = () => go(1);
+    $("gReset").onclick = () => { if ($("gReset").dataset.armed) { cg = cgNew(); cgSave(); return showGen(); } $("gReset").dataset.armed = 1; $("gReset").textContent = "TAP AGAIN TO CLEAR EVERYTHING"; };
+  };
+  box.innerHTML = bar + `<div class="empty">Loading…</div>`;
+  try {
+    // ---- 1. TYPE ----
+    if (cg.step === 0) {
+      const info = cg.type ? await typeInfo(cg.type) : null;
+      const needPick = cg.type === "Priest" ? !cg.god : cg.type === "Mage" ? !(cg.major && cg.minor && cg.major !== cg.minor) : false;
+      box.innerHTML = bar + `<div class="sec">PICK A CHARACTER TYPE</div>
+        <div class="gtypes">${TYPES.map(t => t.trim()).map(t => `<button class="sbtn ${t === cg.type ? "on" : ""}" data-ty="${esc2(t)}">${esc2(t)}</button>`).join("")}</div>
+        ${info ? `<div class="grun">${info.rows.map(([a, b]) => `<div><small>${esc2(a)}</small>${esc2(b)}</div>`).join("")}</div>` : `<div class="empty">Tap a type to read about it.</div>`}
+        ${cg.type === "Priest" && info ? `<div class="sec">YOUR GOD</div><select id="gGod"><option value="">Pick a god…</option>${info.gods.map(([g, d]) => `<option ${g === cg.god ? "selected" : ""} value="${esc2(g)}">${esc2(g)}</option>`).join("")}</select>
+          <div class="gnote">${esc2((info.gods.find(g => g[0] === cg.god) || [, ""])[1])}</div>` : ""}
+        ${cg.type === "Mage" && info ? `<div class="sec">YOUR SCHOOLS</div>
+          <div class="g2"><label class="gl">Major (any size)<select id="gMaj"><option value="">Pick…</option>${info.schools.map(([s]) => `<option ${s === cg.major ? "selected" : ""}>${esc2(s)}</option>`).join("")}</select></label>
+          <label class="gl">Minor (small spells)<select id="gMin"><option value="">Pick…</option>${info.schools.map(([s]) => `<option ${s === cg.minor ? "selected" : ""}>${esc2(s)}</option>`).join("")}</select></label></div>
+          <div class="gnote">${info.schools.filter(s => s[0] === cg.major || s[0] === cg.minor).map(s => `<b>${esc2(s[0])}:</b> ${esc2(s[1])}`).join("<br>")}</div>` : ""}
+        ${nav(cg.type && !needPick, cg.type && needPick ? (cg.type === "Priest" ? "Pick your god." : "Pick a major and a different minor school.") : "")}`;
+      cg.power = info?.power || "";
+      document.querySelectorAll("[data-ty]").forEach(b => b.onclick = () => { if (cg.type !== b.dataset.ty) { cg.type = b.dataset.ty; cg.god = cg.major = cg.minor = "";
+        cg.skills = cg.skills.filter(s => !/^(prayer|spellcasting)/i.test(s.name)); } cgSave(); showGen(); });
+      if ($("gGod")) $("gGod").onchange = () => { cg.god = $("gGod").value; cgSave(); showGen(); };
+      if ($("gMaj")) $("gMaj").onchange = () => { cg.major = $("gMaj").value; cgSave(); showGen(); };
+      if ($("gMin")) $("gMin").onchange = () => { cg.minor = $("gMin").value; cgSave(); showGen(); };
+      return bind();
+    }
+    // ---- 2. ATTRIBUTES ----
+    if (cg.step === 1) {
+      const spent = attrCost(), left = 42 - spent;
+      box.innerHTML = bar + `<div class="sec">STARTING ATTRIBUTES</div>
+        <div class="gnote">Every attribute starts at -3 and you have 42 points. Costs come from the Starting Attribute Calculator.</div>
+        <table class="mtab">${ATTRS.map(a => { const r = cg.attrs[a], up = r < 3 ? ATTR_COST[String(r + 1)] - ATTR_COST[String(r)] : null;
+          return `<tr><td>${a}</td><td class="mv">${sgn(r)}</td><td><span class="mctl"><button data-ga="${a}" data-d="-1" ${r > -3 ? "" : "disabled"}>−</button><button data-ga="${a}" data-d="1" ${up != null && up <= left ? "" : "disabled"}>+</button></span><span class="mcost">${up != null ? `+1: ${up} pts` : "max"}</span></td></tr>`; }).join("")}</table>
+        <div class="gpts ${left < 0 ? "bad" : ""}">Points left: <b>${left}</b> of 42</div>
+        <div class="sec">OR USE A PRESET</div>
+        <div class="gsets">${ATTR_SETS.map((s, i) => `<button class="sbtn" data-set="${i}">Set ${i + 1}<small>${s.map(sgn).join(" / ")}</small></button>`).join("")}</div>
+        <div class="gnote">Order: Adroitness / Raw Strength / Intellect / Charm</div>
+        ${nav(left >= 0, left > 0 ? `${left} point${left === 1 ? "" : "s"} left unspent. They don't carry over.` : "")}`;
+      document.querySelectorAll("[data-ga]").forEach(b => b.onclick = () => { const a = b.dataset.ga; cg.attrs[a] = Math.max(-3, Math.min(3, cg.attrs[a] + +b.dataset.d)); cgSave(); showGen(); });
+      document.querySelectorAll("[data-set]").forEach(b => b.onclick = () => { ATTR_SETS[+b.dataset.set].forEach((v, i) => cg.attrs[ATTRS[i]] = v); cgSave(); showGen(); });
+      return bind();
+    }
+    // ---- 3. SKILLS ----
+    if (cg.step === 2) {
+      const list = await skillList(), picked = new Set(cg.skills.map(s => s.base));
+      const allowed = (n) => !(/^prayer/i.test(n) && cg.type !== "Priest") && !(/^spellcasting/i.test(n) && cg.type !== "Mage");
+      const need = cg.type === "Priest" ? /^prayer/i : cg.type === "Mage" ? /^spellcasting/i : null;
+      const used = (lvl) => cg.skills.filter(s => s.level === lvl).length;
+      const slotsOk = LEVEL_SLOTS.every(([, lvl, n]) => used(lvl) === n);
+      const needOk = !need || cg.skills.some(s => need.test(s.base));
+      const ok = cg.skills.length === 8 && slotsOk && needOk && cg.skills.every(s => s.name.trim());
+      box.innerHTML = bar + `<div class="sec">PICK 8 SKILLS (${cg.skills.length}/8)</div>
+        <div class="gnote">Levels: one at +1, three at 0, two at -2, two at -3. Your attribute is added on top.${need ? ` ${cg.type}s must take ${cg.type === "Priest" ? "Prayer" : "Spellcasting"}.` : ""}</div>
+        ${cg.skills.length ? `<table class="mtab">${cg.skills.map((s, i) => { const info = list.find(x => x.name === s.base) || { attrs: [s.attr] };
+          return `<tr><td><input class="gsn" data-sn="${i}" value="${esc2(s.name)}" title="Add the specialty, e.g. Pilot (Spacecraft)"><small>${info.attrs.length > 1 ? `<select data-sa="${i}">${info.attrs.map(a => `<option ${a === s.attr ? "selected" : ""}>${a}</option>`).join("")}</select>` : esc2(s.attr)}</small></td>
+            <td><select data-sl="${i}">${LEVEL_SLOTS.map(([lab, lvl, n]) => `<option value="${lvl}" ${lvl === s.level ? "selected" : ""}>${lab} (${used(lvl)}/${n})</option>`).join("")}</select></td>
+            <td><button class="mx" data-sx="${i}" title="Remove">✕</button></td></tr>`; }).join("")}</table>` : ""}
+        <div class="gskills">${list.filter(s => allowed(s.name)).map(s => `<button class="gsk ${picked.has(s.name) ? "on" : ""}" data-sk="${esc2(s.name)}" title="${esc2(s.desc)}" ${!picked.has(s.name) && cg.skills.length >= 8 ? "disabled" : ""}><b>${esc2(s.name)}</b><small>${s.attrs.join(" / ")}</small></button>`).join("")}</div>
+        ${nav(ok, cg.skills.length === 8 && !slotsOk ? "Fix the levels: one +1, three 0, two -2, two -3." : cg.skills.length === 8 && !needOk ? `${cg.type}s must take ${cg.type === "Priest" ? "Prayer" : "Spellcasting"}.` : "")}`;
+      document.querySelectorAll("[data-sk]").forEach(b => b.onclick = () => {
+        const n = b.dataset.sk, i = cg.skills.findIndex(s => s.base === n);
+        if (i >= 0) cg.skills.splice(i, 1);
+        else if (cg.skills.length < 8) { const info = list.find(x => x.name === n); const free = LEVEL_SLOTS.find(([, lvl, k]) => used(lvl) < k);
+          cg.skills.push({ base: n, name: n.replace(/\s*\((Choose One[^)]*|Type Restricted[^)]*)\)\s*/i, " ").trim(), attr: info.attrs[0], level: free ? free[1] : -3 }); }
+        cgSave(); showGen();
+      });
+      document.querySelectorAll("[data-sx]").forEach(b => b.onclick = () => { cg.skills.splice(+b.dataset.sx, 1); cgSave(); showGen(); });
+      document.querySelectorAll("[data-sl]").forEach(s => s.onchange = () => { cg.skills[+s.dataset.sl].level = +s.value; cgSave(); showGen(); });
+      document.querySelectorAll("[data-sa]").forEach(s => s.onchange = () => { cg.skills[+s.dataset.sa].attr = s.value; cgSave(); });
+      document.querySelectorAll("[data-sn]").forEach(s => s.onchange = () => { cg.skills[+s.dataset.sn].name = s.value.slice(0, 60); cgSave(); showGen(); });
+      return bind();
+    }
+    // ---- 4. EQUIPMENT ----
+    if (cg.step === 3) {
+      const rs = cg.attrs["Raw Strength"], e = cg.equip;
+      const melee = Math.max(0, (e.melee ? 2 : 0) + rs), ranged = e.ranged ? 4 : 0, armor = e.armor ? Math.max(1, 2 + rs) : Math.max(0, rs);
+      const item = (k, label, rule) => `<label class="gl">${label} <small>${rule}</small><input id="ge_${k}" value="${esc2(e[k])}" placeholder="Name it, or leave blank for none"></label>`;
+      box.innerHTML = bar + `<div class="sec">STARTING EQUIPMENT</div>
+        ${item("armor", "Armor", "+2 Defense Rating")}${item("melee", "Melee weapon", "+2 Offense Rating")}${item("ranged", "Ranged weapon", "+4 Offense Rating")}
+        <div class="g3">${`<div class="fld"><small>Melee Dmg Bonus</small><div>${sgn(melee)}</div></div><div class="fld"><small>Ranged Dmg Bonus</small><div>${sgn(ranged)}</div></div><div class="fld"><small>Armor Bonus</small><div>${sgn(armor)}</div></div>`}</div>
+        <div class="gnote">Melee = Offense Rating + Raw Str (min 0). Ranged = Offense Rating only. Armor = Defense Rating + Raw Str (min +1 in armor, 0 without).</div>
+        <div class="sec">OTHER GEAR (one per line)</div>
+        <textarea id="gGear" rows="5" placeholder="Rope&#10;Medkit x2">${esc2(cg.gear)}</textarea>
+        <div class="gpts">Starting credits: <b>1,000</b></div>
+        ${nav(true)}`;
+      for (const k of ["armor", "melee", "ranged"]) $("ge_" + k).onchange = () => { e[k] = $("ge_" + k).value.trim().slice(0, 60); cgSave(); showGen(); };
+      $("gGear").oninput = () => { cg.gear = $("gGear").value; cgSave(); };
+      return bind();
+    }
+    // ---- 5. FINISH ----
+    const xpBtns = [-10, -1, 1, 10].map(d => `<button class="sbtn" data-xp="${d}">${d > 0 ? "+" : ""}${d}</button>`).join("");
+    const okEmail = !cg.email || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cg.email);
+    box.innerHTML = bar + `<div class="sec">FINISH</div>
+      <label class="gl">Character name<input id="gName" value="${esc2(cg.name)}" maxlength="60" placeholder="This becomes the sheet's name"></label>
+      <label class="gl">Your Google email <small>(the new sheet is shared with you)</small><input id="gEmail" value="${esc2(cg.email)}" placeholder="you@gmail.com" inputmode="email"></label>
+      <label class="gchk"><input type="checkbox" id="gXpOn" ${cg.xpOn ? "checked" : ""}> Start with XP (higher level)</label>
+      ${cg.xpOn ? `<div class="mrow"><b class="gxp">${cg.xp} XP</b>${xpBtns}</div><div class="gnote">Goes into Current XP, to spend in the Sheet Manager.</div>` : ""}
+      <div class="sec">SUMMARY</div>
+      <div class="grun">
+        <div><small>Type</small>${esc2(cg.type)}${cg.god ? ` · ${esc2(cg.god)}` : ""}${cg.major ? ` · ${esc2(cg.major)} / ${esc2(cg.minor)}` : ""}</div>
+        <div><small>Attributes</small>${ATTRS.map(a => `${a} ${sgn(cg.attrs[a])}`).join(", ")}</div>
+        <div><small>Skills</small>${cg.skills.slice().sort((a, b) => b.level - a.level).map(s => `${esc2(s.name)} ${sgn(s.level)}`).join(", ")}</div>
+        <div><small>Equipped</small>${[cg.equip.armor, cg.equip.melee, cg.equip.ranged].filter(Boolean).map(esc2).join(", ") || "Nothing"}</div>
+        <div><small>Credits</small>1,000</div></div>
+      ${nav(cg.name.trim() && okEmail && cg.type && cg.skills.length === 8, !okEmail ? "That email doesn't look right." : !cg.name.trim() ? "Give your character a name." : "")}`;
+    $("gName").oninput = () => { cg.name = $("gName").value; cgSave(); $("gMake").disabled = !cg.name.trim(); };
+    $("gEmail").onchange = () => { cg.email = $("gEmail").value.trim(); cgSave(); showGen(); };
+    $("gXpOn").onchange = () => { cg.xpOn = $("gXpOn").checked; if (!cg.xpOn) cg.xp = 0; cgSave(); showGen(); };
+    document.querySelectorAll("[data-xp]").forEach(b => b.onclick = () => { cg.xp = Math.max(0, Math.min(1000, cg.xp + +b.dataset.xp)); cgSave(); showGen(); });
+    $("gMake").onclick = async () => {
+      $("gMake").disabled = true; $("gMake").textContent = "CREATING…"; sync(1);
+      const notes = cg.type === "Priest" ? [`God: ${cg.god}`] : cg.type === "Mage" ? [`Major school: ${cg.major}`, `Minor school: ${cg.minor}`] : [];
+      const body = { create: { name: cg.name.trim(), type: cg.type, power: cg.power || "", attrs: cg.attrs, email: cg.email, xp: cg.xpOn ? cg.xp : 0,
+        skills: cg.skills.map(s => ({ name: s.name.trim(), attr: s.attr, level: s.level })),
+        equip: cg.equip, gear: cg.gear.split("\n").map(s => s.trim()).filter(Boolean), notes } };
+      const r = await fetch(BRIDGE, { method: "POST", body: JSON.stringify({ code: store.get("ns.code"), ...body }) }).then(x => x.json()).catch(e => ({ ok: false, error: e.message }));
+      sync(-1);
+      if (!r.ok) { $("gerr").textContent = "Didn't create the sheet: " + (r.error || "unknown error"); $("gMake").disabled = false; $("gMake").textContent = "CREATE CHARACTER"; return; }
+      cache.set("chars", null); cg = cgNew(); cgSave();
+      store.set("ns.sheetId", r.id);
+      $("cg").innerHTML = `<div class="sec">DONE!</div><div class="grun"><div><b>${esc2(r.name)}</b> is in the New Scolos Characters folder${body.create.email ? ` and shared with ${esc2(body.create.email)}` : ""}.</div>${r.warn ? `<div class="err">${esc2(r.warn)}</div>` : ""}</div>
+        <button id="gOpen" class="sbtn on" style="width:100%;margin-top:8px">OPEN THE NEW SHEET</button>`;
+      $("gOpen").onclick = () => document.querySelector('.tab[data-t="sheet"]').click();
+    };
+    return bind();
+  } catch (e) { box.innerHTML = bar + `<div class="err">Couldn't load: ${esc2(e.message || e)}</div>`; }
 }
 
 // Always-on power and the daily Extraordinary Power options, read from the character's type tab in the Master file

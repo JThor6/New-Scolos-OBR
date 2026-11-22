@@ -12,6 +12,67 @@ const CHARACTER_FOLDER_ID = '1AGoMytVf6xI8DWzMewiEtZF65M9kie88';
 const ENCOUNTER_FOLDER_ID = '1UQ_Zq4skyRzjUcaly95g98C2figf6tQs';
 const ALLOWED_FOLDER_IDS = [CHARACTER_FOLDER_ID, ENCOUNTER_FOLDER_ID];
 const TRACKER_TAB = 'Extension Tracker';
+const MASTER_ID = '1_cnTDLNHIsaVMAOkOKSKK0YawUHt38ZewW1o5-yWbhU'; // Master New Scolos File for Characters
+const TYPE_TABS = ['Priest', 'Mage', 'Mentalist', 'Mercenary', 'Wraith', 'Revenant', 'Hacker', 'Subject Zero'];
+const ATTR_COST = { '-3': 0, '-2': 1, '-1': 3, '0': 7, '1': 14, '2': 25, '3': 41 }; // Starting Attribute Calculator, 42 points
+const START_LEVELS = [1, 0, 0, 0, -2, -2, -3, -3];                              // Skill List: starting skill levels
+
+// Character Generator: copy the Master into the characters folder and fill it in
+function createCharacter(c) {
+  const name = String(c.name || '').trim().slice(0, 60);
+  if (!name) throw new Error('Give the character a name.');
+  const type = String(c.type || '').trim();
+  if (TYPE_TABS.indexOf(type) < 0) throw new Error('Pick a character type.');
+  const A = ['Adroitness', 'Raw Strength', 'Intellect', 'Charm'];
+  let cost = 0;
+  A.forEach(function (a) { const r = Math.round(Number(c.attrs && c.attrs[a])); if (!(r >= -3 && r <= 3)) throw new Error('Attributes go from -3 to +3.'); cost += ATTR_COST[String(r)]; });
+  if (cost > 42) throw new Error('Attributes cost ' + cost + ' points; you only have 42.');
+  const skills = (c.skills || []).map(function (s) { return { name: String(s.name || '').trim().slice(0, 60), attr: String(s.attr || ''), level: Math.round(Number(s.level)) }; });
+  if (skills.length !== 8 || skills.some(function (s) { return !s.name || A.indexOf(s.attr) < 0; })) throw new Error('Pick 8 skills, each with an attribute.');
+  const lv = skills.map(function (s) { return s.level; }).sort().join(), want = START_LEVELS.slice().sort().join();
+  if (lv !== want) throw new Error('Starting skill levels must be one +1, three 0, two -2 and two -3.');
+  if (skills.some(function (s) { return /^prayer/i.test(s.name); }) && type !== 'Priest') throw new Error('Prayer is for Priests only.');
+  if (skills.some(function (s) { return /^spellcasting/i.test(s.name); }) && type !== 'Mage') throw new Error('Spellcasting is for Mages only.');
+  const xp = Math.max(0, Math.min(1000, Math.round(Number(c.xp) || 0)));
+  const email = String(c.email || '').trim();
+  if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('That email does not look right.');
+
+  const folder = DriveApp.getFolderById(CHARACTER_FOLDER_ID);
+  const file = DriveApp.getFileById(MASTER_ID).makeCopy(name, folder);
+  const ss = SpreadsheetApp.openById(file.getId());
+  const sh = ss.getSheetByName('Main Sheet');
+  const text = function (v) { v = String(v == null ? '' : v); return /^[=@+\-]/.test(v) && isNaN(Number(v)) ? "'" + v : v; };
+  sh.getRange('C3').setValue(text(name)); sh.getRange('C4').setValue(type); sh.getRange('C5').setValue(text(c.power || ''));
+  A.forEach(function (a, i) { sh.getRange('C' + (7 + i)).setValue(Math.round(Number(c.attrs[a]))); });
+  sh.getRange('F3').setValue(xp); sh.getRange('F4').setValue(0); sh.getRange('F6').setValue(false); sh.getRange('F7').setValue(1000); sh.getRange('F10').setValue(0);
+  // skills, best first, into the Trained Skills rows
+  const col = sh.getRange('B1:B60').getDisplayValues().map(function (r) { return String(r[0]).trim().toLowerCase(); });
+  const tr = col.indexOf('trained skills') + 1;
+  if (!tr) throw new Error('The Master sheet has no Trained Skills section.');
+  skills.sort(function (a, b) { return b.level - a.level; }).forEach(function (s, i) {
+    sh.getRange('B' + (tr + 1 + i)).setValue(text(s.name)); sh.getRange('C' + (tr + 1 + i)).setValue(s.attr); sh.getRange('E' + (tr + 1 + i)).setValue(s.level);
+  });
+  // equipment: armor +2 Defense, melee +2 Offense (+ Raw Str), ranged +4 Offense; formulas follow Raw Strength later
+  const eq = c.equip || {}, inv = col.indexOf('inventory') + 1 || 45;
+  sh.getRange('H23').setFormula(eq.melee ? '=MAX(0,2+C8)' : '=MAX(0,C8)');
+  sh.getRange('H24').setValue(eq.ranged ? 4 : 0);
+  sh.getRange('H25').setFormula(eq.armor ? '=MAX(1,2+C8)' : '=MAX(0,C8)');
+  const equipped = [];
+  if (eq.armor) equipped.push(text(eq.armor) + ' (+2 Defense Rating)');
+  if (eq.melee) equipped.push(text(eq.melee) + ' (+2 Offense Rating)');
+  if (eq.ranged) equipped.push(text(eq.ranged) + ' (+4 Offense Rating)');
+  equipped.forEach(function (e, i) { sh.getRange('E' + (inv + 1 + i)).setValue(e); });
+  (c.gear || []).slice(0, 100).forEach(function (g, i) { sh.getRange('B' + (inv + 1 + i)).setValue(text(String(g).slice(0, 200))); });
+  (c.notes || []).slice(0, 100).forEach(function (n, i) { sh.getRange('G' + (inv + 1 + i)).setValue(text(String(n).slice(0, 300))); });
+  // Priest invocations / Mage spell points (max follows level)
+  if (type === 'Priest') sh.getRange('E13:H13').setValues([['Invocations', 2, 'Max Invocations', '=2+ROUNDDOWN(F5/2)']]);
+  else if (type === 'Mage') sh.getRange('E13:H13').setValues([['Spell Points', 3, 'Max Spell Points', '=3+ROUNDDOWN(F5/2)']]);
+  else sh.getRange('E13:H13').clearContent();
+  // keep only this character's type tab
+  ss.getSheets().forEach(function (s) { const t = s.getName().trim(); if (TYPE_TABS.indexOf(t) >= 0 && t !== type) ss.deleteSheet(s); });
+  if (email) { try { file.addEditor(email); } catch (e) { return { ok: true, id: file.getId(), name: name, warn: 'Sheet made, but sharing with ' + email + ' failed: ' + e.message }; } }
+  return { ok: true, id: file.getId(), name: name };
+}
 const WOUND_CELLS = ['B16', 'C16', 'D16', 'E16', 'F16', 'G16', 'H16'];
 const POWER_CELL = 'F6';
 const COP_SPENT_CELL = 'H29';
@@ -98,6 +159,7 @@ function doPost(e) {
   try {
     const b = JSON.parse(e.postData.contents);
     if (b.code !== TABLE_CODE) return json({ ok: false, error: 'Wrong table code.' });
+    if (b.create) return json(createCharacter(b.create));
     const sh = openMain(b.id);
     if (b.tracker) { // GM monster tracker: wound boxes (columns M-S) and Dead (column T) on the Extension Tracker tab
       const t = SpreadsheetApp.openById(b.id).getSheetByName(TRACKER_TAB);
