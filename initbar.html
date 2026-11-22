@@ -5,8 +5,10 @@
   html, body { margin:0; background:transparent; color:#f1f3f9; font-family:system-ui, sans-serif; overflow:hidden; }
   .bar { display:flex; align-items:center; gap:6px; height:100vh; box-sizing:border-box; padding:6px 8px;
     background:rgba(24,27,42,.82); border:1px solid rgba(255,255,255,.14); border-radius:12px; }
+  [hidden] { display:none !important; }
   .rnd { font-family:'Bangers', Impact, sans-serif; font-size:16px; letter-spacing:1px; color:#bb99ff; padding:0 4px; white-space:nowrap; }
-  .list { display:flex; gap:5px; overflow-x:auto; flex:1; scrollbar-width:thin; }
+  .list { display:flex; gap:5px; overflow-x:auto; flex:1; scrollbar-width:none; min-width:0; }
+  .list::-webkit-scrollbar { display:none; }
   .chip { display:flex; align-items:center; gap:5px; padding:4px 8px; border-radius:8px; background:rgba(15,17,28,.65); border:2px solid #444a66; white-space:nowrap; font-size:13px; font-weight:700; }
   .chip .n { color:#9aa0b8; font-size:11px; }
   .chip .t { font-family:'Bangers', Impact, sans-serif; font-size:17px; color:#f1f3f9; }

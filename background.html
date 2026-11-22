@@ -61,7 +61,7 @@ OBR.onReady(async () => {
     const vw = await OBR.viewport.getWidth();
     const url = new URL("initbar.html", location.href);
     const ref = new URLSearchParams(location.search).get("obrref"); if (ref) url.searchParams.set("obrref", ref);
-    OBR.popover.open({ id: BAR, url: url.href, width: Math.min(vw - 220, (isGM ? 330 : 150) + n * 150), height: 54, hidePaper: true,
+    OBR.popover.open({ id: BAR, url: url.href, width: Math.max(400, vw - 220), height: 54, hidePaper: true,
       anchorReference: "POSITION", anchorPosition: { left: Math.round(vw / 2), top: 12 },
       anchorOrigin: { horizontal: "CENTER", vertical: "TOP" }, transformOrigin: { horizontal: "CENTER", vertical: "TOP" },
       disableClickAway: true }).catch(() => {});
