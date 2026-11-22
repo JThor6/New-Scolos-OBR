@@ -111,8 +111,10 @@ function manageAllowed(list, a1) {
 // Run this once from the Apps Script editor (pick it in the function dropdown, press Run, then Allow)
 // so the bridge may copy the Master and share new character sheets.
 function setupPermissions() {
-  const f = DriveApp.getFileById(MASTER_ID);
-  Logger.log('Drive access OK: ' + f.getName() + ' / ' + DriveApp.getFolderById(CHARACTER_FOLDER_ID).getName());
+  // makes a real copy of the Master and trashes it, so Google asks for (and confirms) full Drive access
+  const copy = DriveApp.getFileById(MASTER_ID).makeCopy('Permission test (safe to delete)', DriveApp.getFolderById(CHARACTER_FOLDER_ID));
+  copy.setTrashed(true);
+  Logger.log('Drive access OK: copied and removed a test sheet. Now deploy a new version.');
 }
 
 function json(obj) {
@@ -136,6 +138,12 @@ function doGet(e) {
   try {
     const p = e.parameter;
     if (p.code !== TABLE_CODE) return json({ ok: false, error: 'Wrong table code.' });
+    if (p.diag) {
+      let copy = 'ok';
+      try { DriveApp.getFileById(MASTER_ID).makeCopy('Permission test (safe to delete)', DriveApp.getFolderById(CHARACTER_FOLDER_ID)).setTrashed(true); }
+      catch (e) { copy = String(e.message || e); }
+      return json({ ok: true, runsAs: Session.getEffectiveUser().getEmail(), copy: copy });
+    }
     if (p.list === 'encounters') { // every encounter sheet in the encounter folder, newest edited first
       const out = [], it = DriveApp.getFolderById(ENCOUNTER_FOLDER_ID).getFilesByType(MimeType.GOOGLE_SHEETS);
       while (it.hasNext()) { const f = it.next(); out.push({ id: f.getId(), name: f.getName(), t: f.getLastUpdated().getTime() }); }
