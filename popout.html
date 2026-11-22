@@ -30,7 +30,7 @@
   .err { color:#ff6b6b; font-weight:700; }
 </style></head>
 <body>
-<header><h1 id="t">RULES</h1><select id="pick"></select><button id="op" class="hb" title="See-through / solid">◐</button><button id="x" title="Close">✕</button></header>
+<header><h1 id="t">REFERENCE</h1><select id="pick"></select><button id="op" class="hb" title="See-through / solid">◐</button><button id="x" title="Close">✕</button></header>
 <main id="m"><div class="rr">Loading…</div></main>
 <script type="module">
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
@@ -40,7 +40,7 @@ const pick = document.getElementById("pick");
 pick.innerHTML = SECTIONS.map(([t, k]) => `<option value="${esc2(k)}">${esc2(t)}</option>`).join("");
 async function show(k) {
   pick.value = k;
-  document.getElementById("t").textContent = (SECTIONS.find(s => s[1] === k)?.[0] || "Rules").toUpperCase();
+  document.getElementById("t").textContent = (SECTIONS.find(s => s[1] === k)?.[0] || "Reference").toUpperCase();
   const m = document.getElementById("m");
   m.innerHTML = `<div class="rr">Loading…</div>`;
   try { m.innerHTML = await sectionHtml(k) || `<div class="rr">Nothing here yet.</div>`; }

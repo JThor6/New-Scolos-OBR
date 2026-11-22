@@ -138,7 +138,7 @@
 </style>
 </head>
 <body>
-<header><h1>NEW SCOLOS</h1><nav><button class="tab on" data-t="dice">DICE</button><button class="tab" data-t="sheet">SHEET</button><button class="tab" data-t="rules">RULES</button><span id="syncdot" class="syncdot" hidden title="Syncing with Google Sheets">⟳</span><button id="solid" class="tab" title="See-through / solid" style="margin-left:auto">◐</button><button id="size" class="tab" title="Change panel size">S</button></nav></header>
+<header><h1>NEW SCOLOS</h1><nav><button class="tab on" data-t="dice">DICE</button><button class="tab" data-t="sheet">SHEET</button><button class="tab" data-t="rules">REFERENCE</button><span id="syncdot" class="syncdot" hidden title="Syncing with Google Sheets">⟳</span><button id="solid" class="tab" title="See-through / solid" style="margin-left:auto">◐</button><button id="size" class="tab" title="Change panel size">S</button></nav></header>
 <section id="sheet" hidden><div id="sh"></div></section>
 <section id="rules" hidden><div id="ru"></div></section>
 <main id="dice">
@@ -256,9 +256,9 @@ async function quickRoll(modText, label) {
   if (!standalone) {
     const u = new URL("toast.html", location.href);
     const ref = new URLSearchParams(location.search).get("obrref"); if (ref) u.searchParams.set("obrref", ref);
-    u.searchParams.set("who", who); u.searchParams.set("dice", dice.join(",")); u.searchParams.set("mod", m); u.searchParams.set("total", r.total); u.searchParams.set("spin", "1");
+    u.searchParams.set("who", who); u.searchParams.set("dice", dice.join(",")); u.searchParams.set("mod", m); u.searchParams.set("total", r.total); u.searchParams.set("spin", "1"); if (r.label) u.searchParams.set("label", r.label);
     const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
-    OBR.popover.open({ id: "com.newscolos.dice/toast", url: u.href, width: 270, height: 80, anchorReference: "POSITION",
+    OBR.popover.open({ id: "com.newscolos.dice/toast", url: u.href, width: 270, height: r.label ? 98 : 80, anchorReference: "POSITION",
       anchorPosition: { left: vw - 80, top: vh - 70 }, anchorOrigin: { horizontal: "RIGHT", vertical: "BOTTOM" },
       transformOrigin: { horizontal: "RIGHT", vertical: "BOTTOM" }, disableClickAway: true }).catch(() => {});
   }

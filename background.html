@@ -15,9 +15,10 @@ async function showRoll(r) {
   url.searchParams.set("dice", r.dice.join(","));
   url.searchParams.set("mod", r.mod || 0);
   url.searchParams.set("total", r.total);
+  if (r.label) url.searchParams.set("label", r.label);
   const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
   await OBR.popover.open({
-    id: TOAST, url: url.href, width: W, height: H,
+    id: TOAST, url: url.href, width: W, height: r.label ? H + 18 : H,
     anchorReference: "POSITION",
     anchorPosition: { left: vw - 80, top: vh - 70 }, // clear of the zoom/grid button in the corner
     anchorOrigin: { horizontal: "RIGHT", vertical: "BOTTOM" },
