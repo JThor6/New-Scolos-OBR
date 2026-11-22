@@ -37,6 +37,10 @@
     const lock = () => { set(faces[locked], dice[locked]); locked++; if (locked < faces.length) return setTimeout(lock, 300); clearInterval(tick); tot.style.visibility = "visible"; };
     setTimeout(lock, 700);
   }
-  // close this card on its own (works even if the panel that opened it is closed)
-  if (OBR.isAvailable) OBR.onReady(() => setTimeout(() => OBR.popover.close("com.newscolos.dice/toast").catch(() => {}), showFor));
+  // fade out, then close this card on its own (works even if the panel that opened it is closed)
+  const myId = q.get("id") || "com.newscolos.dice/toast";
+  const ms = Number(q.get("ms")) || showFor;
+  document.body.style.transition = "opacity .6s";
+  setTimeout(() => { document.body.style.opacity = "0"; }, Math.max(0, ms - 700));
+  if (OBR.isAvailable) OBR.onReady(() => setTimeout(() => OBR.popover.close(myId).catch(() => {}), ms));
 </script></body></html>

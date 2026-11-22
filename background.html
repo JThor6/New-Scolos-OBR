@@ -3,41 +3,56 @@
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
 import { allRolls } from "./shared.js";
 // Runs all session, even when the dice panel is closed.
-// Shows other players' rolls as a small card in the bottom-right corner for a few seconds.
+// Shows rolls as small cards in the bottom-right. Up to 8 at once (two rows of 4, filling right to left),
+// so when everyone rolls together (initiative) the whole table's results are visible.
 const TOAST = "com.newscolos.dice/toast";
-const W = 270, H = 80, SHOW_MS = 5000;
-let hideTimer = null;
+const W = 270, H = 98, GAP = 8, SLOTS = 8, PER_ROW = 4, SHOW_MS = 9000;
+const busyUntil = new Array(SLOTS).fill(0);
 
-async function showRoll(r) {
+async function showRoll(r, spin) {
+  const now = Date.now();
+  let slot = busyUntil.findIndex(t => t < now);
+  if (slot < 0) slot = busyUntil.indexOf(Math.min(...busyUntil)); // all full: replace the oldest
+  const show = SHOW_MS + (spin ? 2000 : 0);
+  busyUntil[slot] = now + show + 400;
+  const id = TOAST + "/" + slot;
   const url = new URL("toast.html", location.href);
   const ref = new URLSearchParams(location.search).get("obrref"); if (ref) url.searchParams.set("obrref", ref);
+  url.searchParams.set("id", id);
+  url.searchParams.set("ms", show);
   url.searchParams.set("who", r.who);
   url.searchParams.set("dice", r.dice.join(","));
   url.searchParams.set("mod", r.mod || 0);
   url.searchParams.set("total", r.total);
   if (r.label) url.searchParams.set("label", r.label);
+  if (spin) url.searchParams.set("spin", "1");
   const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
+  const col = slot % PER_ROW, row = Math.floor(slot / PER_ROW);
   await OBR.popover.open({
-    id: TOAST, url: url.href, width: W, height: r.label ? H + 18 : H,
+    id, url: url.href, width: W, height: r.label ? H : H - 18,
     anchorReference: "POSITION",
-    anchorPosition: { left: vw - 80, top: vh - 70 }, // clear of the zoom/grid button in the corner
+    anchorPosition: { left: vw - 80 - col * (W + GAP), top: vh - 70 - row * (H + GAP) }, // clear of the corner buttons
     anchorOrigin: { horizontal: "RIGHT", vertical: "BOTTOM" },
     transformOrigin: { horizontal: "RIGHT", vertical: "BOTTOM" },
     disableClickAway: true,
   });
-  clearTimeout(hideTimer);
-  hideTimer = setTimeout(() => OBR.popover.close(TOAST).catch(() => {}), SHOW_MS);
 }
 
 OBR.onReady(async () => {
   const me = await OBR.player.getId();
   const seen = new Set(allRolls(await OBR.room.getMetadata()).map(r => r.id));
+  // other players' rolls
   OBR.room.onMetadataChange((md) => {
-    for (const r of allRolls(md).reverse()) { // oldest first, so the newest ends up showing
+    for (const r of allRolls(md).reverse()) { // oldest first
       if (seen.has(r.id)) continue;
       seen.add(r.id);
-      if (r.pid !== me) showRoll(r).catch(() => {});
+      if (r.pid !== me) showRoll(r, false).catch(() => {});
     }
+  });
+  // your own rolls from the sheet's roll buttons (sent from the panel; spins as it lands)
+  window.addEventListener("storage", (e) => {
+    if (e.key !== "ns.toastReq" || !e.newValue) return;
+    try { const r = JSON.parse(e.newValue); if (!seen.has(r.id)) { seen.add(r.id); showRoll(r, true).catch(() => {}); } } catch {}
   });
 });
 </script></body></html>
