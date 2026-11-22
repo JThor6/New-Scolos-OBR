@@ -119,6 +119,8 @@
   .gtypes .on, .gnav .on, .gsets .on { background:var(--accent); color:#000; }
   .grun { background:var(--paper); border:2px solid #000; border-radius:8px; padding:6px 8px; font-size:13px; }
   .grun div { margin:4px 0; } .grun small { display:block; color:var(--dim); font-weight:800; font-size:10px; text-transform:uppercase; }
+  .gpow { background:var(--paper); border:2px solid #000; border-left:4px solid #e0a83a; border-radius:8px; padding:6px 8px; margin-top:6px; font-size:12px; line-height:1.35; }
+  .gpow div { margin:3px 0; } .gpow b { color:var(--dim); } .gpn { font-weight:800; font-size:14px; color:#e0a83a; }
   .gnote { color:var(--dim); font-size:11px; margin:4px 0; }
   .gerr { color:var(--minus); font-size:12px; min-height:14px; margin-top:6px; }
   .gnav { margin-top:4px; }
@@ -698,15 +700,20 @@ async function skillList() { // [{name, attrs:[...], desc}] from the Master's Sk
   return out;
 }
 async function typeInfo(type) { // rundown rows, first Extraordinary Power, gods (Priest) and schools (Mage)
-  const v = rows(await getTab(type)), info = { rows: [], power: "", gods: [], schools: [] };
-  let mode = "";
+  const v = rows(await getTab(type)), info = { rows: [], power: "", powers: [], gods: [], schools: [] };
+  let mode = "", pw = null;
   for (const [a, b] of v) {
+    // each Extraordinary Power with its rules underneath (stops at the example or the next section)
+    if (/^extraordinary power/i.test(a) && b) { pw = { name: b, rules: [] }; info.powers.push(pw); if (!info.power) info.power = b; continue; }
+    if (pw) {
+      if (/^example/i.test(a) || (a && a === a.toUpperCase() && /[A-Z]/.test(a))) pw = null;
+      else { if (a || b) pw.rules.push([a, b]); continue; }
+    }
     if (/^the gods$/i.test(a)) { mode = "gods"; continue; }
     if (/^schools of magic$/i.test(a)) { mode = "schools"; continue; }
     if (mode === "gods" && a) { info.gods.push([a, b]); continue; }
     if (mode === "schools" && a) { info.schools.push([a, b]); continue; }
-    if (/^extraordinary power/i.test(a) && b && !info.power) info.power = b;
-    if (/^(who they are|suggested skills|always on|extraordinary power)/i.test(a) && b) info.rows.push([a, b]);
+    if (/^(who they are|suggested skills|always on|daily use)/i.test(a) && b) info.rows.push([a, b]);
   }
   return info;
 }
@@ -730,7 +737,8 @@ async function showGen() {
       const needPick = cg.type === "Priest" ? !cg.god : cg.type === "Mage" ? !(cg.major && cg.minor && cg.major !== cg.minor) : false;
       box.innerHTML = bar + `<div class="sec">PICK A CHARACTER TYPE</div>
         <div class="gtypes">${TYPES.map(t => t.trim()).map(t => `<button class="sbtn ${t === cg.type ? "on" : ""}" data-ty="${esc2(t)}">${esc2(t)}</button>`).join("")}</div>
-        ${info ? `<div class="grun">${info.rows.map(([a, b]) => `<div><small>${esc2(a)}</small>${esc2(b)}</div>`).join("")}</div>` : `<div class="empty">Tap a type to read about it.</div>`}
+        ${info ? `<div class="grun">${info.rows.map(([a, b]) => `<div><small>${esc2(a)}</small>${esc2(b)}</div>`).join("")}</div>
+          ${info.powers.map(p => `<div class="gpow"><div class="gpn">⚡ ${esc2(p.name)}</div>${p.rules.map(([a, b]) => `<div>${a ? `<b>${esc2(a)}:</b> ` : ""}${esc2(b)}</div>`).join("")}</div>`).join("")}` : `<div class="empty">Tap a type to read about it.</div>`}
         ${cg.type === "Priest" && info ? `<div class="sec">YOUR GOD</div><select id="gGod"><option value="">Pick a god…</option>${info.gods.map(([g, d]) => `<option ${g === cg.god ? "selected" : ""} value="${esc2(g)}">${esc2(g)}</option>`).join("")}</select>
           <div class="gnote">${esc2((info.gods.find(g => g[0] === cg.god) || [, ""])[1])}</div>` : ""}
         ${cg.type === "Mage" && info ? `<div class="sec">YOUR SCHOOLS</div>
