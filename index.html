@@ -156,6 +156,7 @@
   .ix { background:transparent; border:none; color:var(--dim); cursor:pointer; font-weight:900; }
   .iadd { display:grid; grid-template-columns:1fr 54px auto; gap:5px; margin-top:6px; }
   .iadd input { padding:4px 6px; }
+  .help { font-size:11px; color:var(--dim); line-height:1.35; margin:3px 0 2px; }
   .err { color:var(--minus); margin-top:8px; font-weight:700; }
   .empty { color:var(--dim); margin-top:8px; }
 </style>
@@ -313,8 +314,10 @@ function idFromLink(t) { const m = String(t).match(/\/d\/([a-zA-Z0-9_-]{20,})/);
 
 function connectForm(msg) {
   $("sh").innerHTML = `<div class="sec">CONNECT YOUR SHEET</div>
-    ${isGM ? "" : `<label>Your Google Sheet link</label><input id="slink" placeholder="Paste the link from your browser">`}
+    ${isGM ? "" : `<label>Link to your character sheet</label><input id="slink" placeholder="Paste your character's Google Sheet link">
+    <div class="help">Open your own character's Google Sheet (the one with your Main Sheet tab), copy the address from the top of your browser, and paste it here. Not a folder link.</div>`}
     <label>Table code</label><input id="scode" type="password" placeholder="Ask your GM">
+    <div class="help">Once you connect, your sheet shows here, and the REFERENCE tab and party overview work too. Nothing else gets locked out.</div>
     <button id="sgo" class="histbtn">CONNECT</button>
     <div class="err" ${msg ? "" : "hidden"}>${esc2(msg)}</div>`;
   $("sgo").onclick = () => {
