@@ -286,13 +286,13 @@
   .gsh { font-size:10px; font-weight:800; letter-spacing:.5px; color:var(--dim); margin:8px 2px 3px; } .gsh span { color:var(--ink); }
   .gsr { display:flex; flex-wrap:wrap; align-items:stretch; background:var(--paper); border:1.5px solid #444a66; border-radius:7px; margin-top:3px; }
   .gsr.on { border-color:var(--accent); background:rgba(61,52,96,.7); } .gsr[hidden], .gsh[hidden] { display:none; }
-  .gsk2 { flex:1; min-width:0; display:flex; align-items:center; gap:6px; background:transparent; border:none; color:var(--ink); text-align:left; padding:5px 4px 5px 7px; cursor:pointer; font:12px system-ui; }
+  .gsk2 { flex:1; min-width:0; display:flex; align-items:center; gap:6px; background:transparent; border:none; color:var(--ink); text-align:left; padding:5px 8px 2px; cursor:pointer; font:12px system-ui; }
   .gsk2 b { flex:1; min-width:0; font-weight:700; }
   .gsk2 em { font-style:normal; font-weight:900; color:var(--dim); min-width:22px; text-align:right; } .gsk2 em.on { color:var(--plus); } .gsk2 em.full { font-size:9px; font-weight:700; }
   .gck { width:16px; height:16px; flex:none; border-radius:4px; border:1.5px solid #555b75; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:900; color:var(--dim); }
   .gsr.on .gck { background:var(--accent); border-color:var(--accent); color:#000; }
   .gi { background:transparent; border:none; border-left:1px solid #333a55; color:var(--dim); cursor:pointer; width:28px; font-size:13px; } .gi:hover { color:var(--accent); }
-  .gsd { flex-basis:100%; border-top:1px solid #333a55; padding:5px 8px 6px; font-size:12px; line-height:1.35; color:var(--ink); }
+  .gsd { flex-basis:100%; padding:0 8px 6px; font-size:11px; line-height:1.35; color:var(--dim); cursor:pointer; } .gsr.on .gsd { color:#c9c3e6; }
   .gopt { display:flex; flex-wrap:wrap; align-items:center; gap:4px; margin-top:5px; } .gopt small { flex-basis:100%; font-size:10px; font-weight:800; color:var(--dim); text-transform:uppercase; }
   .gopt .sbtn { font-size:11px; padding:3px 7px; } .gspec { padding:4px 6px; font-size:12px; }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
@@ -945,20 +945,20 @@ async function showGen() {
           `<button class="gchip e ${genMove != null ? "dest" : nl === lvl && cg.skills.length < 8 ? "tg" : ""}" data-es="${lvl}" title="${genMove != null ? "Move here" : "Fill this slot next"}">${genMove != null ? "here" : nl === lvl && cg.skills.length < 8 ? "next" : ""}</button>`).join("")}</div></div>`; }).join("");
       // detail drawer under a skill: description, plus attribute and specialty choices once picked
       const detail = (sk) => { const i = pickedIdx(sk.name), s = cg.skills[i], opts = chooseOpts(sk.name);
-        let h = `<div class="gsd">${esc2(sk.desc)}`;
+        let h = `<div class="gsd"><span class="gdx">${esc2(sk.desc)}</span>`;
         if (s && sk.attrs.length > 1) h += `<div class="gopt"><small>Roll with</small>${sk.attrs.map(a => `<button class="sbtn ${a === s.attr ? "on" : ""}" data-sa="${i}" data-v="${a}">${a} ${sgn(cg.attrs[a])}</button>`).join("")}</div>`;
         if (s && opts) h += `<div class="gopt"><small>Pick one</small>${opts.map(o => `<button class="sbtn ${o === s.spec ? "on" : ""}" data-sp="${i}" data-v="${esc2(o)}">${esc2(o)}</button>`).join("")}</div>`;
         else if (s && needsSpec(sk.name)) h += `<div class="gopt"><small>Your specialty</small><input class="gspec" data-spf="${i}" value="${esc2(s.spec || "")}" placeholder="e.g. Botany"></div>`;
         return h + `</div>`; };
-      const row = (sk) => { const i = pickedIdx(sk.name), s = cg.skills[i], open = genInfo === sk.name, star = suggRank(sk.name) >= 0;
+      const row = (sk) => { const i = pickedIdx(sk.name), s = cg.skills[i], star = suggRank(sk.name) >= 0;
         const would = s ? `<em class="on">${total(s)}</em>` : nl != null ? `<em title="Total if it goes in the next slot">${sgn((cg.attrs[sk.attrs[0]] ?? 0) + nl)}</em>` : `<em class="full">full</em>`;
-        return `<div class="gsr ${s ? "on" : ""} ${open ? "open" : ""}" data-row="${esc2(sk.name)}"><button class="gsk2" data-sk="${esc2(sk.name)}" draggable="${s ? "false" : "true"}"><span class="gck">${s ? "✓" : "+"}</span><b>${star ? "★ " : ""}${esc2(sk.name)}</b>${would}</button><button class="gi" data-info="${esc2(sk.name)}" title="What does it do?">${open ? "▴" : "ⓘ"}</button>${open ? detail(sk) : ""}</div>`; };
+        return `<div class="gsr ${s ? "on" : ""}" data-row="${esc2(sk.name)}"><button class="gsk2" data-sk="${esc2(sk.name)}" draggable="${s ? "false" : "true"}"><b>${star ? "★ " : ""}${esc2(sk.name)}</b>${would}</button>${detail(sk)}</div>`; };
       const suggList = avail.filter(s => suggRank(s.name) >= 0).sort((a, b) => suggRank(a.name) - suggRank(b.name));
       const groups = ATTRS.slice().sort((a, b) => cg.attrs[b] - cg.attrs[a]).map(a => { const rows = avail.filter(s => s.attrs[0] === a && suggRank(s.name) < 0);
         return rows.length ? `<div class="gsh">${a.toUpperCase()} <span>${sgn(cg.attrs[a])}</span></div>${rows.map(row).join("")}` : ""; }).join("");
       const canFill = suggList.some(s => pickedIdx(s.name) < 0) && cg.skills.length < 8;
       box.innerHTML = bar + `<div class="gtray"><div class="gtt">SKILLS ${cg.skills.length}/8 <small>${genMove != null ? "tap a slot to move it there" : "tap a skill below to fill the next slot"}</small></div>${tray}</div>
-        <div class="gnote">Total = attribute + slot level. Tap a filled slot (or drag it) to move it.${need ? ` ${cg.type}s must take ${cg.type === "Priest" ? "Prayer" : "Spellcasting"}.` : ""}</div>
+        <div class="gnote">Tap a skill to pick it. Total = attribute + slot level. Tap a filled slot (or drag it) to move it.${need ? ` ${cg.type}s must take ${cg.type === "Priest" ? "Prayer" : "Spellcasting"}.` : ""}</div>
         <div class="gtools"><input id="gq" class="gq" placeholder="Search skills…" value="${esc2(genQ)}">${canFill ? `<button id="gFill" class="sbtn" title="Put your type's suggested skills in the open slots, in order">★ Fill suggested</button>` : ""}</div>
         <div id="gsl">${suggList.length ? `<div class="gsh">★ SUGGESTED FOR ${esc2(cg.type.toUpperCase())}</div>${suggList.map(row).join("")}` : ""}${groups}</div>
         ${nav(stepWhy(2))}`;
@@ -974,7 +974,6 @@ async function showGen() {
         if (i >= 0) { cg.skills.splice(i, 1); genMove = null; if (genInfo === n) genInfo = ""; }
         else { if (cg.skills.length >= 8) { genInfo = n; return redraw(); } addSkill(n); genTarget = null; genInfo = (needsSpec(n) || (list.find(x => x.name === n)?.attrs.length > 1)) ? n : genInfo; }
         redraw(); });
-      document.querySelectorAll("[data-info]").forEach(b => b.onclick = () => { genInfo = genInfo === b.dataset.info ? "" : b.dataset.info; redraw(); });
       // moving: tap a chip to pick it up, tap another chip to swap or an empty slot to move
       const moveTo = (from, lvl, other) => { if (other != null && other !== from) { const a = cg.skills[from], c = cg.skills[other]; [a.level, c.level] = [c.level, a.level]; }
         else if (lvl != null) cg.skills[from].level = lvl; genMove = null; genTarget = null; };
@@ -994,6 +993,7 @@ async function showGen() {
           else if (d.startsWith("s:") && lvl != null) addSkill(d.slice(2), lvl);
           redraw(); };
       });
+      document.querySelectorAll(".gdx").forEach(d => d.onclick = () => d.closest(".gsr").querySelector("[data-sk]").click());
       document.querySelectorAll("[data-sa]").forEach(b => b.onclick = () => { cg.skills[+b.dataset.sa].attr = b.dataset.v; redraw(); });
       const setSpec = (i, v) => { const s = cg.skills[i]; s.spec = v.trim().slice(0, 40); s.name = s.spec ? `${baseShort(s.base)} (${s.spec})` : baseShort(s.base); };
       document.querySelectorAll("[data-sp]").forEach(b => b.onclick = () => { setSpec(+b.dataset.sp, b.dataset.v); redraw(); });
