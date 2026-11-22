@@ -43,7 +43,7 @@ OBR.onReady(async () => {
   const seen = new Set(allRolls(await OBR.room.getMetadata()).map(r => r.id));
   const isGM = (await OBR.player.getRole()) === "GM";
   // Initiative: tell players to roll, and show the bar across the top while combat is on
-  const BAR = "com.newscolos.initbar";
+  const BAR = "com.newscolos.initbar", LEFT = 440;
   let barCount = -1, lastSid = (await OBR.room.getMetadata())[INIT]?.sid || "";
   let lastCur = "";
   async function initUpdate(md) {
@@ -61,9 +61,9 @@ OBR.onReady(async () => {
     const vw = await OBR.viewport.getWidth();
     const url = new URL("initbar.html", location.href);
     const ref = new URLSearchParams(location.search).get("obrref"); if (ref) url.searchParams.set("obrref", ref);
-    OBR.popover.open({ id: BAR, url: url.href, width: Math.max(400, vw - 220), height: 54, hidePaper: true,
-      anchorReference: "POSITION", anchorPosition: { left: Math.round(vw / 2), top: 12 },
-      anchorOrigin: { horizontal: "CENTER", vertical: "TOP" }, transformOrigin: { horizontal: "CENTER", vertical: "TOP" },
+    OBR.popover.open({ id: BAR, url: url.href, width: Math.max(360, vw - LEFT - 90), height: 54, hidePaper: true,
+      anchorReference: "POSITION", anchorPosition: { left: LEFT, top: 12 }, // starts right of Owlbear's top-left toolbar
+      anchorOrigin: { horizontal: "LEFT", vertical: "TOP" }, transformOrigin: { horizontal: "LEFT", vertical: "TOP" },
       disableClickAway: true }).catch(() => {});
   }
   initUpdate(await OBR.room.getMetadata());
