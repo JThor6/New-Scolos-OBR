@@ -302,6 +302,8 @@
   .gadr { font-size:11px; line-height:1.35; margin-top:4px; color:var(--dim); } .gadr b { display:block; font-size:12px; color:var(--ink); }
   .gadr.hi b { color:var(--plus); } .gadr.mid b { color:#c9c3e6; } .gadr.hi span, .gadr.mid span { color:var(--ink); }
   .gbest { width:100%; margin-top:7px; font-size:12px; }
+  .gmeta { color:var(--ink); font-size:11px; margin-bottom:2px; } .gmeta b { color:var(--plus); } .gmeta small { color:var(--dim); }
+  .gat { display:inline-block; background:#000; border-radius:4px; padding:0 5px; font-weight:800; font-size:10px; color:var(--ink); }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
   .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
@@ -975,7 +977,10 @@ async function showGen() {
           `<button class="gchip e ${genMove != null ? "dest" : nl === lvl && cg.skills.length < 8 ? "tg" : ""}" data-es="${lvl}" title="${genMove != null ? "Move here" : "Fill this slot next"}">${genMove != null ? "here" : nl === lvl && cg.skills.length < 8 ? "next" : ""}</button>`).join("")}</div></div>`; }).join("");
       // detail drawer under a skill: description, plus attribute and specialty choices once picked
       const detail = (sk) => { const i = pickedIdx(sk.name), s = cg.skills[i], opts = chooseOpts(sk.name);
-        let h = `<div class="gsd"><span class="gdx">${esc2(sk.desc)}</span>`;
+        const at = (a) => `<span class="gat">${a} ${sgn(cg.attrs[a] ?? 0)}</span>`;
+        const meta = s ? `${at(s.attr)} + ${LEVEL_SLOTS.find(x => x[1] === s.level)?.[0] ?? sgn(s.level)} slot = <b>${total(s)}</b>${sk.attrs.length > 1 ? ` <small>(can use ${sk.attrs.join(" or ")})</small>` : ""}`
+          : `${sk.attrs.map(at).join(" or ")}${nl != null ? ` + ${LEVEL_SLOTS.find(x => x[1] === nl)[0]} next slot = <b>${sgn((cg.attrs[sk.attrs[0]] ?? 0) + nl)}</b>` : " <small>(slots full)</small>"}`;
+        let h = `<div class="gsd"><div class="gmeta">${meta}</div><span class="gdx">${esc2(sk.desc)}</span>`;
         if (s && sk.attrs.length > 1) h += `<div class="gopt"><small>Roll with</small>${sk.attrs.map(a => `<button class="sbtn ${a === s.attr ? "on" : ""}" data-sa="${i}" data-v="${a}">${a} ${sgn(cg.attrs[a])}</button>`).join("")}</div>`;
         if (s && opts) h += `<div class="gopt"><small>Pick one</small>${opts.map(o => `<button class="sbtn ${o === s.spec ? "on" : ""}" data-sp="${i}" data-v="${esc2(o)}">${esc2(o)}</button>`).join("")}</div>`;
         else if (s && needsSpec(sk.name)) h += `<div class="gopt"><small>Your specialty</small><input class="gspec" data-spf="${i}" value="${esc2(s.spec || "")}" placeholder="e.g. Botany"></div>`;
