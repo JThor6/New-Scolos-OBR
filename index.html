@@ -141,6 +141,7 @@
   .negbtn { background:#2b2f45; color:#f1f3f9; border:2px solid #444a66; border-radius:8px; min-width:44px; font:800 20px system-ui; cursor:pointer; }
   .initban { display:flex; align-items:center; gap:8px; margin:8px 10px 0; padding:8px 10px; background:#3d3460; border:2px solid #bb99ff; border-radius:10px; font-weight:700; font-size:13px; }
   .initban span { flex:1; }
+  #initx { background:transparent !important; color:#f1f3f9 !important; padding:4px 6px !important; }
   .initban button { background:#bb99ff; color:#000; border:0; border-radius:8px; font:800 13px system-ui; padding:6px 10px; cursor:pointer; }
   @keyframes spin { to { transform:rotate(360deg); } }
   .line .lbl { flex:1; min-width:0; text-align:center; font-size:12px; font-weight:700; color:var(--accent); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -172,7 +173,7 @@
 </head>
 <body>
 <header><h1>NEW SCOLOS</h1><span class="hctl"><span id="syncdot" class="syncdot" hidden title="Syncing with Google Sheets">⟳</span><button id="solid" class="tab" title="See-through / solid">◐</button><button id="size" class="tab" title="Change panel size">S</button></span><nav><button class="tab on" data-t="dice">DICE</button><button class="tab" data-t="sheet">SHEET</button><button class="tab" data-t="rules">REFERENCE</button><button class="tab" data-t="mon" id="monTab" hidden>MONSTERS</button></nav></header>
-<div id="initban" class="initban" hidden><span>⚔ Initiative! Your next Adroitness roll counts.</span><button id="initgo">ROLL</button></div>
+<div id="initban" class="initban" hidden><span>⚔ Initiative! Your next Adroitness roll counts.</span><button id="initgo">ROLL</button><button id="initx" title="Hide">✕</button></div>
 <section id="sheet" hidden><div id="sh"></div></section>
 <section id="rules" hidden><div id="ru"></div></section>
 <section id="mon" hidden><div id="mo"></div></section>
@@ -679,7 +680,7 @@ function drawInitList() {
 }
 async function callInitiative() {
   const sid = crypto.randomUUID().slice(0, 8);
-  await OBR.room.setMetadata({ [INIT]: { sid, open: true, cur: "", round: 1, removed: [] }, [INIT + "/m"]: [] });
+  await OBR.room.setMetadata({ [INIT]: { sid, open: true, cur: "", round: 1, removed: [], at: Date.now() }, [INIT + "/m"]: [] });
 }
 async function endInitiative() {
   const s = (await OBR.room.getMetadata())[INIT]; if (s) await OBR.room.setMetadata({ [INIT]: { ...s, open: false } });
@@ -807,8 +808,14 @@ async function updateInitBanner(md) {
   if (standalone || isGM) { $("initban").hidden = true; return; }
   lastMd = md || lastMd || await OBR.room.getMetadata();
   const st = lastMd[INIT];
-  $("initban").hidden = !(st?.open && store.get("ns.initDone") !== st.sid && !lastMd[`${INIT}/p/${me}`]?.sid?.includes?.(st.sid));
+  const owed = st?.open && !st.cur                                   // turns haven't started yet
+    && Date.now() - (st.at || 0) < 3 * 60e3                          // called in the last 3 minutes
+    && store.get("ns.initDone") !== st.sid && lastMd[`${INIT}/p/${me}`]?.sid !== st.sid // not rolled yet
+    && store.get("ns.initHide") !== st.sid;                         // not closed with ✕
+  $("initban").hidden = !owed;
+  clearTimeout(updateInitBanner.t); if (owed) updateInitBanner.t = setTimeout(() => updateInitBanner(), 30e3);
 }
+$("initx").onclick = () => { const s = lastMd?.[INIT]; if (s) store.set("ns.initHide", s.sid); $("initban").hidden = true; };
 $("initgo").onclick = () => {
   const adr = sheetVals?.[6]?.[2];
   if (adr != null && String(adr).trim() !== "") return quickRoll(adr, "Adroitness");
