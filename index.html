@@ -255,6 +255,9 @@
   .gstep:disabled { opacity:.4; cursor:default; } .gstep:not(:disabled):not(.on):hover { border-color:var(--accent); }
   .gsets .on small { color:#000; opacity:.75; }
   .gname { margin:0 0 6px; padding:6px 8px; font-size:15px; font-weight:800; }
+  .gscl { font-size:11px; font-weight:800; color:var(--dim); text-transform:uppercase; margin:6px 0 3px; }
+  .gsch { display:grid; grid-template-columns:repeat(4,1fr); gap:3px; } .gsch button { font-size:11px; padding:4px 1px; } .gsch button:disabled { opacity:.3; }
+  .gpn small { font-size:9px; color:var(--dim); margin-left:4px; }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
   .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
@@ -770,7 +773,7 @@ async function typeInfo(type) { // rundown rows, first Extraordinary Power, gods
   const tab = TYPES.find(x => x.trim() === type) || type; // the Master's tab names can carry stray spaces ("Mercenary ")
   const v = rows(await getTab(tab)), info = { rows: [], power: "", powers: [], gods: [], schools: [] };
   let mode = "", pw = null;
-  for (const [a, b] of v) {
+  for (const [a, b, c] of v) {
     // each Extraordinary Power with its rules underneath (stops at the example or the next section)
     if (/^extraordinary power/i.test(a) && b) { pw = { name: b, rules: [] }; info.powers.push(pw); if (!info.power) info.power = b; continue; }
     if (pw) {
@@ -780,7 +783,7 @@ async function typeInfo(type) { // rundown rows, first Extraordinary Power, gods
     if (/^the gods$/i.test(a)) { mode = "gods"; continue; }
     if (/^schools of magic$/i.test(a)) { mode = "schools"; continue; }
     if (mode === "gods" && a) { info.gods.push([a, b]); continue; }
-    if (mode === "schools" && a) { info.schools.push([a, b]); continue; }
+    if (mode === "schools") { if (!a || (a === a.toUpperCase() && /[A-Z]/.test(a))) mode = "end"; else { info.schools.push([a, b, c]); continue; } } // one school per row, stops at the next blank row
     if (/^(who they are|suggested skills|always on|daily use)/i.test(a) && b) info.rows.push([a, b]);
   }
   return info;
@@ -836,16 +839,17 @@ async function showGen() {
         ${cg.type === "Priest" && info ? `<div class="sec">YOUR GOD</div><select id="gGod"><option value="">Pick a god…</option>${info.gods.map(([g, d]) => `<option ${g === cg.god ? "selected" : ""} value="${esc2(g)}">${esc2(g)}</option>`).join("")}</select>
           <div class="gnote">${esc2((info.gods.find(g => g[0] === cg.god) || [, ""])[1])}</div>` : ""}
         ${cg.type === "Mage" && info ? `<div class="sec">YOUR SCHOOLS</div>
-          <div class="g2"><label class="gl">Major (any size)<select id="gMaj"><option value="">Pick…</option>${info.schools.map(([s]) => `<option ${s === cg.major ? "selected" : ""}>${esc2(s)}</option>`).join("")}</select></label>
-          <label class="gl">Minor (small spells)<select id="gMin"><option value="">Pick…</option>${info.schools.map(([s]) => `<option ${s === cg.minor ? "selected" : ""}>${esc2(s)}</option>`).join("")}</select></label></div>
-          <div class="gnote">${info.schools.filter(s => s[0] === cg.major || s[0] === cg.minor).map(s => `<b>${esc2(s[0])}:</b> ${esc2(s[1])}`).join("<br>")}</div>` : ""}
+          <div class="gnote">Major: small, big or huge spells. Minor: small spells only. Pick one of each.</div>
+          ${[["Major", "major"], ["Minor", "minor"]].map(([lab, k]) => `<div class="gscl">${lab}</div><div class="gsch">${info.schools.map(([n]) =>
+            `<button class="sbtn ${cg[k] === n ? "on" : ""}" data-sch="${k}" data-n="${esc2(n)}" ${k === "minor" && cg.major === n ? "disabled" : ""}>${esc2(n)}</button>`).join("")}</div>`).join("")}
+          ${info.schools.filter(x => x[0] === cg.major || x[0] === cg.minor).sort(x => x[0] === cg.major ? -1 : 1).map(([n, d, vb]) => `<div class="gpow"><div class="gpn">${esc2(n)} <small>${n === cg.major ? "MAJOR" : "MINOR"}</small></div><div>${esc2(d)}</div>${vb ? `<div><b>Verbs:</b> ${esc2(vb)}</div>` : ""}</div>`).join("")}` : ""}
         ${nav(stepWhy(0))}`;
       cg.power = info?.power || "";
       document.querySelectorAll("[data-ty]").forEach(b => b.onclick = () => { if (cg.type !== b.dataset.ty) { cg.type = b.dataset.ty; cg.god = cg.major = cg.minor = "";
         cg.skills = cg.skills.filter(s => !/^(prayer|spellcasting)/i.test(s.base)); } cgSave(); showGen(); });
       if ($("gGod")) $("gGod").onchange = () => { cg.god = $("gGod").value; cgSave(); showGen(); };
-      if ($("gMaj")) $("gMaj").onchange = () => { cg.major = $("gMaj").value; cgSave(); showGen(); };
-      if ($("gMin")) $("gMin").onchange = () => { cg.minor = $("gMin").value; cgSave(); showGen(); };
+      document.querySelectorAll("[data-sch]").forEach(b => b.onclick = () => { const k = b.dataset.sch, n = b.dataset.n;
+        cg[k] = cg[k] === n ? "" : n; if (cg.major && cg.major === cg.minor) cg.minor = ""; cgSave(); showGen(); });
       return bind();
     }
     // ---- 2. ATTRIBUTES (sets first, spending points by hand second) ----
