@@ -324,6 +324,9 @@
   .gcop { display:grid; grid-template-columns:1fr auto; gap:4px; margin-top:4px; }
   .gcop .copl { white-space:normal; font-size:12.5px; line-height:1.4; } .dimn2 { color:var(--dim); }
   .gcop .ctl { justify-content:center; gap:4px; margin-top:3px; } .gcop .ctl button { padding:0 6px; } .gcop .ctl b { font-size:15px; }
+  .pwb { background:none; border:none; padding:0; color:var(--ink); font:inherit; cursor:pointer; text-decoration:underline dotted #6b5aa0; text-underline-offset:3px; }
+  .pwb:hover, .pwb.on { color:var(--accent); text-decoration-color:var(--accent); }
+  .pwd { margin-top:4px; } .pwd .gpn { display:flex; align-items:center; } .pwx { margin-left:auto; background:none; border:none; color:var(--dim); cursor:pointer; font-size:12px; }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
   .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
@@ -668,6 +671,7 @@ function drawSheet() {
     <div class="vit">${["B", "C", "D", "E", "F", "G", "H"].map((c, i) => { const t = V(c + "15"); const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<button class="box ${V(c + "16") ? "x" : ""}" data-w="${i}"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk ${V(c + "16") ? "x" : ""}">${V(c + "16") ? "✕" : ""}</span></button>`; }).join("")}</div>
     <div class="g2b"><div class="fld ${ptInEP() ? "epx" : ""}"><div class="epl"><small>Extraordinary Power</small><div id="pwname">${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div></div>${ptInEP() ? `<div class="epp"><small>${esc2(V("E13"))}${ptMaxV() ? ` <span>/ ${esc2(ptMaxV())}</span>` : ""}</small>${ptCtl()}</div>` : ""}</div>
       <div class="fld c"><small>Used today</small><button id="pw" class="chk ${used ? "x" : ""}">${used ? "✕" : ""}</button></div></div>
+    <div id="pwd" class="gpow pwd" hidden></div>
     ${V("E13") && !ptInEP() ? `<div class="g2">${ptMaxV() ? F(esc2(/\d/.test(V("G13")) || !V("G13") ? "Max " + V("E13") : V("G13")), ptMaxV()) : ""}<div class="fld"><small>${esc2(V("E13"))}</small>${ptCtl()}</div></div>` : ""}
     <div class="stab">COMBAT</div>
     <div class="gcb3">${F("Melee", V("H23"), "c")}${F("Ranged", V("H24"), "c")}${F("Armor", V("H25"), "c")}</div>
@@ -1185,23 +1189,37 @@ async function showGen() {
 }
 
 // Always-on power and the daily Extraordinary Power options, read from the character's type tab in the Master file
+let pwOpen = ""; // which power's rules are open under the Extraordinary Power box (kept across refreshes)
 async function fillPowers() {
   const type = V("C4").trim().toLowerCase();
   const tab = TYPES.find(t => t.trim().toLowerCase() === type);
   if (!tab || !$("pwlist")) return;
   try {
-    const v = await getTab(tab);
+    const v = await getTab(tab), info = await typeInfo(tab.trim()).catch(() => null);
     const always = [], daily = [];
     for (const row of v) {
       const b = String(row[1] || "").trim(), c = String(row[2] || "").trim();
-      if (/^always on/i.test(b)) { const name = b.replace(/^always on/i, "").replace(/\([^)]*\)/g, "").replace(/^[\s:]+/, "").trim(); always.push(name || c); }
-      else if (/^extraordinary power/i.test(b) && c) daily.push(c.replace(/\s*\((once|one) per day\)\s*/ig, " ").trim());
+      if (/^always on/i.test(b)) { const name = b.replace(/^always on/i, "").replace(/\([^)]*\)/g, "").replace(/^[\s:]+/, "").trim(); always.push({ name, text: c }); }
+      else if (/^extraordinary power/i.test(b) && c) { const name = c.replace(/\s*\((once|one) per day\)\s*/ig, " ").trim(); daily.push({ name, rules: info?.powers.find(p => p.name === c)?.rules || [] }); }
     }
-    if ($("pwlist")) $("pwlist").innerHTML =
-      (always.length ? `<div><span>ALWAYS ON:</span> ${always.map(esc2).join(", ")}</div>` : "") +
-      (daily.length ? `<div><span>DAILY:</span> ${daily.map(esc2).join(" · ")}</div>` : "");
+    if (!$("pwlist")) return;
+    $("pwlist").innerHTML =
+      (always.length ? `<div><span>ALWAYS ON:</span> ${always.map((x, i) => x.name ? `<button class="pwb ${pwOpen === "a" + i ? "on" : ""}" data-pk="a${i}">${esc2(x.name)}</button>` : esc2(x.text)).join(", ")}</div>` : "") +
+      (daily.length ? `<div><span>DAILY:</span> ${daily.map((x, i) => `<button class="pwb ${pwOpen === "d" + i ? "on" : ""}" data-pk="d${i}">${esc2(x.name)}</button>`).join(" · ")}</div>` : "");
     // the DAILY line already names the power, so drop the separate name line (kept only if the type has no list)
     if ($("pwname") && (always.length || daily.length)) $("pwname").hidden = true;
+    const show = () => {
+      const k = pwOpen, box = $("pwd"); if (!box) return;
+      document.querySelectorAll(".pwb").forEach(b => b.classList.toggle("on", b.dataset.pk === k));
+      const x = k[0] === "a" ? always[+k.slice(1)] : k[0] === "d" ? daily[+k.slice(1)] : null;
+      if (!x) { box.hidden = true; box.innerHTML = ""; return; }
+      box.hidden = false;
+      box.innerHTML = `<div class="gpn">${k[0] === "a" ? "Always on · " : "⚡ "}${esc2(x.name)}<button class="pwx" title="Close">✕</button></div>` +
+        (k[0] === "a" ? `<div>${esc2(x.text)}</div>` : x.rules.map(([a, b]) => `<div>${a ? `<b>${esc2(a)}:</b> ` : ""}${esc2(b)}</div>`).join("") || `<div>No details on the type tab.</div>`);
+      box.querySelector(".pwx").onclick = () => { pwOpen = ""; show(); };
+    };
+    document.querySelectorAll(".pwb").forEach(b => b.onclick = () => { pwOpen = pwOpen === b.dataset.pk ? "" : b.dataset.pk; show(); });
+    show();
   } catch { /* the sheet still works without it */ }
 }
 // Max invocations / spell points: number in H13 (label in G13); older layout had the number in G13
