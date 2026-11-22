@@ -38,6 +38,10 @@ async function showRoll(r, spin) {
   });
 }
 
+// Announcements show for 5 seconds, then close themselves
+async function note(msg, kind) {
+  try { const id = await OBR.notification.show(msg, kind); setTimeout(() => OBR.notification.close(id).catch(() => {}), 5000); } catch {}
+}
 OBR.onReady(async () => {
   // Right-click a token → "Mark" panel: Dead, Unconscious, or your own condition, shown above its head
   const markMenu = async (n) => {
@@ -60,10 +64,10 @@ OBR.onReady(async () => {
   async function initUpdate(md) {
     const st = md[INIT];
     // "Your turn" ping for the player whose turn it is
-    if (st?.open && st.cur && st.cur !== lastCur) { lastCur = st.cur; if (st.cur === me) OBR.notification.show("⚔ Your turn!", "SUCCESS").catch(() => {}); }
+    if (st?.open && st.cur && st.cur !== lastCur) { lastCur = st.cur; if (st.cur === me) note("⚔ Your turn!", "SUCCESS"); }
     if (st?.open && st.sid !== lastSid) {
       lastSid = st.sid;
-      if (!isGM) OBR.notification.show("⚔ Roll for initiative! Your next Adroitness roll (on your SHEET) counts.", "INFO").catch(() => {});
+      if (!isGM) note("⚔ Roll for initiative! Your next Adroitness roll (on your SHEET) counts.", "INFO");
     }
     const n = st?.open ? initEntries(md).length : 0;
     let small = false; try { small = localStorage.getItem("ns.barMin") === "1"; } catch {}
