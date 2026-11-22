@@ -69,6 +69,12 @@ export async function sectionHtml(key) {
   }
   if (key === "gods") { const v = await getTab("Priest"); const g = v.findIndex(r => r.join("").trim() === "THE GODS"); return g > 0 ? rowsHtml(v.slice(g + 1)) : "<div class='rr'>No gods list found.</div>"; }
   const m = await getTab("Main Sheet");
-  if (key === "turn") return rowsHtml(col(m, "G", 46, 56));
+  // Rules panel on the right of the Main Sheet (column K): During Your Turn, then Combat Rules onward
+  const K = m.map(r => String(r?.[10] ?? "").trim()), turn = K.indexOf("During Your Turn"), combat = K.indexOf("Combat Rules");
+  if (turn >= 0 && combat > turn) {
+    const rows = (a, b) => K.slice(a, b).filter(Boolean).map(x => [x]);
+    return rowsHtml(key === "turn" ? rows(turn + 1, combat) : rows(combat, K.length));
+  }
+  if (key === "turn") return rowsHtml(col(m, "G", 46, 56)); // older layout
   return rowsHtml([...col(m, "B", 57, 70), ...col(m, "G", 57, 60), ...col(m, "E", 61, 70)]);
 }

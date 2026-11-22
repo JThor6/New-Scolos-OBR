@@ -20,9 +20,17 @@ const POINTS_CELL = 'F13';
 // Sheet Manager: the only Main Sheet cells it may write (never formulas).
 // Sections are found by their headings in column B, so sheets with extra rows still work.
 function manageCells(sh) {
-  const b = sh.getRange('B1:B120').getDisplayValues().map(function (r) { return String(r[0]).trim().toLowerCase(); });
+  const grid = sh.getRange('B1:G300').getDisplayValues();
+  const b = grid.map(function (r) { return String(r[0]).trim().toLowerCase(); });
   const at = function (label, from) { for (let i = from || 0; i < b.length; i++) if (b[i] === label) return i + 1; return 0; };
-  const tr = at('trained skills'), ut = at('untrained skills', tr), inv = at('inventory', ut), cr = at('combat rules', inv), notes = at('notes', cr);
+  const tr = at('trained skills'), ut = at('untrained skills', tr), inv = at('inventory', ut);
+  if (tr && ut && inv && b[6] === 'adroitness' && b[9] === 'charm' && String(grid[inv - 1][5]).trim().toLowerCase() === 'notes') {
+    // current layout: Inventory (B-D) | Equipped (E) | Notes (G) side by side, as many rows as needed
+    return [['F', 'F', 3, 4], ['F', 'F', 7, 7], ['F', 'F', 10, 10], ['C', 'C', 7, 10],
+      ['B', 'C', tr + 1, ut - 1], ['E', 'E', tr + 1, ut - 1], ['B', 'C', ut + 1, inv - 1], ['E', 'E', ut + 1, inv - 1],
+      ['B', 'E', inv + 1, 300], ['G', 'G', inv + 1, 300]];
+  }
+  const cr = at('combat rules', inv), notes = at('notes', cr); // older layout
   if (!tr || !ut || !inv || !cr || !notes || b[6] !== 'adroitness' || b[9] !== 'charm') throw new Error('Could not find the sheet sections (Trained Skills, Untrained Skills, Inventory, Combat Rules, Notes), so the manager will not write to it.');
   return [ // [first col, last col, first row, last row]
     ['F', 'F', 3, 4], ['F', 'F', 7, 7], ['F', 'F', 10, 10], // XP, credits, spent attribute points
@@ -79,7 +87,7 @@ function doGet(e) {
       return json({ ok: true, values: last ? t.getRange(1, 1, last, cols).getDisplayValues() : [] });
     }
     const sh = openMain(p.id);
-    return json({ ok: true, values: sh.getRange('A1:L120').getDisplayValues() });
+    return json({ ok: true, values: sh.getRange('A1:L300').getDisplayValues() });
   } catch (err) {
     return json({ ok: false, error: String(err.message || err) });
   }
@@ -101,7 +109,7 @@ function doPost(e) {
     }
     if (b.cells) { // Sheet Manager: several input cells at once
       const keys = Object.keys(b.cells);
-      if (!keys.length || keys.length > 60) throw new Error('Nothing to change.');
+      if (!keys.length || keys.length > 250) throw new Error('Nothing to change.');
       const allowed = manageCells(sh);
       keys.forEach(function (k) { if (!manageAllowed(allowed, k)) throw new Error('The manager cannot change ' + k + '.'); });
       const lock = LockService.getScriptLock(); lock.waitLock(10000);

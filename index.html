@@ -470,8 +470,11 @@ let mgrOn = false; // Sheet Manager view on/off (per sheet view)
 function layout() {
   const at = (label, from = 1) => { for (let i = from; i <= (sheetVals?.length || 0); i++) if (V("B" + i).toLowerCase() === label) return i; return 0; };
   const tr = at("trained skills") || 19, ut = at("untrained skills", tr + 1) || 36, inv = at("inventory", ut + 1) || 45;
-  const cr = at("combat rules", inv + 1) || inv + 14, notes = at("notes", cr + 1) || 71;
-  return { trained: [tr + 1, ut - 1], untrained: [ut + 1, inv - 1], inv: [inv + 1, cr - 1], notes: [notes + 1, Math.max(notes + 12, sheetVals?.length || 0)] };
+  const end = Math.max(inv + 30, sheetVals?.length || 0);
+  // current layout: Inventory | Equipped | Notes side by side from the Inventory row down, as long as they need
+  if (V("G" + inv).toLowerCase() === "notes") return { trained: [tr + 1, ut - 1], untrained: [ut + 1, inv - 1], inv: [inv + 1, end], notes: [inv + 1, end], nc: "G" };
+  const cr = at("combat rules", inv + 1) || inv + 14, notes = at("notes", cr + 1) || 71; // older sheets
+  return { trained: [tr + 1, ut - 1], untrained: [ut + 1, inv - 1], inv: [inv + 1, cr - 1], notes: [notes + 1, Math.max(notes + 12, sheetVals?.length || 0)], nc: "B" };
 }
 function drawSheet() {
   if (mgrOn) return drawManager();
@@ -507,7 +510,7 @@ function drawSheet() {
     ${table("UNTRAINED SKILLS", ...L.untrained)}
     ${box("EQUIPPED", eq)}
     ${box("INVENTORY", inv)}
-    ${box("NOTES", (() => { const n = []; for (let i = L.notes[0]; i <= L.notes[1]; i++) n.push(V("B" + i)); return n.filter(Boolean); })())}
+    ${box("NOTES", (() => { const n = []; for (let i = L.notes[0]; i <= L.notes[1]; i++) n.push(V(L.nc + i)); return n.filter(Boolean); })())}
     <div id="sherr" class="err" hidden></div>
     ${isGM ? "" : `<button id="disc" class="histbtn">SWITCH CHARACTER</button>`}`;
   fillPowers();
@@ -552,7 +555,7 @@ function drawManager() {
     const r = skillLvl(i), up = stepCost(r), down = stepCost(r - 1);
     h += `<tr><td>${esc2(V("B" + i))}<small> ${esc2(V("C" + i))}</small></td><td class="mv">${sgn(r)}</td><td>${pm("S" + i, up != null && up <= xpNow(), down != null && r > -4 && down <= xpSpent(), up != null ? `+1: ${up} XP` : "ask GM")}${r <= -4 ? `<button class="mx" data-rm="${i}" title="Remove skill">✕</button>` : ""}</td></tr>`; } return h; };
   const listRows = (from, to, cols, key) => { let h = ""; for (let i = from; i <= to; i++) { const txt = cols.map(c => V(c + i)).filter(Boolean).join(" - "); if (txt) h += `<div class="mli"><span>${esc2(txt)}</span><button class="mx" data-${key}="${i}" title="Remove">✕</button></div>`; } return h || `<div class="empty" style="padding:4px">Nothing yet.</div>`; };
-  const notes = []; for (let i = L.notes[0]; i <= L.notes[1]; i++) notes.push(V("B" + i)); while (notes.length && !notes[notes.length - 1]) notes.pop();
+  const notes = []; for (let i = L.notes[0]; i <= L.notes[1]; i++) notes.push(V(L.nc + i)); while (notes.length && !notes[notes.length - 1]) notes.pop();
   const attrOpts = ["Adroitness", "Raw Strength", "Intellect", "Charm"].map(a => `<option>${a}</option>`).join("");
   $("shbody").innerHTML = `
     <button id="mgr" class="sbtn mgrbtn on">✓ DONE MANAGING</button>
@@ -621,8 +624,10 @@ function drawManager() {
     if (!i) return err("Inventory is full on the sheet."); mgrSave({ ["B" + i]: v, ["C" + i]: $("invDet").value.trim() }); };
   document.querySelectorAll("[data-eq]").forEach(b => b.onclick = () => mgrSave({ ["E" + b.dataset.eq]: "" }));
   document.querySelectorAll("[data-inv]").forEach(b => b.onclick = () => { const i = b.dataset.inv; mgrSave({ ["B" + i]: "", ["C" + i]: "", ["D" + i]: "" }); });
-  $("noteGo").onclick = () => { const room = Math.min(30, L.notes[1] - L.notes[0] + 1), lines = $("notes").value.split("\n").slice(0, room), cells = {};
-    for (let i = 0; i < room; i++) cells["B" + (L.notes[0] + i)] = (lines[i] || "").slice(0, 300);
+  $("noteGo").onclick = () => {
+    const room = L.nc === "G" ? 200 : Math.min(30, L.notes[1] - L.notes[0] + 1), lines = $("notes").value.split("\n").slice(0, room), cells = {};
+    const used = notes.length; // clear old lines past the new end
+    for (let i = 0; i < Math.max(lines.length, used); i++) cells[L.nc + (L.notes[0] + i)] = (lines[i] || "").slice(0, 300);
     if ($("notes").value.split("\n").length > room) err(`Only the first ${room} lines fit in the sheet's notes.`);
     mgrSave(cells); };
 }
