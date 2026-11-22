@@ -304,6 +304,8 @@
   .gbest { width:100%; margin-top:7px; font-size:12px; }
   .gmeta { color:var(--ink); font-size:11px; margin-bottom:2px; } .gmeta b { color:var(--plus); } .gmeta small { color:var(--dim); }
   .gat { display:inline-block; background:#000; border-radius:4px; padding:0 5px; font-weight:800; font-size:10px; color:var(--ink); }
+  .ginst { margin-top:5px; padding-top:4px; border-top:1px dashed #444a66; } .ginh { display:flex; align-items:center; gap:4px; } .ginh small { flex:1; color:var(--ink); font-size:11px; } .ginh b { color:var(--plus); }
+  .gopt .sbtn:disabled { opacity:.3; cursor:default; }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
   .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
@@ -846,7 +848,8 @@ function stepWhy(i) {
     const n = 8 - cg.skills.length; if (n > 0) return `Pick ${n} more skill${n === 1 ? "" : "s"}.`;
     if (!LEVEL_SLOTS.every(([, l, k]) => usedLvl(l) === k)) return "Fix the levels: one +1, three 0, two -2, two -3.";
     const need = reqSkill(); if (need && !cg.skills.some(s => need.test(s.base))) return `${cg.type}s must take ${cg.type === "Priest" ? "Prayer" : "Spellcasting"}.`;
-    const ns = cg.skills.find(specMissing); if (ns) return `Pick a specialty for ${ns.name} (tap it in the list).`;
+    const ns = cg.skills.find(specMissing); if (ns) return `Pick a specialty for ${ns.name} (in the list below).`;
+    const seen = new Set(); for (const s of cg.skills) { const k = s.base + "|" + (s.spec || "").toLowerCase(); if (seen.has(k)) return `You have ${s.name} twice. Pick a different option for one.`; seen.add(k); }
     return cg.skills.every(s => s.name.trim()) ? "" : "Every skill needs a name.";
   }
   return "";
@@ -976,18 +979,31 @@ async function showGen() {
         return `<div class="gtr"><span class="gtl">${lab}</span><div class="gtc">${inG.map(chip).join("")}${Array.from({ length: Math.max(0, n - inG.length) }, () =>
           `<button class="gchip e ${genMove != null ? "dest" : nl === lvl && cg.skills.length < 8 ? "tg" : ""}" data-es="${lvl}" title="${genMove != null ? "Move here" : "Fill this slot next"}">${genMove != null ? "here" : nl === lvl && cg.skills.length < 8 ? "next" : ""}</button>`).join("")}</div></div>`; }).join("");
       // detail drawer under a skill: description, plus attribute and specialty choices once picked
-      const detail = (sk) => { const i = pickedIdx(sk.name), s = cg.skills[i], opts = chooseOpts(sk.name);
-        const at = (a) => `<span class="gat">${a} ${sgn(cg.attrs[a] ?? 0)}</span>`;
-        const meta = s ? `${at(s.attr)} + ${LEVEL_SLOTS.find(x => x[1] === s.level)?.[0] ?? sgn(s.level)} slot = <b>${total(s)}</b>${sk.attrs.length > 1 ? ` <small>(can use ${sk.attrs.join(" or ")})</small>` : ""}`
-          : `${sk.attrs.map(at).join(" or ")}${nl != null ? ` + ${LEVEL_SLOTS.find(x => x[1] === nl)[0]} next slot = <b>${sgn((cg.attrs[sk.attrs[0]] ?? 0) + nl)}</b>` : " <small>(slots full)</small>"}`;
+      // "Choose One" skills can be taken once per option (Pilot: Spacecraft, Watercraft, Land craft), each copy in its own slot
+      const maxOf = (n) => { const o = chooseOpts(n); return o ? o.length : needsSpec(n) ? 8 : 1; };
+      const copiesOf = (n) => cg.skills.map((s, i) => [s, i]).filter(([s]) => s.base === n);
+      const slotLab = (lvl) => LEVEL_SLOTS.find(x => x[1] === lvl)?.[0] ?? sgn(lvl);
+      const at = (a) => `<span class="gat">${a} ${sgn(cg.attrs[a] ?? 0)}</span>`;
+      const detail = (sk) => { const copies = copiesOf(sk.name), opts = chooseOpts(sk.name), max = maxOf(sk.name), multi = max > 1;
+        const canAdd = copies.length < max && nl != null;
+        const nextMath = nl != null ? ` + ${slotLab(nl)} next slot = <b>${sgn((cg.attrs[sk.attrs[0]] ?? 0) + nl)}</b>` : " <small>(slots full)</small>";
+        let meta;
+        if (!copies.length) meta = `${sk.attrs.map(at).join(" or ")}${nextMath}${multi && opts ? ` <small>· can take up to ${max}, one per option</small>` : ""}`;
+        else if (!multi) { const [c] = copies[0]; meta = `${at(c.attr)} + ${slotLab(c.level)} slot = <b>${total(c)}</b>${sk.attrs.length > 1 ? ` <small>(can use ${sk.attrs.join(" or ")})</small>` : ""}`; }
+        else meta = `${at(sk.attrs[0])} <small>· ${copies.length} of ${max} taken${canAdd ? ` · tap the name again to add another${nextMath.replace(" + ", " (")})` : ""}</small>`;
         let h = `<div class="gsd"><div class="gmeta">${meta}</div><span class="gdx">${esc2(sk.desc)}</span>`;
-        if (s && sk.attrs.length > 1) h += `<div class="gopt"><small>Roll with</small>${sk.attrs.map(a => `<button class="sbtn ${a === s.attr ? "on" : ""}" data-sa="${i}" data-v="${a}">${a} ${sgn(cg.attrs[a])}</button>`).join("")}</div>`;
-        if (s && opts) h += `<div class="gopt"><small>Pick one</small>${opts.map(o => `<button class="sbtn ${o === s.spec ? "on" : ""}" data-sp="${i}" data-v="${esc2(o)}">${esc2(o)}</button>`).join("")}</div>`;
-        else if (s && needsSpec(sk.name)) h += `<div class="gopt"><small>Your specialty</small><input class="gspec" data-spf="${i}" value="${esc2(s.spec || "")}" placeholder="e.g. Botany"></div>`;
+        for (const [c, i] of copies) {
+          const taken = new Set(copies.filter(([o]) => o !== c).map(([o]) => o.spec));
+          h += `<div class="${multi ? "ginst" : ""}">${multi ? `<div class="ginh"><small>${esc2(c.spec || "Pick one")} · ${slotLab(c.level)} slot = <b>${total(c)}</b></small><button class="mx" data-sx="${i}" title="Remove this one">✕</button></div>` : ""}`;
+          if (sk.attrs.length > 1) h += `<div class="gopt"><small>Roll with</small>${sk.attrs.map(a => `<button class="sbtn ${a === c.attr ? "on" : ""}" data-sa="${i}" data-v="${a}">${a} ${sgn(cg.attrs[a])}</button>`).join("")}</div>`;
+          if (opts) h += `<div class="gopt">${multi ? "" : "<small>Pick one</small>"}${opts.map(o => `<button class="sbtn ${o === c.spec ? "on" : ""}" data-sp="${i}" data-v="${esc2(o)}" ${taken.has(o) ? "disabled" : ""}>${esc2(o)}</button>`).join("")}</div>`;
+          else if (needsSpec(sk.name)) h += `<div class="gopt">${multi ? "" : "<small>Your specialty</small>"}<input class="gspec" data-spf="${i}" value="${esc2(c.spec || "")}" placeholder="e.g. Botany"></div>`;
+          h += `</div>`;
+        }
         return h + `</div>`; };
-      const row = (sk) => { const i = pickedIdx(sk.name), s = cg.skills[i], star = suggRank(sk.name) >= 0;
-        const would = s ? `<em class="on">${total(s)}</em>` : nl != null ? `<em title="Total if it goes in the next slot">${sgn((cg.attrs[sk.attrs[0]] ?? 0) + nl)}</em>` : `<em class="full">full</em>`;
-        return `<div class="gsr ${s ? "on" : ""}" data-row="${esc2(sk.name)}"><button class="gsk2" data-sk="${esc2(sk.name)}" draggable="${s ? "false" : "true"}"><b>${star ? "★ " : ""}${esc2(sk.name)}</b>${would}</button>${detail(sk)}</div>`; };
+      const row = (sk) => { const copies = copiesOf(sk.name), s = copies[0]?.[0], star = suggRank(sk.name) >= 0, max = maxOf(sk.name);
+        const would = s ? `<em class="on">${max > 1 ? `×${copies.length}` : total(s)}</em>` : nl != null ? `<em title="Total if it goes in the next slot">${sgn((cg.attrs[sk.attrs[0]] ?? 0) + nl)}</em>` : `<em class="full">full</em>`;
+        return `<div class="gsr ${s ? "on" : ""}" data-row="${esc2(sk.name)}"><button class="gsk2" data-sk="${esc2(sk.name)}" draggable="${copies.length < max ? "true" : "false"}"><b>${star ? "★ " : ""}${esc2(sk.name)}</b>${would}</button>${detail(sk)}</div>`; };
       const suggList = avail.filter(s => suggRank(s.name) >= 0).sort((a, b) => suggRank(a.name) - suggRank(b.name));
       const groups = ATTRS.slice().sort((a, b) => cg.attrs[b] - cg.attrs[a]).map(a => { const rows = avail.filter(s => s.attrs[0] === a && suggRank(s.name) < 0);
         return rows.length ? `<div class="gsh">${a.toUpperCase()} <span>${sgn(cg.attrs[a])}</span></div>${rows.map(row).join("")}` : ""; }).join("");
@@ -997,16 +1013,17 @@ async function showGen() {
         <div class="gtools"><input id="gq" class="gq" placeholder="Search skills…" value="${esc2(genQ)}">${canFill ? `<button id="gFill" class="sbtn" title="Put your type's suggested skills in the open slots, in order">★ Fill suggested</button>` : ""}</div>
         <div id="gsl">${suggList.length ? `<div class="gsh">★ SUGGESTED FOR ${esc2(cg.type.toUpperCase())}</div>${suggList.map(row).join("")}` : ""}${groups}</div>
         ${nav(stepWhy(2))}`;
-      const addSkill = (n, lvl) => { const sk = list.find(x => x.name === n); if (!sk || cg.skills.length >= 8 || pickedIdx(n) >= 0) return;
+      const addSkill = (n, lvl) => { const sk = list.find(x => x.name === n); if (!sk || cg.skills.length >= 8 || copiesOf(n).length >= maxOf(n)) return;
         cg.skills.push({ base: n, name: baseShort(n), attr: sk.attrs[0], level: lvl ?? nextLvl() ?? -3, spec: "" }); };
       const redraw = () => { cgSave(); showGen(); };
       const filter = () => { const q = genQ.trim().toLowerCase(); document.querySelectorAll("#gsl .gsr").forEach(r => r.hidden = !!q && !r.dataset.row.toLowerCase().includes(q));
         document.querySelectorAll("#gsl .gsh").forEach(h => { let n = h.nextElementSibling, any = false; while (n && !n.classList.contains("gsh")) { if (!n.hidden) any = true; n = n.nextElementSibling; } h.hidden = !any; }); };
       filter();
       $("gq").oninput = () => { genQ = $("gq").value; filter(); };
-      if ($("gFill")) $("gFill").onclick = () => { for (const s of suggList) addSkill(s.name); genTarget = null; genInfo = cg.skills.find(specMissing)?.base || genInfo; redraw(); };
+      if ($("gFill")) $("gFill").onclick = () => { for (const s of suggList) if (pickedIdx(s.name) < 0) addSkill(s.name); genTarget = null; genInfo = cg.skills.find(specMissing)?.base || genInfo; redraw(); };
       document.querySelectorAll("[data-sk]").forEach(b => b.onclick = () => { const n = b.dataset.sk, i = pickedIdx(n);
-        if (i >= 0) { cg.skills.splice(i, 1); genMove = null; if (genInfo === n) genInfo = ""; }
+        if (i >= 0 && maxOf(n) > 1) { if (copiesOf(n).length < maxOf(n)) { addSkill(n); genTarget = null; } } // multi-pick skills: tapping again adds another copy; ✕ removes one
+        else if (i >= 0) { cg.skills.splice(i, 1); genMove = null; if (genInfo === n) genInfo = ""; }
         else { if (cg.skills.length >= 8) { genInfo = n; return redraw(); } addSkill(n); genTarget = null; genInfo = (needsSpec(n) || (list.find(x => x.name === n)?.attrs.length > 1)) ? n : genInfo; }
         redraw(); });
       // moving: tap a chip to pick it up, tap another chip to swap or an empty slot to move
