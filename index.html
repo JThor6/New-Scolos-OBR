@@ -700,7 +700,8 @@ async function skillList() { // [{name, attrs:[...], desc}] from the Master's Sk
   return out;
 }
 async function typeInfo(type) { // rundown rows, first Extraordinary Power, gods (Priest) and schools (Mage)
-  const v = rows(await getTab(type)), info = { rows: [], power: "", powers: [], gods: [], schools: [] };
+  const tab = TYPES.find(x => x.trim() === type) || type; // the Master's tab names can carry stray spaces ("Mercenary ")
+  const v = rows(await getTab(tab)), info = { rows: [], power: "", powers: [], gods: [], schools: [] };
   let mode = "", pw = null;
   for (const [a, b] of v) {
     // each Extraordinary Power with its rules underneath (stops at the example or the next section)
@@ -859,7 +860,14 @@ async function showGen() {
       $("gOpen").onclick = () => document.querySelector('.tab[data-t="sheet"]').click();
     };
     return bind();
-  } catch (e) { box.innerHTML = bar + `<div class="err">Couldn't load: ${esc2(e.message || e)}</div>`; }
+  } catch (e) {
+    box.innerHTML = bar + `<div class="err">Couldn't load: ${esc2(e.message || e)}</div>
+      <div class="g2 gnav"><button id="gBack" class="sbtn">◀ BACK</button><button id="gRetry" class="sbtn">TRY AGAIN</button></div>
+      <button id="gPick" class="histbtn" style="margin-top:8px">PICK A DIFFERENT TYPE</button>`;
+    $("gBack").onclick = () => { cg.step = Math.max(0, cg.step - 1); cgSave(); showGen(); };
+    $("gRetry").onclick = () => showGen();
+    $("gPick").onclick = () => { cg.step = 0; cg.type = ""; cgSave(); showGen(); };
+  }
 }
 
 // Always-on power and the daily Extraordinary Power options, read from the character's type tab in the Master file
