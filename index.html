@@ -139,6 +139,9 @@
   .encpick small { color:var(--dim); font-weight:800; font-size:11px; }
   .encpick select { flex:1; min-width:0; background:#1b1e2e; color:#f1f3f9; border:1px solid #444a66; border-radius:8px; padding:6px; font:600 13px system-ui; }
   .negbtn { background:#2b2f45; color:#f1f3f9; border:2px solid #444a66; border-radius:8px; min-width:44px; font:800 20px system-ui; cursor:pointer; }
+  .initban { display:flex; align-items:center; gap:8px; margin:8px 10px 0; padding:8px 10px; background:#3d3460; border:2px solid #bb99ff; border-radius:10px; font-weight:700; font-size:13px; }
+  .initban span { flex:1; }
+  .initban button { background:#bb99ff; color:#000; border:0; border-radius:8px; font:800 13px system-ui; padding:6px 10px; cursor:pointer; }
   @keyframes spin { to { transform:rotate(360deg); } }
   .line .lbl { flex:1; min-width:0; text-align:center; font-size:12px; font-weight:700; color:var(--accent); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .mcard { border:2px solid #000; outline:1px solid #444a66; border-radius:8px; background:var(--paper); padding:6px 8px 8px; margin-top:8px; }
@@ -169,6 +172,7 @@
 </head>
 <body>
 <header><h1>NEW SCOLOS</h1><span class="hctl"><span id="syncdot" class="syncdot" hidden title="Syncing with Google Sheets">⟳</span><button id="solid" class="tab" title="See-through / solid">◐</button><button id="size" class="tab" title="Change panel size">S</button></span><nav><button class="tab on" data-t="dice">DICE</button><button class="tab" data-t="sheet">SHEET</button><button class="tab" data-t="rules">REFERENCE</button><button class="tab" data-t="mon" id="monTab" hidden>MONSTERS</button></nav></header>
+<div id="initban" class="initban" hidden><span>⚔ Initiative! Your next Adroitness roll counts.</span><button id="initgo">ROLL</button></div>
 <section id="sheet" hidden><div id="sh"></div></section>
 <section id="rules" hidden><div id="ru"></div></section>
 <section id="mon" hidden><div id="mo"></div></section>
@@ -318,6 +322,7 @@ async function doQuickRoll(modText, label, whoName) {
     const name = String(sheetVals?.[2]?.[2] || "").trim() || who;
     await OBR.room.setMetadata({ [`${INIT}/p/${me}`]: { id: me, sid: initSid, name, total: r.total, adr: m, pc: true, r: Math.random() } }).catch(() => {});
     store.set("ns.initDone", initSid);
+    updateInitBanner();
   }
 }
 
@@ -796,6 +801,19 @@ function showRules() {
   }));
 }
 
+// Player banner while their initiative roll is still owed (shows even if they missed the pop-up or joined late)
+let lastMd = null;
+async function updateInitBanner(md) {
+  if (standalone || isGM) { $("initban").hidden = true; return; }
+  lastMd = md || lastMd || await OBR.room.getMetadata();
+  const st = lastMd[INIT];
+  $("initban").hidden = !(st?.open && store.get("ns.initDone") !== st.sid && !lastMd[`${INIT}/p/${me}`]?.sid?.includes?.(st.sid));
+}
+$("initgo").onclick = () => {
+  const adr = sheetVals?.[6]?.[2];
+  if (adr != null && String(adr).trim() !== "") return quickRoll(adr, "Adroitness");
+  document.querySelector('.tab[data-t="sheet"]').click(); // sheet not loaded yet: open it so they can roll from there
+};
 if (standalone) {
   document.querySelector("nav").insertAdjacentHTML("beforeend", `<span style="color:var(--dim);font-size:10px">TEST</span>`);
 } else {
@@ -806,7 +824,8 @@ if (standalone) {
     if (isGM) { initMd = await OBR.room.getMetadata(); OBR.room.onMetadataChange((m) => { initMd = m; drawInitList(); markTurn(); }); }
     applySize();
     render(allRolls(await OBR.room.getMetadata()));
-    OBR.room.onMetadataChange((md) => render(allRolls(md)));
+    OBR.room.onMetadataChange((md) => { render(allRolls(md)); updateInitBanner(md); });
+    updateInitBanner();
   });
 }
 </script>
