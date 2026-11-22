@@ -138,6 +138,7 @@
   .encpick { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
   .encpick small { color:var(--dim); font-weight:800; font-size:11px; }
   .encpick select { flex:1; min-width:0; background:#1b1e2e; color:#f1f3f9; border:1px solid #444a66; border-radius:8px; padding:6px; font:600 13px system-ui; }
+  .negbtn { background:#2b2f45; color:#f1f3f9; border:2px solid #444a66; border-radius:8px; min-width:44px; font:800 20px system-ui; cursor:pointer; }
   @keyframes spin { to { transform:rotate(360deg); } }
   .line .lbl { flex:1; min-width:0; text-align:center; font-size:12px; font-weight:700; color:var(--accent); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .mcard { border:2px solid #000; outline:1px solid #444a66; border-radius:8px; background:var(--paper); padding:6px 8px 8px; margin-top:8px; }
@@ -159,7 +160,7 @@
   .irow .n { color:var(--dim); width:16px; } .irow b { flex:0 1 auto; } .irow small { color:var(--dim); flex:1; font-size:10px; }
   .irow .t { font-family:'Bangers', Impact, sans-serif; font-size:18px; }
   .ix { background:transparent; border:none; color:var(--dim); cursor:pointer; font-weight:900; }
-  .iadd { display:grid; grid-template-columns:1fr 54px auto; gap:5px; margin-top:6px; }
+  .iadd { display:grid; grid-template-columns:1fr 54px 40px auto; gap:5px; margin-top:6px; }
   .iadd input { padding:4px 6px; }
   .help { font-size:11px; color:var(--dim); line-height:1.35; margin:3px 0 2px; }
   .err { color:var(--minus); margin-top:8px; font-weight:700; }
@@ -173,7 +174,7 @@
 <section id="mon" hidden><div id="mo"></div></section>
 <main id="dice">
   <label>Modifier</label>
-  <input id="modin" inputmode="numeric" placeholder="0" style="font-size:22px;font-weight:800;text-align:center;width:110px">
+  <div style="display:flex;gap:8px;align-items:stretch"><input id="modin" inputmode="numeric" placeholder="0" style="font-size:22px;font-weight:800;text-align:center;width:110px"><button id="modneg" class="negbtn" title="Flip to minus / plus">±</button></div>
   <button id="roll">ROLL</button>
   <div id="err" class="err" hidden></div>
   <div id="last"></div>
@@ -189,6 +190,12 @@ const $ = (id) => document.getElementById(id);
 let mod = 0, me = null, standalone = !OBR.isAvailable, localRolls = [];
 
 // Type the modifier: "+3", "-1", "3" or blank (0). Enter rolls.
+// Phone number pads have no minus key, so ± flips the sign of whatever is typed
+function flipSign(el) {
+  const v = el.value.trim().replace("−", "-");
+  el.value = v.startsWith("-") ? v.slice(1) : "-" + v.replace(/^\+/, "");
+}
+$("modneg").onclick = () => flipSign($("modin"));
 function readMod() {
   const t = $("modin").value.trim().replace(/^\+/, "").replace("−", "-");
   if (t === "") return 0;
@@ -573,7 +580,7 @@ function drawMonsters() {
   let html = `<div class="initbox"><div class="sec" style="margin-top:2px">INITIATIVE</div>
     <div class="g2"><button id="iCall" class="sbtn">⚔ CALL FOR INITIATIVE</button><button id="iMon" class="sbtn">🎲 ROLL MONSTERS</button></div>
     <div id="iList"></div>
-    <div class="iadd"><input id="iName" placeholder="Add a name"><input id="iNum" placeholder="+0" inputmode="numeric"><button id="iAdd" class="sbtn">ADD</button></div>
+    <div class="iadd"><input id="iName" placeholder="Add a name"><input id="iNum" placeholder="+0" inputmode="numeric"><button id="iNeg" class="sbtn negbtn" title="Flip to minus / plus">±</button><button id="iAdd" class="sbtn">ADD</button></div>
     <button id="iEnd" class="sbtn" style="width:100%;margin-top:5px">END COMBAT</button></div>
     <button id="monRe" class="sbtn" style="width:100%;margin-top:8px">↻ RELOAD MONSTERS</button>`;
   const hdr = Math.max(0, v.findIndex(r => String(r?.[0] || "").trim().toLowerCase() === "name"));
@@ -603,7 +610,7 @@ function drawMonsters() {
   bindPicker();
   $("monRe").onclick = () => showMonsters();
   $("iCall").onclick = callInitiative; $("iMon").onclick = rollMonsterInit; $("iEnd").onclick = endInitiative;
-  $("iAdd").onclick = addInitEntry; $("iNum").onkeydown = (e) => { if (e.key === "Enter") addInitEntry(); };
+  $("iAdd").onclick = addInitEntry; $("iNeg").onclick = () => flipSign($("iNum")); $("iNum").onkeydown = (e) => { if (e.key === "Enter") addInitEntry(); };
   drawInitList();
   markTurn();
   document.querySelectorAll("#mo .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l, b.dataset.w); });
