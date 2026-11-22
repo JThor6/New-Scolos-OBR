@@ -39,8 +39,8 @@ async function showRoll(r, spin) {
 }
 
 // Announcements show for 5 seconds, then close themselves
-async function note(msg, kind) {
-  try { const id = await OBR.notification.show(msg, kind); setTimeout(() => OBR.notification.close(id).catch(() => {}), 5000); } catch {}
+async function note(msg, kind, ms = 5000) {
+  try { const id = await OBR.notification.show(msg, kind); setTimeout(() => OBR.notification.close(id).catch(() => {}), ms); } catch {}
 }
 OBR.onReady(async () => {
   // Right-click a token → "Mark" panel: Dead, Unconscious, or your own condition, shown above its head
@@ -64,7 +64,14 @@ OBR.onReady(async () => {
   async function initUpdate(md) {
     const st = md[INIT];
     // "Your turn" ping for the player whose turn it is
-    if (st?.open && st.cur && st.cur !== lastCur) { lastCur = st.cur; if (st.cur === me) note("⚔ Your turn!", "SUCCESS"); }
+    if (st?.open && st.cur && st.cur !== lastCur) {
+      lastCur = st.cur;
+      if (st.cur === me) note("⚔ Your turn!", "SUCCESS");
+      else { // soft heads-up for whoever is on deck
+        const list = initEntries(md), i = list.findIndex(e => e.id === st.cur);
+        if (list.length > 1 && i >= 0 && list[(i + 1) % list.length].id === me) note("Your turn is next", "DEFAULT", 3000);
+      }
+    }
     if (st?.open && st.sid !== lastSid) {
       lastSid = st.sid;
       if (!isGM) note("⚔ Roll for initiative! Your next Adroitness roll (on your SHEET) counts.", "INFO");
