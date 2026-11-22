@@ -11,6 +11,9 @@
   .chip .n { color:#9aa0b8; font-size:11px; }
   .chip .t { font-family:'Bangers', Impact, sans-serif; font-size:17px; color:#f1f3f9; }
   .chip.mon { border-color:#000; }
+  .chip .x { color:#9aa0b8; font-size:11px; margin-left:2px; cursor:pointer; padding:0 2px; }
+  .chip .x:hover { color:#ff6b6b; }
+  .chip { cursor:pointer; }
   .chip.cur { background:#bb99ff; border-color:#000; color:#000; }
   .chip.cur .n, .chip.cur .t { color:#000; }
   button { background:#bb99ff; color:#000; border:2px solid #000; border-radius:8px; height:32px; min-width:38px; font-weight:900; font-size:16px; cursor:pointer; }
@@ -30,19 +33,27 @@ import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
 import { INIT, initEntries } from "./shared.js";
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const fmt = (n) => (n > 0 ? "+" : "") + n;
-let md = {};
+let md = {}, gm = false;
 function draw() {
   const st = md[INIT] || {}, list = initEntries(md);
   document.getElementById("rnd").textContent = "ROUND " + (st.round || 1);
   document.getElementById("list").innerHTML = list.map((e, i) =>
-    `<div class="chip ${e.pc ? "" : "mon"} ${e.id === st.cur ? "cur" : ""}" ${e.id === st.cur ? 'id="curchip"' : ""}><span class="n">${i + 1}</span>${esc(e.name)}<span class="t">${fmt(e.total)}</span></div>`).join("");
+    `<div class="chip ${e.pc ? "" : "mon"} ${e.id === st.cur ? "cur" : ""}" data-id="${esc(e.id)}" ${e.id === st.cur ? 'id="curchip"' : ""}><span class="n">${i + 1}</span>${esc(e.name)}<span class="t">${fmt(e.total)}</span>${gm ? `<span class="x" data-x="${esc(e.id)}" title="Remove">✕</span>` : ""}</div>`).join("");
   document.getElementById("curchip")?.scrollIntoView({ inline: "center", block: "nearest" });
 }
 OBR.onReady(async () => {
   md = await OBR.room.getMetadata(); draw();
   OBR.room.onMetadataChange((m) => { md = m; draw(); });
   if ((await OBR.player.getRole()) === "GM") {
+    gm = true; draw();
     document.getElementById("gm").hidden = false;
+    // click a name to jump the turn there; ✕ removes it from initiative
+    document.getElementById("list").onclick = async (ev) => {
+      const x = ev.target.closest("[data-x]"), chip = ev.target.closest(".chip");
+      const m = await OBR.room.getMetadata(), st = m[INIT]; if (!st) return;
+      if (x) return OBR.room.setMetadata({ [INIT]: { ...st, removed: [...(st.removed || []), x.dataset.x] } });
+      if (chip) return OBR.room.setMetadata({ [INIT]: { ...st, cur: chip.dataset.id } });
+    };
     const step = async (d) => {
       const m = await OBR.room.getMetadata(), st = m[INIT] || {}, list = initEntries(m);
       if (!list.length) return;

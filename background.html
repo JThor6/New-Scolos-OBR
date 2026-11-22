@@ -45,8 +45,11 @@ OBR.onReady(async () => {
   // Initiative: tell players to roll, and show the bar across the top while combat is on
   const BAR = "com.newscolos.initbar";
   let barCount = -1, lastSid = (await OBR.room.getMetadata())[INIT]?.sid || "";
+  let lastCur = "";
   async function initUpdate(md) {
     const st = md[INIT];
+    // "Your turn" ping for the player whose turn it is
+    if (st?.open && st.cur && st.cur !== lastCur) { lastCur = st.cur; if (st.cur === me) OBR.notification.show("⚔ Your turn!", "SUCCESS").catch(() => {}); }
     if (st?.open && st.sid !== lastSid) {
       lastSid = st.sid;
       if (!isGM) OBR.notification.show("⚔ Roll for initiative! Your next Adroitness roll (on your SHEET) counts.", "INFO").catch(() => {});

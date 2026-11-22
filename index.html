@@ -588,6 +588,22 @@ async function monSet(row, col, on) {
   sync(-1);
   if (!r.ok) { monVals = JSON.parse(before); drawMonsters(); $("mo").insertAdjacentHTML("afterbegin", `<div class="err">Didn't save: ${esc2(r.error)}</div>`); }
   else cache.set("mon." + monId(), monVals);
+  if (col === 20) syncDeadGroups();
+}
+// When every monster in a group is dead, take that group off the initiative bar (and back on if one is revived)
+async function syncDeadGroups() {
+  const v = monVals || [], c = (row, i) => String(v[row]?.[i] ?? "").trim();
+  const hdr = Math.max(0, v.findIndex(r => String(r?.[0] || "").trim().toLowerCase() === "name"));
+  const alive = new Map();
+  for (let row = hdr + 1; row < v.length; row++) {
+    const name = c(row, 0); if (!name) continue;
+    const g = c(row, 1) || name, dead = /^(true|x|yes|dead)$/i.test(c(row, 19));
+    alive.set(g, (alive.get(g) || 0) + (dead ? 0 : 1));
+  }
+  const md = await OBR.room.getMetadata(), st = md[INIT]; if (!st?.open) return;
+  const removed = new Set(st.removed || []);
+  for (const [g, n] of alive) { const id = "m:" + g; if (n === 0) removed.add(id); else removed.delete(id); }
+  await OBR.room.setMetadata({ [INIT]: { ...st, removed: [...removed] } });
 }
 
 // ---------------- INITIATIVE (GM controls) ----------------
