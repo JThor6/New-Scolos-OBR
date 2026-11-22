@@ -452,7 +452,7 @@ function drawSheet() {
   $("shbody").innerHTML = `
     <div class="g2">${F("Name", V("C3"))}${F("Type", V("C4"))}</div>
     <div class="g3">${F("Level", V("F5"))}${F("Credits", V("F7"))}<button id="reload" class="sbtn" title="Reload from Google Sheet">↻</button></div>
-    <div class="g2b"><div class="fld"><small>Extraordinary Power</small><div>${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div></div>
+    <div class="g2b"><div class="fld"><small>Extraordinary Power</small><div id="pwname">${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div></div>
       <div class="fld c"><small>Used today</small><button id="pw" class="chk ${used ? "x" : ""}">${used ? "✕" : ""}</button></div></div>
     <div class="g4">${F("Current XP", V("F3"))}${F("Spent XP", V("F4"))}${F("Attr. spent", V("F10"))}${F("Attr. left", V("F12"))}</div>
     ${V("E13") ? `<div class="g2"><div class="fld"><small>${esc2(V("E13"))}</small><div class="ctl"><button id="ptm">−</button><b>${esc2(V("F13") || "0")}</b><button id="ptp">+</button></div></div></div>` : ""}
@@ -499,6 +499,8 @@ async function fillPowers() {
     if ($("pwlist")) $("pwlist").innerHTML =
       (always.length ? `<div><span>ALWAYS ON:</span> ${always.map(esc2).join(", ")}</div>` : "") +
       (daily.length ? `<div><span>DAILY:</span> ${daily.map(esc2).join(" · ")}</div>` : "");
+    // the DAILY line already names the power, so drop the separate name line (kept only if the type has no list)
+    if ($("pwname") && (always.length || daily.length)) $("pwname").hidden = true;
   } catch { /* the sheet still works without it */ }
 }
 function setCell(a1, v) { const m = a1.match(/^([A-L])(\d+)$/); sheetVals[+m[2] - 1][m[1].charCodeAt(0) - 65] = v; }
