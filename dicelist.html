@@ -21,14 +21,14 @@
 <div id="wrap"><div class="empty">Loading…</div></div>
 <script type="module">
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
-import { allRolls, rollLine, ROLL_CSS } from "./shared.js";
+import { allRolls, rollLine, ROLL_CSS, rollLog, LOG_MAX } from "./shared.js";
 document.head.insertAdjacentHTML("beforeend", `<style>${ROLL_CSS}</style>`);
 const detail = () => { try { return localStorage.getItem("ns.histDetail") === "on"; } catch { return false; } };
 let rolls = [];
 function draw() {
   const d = detail();
   document.getElementById("wrap").innerHTML = `<button id="det" class="histdet">${d ? "DETAILED ▲ (tap for simple)" : "SIMPLE ▼ (tap for detailed)"}</button>` +
-    (rolls.length ? rolls.slice(0, 30).map(r => rollLine(r, d)).join("") : `<div class="empty">No rolls yet.</div>`);
+    (rolls.length ? rolls.slice(0, LOG_MAX).map(r => rollLine(r, d)).join("") : `<div class="empty">No rolls yet.</div>`);
   document.getElementById("det").onclick = () => { try { localStorage.setItem("ns.histDetail", d ? "off" : "on"); } catch {} draw(); };
 }
 // the panel's SIMPLE/DETAILED switch and this one stay in step
@@ -36,7 +36,7 @@ window.addEventListener("storage", (e) => { if (e.key === "ns.histDetail") draw(
 document.getElementById("x").onclick = () => OBR.popover.close("com.newscolos.dicelist").catch(() => {});
 if (!OBR.isAvailable) draw();
 OBR.onReady(async () => {
-  rolls = allRolls(await OBR.room.getMetadata()); draw();
-  OBR.room.onMetadataChange((md) => { rolls = allRolls(md); draw(); });
+  rolls = rollLog(OBR.room.id, allRolls(await OBR.room.getMetadata())); draw();
+  OBR.room.onMetadataChange((md) => { rolls = rollLog(OBR.room.id, allRolls(md)); draw(); });
 });
 </script></body></html>

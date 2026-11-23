@@ -1,7 +1,7 @@
 <!doctype html><html><head><meta charset="utf-8"></head><body>
 <script type="module">
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
-import { allRolls, INIT, initEntries, markList } from "./shared.js";
+import { allRolls, INIT, initEntries, markList, rollLog } from "./shared.js";
 // Runs all session, even when the dice panel is closed.
 // Shows rolls as small cards in the bottom-right. Up to 8 at once (two rows of 4, filling right to left),
 // so when everyone rolls together (initiative) the whole table's results are visible.
@@ -97,7 +97,10 @@ OBR.onReady(async () => {
   initUpdate(await OBR.room.getMetadata());
   window.addEventListener("storage", async (e) => { if (e.key === "ns.barMin") initUpdate(await OBR.room.getMetadata()); });
   // other players' rolls
+  // keep this browser's 100-roll log growing even while the panel is closed
+  rollLog(OBR.room.id, allRolls(await OBR.room.getMetadata()));
   OBR.room.onMetadataChange((md) => {
+    rollLog(OBR.room.id, allRolls(md));
     initUpdate(md);
     for (const r of allRolls(md).reverse()) { // oldest first
       if (seen.has(r.id)) continue;

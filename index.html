@@ -468,7 +468,7 @@
 </main>
 <script type="module">
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
-import { NS, KEEP, rollKey, allRolls, fmt, INIT, initEntries, rollLine, ROLL_CSS } from "./shared.js";
+import { NS, KEEP, rollKey, allRolls, fmt, INIT, initEntries, rollLine, ROLL_CSS, rollLog, LOG_MAX } from "./shared.js";
 document.head.insertAdjacentHTML("beforeend", `<style>${ROLL_CSS}</style>`);
 import { TYPES, SECTIONS, getTab, sectionHtml } from "./rules.js";
 
@@ -551,7 +551,7 @@ let lastRolls = [];
 function render(rolls) {
   lastRolls = rolls;
   const html = `<button class="histdet">${histDetail ? "DETAILED ▲ (tap for simple)" : "SIMPLE ▼ (tap for detailed)"}</button>` +
-    (rolls.length ? rolls.slice(0, 30).map(line).join("") : `<div class="empty">No rolls yet.</div>`);
+    (rolls.length ? rolls.slice(0, LOG_MAX).map(line).join("") : `<div class="empty">No rolls yet.</div>`);
   // same list on the DICE tab and in REFERENCE → ROLL HISTORY
   for (const el of [$("history"), $("refRolls")]) if (el) el.innerHTML = html;
   document.querySelectorAll(".histdet").forEach(btn => btn.onclick = (e) => { e.preventDefault(); histDetail = !histDetail; try { localStorage.setItem("ns.histDetail", histDetail ? "on" : "off"); } catch {} render(lastRolls); });
@@ -1990,8 +1990,8 @@ if (standalone) {
     document.querySelector('.tab[data-t="sheet"]').click(); // Sheet is the first tab: open it once the GM/player role is known
     if (isGM) { initMd = await OBR.room.getMetadata(); OBR.room.onMetadataChange((m) => { initMd = m; drawInitList(); markTurn(); }); }
     applySize();
-    render(allRolls(await OBR.room.getMetadata()));
-    OBR.room.onMetadataChange((md) => { render(allRolls(md)); updateInitBanner(md); });
+    render(rollLog(OBR.room.id, allRolls(await OBR.room.getMetadata())));
+    OBR.room.onMetadataChange((md) => { render(rollLog(OBR.room.id, allRolls(md))); updateInitBanner(md); });
     updateInitBanner();
   });
 }

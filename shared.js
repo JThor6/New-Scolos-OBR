@@ -91,3 +91,20 @@ export const ROLL_CSS = `
   .hl .br.res { border-top:1px solid #444a66; margin-top:2px; padding-top:3px; color:#fff; }
   .histdet { width:100%; margin:4px 0 2px; padding:4px; font-size:11px; font-weight:800; border:1px solid #3a3d55; border-radius:6px; background:var(--paper); color:var(--dim); cursor:pointer; }
 `;
+
+// Roll log: the room only holds each player's last 10 rolls (Owlbear's room storage is tiny),
+// so every browser also keeps its own copy of the last 100 rolls it has seen in this room.
+// Every page calls this with the room's rolls; it merges them in (no duplicates) and returns the newest 100.
+export const LOG_MAX = 100;
+export function rollLog(roomId, roomRolls) {
+  // one log per Owlbear room, so the 47th Precinct room and the main game never mix
+  if (!roomId) { try { roomId = atob(new URLSearchParams(location.search).get("obrref") || "").split(" ")[1]; } catch {} }
+  const key = "ns.rollLog@" + (roomId || "local");
+  let log = [];
+  try { log = JSON.parse(localStorage.getItem(key) || "[]"); if (!Array.isArray(log)) log = []; } catch { log = []; }
+  const ids = new Set(log.map(r => r.id)); let added = false;
+  for (const r of roomRolls || []) if (r?.id && !ids.has(r.id)) { log.push(r); ids.add(r.id); added = true; }
+  log.sort((a, b) => b.ts - a.ts); log = log.slice(0, LOG_MAX);
+  if (added) try { localStorage.setItem(key, JSON.stringify(log)); } catch {}
+  return log;
+}
