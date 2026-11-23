@@ -341,6 +341,7 @@
   .cowrap { display:flex; flex-wrap:wrap; gap:4px 10px; align-items:flex-start; } .cowrap .copl { flex:0 1 auto; }
   .codesc { flex:1 1 150px; min-width:0; border-left:2px solid #e0a83a; padding:1px 0 2px 8px; font-size:12px; line-height:1.35; white-space:normal; }
   .codesc .gpn { display:flex; align-items:center; font-size:13px; } .codesc div { white-space:normal; }
+  .gcb3 .fld small, .shp .gcb .fld small { white-space:normal; line-height:1.15; }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
   .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
@@ -726,7 +727,7 @@ function drawSheet() {
     <div id="pwd" class="gpow pwd" hidden></div>
     ${V("E13") && !ptInEP() ? `<div class="g2">${ptMaxV() ? F(esc2(/\d/.test(V("G13")) || !V("G13") ? "Max " + V("E13") : V("G13")), ptMaxV()) : ""}<div class="fld"><small>${esc2(V("E13"))}</small>${ptCtl()}</div></div>` : ""}
     <div class="stab">COMBAT</div>
-    <div class="gcb3">${F("Melee", V("H23"), "c", "cb:Melee Damage Bonus")}${F("Ranged", V("H24"), "c", "cb:Ranged Damage Bonus")}${F("Armor", V("H25"), "c", "cb:Armor Bonus")}</div>
+    <div class="gcb3">${F("Melee Damage Bonus", V("H23"), "c", "cb:Melee Damage Bonus")}${F("Ranged Damage Bonus", V("H24"), "c", "cb:Ranged Damage Bonus")}${F("Armor Bonus", V("H25"), "c", "cb:Armor Bonus")}</div>
     <div class="gcop"><div class="fld"><small>Combat Options</small><div class="cowrap"><div class="copl">${opts.length ? opts.map(o => `<button class="cob" data-inf="co:${esc2(o)}" data-sec="combat">${esc2(o)}</button>`).join("<br>") : `<span class="dimn2">None yet</span>`}</div><div class="codesc" hidden></div></div></div>
       <div class="fld c"><small class="inft" data-inf="cop" data-sec="combat">COP${copMaxT !== "" ? ` <span class="dimn">/ ${esc2(copMaxT)}</span>` : ""}</small><div class="ctl"><button id="copm">−</button><b id="copv">${esc2(V("H29") || "0")}</b><button id="copp">+</button></div></div></div>
     <div class="infp gpow" data-for="combat" hidden></div>
@@ -934,7 +935,7 @@ async function sheetPreview() {
     <div class="vit">${wounds.map(t => { const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<div class="box"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk"></span></div>`; }).join("")}</div>
     <div class="g2b"><div class="fld"><small>Extraordinary Power</small><div>${esc2(cg.power || "—")}</div>${extra ? `<div class="pwl">${esc2(extra)}</div>` : ""}</div><div class="fld c"><small>Used today</small><span class="chk"></span></div></div>
     <div class="stab">COMBAT</div>
-    <div class="gcb">${F("Melee", sgn(melee))}${F("Ranged", sgn(ranged))}${F("Armor", sgn(armor))}</div>
+    <div class="gcb">${F("Melee Damage Bonus", sgn(melee))}${F("Ranged Damage Bonus", sgn(ranged))}${F("Armor Bonus", sgn(armor))}</div>
     <div class="stab">ATTRIBUTES</div>
     <div class="g5">${ATTRS.map(a => `<div class="att"><small>${{ "Raw Strength": "Raw Str." }[a] || a}</small><b>${sgn(cg.attrs[a])}</b></div>`).join("")}</div>
     <div class="stab">SKILLS</div>
