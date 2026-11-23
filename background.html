@@ -66,7 +66,7 @@ OBR.onReady(async () => {
     const st = md[INIT];
     if (!st?.open || !st.cur) lastCur = ""; // new combat starts fresh, so its first turn always pings
     // "Your turn" ping for the player whose turn it is
-    if (st?.open && st.cur && st.cur !== lastCur) {
+    if (st?.open && st.cur && st.cur !== lastCur && !isGM) { // players only: the GM never gets these
       lastCur = st.cur;
       if (st.cur === me) note("⚔ Your turn!", "SUCCESS");
       else { // soft heads-up for whoever is on deck
