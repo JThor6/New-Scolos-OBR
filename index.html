@@ -842,7 +842,14 @@ function drawSheet() {
   $("mgr").onclick = () => { mgrOn = true; drawSheet(); };
   if ($("welx")) $("welx").onclick = () => { store.set("ns.welcomeOff", "1"); $("welx").parentElement.remove(); };
   if ($("disc")) $("disc").onclick = () => { setSheetId(""); pickCharacter(); };
-  document.querySelectorAll(".box").forEach(b => b.onclick = () => (healUndo.delete(sheetId()), 0) || save({ wound: +b.dataset.w, on: !b.classList.contains("x") }, () => { const c = "BCDEFGH"[+b.dataset.w] + "16"; setCell(c, b.classList.contains("x") ? "" : "X"); }));
+  // The 3 Light Wound boxes always fill left to right (Heal slides wounds left): tapping any empty one marks the leftmost
+  // empty one, tapping a marked one clears the rightmost marked one. Medium and up stay exactly where you tap.
+  document.querySelectorAll(".box").forEach(b => b.onclick = () => {
+    let w = +b.dataset.w; const on = !b.classList.contains("x");
+    if (w < 3) { const lw = [0, 1, 2].map(i => !!V("BCD"[i] + "16")); w = on ? lw.indexOf(false) : lw.lastIndexOf(true); if (w < 0) return; }
+    healUndo.delete(sheetId());
+    save({ wound: w, on }, () => setCell("BCDEFGH"[w] + "16", on ? "X" : ""));
+  });
   $("heal").onclick = heal;
   if ($("healUndo")) $("healUndo").onclick = undoHeal;
   $("pw").onclick = () => save({ power: !used }, () => setCell("F6", used ? "FALSE" : "TRUE"));
@@ -1804,7 +1811,9 @@ function drawMonsters() {
   // the whole Attack box rolls, not just the dice button
   document.querySelectorAll("#mo .matk, #mo .matt .att").forEach(box => { if (box.querySelector(".rd")) box.onclick = () => box.querySelector(".rd").click(); });
   document.querySelectorAll("#mo .mw, #mo .mdead").forEach(b => b.onclick = async () => {
-    const row = +b.dataset.r, col = b.dataset.c ? +b.dataset.c : 20, on = !!b.dataset.on;
+    const row = +b.dataset.r, on = !!b.dataset.on; let col = b.dataset.c ? +b.dataset.c : 20;
+    // monsters too: the 3 Light Wound boxes (columns M-O) fill left to right and clear right to left
+    if (col >= 13 && col <= 15) { const lw = [12, 13, 14].map(i => !!String((monVals[row - 1] || [])[i] ?? "").trim()); const k = on ? lw.indexOf(false) : lw.lastIndexOf(true); if (k < 0) return; col = 13 + k; }
     await monSet(row, col, on);
     // the last wound box (D) also flips the DEAD button to match
     if (col === 19 && !!(monVals[row - 1] || [])[19] !== on) monSet(row, 20, on);
