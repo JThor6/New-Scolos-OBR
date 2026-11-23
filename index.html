@@ -148,8 +148,8 @@
   .g2 { grid-template-columns:1fr 1fr; } .g3 { grid-template-columns:1fr 1fr auto; } .g4 { grid-template-columns:repeat(4,1fr); }
   .g5 { grid-template-columns:repeat(5,1fr); } .g2b { grid-template-columns:1fr auto; }
   .g3:has(.fld:nth-child(3)) { grid-template-columns:1fr 1fr 1fr; }
-  .healb { margin-left:6px; font-size:10px; font-weight:800; padding:1px 7px; border-radius:6px; border:2px solid #000; background:#2e2148; color:#cfc3ec; cursor:pointer; vertical-align:bottom; }
-  .healb.undo { background:#241a38; color:#b3a6d6; }
+  .healb { margin-left:6px; font-size:10px; font-weight:800; padding:1px 7px; border-radius:6px; border:1px solid #3a3d55; background:var(--paper); color:var(--dim); cursor:pointer; vertical-align:bottom; }
+  .healb.undo { color:#7d8299; }
   .healb:disabled { opacity:.4; cursor:default; }
   .stab { display:inline-block; background:#000; color:#fff; font-weight:800; font-size:12px; letter-spacing:.5px; padding:2px 10px; border-radius:6px 6px 0 0; margin-top:10px; }
   .att { border:3px solid #000; outline:1px solid #444a66; border-radius:8px; background:var(--paper); text-align:center; padding:4px 2px; }
@@ -701,9 +701,11 @@ async function loadSheet(quiet) {
     else $("shbody").innerHTML = `<div class="empty">Loading sheet…</div>`;
   }
   sync(1);
+  const gen = writeGen;
   const r = await bridgeGet({ id }).catch(e => ({ ok: false, error: e.message }));
   sync(-1);
   if (id !== sheetId() || partyOn) return; // switched away while loading
+  if (gen !== writeGen || busy) return; // a save happened while this was loading, so this copy is old
   if (!r.ok && quiet) return; // background refresh failed: keep what's on screen
   if (!r.ok) {
     if (/code/i.test(r.error || "")) store.set("ns.code", "");
@@ -1456,12 +1458,15 @@ function ptMaxV() { return /^\d+$/.test(V("H13")) ? V("H13") : /^\d+$/.test(V("G
 // Healing: every mark on the vitality track shifts one box left; the leftmost (Light Wound) drops off.
 // The last 5 heals per character can be undone (cleared if someone taps a wound box by hand).
 const healUndo = new Map();
+let healWait = 0; // cooldown so double taps and lag can't stack heals
 async function heal() {
+  if (busy || Date.now() < healWait) return;
   const cols = "BCDEFGH".split(""), was = cols.map(c => !!V(c + "16"));
   const id = sheetId(), stack = healUndo.get(id) || [];
   if (await setTrack(was.slice(1).concat(false))) { stack.push(was); healUndo.set(id, stack.slice(-5)); drawSheet(); }
 }
 async function undoHeal() {
+  if (busy || Date.now() < healWait) return;
   const id = sheetId(), stack = healUndo.get(id) || [];
   if (!stack.length) return;
   const prev = stack[stack.length - 1];
@@ -1472,25 +1477,32 @@ async function setTrack(now) { // write a whole vitality track (7 true/false), o
   const cols = "BCDEFGH".split(""), was = cols.map(c => !!V(c + "16"));
   const changes = cols.map((c, i) => [i, now[i]]).filter(([i, on]) => on !== was[i]);
   if (!changes.length) return false;
-  busy = true;
+  busy = true; writeGen++; healWait = Date.now() + 1200;
   const before = JSON.stringify(sheetVals);
   cols.forEach((c, i) => setCell(c + "16", now[i] ? "X" : "")); drawSheet();
-  const res = await Promise.all(changes.map(([i, on]) => bridgePost({ wound: i, on }).catch(e => ({ ok: false, error: e.message }))));
-  busy = false;
+  document.querySelectorAll(".healb").forEach(b => b.disabled = true);
+  // newer bridge: the whole track in one write. Older bridge: one box at a time, in order.
+  let res = [await bridgePost({ track: now }).catch(e => ({ ok: false, error: e.message }))];
+  if (!res[0].ok && /nothing to change/i.test(res[0].error || "")) {
+    res = [];
+    for (const [i, on] of changes) res.push(await bridgePost({ wound: i, on }).catch(e => ({ ok: false, error: e.message })));
+  }
+  busy = false; writeGen++;
   const bad = res.find(r => !r.ok);
-  if (!bad) { loadSheet(true); return true; }
+  if (!bad) { setTimeout(() => { drawSheet(); loadSheet(true); }, Math.max(0, healWait - Date.now())); return true; }
   sheetVals = JSON.parse(before); drawSheet(); loadSheet(true); // re-read so the sheet shows whatever did save
   $("sherr").hidden = false; $("sherr").textContent = "Vitality track didn't fully save: " + (bad.error || "unknown error");
   return false;
 }
 function setCell(a1, v) { const m = a1.match(/^([A-L])(\d+)$/); sheetVals[+m[2] - 1][m[1].charCodeAt(0) - 65] = v; }
 
+let writeGen = 0; // bumped on every save so older sheet reads are ignored
 async function save(body, apply) {
-  if (busy) return; busy = true;
+  if (busy) return; busy = true; writeGen++;
   const before = JSON.stringify(sheetVals);
   apply(); drawSheet(); // show it right away
   const r = await bridgePost(body).catch(e => ({ ok: false, error: e.message }));
-  busy = false;
+  busy = false; writeGen++;
   if (r.ok) { loadSheet(true); return; } // re-read so the sheet's own formulas (like Damage Penalty) show up
   if (!r.ok) {
     sheetVals = JSON.parse(before);

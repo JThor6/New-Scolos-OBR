@@ -341,7 +341,10 @@ function doPost(e) {
       } finally { lock.releaseLock(); }
       return json({ ok: true });
     }
-    if (b.wound !== undefined) {
+    if (Array.isArray(b.track)) { // Heal / Undo: the whole vitality track in one write
+      if (b.track.length !== 7) throw new Error('Bad vitality track.');
+      sh.getRange('B16:H16').setValues([b.track.map(function (on) { return on ? 'X' : ''; })]);
+    } else if (b.wound !== undefined) {
       const cell = WOUND_CELLS[Number(b.wound)];
       if (!cell) throw new Error('Bad wound box.');
       sh.getRange(cell).setValue(b.on ? 'X' : '');
