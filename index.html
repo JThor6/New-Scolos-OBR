@@ -1367,7 +1367,7 @@ async function showGen() {
       const rs = cg.attrs["Raw Strength"], e = cg.equip;
       const melee = Math.max(0, (e.melee ? 2 : 0) + rs), ranged = e.ranged ? 4 : 0, armor = e.armor ? Math.max(1, 2 + rs) : Math.max(0, rs);
       const item = (k, label, rule) => `<label class="gl">${label} <small>${rule}</small><input id="ge_${k}" value="${esc2(e[k])}" placeholder="Name it, or leave blank for none"></label>`;
-      put(bar + firstTime("What to put here", `<p><b>Get creative!</b> You name your own armor and weapons, so pick whatever fits your character. The name is just flavor: every armor gives the same bonus, every melee weapon gives the same bonus, and every ranged weapon gives the same bonus. Leave a box blank if you don't carry one.</p>
+      put(bar + firstTime("What to put here", `<p>You name your own armor and weapons, so pick whatever fits your character. The name is just flavor: every armor gives the same bonus, every melee weapon gives the same bonus, and every ranged weapon gives the same bonus. Leave a box blank if you don't carry one.</p>
           <p>Armor ideas: "Flak vest", "Patched riot plates", "Armored trench coat", "Scavenged mech plating", "Blessed robes".<br>
           Melee ideas: "Las. sword", "Stun baton", "Rusty pipe", "Grandpa's machete", "Vibro-knife".<br>
           Ranged ideas: "Pistol", "Laser rifle", "Sawed-off scattergun", "Precinct-issue sidearm", "Homemade rail pistol".</p>
