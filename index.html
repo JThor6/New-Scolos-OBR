@@ -44,6 +44,7 @@
   html.solid header { background:#000; }
   #ru { padding:8px 12px; }
   details.rs { border:2px solid #444a66; border-radius:8px; background:var(--paper); margin:6px 0; }
+  .rgh { margin:12px 2px 3px; font-size:10px; font-weight:800; letter-spacing:1px; color:var(--dim); } .rgh:first-child { margin-top:2px; }
   .pop { float:right; background:transparent; border:none; color:var(--dim); cursor:pointer; padding:0 2px; }
   .pop:hover { color:var(--accent); }
   details.rs summary { font-family:'Bangers', Impact, sans-serif; font-size:17px; letter-spacing:1px; padding:6px 8px; cursor:pointer; color:var(--accent); }
@@ -250,6 +251,7 @@
   .skc span { flex:1; min-width:0; line-height:1.2; overflow-wrap:break-word; }
   .skc b { font-size:14px; min-width:22px; text-align:right; }
   .skc .rd { margin:0; flex:none; }
+  .skc .skn .inft { padding:0; flex:none; } /* only the first two words open the info; the rest of the name rolls like the box */
   .drs { margin-top:8px; }
   details.dr { border:2px solid #000; outline:1px solid #444a66; border-radius:7px; background:var(--paper); margin-top:5px; }
   details.dr summary { cursor:pointer; font-weight:800; font-size:12px; letter-spacing:.5px; padding:5px 8px; }
@@ -340,7 +342,12 @@
   .gcop .ctl { justify-content:center; gap:4px; margin-top:3px; } .gcop .ctl button { padding:0 6px; } .gcop .ctl b { font-size:15px; }
   .pwb { background:none; border:none; padding:0; color:var(--ink); font:inherit; cursor:pointer; text-decoration:underline dotted #6b5aa0; text-underline-offset:3px; }
   .cob { background:none; border:none; padding:0; color:var(--ink); font:inherit; text-align:left; cursor:pointer; text-decoration:underline dotted #6b5aa0; text-underline-offset:3px; }
+  .welc { position:relative; margin:2px 0 8px; padding:7px 30px 7px 10px; border-left:3px solid #5b3f9e; border-radius:6px; background:rgba(60,38,110,.45); font-size:12px; line-height:1.5; color:#ddd5f3; }
+  .welc b { display:block; color:#bb99ff; font-size:10px; letter-spacing:.6px; margin-bottom:2px; }
+  #welx { position:absolute; top:5px; right:5px; width:22px; height:22px; border-radius:5px; border:1px solid #5b3f9e; background:transparent; color:#ddd5f3; cursor:pointer; font-weight:800; }
+  .discw { text-align:center; margin:18px 0 6px; } .discb { background:none; border:none; color:var(--dim); font-size:11px; font-weight:700; cursor:pointer; text-decoration:underline dotted; text-underline-offset:3px; } .discb:hover { color:var(--accent); }
   .cob:hover, .cob.ion { color:var(--accent); }
+  .copuse { display:block; margin-top:6px; padding:4px 8px; border:2px solid #000; border-radius:6px; background:#e0a83a; color:#000; font-weight:900; font-size:11px; cursor:pointer; } .copuse:disabled { background:#444a66; color:#9aa0b8; cursor:default; }
   .pwb:hover, .pwb.on { color:var(--accent); text-decoration-color:var(--accent); }
   .pwd { margin-top:4px; } .pwd .gpn { display:flex; align-items:center; } .pwx { margin-left:auto; background:none; border:none; color:var(--dim); cursor:pointer; font-size:12px; }
   .inft { cursor:pointer; text-decoration:underline dotted #6b5aa0; text-underline-offset:3px; } .inft:hover, .inft.ion { color:var(--accent) !important; text-decoration-color:var(--accent); }
@@ -451,7 +458,7 @@
 </style>
 </head>
 <body>
-<header><h1>NEW SCOLOS</h1><span class="hctl"><span id="syncdot" class="syncdot" hidden title="Syncing with Google Sheets">⟳</span><button id="solid" class="tab" title="See-through / solid">◐</button><button id="size" class="tab" title="Change panel size">S</button></span><nav><button class="tab on" data-t="sheet">SHEET</button><button class="tab" data-t="rules">REFERENCE</button><button class="tab" data-t="dice">DICE</button><button class="tab" data-t="gen">CHARACTER GENERATOR</button><button class="tab" data-t="mon" id="monTab" hidden>GM</button></nav></header>
+<header><h1>NEW SCOLOS</h1><span class="hctl"><span id="syncdot" class="syncdot" hidden title="Syncing with Google Sheets">⟳</span><button id="solid" class="tab" title="See-through / solid">◐</button><button id="size" class="tab" title="Change panel size">S</button></span><nav><button class="tab on" data-t="sheet">SHEET</button><button class="tab" data-t="rules">REFERENCE</button><button class="tab" data-t="dice">DICE</button><button class="tab" data-t="gen">NEW CHARACTER</button><button class="tab" data-t="mon" id="monTab" hidden>GM</button></nav></header>
 <div id="initban" class="initban" hidden><span>⚔ Initiative! Your next Adroitness roll counts.</span><button id="initgo">ROLL</button><button id="initx" title="Hide">✕</button></div>
 <section id="sheet"><div id="sh"><div class="empty">Loading…</div></div></section>
 <section id="rules" hidden><div id="ru"></div></section>
@@ -470,7 +477,7 @@
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
 import { NS, KEEP, rollKey, allRolls, fmt, INIT, initEntries, rollLine, ROLL_CSS, rollLog, LOG_MAX } from "./shared.js";
 document.head.insertAdjacentHTML("beforeend", `<style>${ROLL_CSS}</style>`);
-import { TYPES, SECTIONS, getTab, sectionHtml } from "./rules.js";
+import { TYPES, SECTIONS, REF_GROUPS, getTab, sectionHtml } from "./rules.js";
 
 const $ = (id) => document.getElementById(id);
 let mod = 0, me = null, standalone = !OBR.isAvailable, localRolls = [];
@@ -498,7 +505,7 @@ function card(r, large) {
   const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const pen = parseInt(r.wnd, 10);
   return `<div class="card ${large ? "big" : ""}">
-    <div class="who">${esc(r.who)}${r.label ? ` <small>${esc(r.label)}</small>` : ""}<small>${time}</small>${pen ? `<small style="color:#ff8f8f;font-weight:900">wounded ${fmt(pen)}</small>` : ""}</div>
+    <div class="who">${esc(r.char || r.who)}${r.char ? `<small>${esc(r.who)}</small>` : ""}${r.label ? ` <small>${esc(r.label)}</small>` : ""}<small>${time}</small>${pen ? `<small style="color:#ff8f8f;font-weight:900">wounded ${fmt(pen)}</small>` : ""}</div>
     <div class="dice">${dice}${r.mod ? `<span class="modtag">${fmt(r.mod)}</span>` : ""}<span class="total">${fmt(r.total)}</span></div>
   </div>`;
 }
@@ -560,6 +567,7 @@ $("roll").onclick = async () => {
   const dice = [rollDie(), rollDie(), rollDie(), rollDie()];
   const who = standalone ? "Test" : await OBR.player.getName();
   const r = { id: crypto.randomUUID().slice(0, 8), pid: me || "local", who, dice, mod, total: dice.reduce((a, b) => a + b, 0) + mod, ts: Date.now() };
+  if (!isGM && myChar()) r.char = myChar(); // players' rolls show their character's name
   $("roll").disabled = true;
   await spin(r);
   const err = await saveRoll(r);
@@ -591,6 +599,8 @@ const ROLL_ICON = `<svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="
 let rollBusy = false;
 function setRollBusy(on) { rollBusy = on; document.body.classList.toggle("rollbusy", on); }
 // The character's Damage Penalty (C12: -1 once Critical Wound or Down & KO'ed is checked) applies to every roll made from their sheet
+// The open sheet's character name (shown on rolls)
+const myChar = () => String(sheetVals?.[2]?.[2] || "").trim().slice(0, 30);
 const sheetPen = () => num(sheetVals?.[11]?.[2]) || 0;
 async function quickRoll(modText, label, whoName, br = "") {
   if (rollBusy) return;
@@ -611,6 +621,7 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "") {
   const who = whoName || (standalone ? "Test" : await OBR.player.getName());
   const r = { id: crypto.randomUUID().slice(0, 8), pid: me || "local", who, label: String(label || "").slice(0, 60), dice, mod: m, total: dice.reduce((a, b) => a + b, 0) + m, ts: Date.now() };
   if (pen) r.wnd = pen;
+  if (!whoName && myChar()) r.char = myChar(); // the character's name, with the player's name small beside it
   if (br) { const [at, av, sr] = String(br).split("|"); r.at = String(at || "").trim().slice(0, 14); r.av = String(av || "").trim(); if (sr !== undefined) r.sr = String(sr).trim(); }
   // the always-running background page shows it in the bottom-right roll cards
   try { localStorage.setItem("ns.toastReq", JSON.stringify(r)); } catch {}
@@ -762,12 +773,15 @@ function layout() {
   const cr = at("combat rules", inv + 1) || inv + 14, notes = at("notes", cr + 1) || 71; // older sheets
   return { trained: [tr + 1, ut - 1], untrained: [ut + 1, inv - 1], inv: [inv + 1, cr - 1], notes: [notes + 1, Math.max(notes + 12, sheetVals?.length || 0)], nc: "B" };
 }
+// Skill and option names show in Title Case on the sheet ("knowledge religion" -> "Knowledge Religion"); the Google Sheet keeps what was typed
+const SMALL_WORDS = new Set(["of", "and", "the", "a", "an", "to", "in", "on", "for", "with", "or", "at", "by"]);
+const tc = (s) => String(s ?? "").replace(/[A-Za-z][A-Za-z']*/g, (w, i) => (i > 0 && SMALL_WORDS.has(w.toLowerCase()) && w === w.toLowerCase()) ? w : w[0].toUpperCase() + w.slice(1));
 const drawOpen = {}; // which fold-out drawers are open, so the 30-second refresh doesn't snap them shut
 function drawSheet() {
   if (mgrOn) return drawManager();
   const F = (label, val, cls = "", inf = "") => `<div class="fld ${cls}"><small ${inf ? `class="inft" data-inf="${inf}" data-sec="combat"` : ""}>${label}</small><div>${esc2(val)}</div></div>`;
   const chips = (from, to, sec) => { let h = "", n = 0; for (let i = from; i <= to; i++) if (V("B" + i)) { n++;
-    h += `<div class="skc"><span class="inft" data-inf="sk:${i}" data-sec="${sec}">${esc2(V("B" + i))}</span><b>${esc2(V("F" + i))}</b><button class="rd" data-m="${esc2(V("F" + i))}" data-l="${esc2(V("B" + i))}" data-b="${esc2(V("C" + i) && V("D" + i) !== "" ? `${V("C" + i)}|${V("D" + i)}|${V("E" + i)}` : "")}" title="Roll ${esc2(V("B" + i))}">${ROLL_ICON}</button></div>`; }
+    h += `<div class="skc"><span class="skn">${(([a, b, ...rest]) => `<span class="inft" data-inf="sk:${i}" data-sec="${sec}">${esc2([a, b].filter(Boolean).join(" "))}</span>${rest.length ? " " + esc2(rest.join(" ")) : ""}`)(tc(V("B" + i)).split(/\s+/))}</span><b>${esc2(V("F" + i))}</b><button class="rd" data-m="${esc2(V("F" + i))}" data-l="${esc2(tc(V("B" + i)))}" data-b="${esc2(V("C" + i) && V("D" + i) !== "" ? `${V("C" + i)}|${V("D" + i)}|${V("E" + i)}` : "")}" title="Roll ${esc2(tc(V("B" + i)))}">${ROLL_ICON}</button></div>`; }
     return { h: h ? `<div class="skg">${h}</div><div class="infp gpow" data-for="${sec}" hidden></div>` : "", n }; };
   const drawer = (key, title, count, body) => body ? `<details class="dr" data-k="${key}" ${drawOpen[key] ? "open" : ""}><summary>${title}${count ? ` <small>${count}</small>` : ""}</summary><div class="drb">${body}</div></details>` : "";
   const inv = [], eq = [], L = layout();
@@ -781,7 +795,11 @@ function drawSheet() {
   const lines = (items) => items.map(esc2).join("<br>");
   const trained = chips(...L.trained, "skills"), untrained = chips(...L.untrained, "untrained");
   const copMaxT = V("H28");
-  $("shbody").innerHTML = `
+  $("shbody").innerHTML = `${store.get("ns.welcomeOff") ? "" : `<div class="welc"><button id="welx" title="Got it">✕</button><b>WELCOME TO THE TABLE</b>
+      <div>🎲 Tap any attribute or skill box to roll it.</div>
+      <div>📖 Underlined words explain themselves: tap one to see what it does.</div>
+      <div>📜 Everyone's rolls are on the DICE tab and in REFERENCE → Roll History.</div>
+      <div>⚙ Manage Character is where you spend XP and change gear.</div></div>`}
     <div class="shead"><div class="shn"><b>${esc2(V("C3") || "Unnamed")}</b><small>${[V("C4"), V("F5") !== "" ? "Level " + V("F5") : ""].filter(Boolean).map(esc2).join(" · ")}${V("F7") !== "" ? `<span class="cred" title="Credits">¤ ${esc2((n => n == null ? V("F7") : n.toLocaleString("en-US"))(num(V("F7"))))} credits</span>` : ""}</small></div>
       <span class="shbtns"><button id="reload" class="ibtn" title="Reload from Google Sheet">↻</button><button id="mgr" class="ibtn mgrb" title="Manage character: XP, skills, gear, notes">⚙ Manage Character</button></span></div>
     <div class="stab">ATTRIBUTES</div>
@@ -797,7 +815,7 @@ function drawSheet() {
     ${V("E13") && !ptInEP() ? `<div class="g2">${ptMaxV() ? F(esc2(/\d/.test(V("G13")) || !V("G13") ? "Max " + V("E13") : V("G13")), ptMaxV()) : ""}<div class="fld"><small>${esc2(V("E13"))}</small>${ptCtl()}</div></div>` : ""}
     <div class="stab">COMBAT</div>
     <div class="gcb3">${F("Melee Damage Bonus", V("H23"), "c", "cb:Melee Damage Bonus")}${F("Ranged Damage Bonus", V("H24"), "c", "cb:Ranged Damage Bonus")}${F("Armor Bonus", V("H25"), "c", "cb:Armor Bonus")}</div>
-    <div class="gcop"><div class="fld"><small>Combat Options</small><div class="cowrap"><div class="copl">${opts.length ? opts.map(o => `<button class="cob" data-inf="co:${esc2(o)}" data-sec="combat">${esc2(o)}</button>`).join("<br>") : `<span class="dimn2">None yet</span>`}</div><div class="codesc" hidden></div></div></div>
+    <div class="gcop"><div class="fld"><small>Combat Options</small><div class="cowrap"><div class="copl">${opts.length ? opts.map(o => `<button class="cob" data-inf="co:${esc2(o)}" data-sec="combat">${esc2(tc(o))}</button>`).join("<br>") : `<span class="dimn2">None yet</span>`}</div><div class="codesc" hidden></div></div></div>
       <div class="fld c"><small class="inft" data-inf="cop" data-sec="combat">COP${copMaxT !== "" ? ` <span class="dimn">/ ${esc2(copMaxT)}</span>` : ""}</small><div class="ctl"><button id="copm">−</button><b id="copv">${esc2(V("H29") || "0")}</b><button id="copp">+</button></div></div></div>
     <div class="infp gpow" data-for="combat" hidden></div>
 
@@ -809,7 +827,7 @@ function drawSheet() {
     ${drawer("notes", "NOTES", "", notes.length ? `<div class="lbox">${lines(notes)}</div>` : "")}
     </div>
     <div id="sherr" class="err" hidden></div>
-    ${isGM ? "" : `<button id="disc" class="histbtn">SWITCH CHARACTER</button>`}`;
+    ${isGM ? "" : `<div class="discw"><button id="disc" class="discb" title="Pick a different character">⇄ Switch character</button></div>`}`;
   fillPowers(); bindInfo();
   document.querySelectorAll("#shbody .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l, "", b.dataset.b); });
   // the whole attribute or skill box rolls, except its underlined name (that opens the info)
@@ -818,6 +836,7 @@ function drawSheet() {
   document.querySelectorAll("#shbody details.dr").forEach(d => d.ontoggle = () => { drawOpen[d.dataset.k] = d.open; });
   $("reload").onclick = () => loadSheet();
   $("mgr").onclick = () => { mgrOn = true; drawSheet(); };
+  if ($("welx")) $("welx").onclick = () => { store.set("ns.welcomeOff", "1"); $("welx").parentElement.remove(); };
   if ($("disc")) $("disc").onclick = () => { setSheetId(""); pickCharacter(); };
   document.querySelectorAll(".box").forEach(b => b.onclick = () => (healUndo.delete(sheetId()), 0) || save({ wound: +b.dataset.w, on: !b.classList.contains("x") }, () => { const c = "BCDEFGH"[+b.dataset.w] + "16"; setCell(c, b.classList.contains("x") ? "" : "X"); }));
   $("heal").onclick = heal;
@@ -907,9 +926,10 @@ function drawManager() {
     <div class="stab">PRINT</div>
     <button id="pdfGo" class="sbtn" style="width:100%">⬇ EXPORT TO PDF</button>
     <div id="pdfOut" class="mnote" style="color:var(--dim)">Saves this character as a fillable PDF you can download, print, or keep filling in on screen. It opens in a new browser tab.</div>
-    <div id="sherr" class="err" hidden></div>`;
+    <div id="sherr" class="err" hidden></div>
+    <button id="mgr2" class="sbtn mgrbtn on" style="margin-top:12px">✓ DONE MANAGING</button>`;
   const err = (m) => { $("sherr").hidden = false; $("sherr").textContent = m; };
-  $("mgr").onclick = () => { mgrOn = false; loadSheet(true); drawSheet(); };
+  $("mgr").onclick = $("mgr2").onclick = () => { mgrOn = false; loadSheet(true); drawSheet(); };
   // attributes (A<cell>) and skills (S<row>): + spends, − refunds the step below
   document.querySelectorAll(".mctl button").forEach(b => b.onclick = () => {
     const id = b.dataset.a, d = +b.dataset.d;
@@ -1418,7 +1438,7 @@ async function infoHtml(key) {
     let desc = "", alt = "";
     try { for (const v of await getTab("Skill List")) { const nm = String(v[2] || "").trim(); if (!/^\d+$/.test(String(v[1] || "").trim()) || !nm) continue;
       const m = normName(nm); if (m === n || m.startsWith(n) || n.startsWith(m)) { const d = String(v[3] || ""); desc = d.replace(/^[A-Za-z ]+:\s*/, "").replace(/^\*/, ""); alt = (d.match(/^[A-Za-z ]+(?=:)/) || [""])[0]; break; } } } catch {}
-    return `<div class="gpn">${esc2(name)}</div>${row("Total", `${V("C" + r)} ${V("D" + r)} + level ${V("E" + r)} = ${V("F" + r)}`)}${desc ? row("", desc) : row("", "Not on the Skill List (ask your GM).")}${alt && alt !== V("C" + r).trim() ? row("Skill List attribute", alt) : ""}`;
+    return `<div class="gpn">${esc2(tc(name))}</div>${row("Total", `${V("C" + r)} ${V("D" + r)} + level ${V("E" + r)} = ${V("F" + r)}`)}${desc ? row("", desc) : row("", "Not on the Skill List (ask your GM).")}${alt && alt !== V("C" + r).trim() ? row("Skill List attribute", alt) : ""}`;
   }
   if (key.startsWith("co:")) {
     const name = key.slice(3), n = name.replace(/\([^)]*\)/g, "").trim().toLowerCase();
@@ -1450,6 +1470,12 @@ function bindInfo() {
     const key = infOpen, h = await infoHtml(key); if (key !== infOpen) return;
     p.hidden = false; p.innerHTML = h.replace("</div>", `<button class="pwx" title="Close">✕</button></div>`);
     p.querySelector(".pwx").onclick = () => { infOpen = ""; show(); };
+    // Combat Options: spend the option's 1 COP right from its description
+    if (inBox && $("copp")) {
+      const max = parseInt(V("H28")), spent = parseInt(V("H29")) || 0, left = isNaN(max) ? null : Math.max(0, max - spent);
+      p.insertAdjacentHTML("beforeend", `<button class="copuse" ${left === 0 ? "disabled" : ""}>${left === 0 ? "NO COP LEFT" : `USE IT: SPEND 1 COP${left != null ? ` (${left} left)` : ""}`}</button>`);
+      p.querySelector(".copuse").onclick = () => { $("copp").click(); };
+    }
   };
   document.querySelectorAll("#shbody [data-inf]").forEach(e => e.onclick = (ev) => { if (ev.target.closest("button:not([data-inf])")) return; ev.stopPropagation();
     infOpen = infOpen === e.dataset.inf ? "" : e.dataset.inf; show(); });
@@ -1932,7 +1958,9 @@ function showRules() {
   if (!store.get("ns.code")) { $("ru").innerHTML = `<div class="empty">Open the SHEET tab and enter the table code first.</div>`; return; }
   if ($("ru").dataset.ready) return;
   $("ru").dataset.ready = "1";
-  $("ru").innerHTML = `<details class="rs" data-k="__rolls"><summary>ROLL HISTORY<button class="pop" data-k="__rolls" title="Pop out">${POP_ICON}</button></summary><div class="rb" id="refRolls"></div></details>` + SECTIONS.map(([t, k]) => `<details class="rs" data-k="${k}"><summary>${esc2(t.toUpperCase())}<button class="pop" data-k="${k}" title="Pop out">${POP_ICON}</button></summary><div class="rb"></div></details>`).join("");
+  const title = (k) => k === "__rolls" ? "Roll History" : (SECTIONS.find(x => x[1] === k) || [k])[0];
+  const item = (k) => `<details class="rs" data-k="${k}"><summary>${esc2(title(k).toUpperCase())}<button class="pop" data-k="${k}" title="Pop out">${POP_ICON}</button></summary><div class="rb" ${k === "__rolls" ? 'id="refRolls"' : ""}></div></details>`;
+  $("ru").innerHTML = REF_GROUPS.map(([g, keys]) => `<div class="rgh">${esc2(g.toUpperCase())}</div>` + keys.filter(k => k === "__rolls" || SECTIONS.some(x => x[1] === k)).map(item).join("")).join("");
   document.querySelectorAll(".pop").forEach(b => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); popOut(b.dataset.k); });
   document.querySelectorAll("details.rs").forEach(d => d.addEventListener("toggle", async () => {
     const body = d.querySelector(".rb");

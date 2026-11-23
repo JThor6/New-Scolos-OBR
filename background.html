@@ -21,6 +21,7 @@ async function showRoll(r, spin) {
   url.searchParams.set("id", id);
   url.searchParams.set("ms", show);
   url.searchParams.set("who", r.who);
+  if (r.char) url.searchParams.set("char", r.char);
   url.searchParams.set("dice", r.dice.join(","));
   url.searchParams.set("mod", r.mod || 0);
   url.searchParams.set("total", r.total);

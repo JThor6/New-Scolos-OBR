@@ -11,6 +11,13 @@ export const MASTER = "1_cnTDLNHIsaVMAOkOKSKK0YawUHt38ZewW1o5-yWbhU";
 export const TYPES = ["Mercenary", "Hacker", "Revenant", "Subject Zero", "Wraith", "Mentalist", "Mage", "Priest"]; // easiest to hardest; the picker and REFERENCE list follow this order
 export const SECTIONS = [["Your Turn & Movement", "turn"], ["Attacking & Damage", "attack"], ["Combat Options", "tab:Combat Options"],
   ["Skill List", "tab:Skill List"], ["Dice Odds", "odds"], ["The Gods", "gods"], ["Schools of Magic", "schools"], ...TYPES.map(t => [t.trim(), "tab:" + t]), ["New Scolos Rules Work in Progress", "wip"]];
+// REFERENCE is shown in these groups (tab and pop-out dropdown). "__rolls" is Roll History.
+export const REF_GROUPS = [
+  ["Playing", ["__rolls", "turn", "attack", "tab:Combat Options", "odds"]],
+  ["Lists", ["tab:Skill List", "gods", "schools"]],
+  ["Character Types", TYPES.map(t => "tab:" + t)],
+  ["Rules Draft", ["wip"]],
+];
 const tabCache = {};
 const saved = {
   get: (k) => { try { return JSON.parse(localStorage.getItem("ns.cache.rules." + k) || "null"); } catch { return null; } },

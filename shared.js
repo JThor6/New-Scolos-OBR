@@ -57,7 +57,7 @@ export function rollLine(r, histDetail) {
   if (wm && (wm[1].length >= 4 || !wm[2])) { if (pen == null) pen = n((wm[2] || "").match(/-\d+/)?.[0]) ?? -1; label = label.slice(0, wm.index).trim(); }
   const wtag = pen ? `<span class="wtag">wounded ${fmt(pen)}</span>` : "";
   const dice = `<span class="dice hd">${r.dice.map(d => `<div class="${cls(d)}">${face(d)}</div>`).join("")}</span>`;
-  const head = `<div class="hn">${esc(r.who)} <span class="t">${time}</span>${wtag}</div>`;
+  const head = `<div class="hn">${esc(r.char || r.who)}${r.char ? ` <span class="pn">${esc(r.who)}</span>` : ""} <span class="t">${time}</span>${wtag}</div>`;
   if (!histDetail) return `<div class="hl">${head}<div class="hr">${dice}<span class="hlbl">${esc(label || "Roll")}</span><span class="tot">${fmt(r.total)}</span></div></div>`;
   const ds = r.dice.reduce((a, b) => a + b, 0), rows = [["Dice", ds]];
   if (r.at) {
@@ -78,6 +78,7 @@ export const ROLL_CSS = `
   .hl { padding:6px 2px; border-bottom:1px solid #333a55; }
   .hl .hn { font-size:12px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .hl .t { color:var(--dim); font-size:10px; font-weight:400; margin-left:4px; }
+  .hl .pn { color:var(--dim); font-size:11px; font-weight:600; margin-left:3px; }
   .hl .wtag { margin-left:6px; color:#ff8f8f; font-size:11px; font-weight:900; }
   .hl .hr { display:flex; align-items:center; gap:8px; margin-top:4px; }
   .hl .hd { margin:0; flex:none; } .hl .die { width:20px; height:20px; font-size:14px; border-width:1.5px; }

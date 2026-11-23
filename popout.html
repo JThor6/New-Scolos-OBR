@@ -45,7 +45,7 @@
 <main id="m"><div class="rr">Loading…</div></main>
 <script type="module">
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
-import { SECTIONS, sectionHtml, esc2 } from "./rules.js";
+import { SECTIONS, REF_GROUPS, sectionHtml, esc2 } from "./rules.js";
 import { allRolls, rollLine, ROLL_CSS, rollLog, LOG_MAX } from "./shared.js";
 document.head.insertAdjacentHTML("beforeend", `<style>${ROLL_CSS}</style>`);
 // Roll History is one of the choices here too (live: new rolls show up as they happen)
@@ -66,7 +66,7 @@ if (OBR.isAvailable) OBR.onReady(async () => {
 });
 const q = new URLSearchParams(location.search);
 const pick = document.getElementById("pick");
-pick.innerHTML = ALL.map(([t, k]) => `<option value="${esc2(k)}">${esc2(t)}</option>`).join("");
+pick.innerHTML = REF_GROUPS.map(([g, keys]) => `<optgroup label="${esc2(g)}">${keys.map(k => ALL.find(x => x[1] === k)).filter(Boolean).map(([t, k]) => `<option value="${esc2(k)}">${esc2(t)}</option>`).join("")}</optgroup>`).join("");
 async function show(k) {
   pick.value = k; cur = k;
   document.getElementById("t").textContent = (ALL.find(s => s[1] === k)?.[0] || "Reference").toUpperCase();

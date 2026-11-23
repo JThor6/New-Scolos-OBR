@@ -6,6 +6,7 @@
   body { margin:0; color:#f1f3f9; font-family:system-ui, sans-serif; overflow:hidden; height:100vh; box-sizing:border-box;
     background:rgba(24,27,42,.45); border:1px solid rgba(255,255,255,.16); border-radius:14px; text-shadow:0 1px 2px rgba(0,0,0,.7); }
   .t { display:flex; flex-wrap:wrap; align-items:center; align-content:center; gap:3px 5px; padding:4px 10px; min-height:100vh; box-sizing:border-box; }
+  .pn { margin-left:5px; font-size:10px; font-weight:600; color:#9aa0b8; }
   .wnd { flex:none; margin-left:6px; font-size:11px; font-weight:900; color:#ff8f8f; }
   .who { flex-basis:100%; display:flex; align-items:baseline; font-weight:800; font-size:12px; line-height:1.2; color:#c9cde0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .die { width:21px; height:21px; font-size:14px !important; border:2px solid #f1f3f9; border-radius:5px; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:15px; background:rgba(10,12,20,.6); }
@@ -28,7 +29,7 @@
   const wm = label.match(/\s*\((wounded [^)]*)\)\s*$/i); if (wm) { wnd = wnd || wm[1]; label = label.slice(0, wm.index); }
   const lsize = label.length > 44 ? 10 : label.length > 30 ? 11 : 12; // long skill names get a smaller font
   document.getElementById("t").innerHTML =
-    `<span class="who"><span style="overflow:hidden;text-overflow:ellipsis">${esc(q.get("who") || "")}</span>${wnd ? `<span class="wnd">${esc(wnd)}</span>` : ""}</span>` +
+    `<span class="who"><span style="overflow:hidden;text-overflow:ellipsis">${esc(q.get("char") || q.get("who") || "")}${q.get("char") ? `<span class="pn">${esc(q.get("who") || "")}</span>` : ""}</span>${wnd ? `<span class="wnd">${esc(wnd)}</span>` : ""}</span>` +
     dice.map(d => `<span class="die ${d > 0 ? "p" : d < 0 ? "m" : ""}">${d > 0 ? "+" : d < 0 ? "−" : ""}</span>`).join("") +
     (mod ? `<span class="mod">${fmt(mod)}</span>` : "") +
     `<span class="tot" id="tot">${fmt(Number(q.get("total") || 0))}</span>` +
