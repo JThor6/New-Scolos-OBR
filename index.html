@@ -212,7 +212,7 @@
   .line .wtag { margin-left:6px; color:#ff8f8f; font-size:11px; font-weight:900; }
   .line .lbl.lc { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .line.det .lbl.lf { flex-basis:100%; text-align:left; font-size:12px; }
-  .line .brk { flex:1; min-width:0; font-size:11px; color:var(--dim); font-weight:700; line-height:1.25; }
+  .line .brk { flex-basis:100%; font-size:11px; color:var(--dim); font-weight:700; line-height:1.25; }
   .line .brk .pl { color:#6b7090; }
   .histdet { width:100%; margin:4px 0 2px; padding:4px; font-size:11px; font-weight:800; border:1px solid #3a3d55; border-radius:6px; background:var(--paper); color:var(--dim); cursor:pointer; }
   .line .lbl { flex:1; min-width:0; text-align:center; font-size:12px; font-weight:700; color:var(--accent); line-height:1.25; }
@@ -519,18 +519,26 @@ function spin(r) {
 }
 
 // Compact history: one line per roll, newest first.
-// DETAIL ON: skill name in full on its own line, plus how the number was built (attribute + skill, wound).
+// DETAIL ON: full skill name, then the dice and total, then how the total was built:
+// Dice +2 · Adroitness +1 · Skill Rank +1 · Wounded -1 = +3
 let histDetail = (() => { try { return localStorage.getItem("ns.histDetail") !== "off"; } catch { return true; } })();
 function line(r) {
   const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const time = new Date(r.ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  const sg = (v) => { const n = parseInt(String(v).replace("−", "-"), 10); return isNaN(n) ? String(v) : fmt(n); };
   let label = String(r.label || ""), wnd = r.wnd ? `wounded ${r.wnd}` : "";
-  const wm = label.match(/\s*\((wounded [^)]*)\)?\s*$/i); if (wm) { wnd = wnd || wm[1]; label = label.slice(0, wm.index); } // older rolls kept it in the label
+  // older rolls kept the wound in the label, and long ones got cut off ("(wounde")
+  const wm = label.match(/\s*\((w(?:o(?:u(?:n(?:d(?:e(?:d)?)?)?)?)?)?)\b([^)]*)\)?\s*$/i);
+  if (wm && /^w/i.test(wm[1]) && (wm[1].length >= 4 || !wm[2])) { if (!wnd) { const n = (wm[2] || "").match(/-\d+/); wnd = n ? `wounded ${n[0]}` : "wounded"; } label = label.slice(0, wm.index); }
   const w = wnd ? `<span class="wtag">${esc(wnd)}</span>` : "";
   const dice = `<span class="dice" style="margin:0">${r.dice.map(d => `<div class="${cls(d)}">${face(d)}</div>`).join("")}</span><span class="modtag">${r.mod ? fmt(r.mod) : ""}</span>`;
-  if (!histDetail) return `<div class="line"><span class="n">${esc(r.who)} <span class="t">${time}</span>${w}</span>${dice}${label ? `<span class="lbl lc">${esc(label)}</span>` : ""}<span class="tot">${big(r.total)}</span></div>`;
-  const parts = [r.br, wnd].filter(Boolean).map(esc).join(` <span class="pl">+</span> `);
-  return `<div class="line det"><span class="n">${esc(r.who)} <span class="t">${time}</span></span>${label ? `<span class="lbl lf">${esc(label)}</span>` : ""}${dice}${parts ? `<span class="brk">${parts.replace(esc(wnd), `<span class="wtag" style="margin:0">${esc(wnd)}</span>`)}</span>` : `<span class="brk"></span>`}<span class="tot">${big(r.total)}</span></div>`;
+  const head = `<span class="n">${esc(r.who)} <span class="t">${time}</span>${w}</span>`;
+  if (!histDetail) return `<div class="line">${head}${dice}${label ? `<span class="lbl lc">${esc(label)}</span>` : ""}<span class="tot">${big(r.total)}</span></div>`;
+  const ds = r.dice.reduce((a, b) => a + b, 0), parts = [`Dice ${fmt(ds)}`];
+  if (r.at) { parts.push(`${esc(r.at)} ${esc(sg(r.av))}`); if (r.sr !== undefined) parts.push(`Skill Rank ${esc(sg(r.sr))}`); if (r.wnd) parts.push(`<span class="wtag" style="margin:0">Wounded ${fmt(r.wnd)}</span>`); }
+  else if (r.mod) parts.push(`Modifier ${fmt(r.mod)}`); // older rolls and the DICE tab: just the total modifier
+  return `<div class="line det">${head}${label ? `<span class="lbl lf">${esc(label)}</span>` : ""}${dice}<span class="tot">${big(r.total)}</span>
+    <span class="brk">${parts.join(` <span class="pl">·</span> `)} <span class="pl">=</span> <b>${fmt(r.total)}</b></span></div>`;
 }
 let lastRolls = [];
 function render(rolls) {
@@ -604,7 +612,7 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "") {
   const who = whoName || (standalone ? "Test" : await OBR.player.getName());
   const r = { id: crypto.randomUUID().slice(0, 8), pid: me || "local", who, label: String(label || "").slice(0, 60), dice, mod: m, total: dice.reduce((a, b) => a + b, 0) + m, ts: Date.now() };
   if (pen) r.wnd = pen;
-  if (br) r.br = String(br).replace(/\s+/g, " ").slice(0, 44);
+  if (br) { const [at, av, sr] = String(br).split("|"); r.at = String(at || "").trim().slice(0, 14); r.av = String(av || "").trim(); if (sr !== undefined) r.sr = String(sr).trim(); }
   // the always-running background page shows it in the bottom-right roll cards
   try { localStorage.setItem("ns.toastReq", JSON.stringify(r)); } catch {}
   const err = await saveRoll(r);
@@ -759,7 +767,7 @@ function drawSheet() {
   if (mgrOn) return drawManager();
   const F = (label, val, cls = "", inf = "") => `<div class="fld ${cls}"><small ${inf ? `class="inft" data-inf="${inf}" data-sec="combat"` : ""}>${label}</small><div>${esc2(val)}</div></div>`;
   const chips = (from, to, sec) => { let h = "", n = 0; for (let i = from; i <= to; i++) if (V("B" + i)) { n++;
-    h += `<div class="skc"><span class="inft" data-inf="sk:${i}" data-sec="${sec}">${esc2(V("B" + i))}</span><b>${esc2(V("F" + i))}</b><button class="rd" data-m="${esc2(V("F" + i))}" data-l="${esc2(V("B" + i))}" data-b="${esc2(V("C" + i) && V("D" + i) !== "" ? `${V("C" + i)} ${V("D" + i)} + skill ${V("E" + i)}` : "")}" title="Roll ${esc2(V("B" + i))}">${ROLL_ICON}</button></div>`; }
+    h += `<div class="skc"><span class="inft" data-inf="sk:${i}" data-sec="${sec}">${esc2(V("B" + i))}</span><b>${esc2(V("F" + i))}</b><button class="rd" data-m="${esc2(V("F" + i))}" data-l="${esc2(V("B" + i))}" data-b="${esc2(V("C" + i) && V("D" + i) !== "" ? `${V("C" + i)}|${V("D" + i)}|${V("E" + i)}` : "")}" title="Roll ${esc2(V("B" + i))}">${ROLL_ICON}</button></div>`; }
     return { h: h ? `<div class="skg">${h}</div><div class="infp gpow" data-for="${sec}" hidden></div>` : "", n }; };
   const drawer = (key, title, count, body) => body ? `<details class="dr" data-k="${key}" ${drawOpen[key] ? "open" : ""}><summary>${title}${count ? ` <small>${count}</small>` : ""}</summary><div class="drb">${body}</div></details>` : "";
   const inv = [], eq = [], L = layout();
@@ -777,7 +785,7 @@ function drawSheet() {
     <div class="shead"><div class="shn"><b>${esc2(V("C3") || "Unnamed")}</b><small>${[V("C4"), V("F5") !== "" ? "Level " + V("F5") : ""].filter(Boolean).map(esc2).join(" · ")}${V("F7") !== "" ? `<span class="cred" title="Credits">¤ ${esc2((n => n == null ? V("F7") : n.toLocaleString("en-US"))(num(V("F7"))))} credits</span>` : ""}</small></div>
       <span class="shbtns"><button id="reload" class="ibtn" title="Reload from Google Sheet">↻</button><button id="mgr" class="ibtn mgrb" title="Manage character: XP, skills, gear, notes">⚙ Manage Character</button></span></div>
     <div class="stab">ATTRIBUTES</div>
-    <div class="g5">${[["Adroitness", "C7"], ["Raw Str.", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att"><small class="inft" data-inf="at:${{ "Raw Str.": "Raw Strength" }[n] || n}" data-sec="attr">${n}</small><b>${esc2(V(c))}</b><button class="rd ra" data-m="${esc2(V(c))}" data-l="${{ "Raw Str.": "Raw Strength" }[n] || n}" data-b="${({ "Raw Str.": "Raw Strength" }[n] || n) + " " + esc2(V(c))}" title="Roll ${n}">${ROLL_ICON}</button></div>`).join("")}
+    <div class="g5">${[["Adroitness", "C7"], ["Raw Str.", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att"><small class="inft" data-inf="at:${{ "Raw Str.": "Raw Strength" }[n] || n}" data-sec="attr">${n}</small><b>${esc2(V(c))}</b><button class="rd ra" data-m="${esc2(V(c))}" data-l="${{ "Raw Str.": "Raw Strength" }[n] || n}" data-b="${({ "Raw Str.": "Raw Strength" }[n] || n) + "|" + esc2(V(c))}" title="Roll ${n}">${ROLL_ICON}</button></div>`).join("")}
       <div class="att dp ${sheetPen() ? "on" : ""}"><small class="inft" data-inf="dp" data-sec="attr">Dmg Pen.</small><b>${esc2(V("C12"))}</b>${sheetPen() ? `<em>all rolls</em>` : ""}</div></div>
     <div class="infp gpow" data-for="attr" hidden></div>
     <div class="stab">VITALITY TRACK</div><button id="heal" class="healb" title="Heal one: every wound moves one box left; the leftmost Light Wound goes away" ${"BCDEFGH".split("").some(c => V(c + "16")) ? "" : "disabled"}>✚ HEAL</button>${(healUndo.get(sheetId()) || []).length ? `<button id="healUndo" class="healb undo" title="Put the vitality track back the way it was before the last heal">↶ UNDO (${healUndo.get(sheetId()).length})</button>` : ""}
