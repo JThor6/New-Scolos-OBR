@@ -482,7 +482,8 @@
   #mo .mw { width:30px; height:30px; border-radius:5px; }
   #mo .pvit.mv { justify-content:space-between; gap:2px; } #mo .pvit.mv i { flex:1; min-width:0; gap:2px; }
   #mo .pvit.mv .wd { font-size:13px; font-weight:900; color:var(--ink); line-height:1; } #mo .pvit.mv small { font-size:10px; }
-  #mo .mtop { gap:8px; } #mo .mtop b { font-size:16px; } #mo .mdead { padding:5px 10px; }
+  #mo .mtop { gap:8px; } #mo .mtop b { font-size:18px; color:#bb99ff; letter-spacing:.2px; }
+  .mkind { padding:1px 7px; border:1px solid #5a4b8a; border-radius:5px; background:#2e2a48; color:#d6c8ff; font-size:12.5px; font-weight:700; white-space:nowrap; } #mo .mdead { padding:5px 10px; }
   #mo .mcard { padding:8px 9px 10px; margin-top:10px; }
   #mo .mtext i { font-style:normal; font-weight:800; color:var(--dim); }
   @media (min-width: 420px) { #mo .rd.ra { width:48px; height:40px; border-radius:8px; } #mo .rd.ra svg { width:26px; height:26px; } }
@@ -1917,7 +1918,7 @@ function drawMonsters() {
     const attrs = [["Adroitness", 4, "Adroitness"], ["Raw Str.", 3, "Raw Strength"], ["Intellect", 5, "Intellect"], ["Charm", 6, "Charm"]].map(([n, i, full]) =>
       `<div class="att"><small>${n}</small><b>${esc2(c(row, i) || "-")}</b>${roll(full, c(row, i)).replace('class="rd"', 'class="rd ra"')}</div>`).join("");
     html += `<div class="mcard ${dead ? "dead" : ""}" data-g="${esc2("m:" + (c(row, 1) || name))}">
-      <div class="mtop"><b>${esc2(name)}</b>${pen && !dead ? `<span class="mwnd">wounded ${pen}</span>` : ""}<small>${esc2(c(row, 2))}</small>
+      <div class="mtop"><b>${esc2(name)}</b>${pen && !dead ? `<span class="mwnd">wounded ${pen}</span>` : ""}${c(row, 2) ? `<span class="mkind">${esc2(c(row, 2))}</span>` : ""}<span style="flex:1"></span>
         <button class="sbtn mdead ${dead ? "on" : ""}" data-r="${sheetRow}" data-on="${dead ? "" : "1"}">${dead ? "☠ DEAD" : "DEAD?"}</button></div>
       <div class="g4 matt">${attrs}</div>
       <div class="mrow2"><div class="skc matk"><span><small>ATTACK</small></span><b>${esc2(c(row, 7) || "-")}</b>${roll("Attack", c(row, 7))}</div>
