@@ -426,7 +426,7 @@
 </style>
 </head>
 <body>
-<header><h1>NEW SCOLOS</h1><span class="hctl"><span id="syncdot" class="syncdot" hidden title="Syncing with Google Sheets">⟳</span><button id="solid" class="tab" title="See-through / solid">◐</button><button id="size" class="tab" title="Change panel size">S</button></span><nav><button class="tab on" data-t="sheet">SHEET</button><button class="tab" data-t="rules">REFERENCE</button><button class="tab" data-t="dice">DICE</button><button class="tab" data-t="gen">CHARACTER GENERATOR</button><button class="tab" data-t="mon" id="monTab" hidden>MONSTERS</button></nav></header>
+<header><h1>NEW SCOLOS</h1><span class="hctl"><span id="syncdot" class="syncdot" hidden title="Syncing with Google Sheets">⟳</span><button id="solid" class="tab" title="See-through / solid">◐</button><button id="size" class="tab" title="Change panel size">S</button></span><nav><button class="tab on" data-t="sheet">SHEET</button><button class="tab" data-t="rules">REFERENCE</button><button class="tab" data-t="dice">DICE</button><button class="tab" data-t="gen">CHARACTER GENERATOR</button><button class="tab" data-t="mon" id="monTab" hidden>GM</button></nav></header>
 <div id="initban" class="initban" hidden><span>⚔ Initiative! Your next Adroitness roll counts.</span><button id="initgo">ROLL</button><button id="initx" title="Hide">✕</button></div>
 <section id="sheet"><div id="sh"><div class="empty">Loading…</div></div></section>
 <section id="rules" hidden><div id="ru"></div></section>
@@ -591,7 +591,7 @@ async function doQuickRoll(modText, label, whoName, pen = 0) {
 const BRIDGE = "https://script.google.com/macros/s/AKfycbx5cjtXVGyFeoQx0EzJ-47gk4uXT6mXdgs90zaBmUB-zctUFm6OxD8fyWZWWuUQT0ua/exec";
 const store = { get: (k) => { try { return localStorage.getItem(k) || ""; } catch { return ""; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
 let isGM = false, sheetVals = null, busy = false;
-// Campaigns: the GM sets this room's campaign (a subfolder name in Drive) on the MONSTERS tab. "" = main campaign.
+// Campaigns: the GM sets this room's campaign (a subfolder name in Drive) on the GM tab. "" = main campaign.
 // Everything per-character or per-encounter is remembered per campaign, so one player can be in two games.
 const CAMP = "com.newscolos.campaign";
 let campaign = "";
@@ -1500,6 +1500,7 @@ function encounterPicker() {
     encList.map(e => `<option value="${esc2(e.id)}" ${e.id === cur ? "selected" : ""}>${esc2(e.name)}</option>`).join("")}</select></div>`;
 }
 function bindPicker() {
+  bindGmTools();
   if ($("campSel")) $("campSel").onchange = () => OBR.room.setMetadata({ [CAMP]: $("campSel").value }); // everyone in the room follows
   if (!$("encSel")) return;
   $("encSel").onchange = () => { store.set(ck("ns.encounter"), $("encSel").value); monVals = null; showMonsters(); };
@@ -1511,7 +1512,40 @@ function campaignPicker() {
   return `<div class="encpick" id="campBox"><small>CAMPAIGN</small><select id="campSel"><option value="">Main campaign</option>${
     names.map(n => `<option value="${esc2(n)}" ${n === campaign ? "selected" : ""}>${esc2(n)}</option>`).join("")}</select></div>`;
 }
-const pickers = () => campaignPicker() + encounterPicker();
+const pickers = () => gmTools() + campaignPicker() + encounterPicker();
+// New Day / Refill COP for every character in this room's campaign. Tap once, then tap again to confirm.
+function gmTools() {
+  return `<div class="sec" style="margin-top:2px">TABLE</div><div class="g2" style="margin-bottom:4px">
+    <button id="gmDay" class="sbtn">☀ NEW DAY</button><button id="gmCop" class="sbtn">⚡ REFILL COP</button></div>
+    <div id="gmMsg" class="help" hidden></div>`;
+}
+function bindGmTools() {
+  const arm = (b, label, run) => { if (!b) return; b.onclick = () => {
+    if (b.dataset.armed) { delete b.dataset.armed; b.textContent = label; run(); return; }
+    b.dataset.armed = "1"; b.textContent = "TAP AGAIN TO CONFIRM";
+    setTimeout(() => { if (b.dataset.armed) { delete b.dataset.armed; b.textContent = label; } }, 4000);
+  }; };
+  arm($("gmDay"), "☀ NEW DAY", () => gmAll("New day", (v) => /^true$/i.test(String(v[5]?.[5] ?? "").trim()) ? { power: false } : null, (v) => { v[5][5] = "FALSE"; }));
+  arm($("gmCop"), "⚡ REFILL COP", () => gmAll("Refill COP", (v) => {
+    const max = parseInt(String(v[27]?.[7] ?? "")), now = parseInt(String(v[28]?.[7] ?? "")) || 0;
+    return isNaN(max) || now === max ? null : { copSpent: max };
+  }, (v, b) => { v[28] = v[28] || []; v[28][7] = String(b.copSpent); }));
+}
+async function gmAll(label, change, local) {
+  const msg = $("gmMsg"); const say = (t) => { if (!msg) return; msg.hidden = false; msg.textContent = t; };
+  say(`${label}: checking characters…`); sync(1);
+  try {
+    const chars = await characterSheets();
+    const todo = chars.map(c => ({ c, b: change(c.values) })).filter(x => x.b);
+    if (!todo.length) return say(`${label}: nothing to change. Everyone is already set.`);
+    const res = await Promise.all(todo.map(({ c, b }) => bridgePost({ id: c.id, ...b }).then(r => ({ c, b, r })).catch(e => ({ c, b, r: { ok: false, error: e.message } }))));
+    const ok = res.filter(x => x.r.ok), bad = res.filter(x => !x.r.ok);
+    for (const { c, b } of ok) { local(c.values, b); cache.set("sheet." + c.id, c.values); }
+    cache.set(ck("chars"), chars);
+    say(`${label}: ${ok.length ? "updated " + ok.map(x => x.c.name).join(", ") : "nothing saved"}.` + (bad.length ? ` Didn't save: ${bad.map(x => x.c.name + " (" + (x.r.error || "error") + ")").join(", ")}.` : ""));
+  } catch (e) { say(`${label} failed: ${e.message || e}`); }
+  finally { sync(-1); }
+}
 async function refreshCampList() {
   const r = await bridgeGet({ list: "campaigns" }).catch(() => null);
   if (!r?.ok || !Array.isArray(r.campaigns) || JSON.stringify(r.campaigns) === JSON.stringify(campList)) return; // older bridge: no campaigns yet
