@@ -35,10 +35,18 @@ export async function getTab(tab) {
   if (old) { tabCache[tab] = old; fetchTab(id, t, tab).catch(() => {}); return old; }
   return fetchTab(id, t, tab);
 }
+// Easier reading: things a player spends points on (Healing (1 invocation), Big (2 SP, difficulty +2)) get a card with the
+// cost as a tag; ALL-CAPS labels (CASTING A SPELL) become section headings with their text under them.
+const COST = /^(.*?)\s*\(([^)]*\b\d+\s*(?:invocations?|SP)\b[^)]*)\)\s*$/i;
+const CAPS = (t) => t.length > 3 && /[A-Z]/.test(t) && t === t.toUpperCase();
 function rowsHtml(values) {
-  return values.map(row => row.map(c => String(c).trim()).filter(Boolean)).filter(c => c.length).map(c =>
-    c.length === 1 ? (c[0].length < 40 ? `<div class="rh">${esc2(c[0])}</div>` : `<div class="rr">${esc2(c[0])}</div>`)
-    : `<div class="rr ${/^extraordinary power/i.test(c[0]) ? "ep" : ""}"><b>${esc2(c.slice(0, -1).join(" · "))}</b>${esc2(c[c.length - 1])}</div>`).join("");
+  return values.map(row => row.map(c => String(c).trim()).filter(Boolean)).filter(c => c.length).map(c => {
+    if (c.length === 1) return c[0].length < 40 ? `<div class="rh">${esc2(c[0])}</div>` : `<div class="rr">${esc2(c[0])}</div>`;
+    const label = c.slice(0, -1).join(" · "), text = c[c.length - 1], m = label.match(COST);
+    if (CAPS(label)) return `<div class="rh">${esc2(label)}</div><div class="rr">${esc2(text)}</div>`;
+    if (m) return `<div class="rr act"><b>${esc2(m[1])} <span class="cost">${esc2(m[2])}</span></b>${esc2(text)}</div>`;
+    return `<div class="rr ${/^extraordinary power/i.test(label) ? "ep" : ""}"><b>${esc2(label)}</b>${esc2(text)}</div>`;
+  }).join("");
 }
 // Column K on the Main Sheet is an outline: the first line after a blank row (and any line ending in ":") is a heading,
 // everything else is a bullet. Keeps every line the same size instead of guessing from length.
