@@ -799,6 +799,7 @@ function drawManager() {
     <div class="mtitle">${esc2(V("C3"))} · Level ${levelOf(xpSpent())}</div>
     <div class="stab">CREDITS</div>
     <div class="mrow"><b class="mcred">${esc2((num(V("F7")) ?? 0).toLocaleString("en-US"))}</b><input id="crAmt" inputmode="numeric" placeholder="Amount"><button id="crAdd" class="sbtn">+ ADD</button><button id="crSub" class="sbtn">− SPEND</button></div>
+    <div class="stab">XP & ATTRIBUTE POINTS</div>
     <div class="g4">${`<div class="fld"><small>XP to spend</small><div>${xpNow()}</div></div><div class="fld"><small>XP spent</small><div>${xpSpent()}</div></div><div class="fld"><small>Attr. pts left</small><div>${attrLeft()}</div></div><div class="fld"><small>Attr. pts spent</small><div>${num(V("F10")) || 0}</div></div>`}</div>
     <div class="mrow"><span class="mtot" title="Current XP + Spent XP">Total earned<b>${xpNow() + xpSpent()}</b></span><input id="xpAdd" inputmode="numeric" placeholder="XP earned"><button id="xpGo" class="sbtn">+ ADD XP</button></div>
     <div class="stab">ATTRIBUTES</div><table class="mtab">${attrRows}</table>
