@@ -747,9 +747,10 @@ async function loadSheet(quiet) {
 
 function list(cells) { return cells.map(V).filter(Boolean); }
 function coSlots() {
-  const L = layout(), ut = L.untrained[0] - 1;
-  for (let r = 1; r < ut; r++) if (V("G" + r).toLowerCase() === "combat options") { const out = []; for (let i = r + 1; i < ut; i++) out.push("G" + i); return out; }
-  return ["G32", "G33", "G34", "G35"];
+  // 10 boxes in column G under the "Combat Options" heading (they run past the Untrained Skills heading row), never into Inventory/Notes
+  const L = layout(), stop = L.untrained[1];
+  for (let r = 1; r < L.untrained[0]; r++) if (V("G" + r).toLowerCase() === "combat options") { const out = []; for (let i = r + 1; i <= Math.min(r + 10, stop); i++) out.push("G" + i); return out; }
+  return ["G32", "G33", "G34", "G35", "G36", "G37", "G38", "G39", "G40", "G41"];
 }
 let mgrOn = false; // Sheet Manager view on/off (per sheet view)
 // Find each section by its heading in column B, so sheets with extra rows (like a longer inventory) still work

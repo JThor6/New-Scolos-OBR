@@ -12,6 +12,7 @@ const CHARACTER_FOLDER_ID = '1AGoMytVf6xI8DWzMewiEtZF65M9kie88';
 const ENCOUNTER_FOLDER_ID = '1UQ_Zq4skyRzjUcaly95g98C2figf6tQs';
 const ALLOWED_FOLDER_IDS = [CHARACTER_FOLDER_ID, ENCOUNTER_FOLDER_ID];
 const TRACKER_TAB = 'Extension Tracker';
+const CO_SLOTS = 10; // Combat Options boxes on the Main Sheet (G column under the heading)
 // Campaigns: each campaign is a subfolder (same name) inside the character folder and the encounter folder.
 // Rooms with no campaign set use the sheets sitting directly in those folders (the main campaign).
 function campaignFolder(rootId, name) {
@@ -136,7 +137,8 @@ function manageCells(sh) {
   const tr = at('trained skills'), ut = at('untrained skills', tr), inv = at('inventory', ut);
   // Combat Options: the cells under the "Combat Options" heading in column G, down to the Untrained Skills heading
   let co = 0; for (let i = 0; i < grid.length; i++) if (String(grid[i][5]).trim().toLowerCase() === 'combat options') { co = i + 1; break; }
-  const coCells = co && ut && co < ut - 1 ? [['G', 'G', co + 1, ut - 1]] : [];
+  // 10 boxes under the heading (they run past the Untrained Skills heading row), never into Inventory/Notes
+  const coCells = co && inv && co < inv - 1 ? [['G', 'G', co + 1, Math.min(co + CO_SLOTS, inv - 1)]] : [];
   if (tr && ut && inv && b[6] === 'adroitness' && b[9] === 'charm' && String(grid[inv - 1][5]).trim().toLowerCase() === 'notes') {
     // current layout: Inventory (B-D) | Equipped (E) | Notes (G) side by side, as many rows as needed
     return [['F', 'F', 3, 4], ['F', 'F', 7, 7], ['F', 'F', 10, 10], ['C', 'C', 7, 10],
@@ -219,7 +221,7 @@ async function exportPdf(id) {
 
   // Combat, options, gear
   set('MeleeDmg', v('H23')); set('RangedDmg', v('H24')); set('ArmorBonus', v('H25')); set('COPPerCombat', v('H28')); set('COPSpent', v('H29'));
-  const opts = []; if (co) for (let r = co + 1; r < ut; r++) if (v('G' + r)) opts.push(v('G' + r));
+  const opts = []; if (co) for (let r = co + 1; r <= Math.min(co + CO_SLOTS, inv - 1); r++) if (v('G' + r)) opts.push(v('G' + r));
   set('CombatOptions', opts.join('\n'));
   const invList = [], eq = [];
   for (let r = inv + 1; r <= end; r++) { const t = ['B', 'C', 'D'].map(function (c) { return v(c + r); }).filter(String).join(' - '); if (t) invList.push(t); if (v('E' + r)) eq.push(v('E' + r)); }
