@@ -1547,7 +1547,8 @@ const POWER_ROLLS = {
   "last rites": { fn: "Rebooting something huge, like a warship or war mech?", fl: "Big reboot", follow: [{ k: "Hacking", t: "Roll Hacking" }] },
   "spirit walk": { fn: "Going past 100 yards?", fl: "Tether", follow: [{ k: "Intellect", t: "Tether: roll Intellect" }, { k: "Raw Strength", t: "Tether: roll Raw Strength" }] },
   "corpse walk": { fn: "Corpse past 100 yards?", fl: "Tether", follow: [{ k: "Intellect", t: "Tether: roll Intellect" }, { k: "Raw Strength", t: "Tether: roll Raw Strength" }] },
-  "meltdown": { act: [{ k: "Intellect", t: "Roll Intellect" }, { k: "Intellect", x: -2, t: "Expanded Shockwave: everyone within 10 ft", l: "Expanded Shockwave (10 ft)" }] },
+  // alt: another way to start the power, under its own prompt line (rolling it uses the power, same as act)
+  "meltdown": { act: [{ k: "Intellect", t: "Meltdown: roll Intellect" }], an: "Shockwave hitting everyone within 10 ft? That's pushing it:", alt: [{ k: "Intellect", x: -2, t: "Expanded Shockwave: roll Intellect", l: "Expanded Shockwave (10 ft)" }] },
   "mind over matter": { fn: "Something big, like flying the crew or tearing a wall open?", fl: "Big feat", follow: [{ k: "Intellect", t: "Big feat: roll Intellect" }] },
   "disappear completely": { fn: "Near enemies, or they're searching?", fl: "Stay quiet", follow: [{ k: "Sneak", t: "Stay quiet: roll Sneak" }] },
   "borrowed face": { fn: "Someone who knows them is testing you?", fl: "Pass the test", follow: [{ k: "Acting / Impersonation", t: "Pass the test: roll Acting / Impersonation" }] },
@@ -1587,8 +1588,9 @@ function powerRollBtns(name) {
   if (e === "arm") return `<div class="pwrolls">${usedNote}<button class="pwroll ksarm ${ksArmed() ? "on" : ""}" ${on && !ksArmed() ? "disabled" : ""}><span>${ksArmed() ? "Kill Shot is armed. Tap to cancel" : "Arm Kill Shot: your next attack roll is +, +, +, +"}</span></button></div>`;
   const start = e.act ? e.act.map(r => btn(r, "", on)).join("")
     : `<button class="pwroll pwuse" data-n="${esc2(name)}" ${on ? "disabled" : ""}>⚡<span>${on ? "Used today" : `Use ${esc2(name)}: marks Used today`}</span></button>`;
+  const alt = e.alt ? `<div class="pwtn">${esc2(e.an)}</div>` + e.alt.map(r => btn(r, "", on)).join("") : "";
   const follow = e.follow ? `<div class="pwtn">${esc2(e.fn)} ${on ? "Roll it here:" : "These rolls unlock once you use it."}</div>` + e.follow.map(r => btn(r, "pwtether", !on, e.fl)).join("") : "";
-  return `<div class="pwrolls">${usedNote}${start}${follow}</div>`;
+  return `<div class="pwrolls">${usedNote}${start}${alt}${follow}</div>`;
 }
 let pwOpen = ""; // which power's rules are open under the Extraordinary Power box (kept across refreshes)
 async function fillPowers() {
