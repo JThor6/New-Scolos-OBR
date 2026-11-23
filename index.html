@@ -1952,8 +1952,16 @@ function applySize() {
   $("size").title = k === "L" ? "Make the panel narrower" : "Make the panel wider";
   if (standalone) return;
   OBR.action.setWidth(SIZES[k][0]).catch(() => {});
-  if (k === "L") OBR.viewport.getHeight().then(vh => OBR.action.setHeight(Math.max(500, vh - 70))).catch(() => OBR.action.setHeight(SIZES.L[1]).catch(() => {})); // fill the screen top to bottom
-  else OBR.action.setHeight(SIZES[k][1]).catch(() => {});
+  if (k !== "L") return OBR.action.setHeight(SIZES[k][1]).catch(() => {});
+  // wide: fill the screen top to bottom. Asked again a moment later too, in case Owlbear was still opening the panel,
+  // and the button's tooltip shows what was asked for and what we got (for troubleshooting).
+  const fit = async () => {
+    let vh = 0; try { vh = await OBR.viewport.getHeight(); } catch {}
+    const want = vh ? Math.max(500, vh - 70) : SIZES.L[1];
+    await OBR.action.setHeight(want).catch(() => {});
+    setTimeout(() => { if (store.get("ns.size") !== "S") $("size").title = `Make the panel narrower  (screen ${vh} · asked ${want} · got ${window.innerHeight})`; }, 400);
+  };
+  fit(); setTimeout(fit, 600); setTimeout(fit, 2000);
 }
 $("size").onclick = () => { store.set("ns.size", (SIZES[store.get("ns.size")] ? store.get("ns.size") : "L") === "L" ? "S" : "L"); applySize(); };
 
