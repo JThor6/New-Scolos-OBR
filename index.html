@@ -191,6 +191,8 @@
   .syncdot { color:var(--dim); font-size:13px; align-self:center; animation:spin 1s linear infinite; display:inline-block; }
   .syncdot[hidden] { display:none; }
   body.rollbusy .rd { opacity:.35; pointer-events:none; }
+  .stask { margin-top:6px; padding:8px; border:2px solid #b94a4a; border-radius:8px; background:#2a1a1e; font-size:12px; line-height:1.35; }
+  .stbad { background:#b94a4a !important; color:#fff !important; border-color:#000 !important; }
   .encpick { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
   .encpick small { color:var(--dim); font-weight:800; font-size:11px; }
   .encpick select { flex:1; min-width:0; background:#1b1e2e; color:#f1f3f9; border:1px solid #444a66; border-radius:8px; padding:6px; font:600 13px system-ui; }
@@ -1482,12 +1484,13 @@ async function showMonsters() {
   const saved = cache.get("mon." + monId());
   refreshEncList();
   refreshCampList();
-  if (!monId()) { box.innerHTML = pickers() + `<div class="empty">No encounters in the "${esc2(campaign)}" campaign yet. Put encounter sheets in the "${esc2(campaign)}" folder inside New Scolos Game Master Files.</div>`; bindPicker(); return; }
-  if (saved) { monVals = saved; drawMonsters(); } else { box.innerHTML = pickers() + `<div class="empty">Loading monsters…</div>`; bindPicker(); }
+  refreshStList();
+  if (!monId()) { box.innerHTML = pickers() + `<div class="empty">No encounters in the "${esc2(campaign)}" campaign yet. Put encounter sheets in the "${esc2(campaign)}" folder inside New Scolos Game Master Files.</div>` + stasisBox(); bindPicker(); return; }
+  if (saved) { monVals = saved; drawMonsters(); } else { box.innerHTML = pickers() + `<div class="empty">Loading monsters…</div>` + stasisBox(); bindPicker(); }
   sync(1);
   const r = await bridgeGet({ id: monId(), tab: "Extension Tracker" }).catch(e => ({ ok: false, error: e.message }));
   sync(-1);
-  if (!r.ok) { if (!saved) box.innerHTML = `${pickers()}<div class="err">Couldn't load monsters: ${esc2(r.error)}</div>`; bindPicker(); return; }
+  if (!r.ok) { if (!saved) box.innerHTML = `${pickers()}<div class="err">Couldn't load monsters: ${esc2(r.error)}</div>` + stasisBox(); bindPicker(); return; }
   cache.set("mon." + monId(), r.values);
   if (JSON.stringify(r.values) !== JSON.stringify(monVals)) { monVals = r.values; drawMonsters(); }
 }
@@ -1500,7 +1503,7 @@ function encounterPicker() {
     encList.map(e => `<option value="${esc2(e.id)}" ${e.id === cur ? "selected" : ""}>${esc2(e.name)}</option>`).join("")}</select></div>`;
 }
 function bindPicker() {
-  bindGmTools();
+  bindGmTools(); bindStasis();
   if ($("campSel")) $("campSel").onchange = () => OBR.room.setMetadata({ [CAMP]: $("campSel").value }); // everyone in the room follows
   if (!$("encSel")) return;
   $("encSel").onchange = () => { store.set(ck("ns.encounter"), $("encSel").value); monVals = null; showMonsters(); };
@@ -1513,6 +1516,53 @@ function campaignPicker() {
     names.map(n => `<option value="${esc2(n)}" ${n === campaign ? "selected" : ""}>${esc2(n)}</option>`).join("")}</select></div>`;
 }
 const pickers = () => gmTools() + campaignPicker() + encounterPicker();
+// Bottom of the GM tab: move a character into the Stasis folder (nothing is deleted; GM empties Stasis in Drive)
+let stList = cache.get(ck("stList")) || [];
+function stasisBox() {
+  return `<div id="stBox"><div class="sec">CLEAN UP CHARACTERS</div>
+    <div class="help">Moves a character sheet (and its PDF) into the Stasis folder in New Scolos Characters. Players stop seeing it. To bring one back, drag it out of Stasis in Google Drive. Empty Stasis by hand in Drive when you're ready.</div>
+    <div class="encpick"><small>CHARACTER</small><select id="stSel"><option value="">Pick a character…</option>${
+      stList.map(c => `<option value="${esc2(c.id)}">${esc2(c.name)}</option>`).join("")}</select></div>
+    <button id="stGo" class="sbtn" style="width:100%">MOVE TO STASIS</button>
+    <div id="stAsk" class="stask" hidden></div>
+    <div id="stMsg" class="help" hidden></div></div>`;
+}
+async function refreshStList() {
+  const r = await bridgeGet({ list: 1 }).catch(() => null);
+  if (!r?.ok) return;
+  const fresh = r.sheets.filter(f => !/master/i.test(f.name)).map(f => ({ id: f.id, name: f.name })).sort((a, b) => a.name.localeCompare(b.name));
+  if (JSON.stringify(fresh) === JSON.stringify(stList)) return;
+  stList = fresh; cache.set(ck("stList"), stList);
+  const sel = $("stSel"); if (!sel) return;
+  const keep = sel.value;
+  sel.innerHTML = `<option value="">Pick a character…</option>` + stList.map(c => `<option value="${esc2(c.id)}">${esc2(c.name)}</option>`).join("");
+  if (stList.some(c => c.id === keep)) sel.value = keep;
+}
+function bindStasis() {
+  const go = $("stGo"); if (!go) return;
+  const ask = $("stAsk"), msg = $("stMsg"), say = (t) => { msg.hidden = false; msg.textContent = t; };
+  $("stSel").onchange = () => { ask.hidden = true; msg.hidden = true; };
+  go.onclick = () => {
+    const id = $("stSel").value, c = stList.find(x => x.id === id);
+    if (!c) return say("Pick a character first.");
+    msg.hidden = true; ask.hidden = false;
+    ask.innerHTML = `<div><b>Are you sure?</b> Move <b>${esc2(c.name)}</b> to Stasis? Players won't see this character anymore.</div>
+      <div class="g2" style="margin-top:6px"><button id="stNo" class="sbtn">CANCEL</button><button id="stYes" class="sbtn stbad">YES, MOVE IT</button></div>`;
+    $("stNo").onclick = () => { ask.hidden = true; };
+    $("stYes").onclick = async () => {
+      ask.hidden = true; go.disabled = true; say(`Moving ${c.name}…`); sync(1);
+      const r = await bridgePost({ stasis: 1, id }).catch(e => ({ ok: false, error: e.message }));
+      sync(-1); go.disabled = false;
+      if (!r.ok) return say(`Didn't move ${c.name}: ${/failed to fetch/i.test(r.error || "") ? "the Sheet Bridge didn't answer. It may need redeploying (see the project notes)." : r.error === "Nothing to change." ? "the Sheet Bridge needs redeploying first (see the project notes)." : r.error}`);
+      stList = stList.filter(x => x.id !== id); cache.set(ck("stList"), stList);
+      cache.set(ck("chars"), (cache.get(ck("chars")) || []).filter(x => x.id !== id));
+      $("stSel").querySelector(`option[value="${CSS.escape(id)}"]`)?.remove(); $("stSel").value = "";
+      $("pick")?.querySelector(`option[value="${CSS.escape(id)}"]`)?.remove();
+      if (sheetId() === id) setSheetId("");
+      say(`Moved ${r.name || c.name} to Stasis${r.pdfs ? " (with its PDF)" : ""}.`);
+    };
+  };
+}
 // New Day / Refill COP for every character in this room's campaign. Tap once, then tap again to confirm.
 function gmTools() {
   return `<div class="sec" style="margin-top:2px">TABLE</div><div class="g2" style="margin-bottom:4px">
@@ -1588,7 +1638,7 @@ function drawMonsters() {
       ${c(row, 20) ? `<div class="mtext mnote"><i>Loot / Notes:</i> ${esc2(c(row, 20))}</div>` : ""}
     </div>`;
   }
-  $("mo").innerHTML = pickers() + html;
+  $("mo").innerHTML = pickers() + html + stasisBox();
   bindPicker();
   $("monRe").onclick = () => showMonsters();
   $("iCall").onclick = callInitiative; $("iMon").onclick = rollMonsterInit; $("iEnd").onclick = endInitiative;

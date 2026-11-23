@@ -89,6 +89,39 @@ function createCharacter(c, campaign) {
   if (email) { try { file.addEditor(email); } catch (e) { return { ok: true, id: file.getId(), name: name, warn: 'Sheet made, but sharing with ' + email + ' failed: ' + e.message }; } }
   return { ok: true, id: file.getId(), name: name };
 }
+// GM clean-up: move a character sheet (and its PDF export) into the "Stasis" folder in New Scolos Characters.
+// Nothing is deleted. The GM empties Stasis by hand in Drive, or drags a sheet back out to restore it.
+const STASIS_NAME = 'Stasis';
+function moveToStasis(id) {
+  id = String(id || '');
+  if (!id) throw new Error('Pick a character first.');
+  if (id === MASTER_ID) throw new Error('That is the Master file. It stays where it is.');
+  const file = DriveApp.getFileById(id);
+  // only sheets directly in New Scolos Characters or in one of its campaign folders (not already in Stasis)
+  let from = null;
+  const ps = file.getParents();
+  while (ps.hasNext()) {
+    const f = ps.next();
+    if (f.getId() === CHARACTER_FOLDER_ID) { from = f; continue; }
+    if (f.getName() === STASIS_NAME) continue;
+    const up = f.getParents();
+    while (up.hasNext()) if (up.next().getId() === CHARACTER_FOLDER_ID) from = f;
+  }
+  if (!from) throw new Error('That sheet is not in the New Scolos Characters folder (or it is already in Stasis).');
+  const root = DriveApp.getFolderById(CHARACTER_FOLDER_ID);
+  const it = root.getFoldersByName(STASIS_NAME);
+  const stasis = it.hasNext() ? it.next() : root.createFolder(STASIS_NAME);
+  let name = '';
+  try { name = String(SpreadsheetApp.openById(id).getSheetByName('Main Sheet').getRange('C3').getDisplayValue()).trim(); } catch (e) {}
+  try { file.moveTo(stasis); } catch (e) {
+    let owner = ''; try { owner = file.getOwner().getEmail(); } catch (x) {}
+    throw new Error('Google Drive would not move it' + (owner ? ' (it is owned by ' + owner + ')' : '') + '. Drag it into the Stasis folder by hand in Drive.');
+  }
+  let pdfs = 0; // the character's exported PDF goes along with it
+  if (name) { const old = from.getFilesByName(name + ' - New Scolos Sheet.pdf'); while (old.hasNext()) { try { old.next().moveTo(stasis); pdfs++; } catch (e) {} } }
+  return { ok: true, name: name || file.getName(), pdfs: pdfs };
+}
+
 const WOUND_CELLS = ['B16', 'C16', 'D16', 'E16', 'F16', 'G16', 'H16'];
 const POWER_CELL = 'F6';
 const COP_SPENT_CELL = 'H29';
@@ -239,7 +272,7 @@ function doGet(e) {
     }
     if (p.list === 'campaigns') { // campaign subfolders of the character folder
       const out = [], it = DriveApp.getFolderById(CHARACTER_FOLDER_ID).getFolders();
-      while (it.hasNext()) { const n = it.next().getName(); if (!/^archive/i.test(n)) out.push(n); }
+      while (it.hasNext()) { const n = it.next().getName(); if (!/^(archive|stasis)/i.test(n)) out.push(n); }
       out.sort();
       return json({ ok: true, campaigns: out });
     }
@@ -272,6 +305,7 @@ function doPost(e) {
     const b = JSON.parse(e.postData.contents);
     if (b.code !== TABLE_CODE) return json({ ok: false, error: 'Wrong table code.' });
     if (b.create) return json(createCharacter(b.create, b.campaign));
+    if (b.stasis) return json(moveToStasis(b.id));
     if (b.exportPdf) { // start building in the background (a web app can't wait on it), the add-on then asks ?pdfjob= for the result
       openMain(b.id); // folder check up front
       const job = Utilities.getUuid(), cache = CacheService.getScriptCache();
