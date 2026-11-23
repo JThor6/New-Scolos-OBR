@@ -44,8 +44,6 @@
   html.solid header { background:#000; }
   #ru { padding:8px 12px; }
   details.rs { border:2px solid #444a66; border-radius:8px; background:var(--paper); margin:6px 0; }
-  .rwarn { margin:2px 0 8px; padding:7px 10px; border-left:4px solid #ffb020; border-radius:6px; background:rgba(46,36,12,.85); font-size:12px; line-height:1.4; color:#f1f3f9; }
-  .rwarn b { display:block; color:#ffc94d; font-size:11px; letter-spacing:.6px; text-transform:uppercase; margin-bottom:2px; }
   .pop { float:right; background:transparent; border:none; color:var(--dim); cursor:pointer; padding:0 2px; }
   .pop:hover { color:var(--accent); }
   details.rs summary { font-family:'Bangers', Impact, sans-serif; font-size:17px; letter-spacing:1px; padding:6px 8px; cursor:pointer; color:var(--accent); }
@@ -1932,7 +1930,7 @@ function showRules() {
   if (!store.get("ns.code")) { $("ru").innerHTML = `<div class="empty">Open the SHEET tab and enter the table code first.</div>`; return; }
   if ($("ru").dataset.ready) return;
   $("ru").dataset.ready = "1";
-  $("ru").innerHTML = `<div class="rwarn"><b>Rules in progress</b>New Scolos is being rewritten, so some rules are still changing. If anything here disagrees with an older sheet or document, the rules in this extension are the most current.</div>` + `<details class="rs" data-k="__rolls"><summary>ROLL HISTORY<button class="pop" data-k="__rolls" title="Pop out">${POP_ICON}</button></summary><div class="rb" id="refRolls"></div></details>` + SECTIONS.map(([t, k]) => `<details class="rs" data-k="${k}"><summary>${esc2(t.toUpperCase())}<button class="pop" data-k="${k}" title="Pop out">${POP_ICON}</button></summary><div class="rb"></div></details>`).join("");
+  $("ru").innerHTML = `<details class="rs" data-k="__rolls"><summary>ROLL HISTORY<button class="pop" data-k="__rolls" title="Pop out">${POP_ICON}</button></summary><div class="rb" id="refRolls"></div></details>` + SECTIONS.map(([t, k]) => `<details class="rs" data-k="${k}"><summary>${esc2(t.toUpperCase())}<button class="pop" data-k="${k}" title="Pop out">${POP_ICON}</button></summary><div class="rb"></div></details>`).join("");
   document.querySelectorAll(".pop").forEach(b => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); popOut(b.dataset.k); });
   document.querySelectorAll("details.rs").forEach(d => d.addEventListener("toggle", async () => {
     const body = d.querySelector(".rb");

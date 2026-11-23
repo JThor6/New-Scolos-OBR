@@ -105,7 +105,8 @@ export async function sectionHtml(key) {
 if (typeof document !== "undefined" && !document.getElementById("wipcss")) {
   document.head.insertAdjacentHTML("beforeend", `<style id="wipcss">
   .wip { font-size:13px; line-height:1.45; }
-  .wipnote { color:#9aa0b8; font-size:11px; padding:2px 2px 6px; }
+  .wipnote { margin:2px 0 8px; padding:6px 9px; border-left:3px solid #5b3f9e; border-radius:6px; background:rgba(60,38,110,.45); color:#c9bde6; font-size:11px; line-height:1.4; }
+  .wipnote b { display:block; color:#bb99ff; font-size:10px; letter-spacing:.6px; text-transform:uppercase; margin-bottom:1px; }
   .wiptabs { display:flex; flex-wrap:wrap; gap:4px; padding:2px 0 8px; }
   .wipchip { border:2px solid #444a66; background:rgba(15,17,28,.55); color:#f1f3f9; border-radius:7px; padding:3px 8px; font-size:11px; font-weight:800; cursor:pointer; }
   .wipchip.on { background:#bb99ff; color:#000; border-color:#000; }
@@ -154,7 +155,7 @@ function wipRender(d) {
     }
     endList(); flush();
   });
-  return `<div class="wip"><div class="wipnote">Work in progress: unfinished and changing. Read live from the rules draft.</div>` +
+  return `<div class="wip"><div class="wipnote"><b>Rules in progress</b>New Scolos is being rewritten, so this draft is unfinished and changing. Where it disagrees with an older sheet or document, the rules in this extension are the most current.</div>` +
     `<div class="wiptabs">${chips.join("")}</div>${body || "<div class='rr'>The rules draft is empty.</div>"}</div>`;
 }
 // Markdown from the bridge → the same blocks wipRender draws: {h, r} {p} {li, n} {t}
