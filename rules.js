@@ -157,6 +157,41 @@ function wipRender(d) {
   return `<div class="wip"><div class="wipnote">Work in progress: unfinished and changing. Read live from the rules draft.</div>` +
     `<div class="wiptabs">${chips.join("")}</div>${body || "<div class='rr'>The rules draft is empty.</div>"}</div>`;
 }
+// Markdown from the bridge → the same blocks wipRender draws: {h, r} {p} {li, n} {t}
+function mdInline(t) {
+  t = t.replace(/\\([\\`*_{}\[\]()#+\-.!|>~<=])/g, "$1"); // Docs escapes symbols like \- and \+
+  const out = []; let re = /(\*\*\*|\*\*|\*|__|_)(.+?)\1/g, last = 0, m;
+  while ((m = re.exec(t))) {
+    if (m.index > last) out.push([t.slice(last, m.index), false, false]);
+    const k = m[1]; out.push([m[2], k.length >= 2 && k !== "_", k === "*" || k === "_" || k === "***"]); last = re.lastIndex;
+  }
+  if (last < t.length) out.push([t.slice(last), false, false]);
+  return out.map(([x, b, i]) => [x.replace(/\\([*_])/g, "$1"), b, i]);
+}
+function mdBlocks(md) {
+  const lines = String(md || "").replace(/\r/g, "").split("\n"), blocks = []; let para = [], table = null;
+  const flushP = () => { if (para.length) { blocks.push({ p: mdInline(para.join(" ")) }); para = []; } };
+  const flushT = () => { if (table) { blocks.push({ t: table }); table = null; } };
+  for (const raw of lines) {
+    const line = raw.replace(/\s+$/, "");
+    if (/^\s*\|.*\|\s*$/.test(line)) { // table row
+      flushP();
+      const cells = line.trim().replace(/^\||\|$/g, "").split(/(?<!\\)\|/).map(c => mdInline(c.trim().replace(/<br\s*\/?>/gi, "\n")).map(x => x[0]).join(""));
+      if (cells.every(c => /^:?-{2,}:?$/.test(c.trim()))) continue; // the |---|---| line
+      (table = table || []).push(cells); continue;
+    }
+    flushT();
+    if (!line.trim()) { flushP(); continue; }
+    let m;
+    if ((m = line.match(/^(#{1,6})\s+(.*)$/))) { flushP(); blocks.push({ h: m[1].length, r: mdInline(m[2].replace(/\s*#+\s*$/, "")) }); continue; }
+    if ((m = line.match(/^(\s*)([-*+]|\d+[.)])\s+(.*)$/))) { flushP(); blocks.push({ li: mdInline(m[3]), n: Math.floor(m[1].replace(/\t/g, "    ").length / 2) }); continue; }
+    if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) { flushP(); continue; }
+    para.push(line.trim());
+  }
+  flushP(); flushT();
+  return blocks;
+}
+const wipData = (r) => r.md != null ? { tabs: [{ title: r.title || "Rules", blocks: mdBlocks(r.md) }] } : r;
 async function wipFetch() {
   const r = await bridgeGet({ doc: "rules" });
   if (!r.ok) throw new Error(r.error);
@@ -164,7 +199,7 @@ async function wipFetch() {
 }
 async function wipHtml() {
   const old = saved.get("wip");
-  if (old) { wipFetch().catch(() => {}); return wipRender(old); } // saved copy right away, fresh one for next time
-  try { return wipRender(await wipFetch()); }
+  if (old) { wipFetch().catch(() => {}); return wipRender(wipData(old)); } // saved copy right away, fresh one for next time
+  try { return wipRender(wipData(await wipFetch())); }
   catch (e) { throw new Error(`${e.message || e} (if this is new, the Sheet Bridge needs its update)`); }
 }

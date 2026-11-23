@@ -236,55 +236,14 @@ async function exportPdf(id) {
 
 // ---------- Rules Work in Progress: Jake's rules draft (Google Doc), read live for the REFERENCE tab ----------
 const RULES_DOC_ID = '1A8ioFtPR16XFjo6pBZ6B8-wZwiVGDWLwGYshLY-SerM'; // New Scolos 2026 Main Rules Draft
-// Returns every doc tab as simple blocks the add-on draws itself:
-// {h: 1-6, r: runs} heading · {p: runs} paragraph · {li: runs, n: nesting} bullet · {t: [[cell text]]} table
-// runs = [[text, bold, italic], ...]
+// Exports the doc as Markdown through Drive (the permission the script already has; DocumentApp would need a new one).
+// The add-on turns the Markdown into headings, little tabs, bullets and tables.
 function rulesDoc() {
-  const doc = DocumentApp.openById(RULES_DOC_ID), tabs = [];
-  const runs = function (el) {
-    const t = el.editAsText(), s = t.getText(), idx = t.getTextAttributeIndices(), out = [];
-    for (let i = 0; i < idx.length; i++) {
-      const a = idx[i], b = i + 1 < idx.length ? idx[i + 1] : s.length;
-      if (b > a) out.push([s.slice(a, b), !!t.isBold(a), !!t.isItalic(a)]);
-    }
-    return out;
-  };
-  const HEAD = {};
-  HEAD[DocumentApp.ParagraphHeading.TITLE] = 1; HEAD[DocumentApp.ParagraphHeading.HEADING1] = 1;
-  HEAD[DocumentApp.ParagraphHeading.HEADING2] = 2; HEAD[DocumentApp.ParagraphHeading.HEADING3] = 3;
-  HEAD[DocumentApp.ParagraphHeading.HEADING4] = 4; HEAD[DocumentApp.ParagraphHeading.HEADING5] = 5;
-  HEAD[DocumentApp.ParagraphHeading.HEADING6] = 6; HEAD[DocumentApp.ParagraphHeading.SUBTITLE] = 2;
-  const readBody = function (body) {
-    const out = [];
-    for (let i = 0; i < body.getNumChildren(); i++) {
-      const c = body.getChild(i), type = c.getType();
-      if (type === DocumentApp.ElementType.PARAGRAPH) {
-        const p = c.asParagraph(); if (!p.getText().trim()) continue;
-        const h = HEAD[p.getHeading()];
-        out.push(h ? { h: h, r: runs(p) } : { p: runs(p) });
-      } else if (type === DocumentApp.ElementType.LIST_ITEM) {
-        const li = c.asListItem(); if (!li.getText().trim()) continue;
-        out.push({ li: runs(li), n: li.getNestingLevel() });
-      } else if (type === DocumentApp.ElementType.TABLE) {
-        const t = c.asTable(), rows = [];
-        for (let r = 0; r < t.getNumRows(); r++) {
-          const row = t.getRow(r), cells = [];
-          for (let k = 0; k < row.getNumCells(); k++) cells.push(row.getCell(k).getText().trim());
-          rows.push(cells);
-        }
-        out.push({ t: rows });
-      }
-    }
-    return out;
-  };
-  const walk = function (list) {
-    list.forEach(function (tab) {
-      if (tab.getType() === DocumentApp.TabType.DOCUMENT_TAB) tabs.push({ title: tab.getTitle(), blocks: readBody(tab.asDocumentTab().getBody()) });
-      walk(tab.getChildTabs());
-    });
-  };
-  walk(doc.getTabs());
-  return { ok: true, title: doc.getName(), tabs: tabs };
+  const r = UrlFetchApp.fetch('https://docs.google.com/document/d/' + RULES_DOC_ID + '/export?format=md',
+    { headers: { Authorization: 'Bearer ' + ScriptApp.getOAuthToken() }, muteHttpExceptions: true });
+  if (r.getResponseCode() !== 200) throw new Error('Could not read the rules draft (error ' + r.getResponseCode() + ').');
+  const md = r.getContentText().replace(/^\[image\d+\]:.*$/gm, '').replace(/!\[[^\]]*\]\[image\d+\]/g, ''); // pictures don't come through
+  return { ok: true, title: DriveApp.getFileById(RULES_DOC_ID).getName(), md: md };
 }
 
 function json(obj) {
