@@ -533,18 +533,8 @@ function spin(r) {
 // Dice +2 / Adroitness (attribute) +1 / Skill rank +1 / Wounded -1 / Result +3
 let histDetail = (() => { try { return localStorage.getItem("ns.histDetail") === "on"; } catch { return false; } })();
 const line = (r) => rollLine(r, histDetail);
-// Pop-out: roll history in its own solid window in the upper right (same spot as the initiative list), so it stays up beside the sheet
-async function openDiceList() {
-  if (standalone) return window.open("dicelist.html");
-  const u = new URL("go.html", location.href); u.searchParams.set("p", "dicelist");
-  const ref = new URLSearchParams(location.search).get("obrref"); if (ref) u.searchParams.set("obrref", ref);
-  const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
-  OBR.popover.open({ id: "com.newscolos.dicelist", url: u.href, width: 340, height: Math.max(360, Math.round(vh * 0.75)), hidePaper: true,
-    anchorReference: "POSITION", anchorPosition: { left: vw - 70, top: 70 },
-    anchorOrigin: { horizontal: "RIGHT", vertical: "TOP" }, transformOrigin: { horizontal: "RIGHT", vertical: "TOP" },
-    disableClickAway: true }).catch(() => {});
-}
-$("dicepop").onclick = openDiceList;
+// Pop-out: roll history opens as the "Roll History" choice of the Reference pop-out window
+$("dicepop").onclick = () => popOut("__rolls");
 // the pop-out's SIMPLE/DETAILED switch and this one stay in step
 window.addEventListener("storage", (e) => { if (e.key === "ns.histDetail") { histDetail = e.newValue === "on"; render(lastRolls); } });
 let lastRolls = [];
@@ -1926,7 +1916,6 @@ $("size").onclick = () => { store.set("ns.size", store.get("ns.size") === "L" ? 
 const POP_ICON = `<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 // Opens one rules section in its own see-through panel in the upper right; it stays up while you use the sheet.
 async function popOut(k) {
-  if (k === "__rolls") return openDiceList();
   if (standalone) return window.open("popout.html?k=" + encodeURIComponent(k));
   const u = new URL("go.html", location.href); u.searchParams.set("p", "popout");
   const ref = new URLSearchParams(location.search).get("obrref"); if (ref) u.searchParams.set("obrref", ref);
