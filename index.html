@@ -346,6 +346,8 @@
   .gsr.tap { border-color:var(--accent); background:rgba(61,52,96,.7); }
   #gsl .gsr { cursor:pointer; } #gsl .gsr:hover { border-color:#6b5aa0; } #gsl .gopt, #gsl .ginh { cursor:default; }
   .gsnote2 { font-size:11px; color:var(--dim); margin:-1px 2px 3px; }
+  .mco1 span b { display:block; } .mco1 span small { display:block; color:var(--dim); font-size:11px; line-height:1.3; }
+  #mco select { flex:1; min-width:0; }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
   .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
@@ -694,6 +696,11 @@ async function loadSheet(quiet) {
 }
 
 function list(cells) { return cells.map(V).filter(Boolean); }
+function coSlots() {
+  const L = layout(), ut = L.untrained[0] - 1;
+  for (let r = 1; r < ut; r++) if (V("G" + r).toLowerCase() === "combat options") { const out = []; for (let i = r + 1; i < ut; i++) out.push("G" + i); return out; }
+  return ["G32", "G33", "G34", "G35"];
+}
 let mgrOn = false; // Sheet Manager view on/off (per sheet view)
 // Find each section by its heading in column B, so sheets with extra rows (like a longer inventory) still work
 function layout() {
@@ -719,7 +726,7 @@ function drawSheet() {
     if (V("E" + i)) eq.push(V("E" + i));
   }
   const notes = []; for (let i = L.notes[0]; i <= L.notes[1]; i++) if (V(L.nc + i)) notes.push(V(L.nc + i));
-  const opts = list(["G32", "G33", "G34", "G35"]);
+  const opts = list(coSlots());
   const used = V("F6").toUpperCase() === "TRUE";
   const lines = (items) => items.map(esc2).join("<br>");
   const trained = chips(...L.trained, "skills"), untrained = chips(...L.untrained, "untrained");
@@ -783,6 +790,28 @@ function mgrSave(cells, done) {
   save({ cells }, () => { for (const [k, v] of Object.entries(cells)) setCell(k, String(v)); // show it right away
     setCell("F5", String(levelOf(xpSpent()))); setCell("F12", String(attrLeft())); done && done(); });
 }
+// Manage Character: Combat Options. You may know half your level (rounded down); swap by removing one and adding another.
+async function drawMgrCombat(err) {
+  const box = $("mco"); if (!box) return;
+  const slots = coSlots(), have = slots.map(V).filter(Boolean), lvl = num(V("F5")) ?? levelOf(xpSpent()), max = Math.floor(lvl / 2);
+  let all = [];
+  try { for (const v of await getTab("Combat Options")) { const n = String(v[2] || "").trim(); if (n && /^\d+$/.test(String(v[1] || "").trim())) all.push([n, String(v[3] || "").replace(/^\*/, "").trim()]); } } catch {}
+  if (!$("mco")) return;
+  const strip = (x) => x.replace(/\s*\([^)]*\)\s*$/, "").trim().toLowerCase();
+  const open = all.filter(([n]) => !have.some(h => strip(h) === n.toLowerCase()));
+  const room = Math.min(max, slots.length) - have.length;
+  box.innerHTML = `<div class="mnote" style="color:var(--dim)">You can know <b>${max}</b> (half your level, rounded down). You have <b>${have.length}</b>.${max > slots.length ? ` The sheet only has room for ${slots.length}.` : ""}</div>
+    ${have.map((h, i) => { const d = (all.find(([n]) => n.toLowerCase() === strip(h)) || [])[1] || ""; return `<div class="mli mco1"><span><b>${esc2(h)}</b>${d ? `<small>${esc2(d)}</small>` : ""}</span><button class="mx" data-cox="${i}" title="Remove">✕</button></div>`; }).join("") || `<div class="empty" style="padding:4px">None yet.</div>`}
+    ${room > 0 ? `<div class="mrow"><select id="coPick"><option value="">Add a combat option…</option>${open.map(([n]) => `<option>${esc2(n)}</option>`).join("")}</select><button id="coGo" class="sbtn">ADD</button></div><div id="coDesc" class="mnote" style="color:var(--ink)"></div>`
+      : have.length >= max ? `<div class="mnote" style="color:var(--dim)">To swap one, remove it first, then add the new one.</div>` : ""}`;
+  // write the whole list back packed from the top, so there are never gaps
+  const write = (list) => { const cells = {}; slots.forEach((a, i) => cells[a] = list[i] || ""); mgrSave(cells); };
+  box.querySelectorAll("[data-cox]").forEach(b => b.onclick = () => write(have.filter((_, i) => i !== +b.dataset.cox)));
+  if ($("coPick")) {
+    $("coPick").onchange = () => { $("coDesc").textContent = (all.find(([n]) => n === $("coPick").value) || [])[1] || ""; };
+    $("coGo").onclick = () => { const v = $("coPick").value; if (!v) return; if (have.length >= max) return err(`You can only know ${max} combat options at level ${lvl}.`); write([...have, v]); };
+  }
+}
 function drawManager() {
   const L = layout();
   const ATTR = [["Adroitness", "C7"], ["Raw Strength", "C8"], ["Intellect", "C9"], ["Charm", "C10"]];
@@ -814,6 +843,8 @@ function drawManager() {
     <div class="mrow"><input id="eqName" placeholder="Equip an item"><button id="eqGo" class="sbtn">ADD</button></div>
     <div class="stab">INVENTORY</div>${listRows(...L.inv, ["B", "C", "D"], "inv")}
     <div class="mrow"><input id="invName" placeholder="Item"><input id="invDet" placeholder="Detail (x5, +2 def…)" style="max-width:40%"><button id="invGo" class="sbtn">ADD</button></div>
+    <div class="stab">COMBAT OPTIONS</div>
+    <div id="mco"><div class="empty" style="padding:4px">Loading…</div></div>
     <div class="stab">NOTES</div>
     <textarea id="notes" rows="5" maxlength="2000">${esc2(notes.join("\n"))}</textarea>
     <button id="noteGo" class="sbtn" style="width:100%;margin-top:4px">SAVE NOTES</button>
@@ -874,6 +905,7 @@ function drawManager() {
     if (!i) return err("Inventory is full on the sheet."); mgrSave({ ["B" + i]: v, ["C" + i]: $("invDet").value.trim() }); };
   document.querySelectorAll("[data-eq]").forEach(b => b.onclick = () => mgrSave({ ["E" + b.dataset.eq]: "" }));
   document.querySelectorAll("[data-inv]").forEach(b => b.onclick = () => { const i = b.dataset.inv; mgrSave({ ["B" + i]: "", ["C" + i]: "", ["D" + i]: "" }); });
+  drawMgrCombat(err);
   $("noteGo").onclick = () => {
     const room = L.nc === "G" ? 200 : Math.min(30, L.notes[1] - L.notes[0] + 1), lines = $("notes").value.split("\n").slice(0, room), cells = {};
     const used = notes.length; // clear old lines past the new end

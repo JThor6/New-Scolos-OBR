@@ -85,11 +85,14 @@ function manageCells(sh) {
   const b = grid.map(function (r) { return String(r[0]).trim().toLowerCase(); });
   const at = function (label, from) { for (let i = from || 0; i < b.length; i++) if (b[i] === label) return i + 1; return 0; };
   const tr = at('trained skills'), ut = at('untrained skills', tr), inv = at('inventory', ut);
+  // Combat Options: the cells under the "Combat Options" heading in column G, down to the Untrained Skills heading
+  let co = 0; for (let i = 0; i < grid.length; i++) if (String(grid[i][5]).trim().toLowerCase() === 'combat options') { co = i + 1; break; }
+  const coCells = co && ut && co < ut - 1 ? [['G', 'G', co + 1, ut - 1]] : [];
   if (tr && ut && inv && b[6] === 'adroitness' && b[9] === 'charm' && String(grid[inv - 1][5]).trim().toLowerCase() === 'notes') {
     // current layout: Inventory (B-D) | Equipped (E) | Notes (G) side by side, as many rows as needed
     return [['F', 'F', 3, 4], ['F', 'F', 7, 7], ['F', 'F', 10, 10], ['C', 'C', 7, 10],
       ['B', 'C', tr + 1, ut - 1], ['E', 'E', tr + 1, ut - 1], ['B', 'C', ut + 1, inv - 1], ['E', 'E', ut + 1, inv - 1],
-      ['B', 'E', inv + 1, 300], ['G', 'G', inv + 1, 300]];
+      ['B', 'E', inv + 1, 300], ['G', 'G', inv + 1, 300]].concat(coCells);
   }
   const cr = at('combat rules', inv), notes = at('notes', cr); // older layout
   if (!tr || !ut || !inv || !cr || !notes || b[6] !== 'adroitness' || b[9] !== 'charm') throw new Error('Could not find the sheet sections (Trained Skills, Untrained Skills, Inventory, Combat Rules, Notes), so the manager will not write to it.');
@@ -100,7 +103,7 @@ function manageCells(sh) {
     ['B', 'C', ut + 1, inv - 1], ['E', 'E', ut + 1, inv - 1], // untrained skills
     ['B', 'D', inv + 1, cr - 1], ['E', 'E', inv + 1, cr - 1], // inventory, equipped
     ['B', 'B', notes + 1, notes + 30],                       // notes
-  ];
+  ].concat(coCells);
 }
 function manageAllowed(list, a1) {
   const m = /^([A-L])(\d+)$/.exec(a1); if (!m) return false;
