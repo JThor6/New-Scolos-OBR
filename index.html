@@ -357,11 +357,11 @@
   .pwroll:hover { background:rgba(110,78,190,.8); } .pwroll span { flex:1; } .pwroll b { font-size:15px; color:#ffc94d; } .pwroll svg { flex:none; width:16px; height:16px; }
   body.rollbusy .pwroll { opacity:.55; cursor:default; }
   .ksarm { border-color:#c0392b; background:rgba(140,30,30,.55); } .ksarm:hover { background:rgba(170,40,40,.8); } .ksarm.on { background:#b3261e; color:#fff; }
-  .ksbar { display:flex; gap:8px; align-items:flex-start; margin:4px 0 8px; padding:7px 9px; border:2px solid #e04a3f; border-radius:8px; background:rgba(150,25,25,.45); color:#ffe3e0; font-size:12.5px; line-height:1.4; }
+  .ksbar { display:flex; gap:8px; align-items:flex-start; margin:4px 0 8px; padding:7px 9px; border:2px solid #e04a3f; border-radius:8px; background:rgba(150,25,25,.45); color:#ffe3e0; font-size:12.5px; line-height:1.4; } .ksbar[hidden] { display:none; }
   .ksbar b { color:#ff6b5e; font-size:13.5px; letter-spacing:.5px; } .ksbar span { flex:1; }
   .ksbar button { background:none; border:1px solid #e04a3f; border-radius:5px; color:#ffe3e0; cursor:pointer; font-weight:800; width:24px; height:24px; }
   .skc.ksatk { outline:2px solid #e04a3f; outline-offset:-1px; background:rgba(150,25,25,.35) !important; }
-  .pwused { font-size:11.5px; font-weight:700; color:#ff8f8f; }
+  .pwused { font-size:11.5px; font-weight:700; color:#8f63ff; }
   .pwuse { border-color:#b8902e; background:rgba(120,88,20,.55); } .pwuse:hover:not(:disabled) { background:rgba(150,110,25,.8); } .pwuse:disabled { opacity:.55; cursor:default; }
   .pwmiss { font-size:11.5px; color:var(--dim); font-style:italic; }
   .pwd { margin-top:4px; } .pwd .gpn { display:flex; align-items:center; } .pwx { margin-left:auto; background:none; border:none; color:var(--dim); cursor:pointer; font-size:12px; }
@@ -636,7 +636,7 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "") {
     if (st?.open && store.get("ns.initDone") !== st.sid) { initSid = st.sid; label = "Adroitness · Initiative"; }
   }
   const ks = !whoName && ksArmed() && KS_ATTACK.test(String(label || ""));
-  if (ks) { label = "🎯 KILL SHOT · " + label; setKS(false); fillPowers(); setTimeout(() => markPowerUsed(), 0); }
+  if (ks) { label = "KILL SHOT · " + label; setKS(false); fillPowers(); setTimeout(() => markPowerUsed(), 0); }
   const dice = ks ? [1, 1, 1, 1] : [rollDie(), rollDie(), rollDie(), rollDie()];
   const who = whoName || (standalone ? "Test" : await OBR.player.getName());
   const r = { id: crypto.randomUUID().slice(0, 8), pid: me || "local", who, label: String(label || "").slice(0, 60), dice, mod: m, total: dice.reduce((a, b) => a + b, 0) + m, ts: Date.now() };
@@ -1524,7 +1524,7 @@ function setKS(on) { store.set(ck("ns.killShot"), on ? "1" : ""); updateKS(); }
 function updateKS() {
   const on = ksArmed(), bar = $("ksbar"); if (!bar) return;
   bar.hidden = !on;
-  bar.innerHTML = on ? `<span>🎯 <b>KILL SHOT ARMED</b><br>Your next attack roll counts as +, +, +, +. Roll Ranged Weapons, Melee Weapon Fighting, Martial Arts or Unconventional Weapons.</span><button id="ksx" title="Cancel Kill Shot">✕</button>` : "";
+  bar.innerHTML = on ? `<span><b>KILL SHOT ARMED</b><br>Your next attack roll counts as +, +, +, +. Roll Ranged Weapons, Melee Weapon Fighting, Martial Arts or Unconventional Weapons.</span><button id="ksx" title="Cancel Kill Shot">✕</button>` : "";
   if (on) $("ksx").onclick = () => { setKS(false); fillPowers(); };
   document.querySelectorAll("#shbody .skc").forEach(b => { const l = b.querySelector(".rd")?.dataset.l || ""; b.classList.toggle("ksatk", on && KS_ATTACK.test(l)); });
 }
@@ -1565,7 +1565,7 @@ function powerRollBtns(name) {
   const list = POWER_ROLLS[String(name).toLowerCase().trim()];
   const usedNote = powerUsed() ? `<div class="pwused">✕ Already used today. Check with your GM before using it again.</div>` : "";
   if (!list) return `<div class="pwrolls">${usedNote}<button class="pwroll pwuse" data-n="${esc2(name)}" ${powerUsed() ? "disabled" : ""}>⚡<span>${powerUsed() ? "Used today" : `Use ${esc2(name)}: marks Used today`}</span></button></div>`;
-  if (list === "arm") return `<div class="pwrolls">${usedNote}<button class="pwroll ksarm ${ksArmed() ? "on" : ""}">🎯<span>${ksArmed() ? "Kill Shot is armed. Tap to cancel" : "Arm Kill Shot: your next attack roll is +, +, +, +"}</span></button></div>`;
+  if (list === "arm") return `<div class="pwrolls">${usedNote}<button class="pwroll ksarm ${ksArmed() ? "on" : ""}"><span>${ksArmed() ? "Kill Shot is armed. Tap to cancel" : "Arm Kill Shot: your next attack roll is +, +, +, +"}</span></button></div>`;
   return `<div class="pwrolls">${usedNote}${list.map((r, i) => { const pm = powerMod(r.k);
     if (!pm) return `<div class="pwmiss">${esc2(r.k)} isn't on your sheet. Ask your GM.</div>`;
     const tot = pm.m + (r.x || 0);
