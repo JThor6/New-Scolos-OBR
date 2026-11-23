@@ -345,6 +345,7 @@
   .att.dp.on { background:rgba(255,107,107,.08); border-color:rgba(255,107,107,.45) !important; } .att.dp.on b { color:#e58a8a; } .att.dp em { display:block; font-style:normal; font-size:8px; font-weight:700; color:#c98585; text-transform:uppercase; }
   .gsr.tap { border-color:var(--accent); background:rgba(61,52,96,.7); }
   #gsl .gsr { cursor:pointer; } #gsl .gsr:hover { border-color:#6b5aa0; } #gsl .gopt, #gsl .ginh { cursor:default; }
+  .gsnote2 { font-size:11px; color:var(--dim); margin:-1px 2px 3px; }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
   .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
@@ -1159,13 +1160,15 @@ async function showGen() {
         return `<div class="gsr ${s ? "on" : ""}" data-row="${esc2(sk.name)}"><button class="gsk2" data-sk="${esc2(sk.name)}"><b>${star ? "★ " : ""}${esc2(sk.name)}</b>${would}</button>${detail(sk)}</div>`; };
       const suggNote = String((info?.rows.find(([a]) => /^suggested skills note/i.test(a)) || [])[1] || "");
       const suggList = avail.filter(s => suggRank(s.name) >= 0).sort((a, b) => suggRank(a.name) - suggRank(b.name));
-      const groups = ATTRS.slice().sort((a, b) => cg.attrs[b] - cg.attrs[a]).map(a => { const rows = avail.filter(s => s.attrs[0] === a && suggRank(s.name) < 0);
+      // every character needs a way to fight: ranged and melee are suggested for all types
+      const fightList = avail.filter(x => suggRank(x.name) < 0 && /^(ranged weapons|melee weapon fighting)/i.test(x.name)).sort((a, b) => /^ranged/i.test(b.name) - /^ranged/i.test(a.name));
+      const groups = ATTRS.slice().sort((a, b) => cg.attrs[b] - cg.attrs[a]).map(a => { const rows = avail.filter(s => s.attrs[0] === a && suggRank(s.name) < 0 && !fightList.includes(s));
         return rows.length ? `<div class="gsh">${a.toUpperCase()} <span>${sgn(cg.attrs[a])}</span></div>${rows.map(row).join("")}` : ""; }).join("");
-      const canFill = suggList.some(s => pickedIdx(s.name) < 0) && cg.skills.length < 8;
+      const canFill = [...suggList, ...fightList].some(s => pickedIdx(s.name) < 0) && cg.skills.length < 8;
       put(bar + `<div class="gtray"><div class="gtt">SKILLS ${cg.skills.length}/8 <small>${genMove != null ? "tap a slot to move it there" : "tap a skill below to fill the next slot"}</small></div>${tray}</div>
         <div class="gnote">Tap a skill to pick it. Total = attribute + slot level. Tap a filled slot (or drag it) to move it.${need ? ` ${cg.type}s must take ${cg.type === "Priest" ? "Prayer" : "Spellcasting"}.` : ""}</div>
         <div class="gtools"><input id="gq" class="gq" placeholder="Search skills…" value="${esc2(genQ)}">${canFill ? `<button id="gFill" class="sbtn" title="Put your type's suggested skills in the open slots, in order">★ Fill suggested</button>` : ""}</div>
-        <div id="gsl">${suggList.length ? `<div class="gsh">★ SUGGESTED FOR ${esc2(cg.type.toUpperCase())}</div>${suggNote ? `<div class="gsnote">${esc2(suggNote)}</div>` : ""}${suggList.map(row).join("")}` : ""}${groups}</div>
+        <div id="gsl">${suggList.length ? `<div class="gsh">★ SUGGESTED FOR ${esc2(cg.type.toUpperCase())}</div>${suggNote ? `<div class="gsnote">${esc2(suggNote)}</div>` : ""}${suggList.map(row).join("")}` : ""}${fightList.length ? `<div class="gsh">⚔ EVERYONE: HOW YOU FIGHT</div><div class="gsnote2">Every character needs a way to shoot and hit back.</div>${fightList.map(row).join("")}` : ""}${groups}</div>
         ${nav(stepWhy(2))}`);
       const addSkill = (n, lvl) => { const sk = list.find(x => x.name === n); if (!sk || cg.skills.length >= 8 || copiesOf(n).length >= maxOf(n)) return;
         const sp = suggSpecOf(n), spec = sp && !copiesOf(n).some(([c]) => c.spec === sp) ? sp : "";
@@ -1175,7 +1178,7 @@ async function showGen() {
         document.querySelectorAll("#gsl .gsh").forEach(h => { let n = h.nextElementSibling, any = false; while (n && !n.classList.contains("gsh")) { if (!n.hidden) any = true; n = n.nextElementSibling; } h.hidden = !any; }); };
       filter();
       $("gq").oninput = () => { genQ = $("gq").value; filter(); };
-      if ($("gFill")) $("gFill").onclick = () => { for (const s of suggList) if (pickedIdx(s.name) < 0) addSkill(s.name); genTarget = null; genInfo = cg.skills.find(specMissing)?.base || genInfo; redraw(); };
+      if ($("gFill")) $("gFill").onclick = () => { for (const s of [...suggList, ...fightList]) if (pickedIdx(s.name) < 0) addSkill(s.name); genTarget = null; genInfo = cg.skills.find(specMissing)?.base || genInfo; redraw(); };
       // the whole skill card is the button (except the option buttons, write-in box and ✕ inside it)
       document.querySelectorAll("#gsl .gsr").forEach(card => card.onclick = (e) => { if (e.target.closest(".gopt, .ginh, input, select")) return;
         card.classList.add("tap"); const n = card.dataset.row, i = pickedIdx(n);
