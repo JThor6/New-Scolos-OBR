@@ -960,7 +960,7 @@ function drawSheet() {
     <div class="infp gpow" data-for="combat" hidden></div>
 
     ${trained.h ? `<div class="stab">SKILLS</div><button class="sref" data-k="tab:Skill List" title="Open the Skill List beside the map">${REF_SVG}Skill List</button>${trained.h}` : ""}
-    ${untrained.h ? `<div class="stab">UNTRAINED SKILLS</div>${untrained.h}` : ""}
+    ${untrained.h ? `<div class="stab">UNTRAINED SKILLS</div><button class="sref" data-k="tab:Skill List" title="Open the Skill List beside the map">${REF_SVG}Skill List</button>${untrained.h}` : ""}
     ${eq.length ? `<div class="stab">EQUIPPED</div><div class="lbox">${lines(eq)}</div>` : ""}
     ${inv.length ? `<div class="stab">INVENTORY</div><div class="lbox">${lines(inv)}</div>` : ""}
     <div class="drs">
@@ -1060,15 +1060,15 @@ function drawManager() {
     <div class="g4">${`<div class="fld"><small>XP to spend</small><div>${xpNow()}</div></div><div class="fld"><small>XP spent</small><div>${xpSpent()}</div></div><div class="fld"><small>Attr. pts left</small><div>${attrLeft()}</div></div><div class="fld"><small>Attr. pts spent</small><div>${num(V("F10")) || 0}</div></div>`}</div>
     <div class="mrow"><span class="mtot" title="Current XP + Spent XP">Total earned<b>${xpNow() + xpSpent()}</b></span><input id="xpAdd" inputmode="numeric" placeholder="XP"><button id="xpGo" class="sbtn">+ ADD XP</button><button id="xpSub" class="sbtn">− SUBTRACT XP</button></div>
     <div class="stab">ATTRIBUTES</div><table class="mtab">${attrRows}</table>
-    <div class="stab">TRAINED SKILLS</div><table class="mtab">${skillRows(...L.trained) || `<tr><td class="empty">None yet.</td></tr>`}</table>
-    <div class="stab">UNTRAINED SKILLS</div><table class="mtab">${skillRows(...L.untrained) || `<tr><td class="empty">None yet.</td></tr>`}</table>
+    <div class="stab">TRAINED SKILLS</div><button class="sref" data-k="tab:Skill List" title="Open the Skill List beside the map">${REF_SVG}Skill List</button><table class="mtab">${skillRows(...L.trained) || `<tr><td class="empty">None yet.</td></tr>`}</table>
+    <div class="stab">UNTRAINED SKILLS</div><button class="sref" data-k="tab:Skill List" title="Open the Skill List beside the map">${REF_SVG}Skill List</button><table class="mtab">${skillRows(...L.untrained) || `<tr><td class="empty">None yet.</td></tr>`}</table>
     <div class="madd"><input id="skName" placeholder="New skill name"><select id="skAttr">${attrOpts}</select><button id="skGo" class="sbtn">ADD</button></div>
     <div class="mnote">New skills start Untrained at -4 and move to Trained at -3. Raising a skill spends XP; raising an attribute spends attribute points (costs from the chart on your sheet). − refunds the last step.</div>
     <div class="stab">EQUIPPED</div>${listRows(...L.inv, ["E"], "eq")}
     <div class="mrow"><input id="eqName" placeholder="Equip an item"><button id="eqGo" class="sbtn">ADD</button></div>
     <div class="stab">INVENTORY</div>${listRows(...L.inv, ["B", "C", "D"], "inv")}
     <div class="mrow"><input id="invName" placeholder="Item"><input id="invDet" placeholder="Detail (x5, +2 def…)" style="max-width:40%"><button id="invGo" class="sbtn">ADD</button></div>
-    <div class="stab">COMBAT OPTIONS</div>
+    <div class="stab">COMBAT OPTIONS</div><button class="sref" data-k="tab:Combat Options" title="Open the Combat Options list beside the map">${REF_SVG}Combat Options</button>
     <div id="mco"><div class="empty" style="padding:4px">Loading…</div></div>
     <div class="stab">NOTES</div>
     <textarea id="notes" rows="5" maxlength="2000">${esc2(notes.join("\n"))}</textarea>
