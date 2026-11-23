@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>New Scolos Dice</title>
-<link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Luckiest+Guy&display=swap" rel="stylesheet">
 <style>
   :root { --bg:transparent; --paper:rgba(15,17,28,.55); --ink:#f1f3f9; --dim:#9aa0b8; --accent:#bb99ff; --plus:#5fd38d; --minus:#ff6b6b; }
   html, body { background:transparent !important; }
@@ -28,14 +28,14 @@
   .die.p { color:var(--plus); border-color:var(--plus); }
   .die.m { color:var(--minus); border-color:var(--minus); }
   .modtag { color:var(--dim); font-weight:700; margin-left:2px; }
-  .total { margin-left:auto; font-family:'Bangers', Impact, sans-serif; font-size:30px; }
-  .big .total { font-size:44px; }
+  .total { margin-left:auto; font-family:'Luckiest Guy', 'Bangers', Impact, sans-serif; font-size:27px; padding-top:3px; }
+  .big .total { font-size:38px; }
   .histbtn { width:100%; margin-top:14px; padding:7px; font-family:'Bangers', Impact, sans-serif; font-size:18px; letter-spacing:1px; border:2px solid #444a66; border-radius:8px; background:var(--paper); color:var(--ink); cursor:pointer; }
   .line { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; padding:5px 2px; border-bottom:1px solid #333a55; }
   .line .n { flex-basis:100%; font-size:12px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .line .t { color:var(--dim); font-size:10px; font-weight:400; margin-left:4px; }
   .line .die { width:20px; height:20px; font-size:14px; border-width:1.5px; }
-  .line .tot { margin-left:auto; font-family:'Bangers', Impact, sans-serif; font-size:22px; width:36px; text-align:right; }
+  .line .tot { margin-left:auto; font-family:'Luckiest Guy', 'Bangers', Impact, sans-serif; font-size:19px; width:40px; text-align:right; padding-top:2px; }
   nav { display:flex; flex-wrap:wrap; gap:2px; flex-basis:100%; }
   header h1 { flex:1; }
   .hctl { display:flex; gap:3px; align-items:center; }
@@ -219,7 +219,7 @@
   .irow { display:flex; align-items:center; gap:6px; padding:4px 2px; border-bottom:1px solid #333a55; font-size:13px; }
   .irow.cur { background:rgba(187,153,255,.25); }
   .irow .n { color:var(--dim); width:16px; } .irow b { flex:0 1 auto; } .irow small { color:var(--dim); flex:1; font-size:10px; }
-  .irow .t { font-family:'Bangers', Impact, sans-serif; font-size:18px; }
+  .irow .t { font-family:'Luckiest Guy', 'Bangers', Impact, sans-serif; font-size:16px; padding-top:2px; }
   .ix { background:transparent; border:none; color:var(--dim); cursor:pointer; font-weight:900; }
   .iadd { display:grid; grid-template-columns:1fr 54px 40px auto; gap:5px; margin-top:6px; }
   .iadd input { padding:4px 6px; }
@@ -471,10 +471,12 @@ function card(r, big) {
   const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   return `<div class="card ${big ? "big" : ""}">
     <div class="who">${esc(r.who)}${r.label ? ` <small>${esc(r.label)}</small>` : ""}<small>${time}</small></div>
-    <div class="dice">${dice}${r.mod ? `<span class="modtag">${fmt(r.mod)}</span>` : ""}<span class="total">${fmt(r.total)}</span></div>
+    <div class="dice">${dice}${r.mod ? `<span class="modtag">${fmt(r.mod)}</span>` : ""}<span class="total">${big(r.total)}</span></div>
   </div>`;
 }
 
+// Roll totals use Luckiest Guy (Bangers draws 1 and 7 almost the same)
+const big = (n) => fmt(n);
 // Slot-machine reel: faces flicker, then each die locks in left to right, then the total.
 const face = (d) => d > 0 ? "+" : d < 0 ? "−" : "";
 const cls = (d) => `die ${d > 0 ? "p" : d < 0 ? "m" : ""}`;
@@ -502,7 +504,7 @@ function line(r) {
   const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const time = new Date(r.ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
   return `<div class="line"><span class="n">${esc(r.who)} <span class="t">${time}</span></span><span class="dice" style="margin:0">${
-    r.dice.map(d => `<div class="${cls(d)}">${face(d)}</div>`).join("")}</span><span class="modtag">${r.mod ? fmt(r.mod) : ""}</span>${r.label ? `<span class="lbl">${esc(r.label)}</span>` : ""}<span class="tot">${fmt(r.total)}</span></div>`;
+    r.dice.map(d => `<div class="${cls(d)}">${face(d)}</div>`).join("")}</span><span class="modtag">${r.mod ? fmt(r.mod) : ""}</span>${r.label ? `<span class="lbl">${esc(r.label)}</span>` : ""}<span class="tot">${big(r.total)}</span></div>`;
 }
 function render(rolls) {
   $("history").innerHTML = rolls.length ? rolls.slice(0, 30).map(line).join("") : `<div class="empty">No rolls yet.</div>`;
@@ -1585,7 +1587,7 @@ function drawInitList() {
   const box = $("iList"); if (!box) return;
   const st = initMd[INIT], list = st?.open ? initEntries(initMd) : [];
   box.innerHTML = !st?.open ? `<div class="empty" style="font-size:12px">No combat running. Call for initiative to start.</div>`
-    : list.length ? list.map((e, i) => `<div class="irow ${e.id === st.cur ? "cur" : ""}"><span class="n">${i + 1}</span><b>${esc2(e.name)}</b><small>${e.pc ? "player" : ""}</small><span class="t">${fmt(e.total)}</span><button class="ix" data-id="${esc2(e.id)}" title="Remove">✕</button></div>`).join("")
+    : list.length ? list.map((e, i) => `<div class="irow ${e.id === st.cur ? "cur" : ""}"><span class="n">${i + 1}</span><b>${esc2(e.name)}</b><small>${e.pc ? "player" : ""}</small><span class="t">${big(e.total)}</span><button class="ix" data-id="${esc2(e.id)}" title="Remove">✕</button></div>`).join("")
     : `<div class="empty" style="font-size:12px">Waiting for rolls… Players roll Adroitness on their SHEET tab.</div>`;
   box.querySelectorAll(".ix").forEach(b => b.onclick = async () => {
     const s = (await OBR.room.getMetadata())[INIT]; if (!s) return;
