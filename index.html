@@ -244,7 +244,7 @@
   .gcb .ctl { justify-content:center; gap:4px; } .gcb .ctl button { padding:0 6px; }
   .dimn { color:var(--ink); }
   .copts { font-size:12px; line-height:1.35; color:var(--ink); background:var(--paper); border:1px solid #444a66; border-radius:7px; padding:4px 7px; margin-top:4px; }
-  .skg { display:grid; grid-template-columns:repeat(auto-fill, minmax(max(180px, 32%), 1fr)); gap:3px; }
+  .skg { display:grid; grid-template-columns:repeat(auto-fill, minmax(max(180px, 32%), 1fr)); gap:3px; grid-auto-rows:1fr; } /* every skill box as tall as the tallest one */
   .rollbox { cursor:pointer; } .rollbox:hover { border-color:var(--accent) !important; } .rollbox .inft { cursor:help; }
   .skc { display:flex; align-items:center; gap:4px; background:var(--paper); border:1px solid #444a66; border-radius:6px; padding:3px 3px 3px 6px; font-size:12px; min-width:0; }
   .skc span { flex:1; min-width:0; line-height:1.2; overflow-wrap:break-word; }
