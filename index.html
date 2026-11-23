@@ -149,6 +149,7 @@
   .g5 { grid-template-columns:repeat(5,1fr); } .g2b { grid-template-columns:1fr auto; }
   .g3:has(.fld:nth-child(3)) { grid-template-columns:1fr 1fr 1fr; }
   .healb { margin-left:6px; font-size:10px; font-weight:800; padding:1px 7px; border-radius:6px; border:2px solid #000; background:#d9f2dd; color:#14401c; cursor:pointer; vertical-align:bottom; }
+  .healb.undo { background:#e8e2f5; color:#2d2250; }
   .healb:disabled { opacity:.4; cursor:default; }
   .stab { display:inline-block; background:#000; color:#fff; font-weight:800; font-size:12px; letter-spacing:.5px; padding:2px 10px; border-radius:6px 6px 0 0; margin-top:10px; }
   .att { border:3px solid #000; outline:1px solid #444a66; border-radius:8px; background:var(--paper); text-align:center; padding:4px 2px; }
@@ -755,7 +756,7 @@ function drawSheet() {
     <div class="g5">${[["Adroitness", "C7"], ["Raw Str.", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att"><small class="inft" data-inf="at:${{ "Raw Str.": "Raw Strength" }[n] || n}" data-sec="attr">${n}</small><b>${esc2(V(c))}</b><button class="rd ra" data-m="${esc2(V(c))}" data-l="${{ "Raw Str.": "Raw Strength" }[n] || n}" title="Roll ${n}">${ROLL_ICON}</button></div>`).join("")}
       <div class="att dp ${sheetPen() ? "on" : ""}"><small class="inft" data-inf="dp" data-sec="attr">Dmg Pen.</small><b>${esc2(V("C12"))}</b>${sheetPen() ? `<em>all rolls</em>` : ""}</div></div>
     <div class="infp gpow" data-for="attr" hidden></div>
-    <div class="stab">VITALITY TRACK</div><button id="heal" class="healb" title="Heal one: every wound moves one box left; the leftmost Light Wound goes away" ${"BCDEFGH".split("").some(c => V(c + "16")) ? "" : "disabled"}>✚ HEAL</button>
+    <div class="stab">VITALITY TRACK</div><button id="heal" class="healb" title="Heal one: every wound moves one box left; the leftmost Light Wound goes away" ${"BCDEFGH".split("").some(c => V(c + "16")) ? "" : "disabled"}>✚ HEAL</button>${(healUndo.get(sheetId()) || []).length ? `<button id="healUndo" class="healb undo" title="Put the vitality track back the way it was before the last heal">↶ UNDO (${healUndo.get(sheetId()).length})</button>` : ""}
     <div class="vit">${["B", "C", "D", "E", "F", "G", "H"].map((c, i) => { const t = V(c + "15"); const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<button class="box ${V(c + "16") ? "x" : ""}" data-w="${i}"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk ${V(c + "16") ? "x" : ""}">${V(c + "16") ? "✕" : ""}</span></button>`; }).join("")}</div>
     <div class="g2b"><div class="fld ${ptInEP() ? "epx" : ""}"><div class="epl"><small>Extraordinary Power</small><div id="pwname">${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div></div>${ptInEP() ? `<div class="epp"><small>${esc2(V("E13"))}${ptMaxV() ? ` <span>/ ${esc2(ptMaxV())}</span>` : ""}</small>${ptCtl()}</div>` : ""}</div>
       <div class="fld c"><small>Used today</small><button id="pw" class="chk ${used ? "x" : ""}">${used ? "✕" : ""}</button></div></div>
@@ -782,8 +783,9 @@ function drawSheet() {
   $("reload").onclick = () => loadSheet();
   $("mgr").onclick = () => { mgrOn = true; drawSheet(); };
   if ($("disc")) $("disc").onclick = () => { setSheetId(""); pickCharacter(); };
-  document.querySelectorAll(".box").forEach(b => b.onclick = () => save({ wound: +b.dataset.w, on: !b.classList.contains("x") }, () => { const c = "BCDEFGH"[+b.dataset.w] + "16"; setCell(c, b.classList.contains("x") ? "" : "X"); }));
+  document.querySelectorAll(".box").forEach(b => b.onclick = () => (healUndo.delete(sheetId()), 0) || save({ wound: +b.dataset.w, on: !b.classList.contains("x") }, () => { const c = "BCDEFGH"[+b.dataset.w] + "16"; setCell(c, b.classList.contains("x") ? "" : "X"); }));
   $("heal").onclick = heal;
+  if ($("healUndo")) $("healUndo").onclick = undoHeal;
   $("pw").onclick = () => save({ power: !used }, () => setCell("F6", used ? "FALSE" : "TRUE"));
   const copMax = parseInt(V("H28")); const cop = (d) => { let n = Math.max(0, (parseInt(V("H29")) || 0) + d); if (!isNaN(copMax)) n = Math.min(n, copMax); if (String(n) === (V("H29") || "0")) return; save({ copSpent: n }, () => setCell("H29", String(n))); };
   $("copm").onclick = () => cop(-1); $("copp").onclick = () => cop(1);
@@ -1446,21 +1448,35 @@ async function fillPowers() {
 function ptInEP() { return !!V("E13") && /^(priest|mage)$/i.test(V("C4")); }
 function ptCtl() { return `<div class="ctl"><button id="ptm">−</button><b>${esc2(V("F13") || "0")}</b><button id="ptp">+</button></div>`; }
 function ptMaxV() { return /^\d+$/.test(V("H13")) ? V("H13") : /^\d+$/.test(V("G13")) ? V("G13") : ""; }
-// Healing: every mark on the vitality track shifts one box left; the leftmost (Light Wound) drops off
+// Healing: every mark on the vitality track shifts one box left; the leftmost (Light Wound) drops off.
+// The last 5 heals per character can be undone (cleared if someone taps a wound box by hand).
+const healUndo = new Map();
 async function heal() {
-  if (busy) return;
-  const cols = "BCDEFGH".split(""), was = cols.map(c => !!V(c + "16")), now = was.slice(1).concat(false);
+  const cols = "BCDEFGH".split(""), was = cols.map(c => !!V(c + "16"));
+  const id = sheetId(), stack = healUndo.get(id) || [];
+  if (await setTrack(was.slice(1).concat(false))) { stack.push(was); healUndo.set(id, stack.slice(-5)); drawSheet(); }
+}
+async function undoHeal() {
+  const id = sheetId(), stack = healUndo.get(id) || [];
+  if (!stack.length) return;
+  const prev = stack[stack.length - 1];
+  if (await setTrack(prev)) { stack.pop(); drawSheet(); }
+}
+async function setTrack(now) { // write a whole vitality track (7 true/false), only the boxes that change
+  if (busy) return false;
+  const cols = "BCDEFGH".split(""), was = cols.map(c => !!V(c + "16"));
   const changes = cols.map((c, i) => [i, now[i]]).filter(([i, on]) => on !== was[i]);
-  if (!changes.length) return;
+  if (!changes.length) return false;
   busy = true;
   const before = JSON.stringify(sheetVals);
   cols.forEach((c, i) => setCell(c + "16", now[i] ? "X" : "")); drawSheet();
   const res = await Promise.all(changes.map(([i, on]) => bridgePost({ wound: i, on }).catch(e => ({ ok: false, error: e.message }))));
   busy = false;
   const bad = res.find(r => !r.ok);
-  if (!bad) return loadSheet(true);
+  if (!bad) { loadSheet(true); return true; }
   sheetVals = JSON.parse(before); drawSheet(); loadSheet(true); // re-read so the sheet shows whatever did save
-  $("sherr").hidden = false; $("sherr").textContent = "Heal didn't fully save: " + (bad.error || "unknown error");
+  $("sherr").hidden = false; $("sherr").textContent = "Vitality track didn't fully save: " + (bad.error || "unknown error");
+  return false;
 }
 function setCell(a1, v) { const m = a1.match(/^([A-L])(\d+)$/); sheetVals[+m[2] - 1][m[1].charCodeAt(0) - 65] = v; }
 
