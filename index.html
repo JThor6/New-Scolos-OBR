@@ -334,6 +334,7 @@
   .gtats { display:flex; flex-wrap:wrap; gap:3px; } .gtat.two { color:#c9c3e6; background:#1d1a2e; }
   .gadr span { display:block; } .gadr i { font-style:normal; font-weight:800; color:var(--dim); } .gadp { color:#ffc94d !important; font-weight:700; }
   .gspec.on { border-color:var(--accent); } .gopt .gspec { flex:1 1 120px; min-width:0; }
+  .gname.need { border-color:var(--minus); }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
   .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
@@ -1218,12 +1219,13 @@ async function showGen() {
       <div class="sec">YOUR SHEET</div>
       ${await sheetPreview()}
       ${nav(finishWhy())}`);
-    const recheck = () => { const w = finishWhy(); $("gerr").textContent = w; $("gMake").disabled = !!w; };
-    genRecheck = recheck;
+    const recheck = () => { const w = finishWhy(); $("gerr").textContent = w; $("gMake").disabled = !!w; $("gNameTop").classList.toggle("need", !cg.name.trim()); };
+    genRecheck = recheck; recheck();
     $("gEmail").oninput = () => { cg.email = $("gEmail").value.trim(); cgSave(); recheck(); };
     $("gXpOn").onchange = () => { cg.xpOn = $("gXpOn").checked; if (!cg.xpOn) cg.xp = 0; cgSave(); showGen(); };
     document.querySelectorAll("[data-xp]").forEach(b => b.onclick = () => { cg.xp = Math.max(0, Math.min(1000, cg.xp + +b.dataset.xp)); cgSave(); showGen(); });
     $("gMake").onclick = async () => {
+      if (!cg.name.trim() || finishWhy()) { recheck(); $("gNameTop").focus(); return; } // never create a sheet without a name
       $("gMake").disabled = true; $("gMake").textContent = "CREATING…"; sync(1);
       const notes = cg.type === "Priest" ? [`God: ${cg.god}`] : cg.type === "Mage" ? [`Major school: ${cg.major}`, `Minor school: ${cg.minor}`] : [];
       const body = { create: { name: cg.name.trim(), type: cg.type, power: cg.power || "", attrs: cg.attrs, email: cg.email, xp: cg.xpOn ? cg.xp : 0,
