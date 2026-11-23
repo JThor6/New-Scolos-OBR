@@ -51,7 +51,9 @@
   .hdie.p { color:var(--plus); border-color:var(--plus); } .hdie.m { color:var(--minus); border-color:var(--minus); } .hdie.q { color:var(--dim); border-style:dashed; border-color:#444a66; font-size:18px; }
   .hpw { display:flex !important; align-items:center; gap:6px; font-size:12.5px; text-transform:none; }
   .htot { margin:10px 0 6px; font-size:14px; } .htot b { font-size:20px; color:#ffc94d; } .htot span { color:var(--dim); font-size:12px; }
-  #hSend { width:100%; min-height:40px; } #hSend:disabled { opacity:.45; cursor:default; }
+  .hbtns { display:flex; gap:5px; } .hSend { flex:1; min-height:40px; } .hSend:disabled { opacity:.45; cursor:default; } .hClr { flex:none; width:70px; color:var(--dim); }
+  .hsum { display:block; color:var(--dim); font-size:11.5px; margin-top:1px; }
+  .hsent { margin-top:8px; padding:4px 8px; border-left:3px solid var(--plus); background:rgba(40,120,70,.25); color:#c9f0d7; font-size:12px; font-weight:700; border-radius:4px; }
   .histbtn { width:100%; margin-top:14px; box-sizing:border-box; padding:7px; font-family:'Bangers', Impact, sans-serif; font-size:18px; letter-spacing:1px; border:2px solid #444a66; border-radius:8px; background:var(--paper); color:var(--ink); cursor:pointer; }
   .line { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; padding:5px 2px; border-bottom:1px solid #333a55; }
   .line .n { flex-basis:100%; font-size:12px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -735,30 +737,37 @@ function handOptions() {
 }
 function drawHand() {
   const box = $("hand"); if (!box || box.hidden) return;
+  if (hand.sent && (hand.pick || hand.set.some(Boolean))) hand.sent = false;
   const opts = handOptions(), o = opts.find(x => x.k === hand.pick);
   if (o && o.m != null) hand.mod = String(o.m);
   const pen = sheetVals && !isGM ? sheetPen() : 0, modN = parseInt(String(hand.mod).replace("−", "-"), 10) || 0;
   const done = hand.set.every(Boolean), tot = hand.dice.reduce((a, b) => a + b, 0) + modN + pen;
   const groups = [...new Set(opts.map(x => x.g))];
   const face = (d, on) => !on ? "?" : d > 0 ? "+" : d < 0 ? "−" : "";
+  const ready = done && hand.pick, dsum = hand.dice.reduce((a, b) => a + b, 0);
+  const sum = ready ? `<span class="hsum">${esc2(o ? (o.k === "other" ? "Something else" : o.n) : "")} ${modN >= 0 ? "+" : ""}${modN} · dice ${dsum >= 0 ? "+" : ""}${dsum}${pen ? ` · wounded ${pen}` : ""}</span>` : "";
+  const send = `<div class="htot">${ready ? `Total <b>${tot >= 0 ? "+" : ""}${tot}</b>${sum}` : `<span>${!done && !hand.pick ? "Set your four dice and pick what you rolled" : !done ? "Set all four dice" : "Pick what you rolled"}</span>`}</div>
+    <div class="hbtns"><button class="sbtn hSend" ${ready ? "" : "disabled"}>TRANSMIT TO THE TABLE</button><button class="sbtn hClr" title="Clear the dice and the pick">CLEAR</button></div>`;
   box.innerHTML = `<div class="hnote">Rolling physical dice? Enter them here and the whole table sees the roll. Your Extraordinary Power rolls are in there too.</div>
     ${pen ? `<div class="hwnd">Wounded: ${pen} to every roll. It's added to the total for you.</div>` : ""}
     <label>Your four dice <span class="hsub">(tap a die to cycle it, or pick +, blank or − under it)</span></label>
     <div class="hdice">${hand.dice.map((d, i) => `<div class="hcol"><button class="hdie ${!hand.set[i] ? "q" : d > 0 ? "p" : d < 0 ? "m" : ""}" data-i="${i}">${face(d, hand.set[i])}</button>
       <div class="hpick">${[[1, "+", "p"], [0, "", "b"], [-1, "−", "m"]].map(([v, t, c]) => `<button class="hpb ${c} ${hand.set[i] && d === v ? "on" : ""}" data-i="${i}" data-v="${v}" title="${v > 0 ? "Plus" : v < 0 ? "Minus" : "Blank"}">${t || "○"}</button>`).join("")}</div></div>`).join("")}</div>
+    ${hand.sent ? `<div class="hsent">Transmitted. Set the dice for your next roll.</div>` : ""}
+    ${send}
     <label>What did you roll?</label>
     ${groups.map(g => `<div class="hgrp">${esc2(g)}</div><div class="hchips">${opts.filter(x => x.g === g).map(x => `<button class="hchip ${x.k === hand.pick ? "on" : ""}" data-k="${esc2(x.k)}" ${x.off ? "disabled" : ""}><span>${esc2(x.k === "other" ? "Something else" : x.n)}${x.off ? `<small>${x.start ? "used today" : "use the power first"}</small>` : ""}</span>${x.m != null ? `<b>${x.m >= 0 ? "+" : ""}${x.m}</b>` : ""}</button>`).join("")}</div>`).join("")}
     ${hand.pick === "other" ? `<label>Modifier</label><input id="hMod" inputmode="numeric" value="${esc2(hand.mod)}" placeholder="0">` : ""}
     ${sheetVals && !isGM && hand.pick === "other" ? `<label class="hpw"><input type="checkbox" id="hPw" ${hand.pw ? "checked" : ""} ${powerUsed() && !hand.pw ? "disabled" : ""}> Extraordinary Power roll${powerUsed() ? " (already used today)" : " (ticks Used today)"}</label>` : ""}
-    <div class="htot">${done && hand.pick ? `Total <b>${tot >= 0 ? "+" : ""}${tot}</b>${pen ? ` <span>(wounded ${pen})</span>` : ""}` : `<span>${!hand.pick ? "Pick what you rolled" : "Tap all four dice"}</span>`}</div>
-    <button id="hSend" class="sbtn" ${done && hand.pick ? "" : "disabled"}>TRANSMIT TO THE TABLE</button>`;
+    ${send}`;
   box.querySelectorAll(".hchip").forEach(b => b.onclick = () => { hand.pick = hand.pick === b.dataset.k ? "" : b.dataset.k; if (hand.pick === "other") hand.mod = "0"; drawHand(); });
   if ($("hMod")) $("hMod").oninput = () => { hand.mod = $("hMod").value; drawHand(); const el = $("hMod"); el.focus(); el.setSelectionRange(el.value.length, el.value.length); };
   box.querySelectorAll(".hdie").forEach(b => b.onclick = () => { const i = +b.dataset.i;
     if (!hand.set[i]) { hand.set[i] = true; hand.dice[i] = 0; } else hand.dice[i] = hand.dice[i] === 0 ? 1 : hand.dice[i] === 1 ? -1 : 0; drawHand(); });
   box.querySelectorAll(".hpb").forEach(b => b.onclick = () => { const i = +b.dataset.i; hand.set[i] = true; hand.dice[i] = +b.dataset.v; drawHand(); });
   if ($("hPw")) $("hPw").onchange = () => { hand.pw = $("hPw").checked; drawHand(); };
-  $("hSend").onclick = async () => {
+  box.querySelectorAll(".hClr").forEach(b => b.onclick = () => { hand = { dice: [0, 0, 0, 0], set: [false, false, false, false], pick: "", mod: "0", pw: false }; drawHand(); });
+  box.querySelectorAll(".hSend").forEach(b => b.onclick = async () => {
     if (rollBusy) return;
     const o = handOptions().find(x => x.k === hand.pick); if (!o) return;
     if (o.off || (hand.pw && powerUsed())) return drawHand();
@@ -768,9 +777,10 @@ function drawHand() {
     if (!isGM && sheetId() && !standalone) { await loadSheet(true).catch(() => {}); } // last check for wounds marked on the sheet
     try { await doQuickRoll(mod, label, "", sheetVals && !isGM ? sheetPen() : 0, o.br || "", [...hand.dice]); if (pwOther || (o.pw && o.start)) markPowerUsed(); if (o.pw) fillPowers(); }
     finally { setTimeout(() => setRollBusy(false), 1500); }
-    hand = { dice: [0, 0, 0, 0], set: [false, false, false, false], pick: "", mod: "0", pw: false };
-    $("hand").hidden = true; $("handbtn").textContent = "ANALOG DICE UPLINK";
-  };
+    // stay open for the next roll: clear the dice and the pick, keep "Something else"'s modifier out of the way
+    hand = { dice: [0, 0, 0, 0], set: [false, false, false, false], pick: "", mod: "0", pw: false, sent: true }; drawHand();
+    setTimeout(() => { if (hand.sent) { hand.sent = false; drawHand(); } }, 4000);
+  });
 }
 $("handbtn").onclick = () => { const h = $("hand"); h.hidden = !h.hidden; $("handbtn").textContent = h.hidden ? "ANALOG DICE UPLINK" : "CLOSE UPLINK"; drawHand();
   if (!h.hidden && !isGM && sheetId() && !standalone) loadSheet(true).then(drawHand).catch(() => {}); }; // fresh wounds and modifiers from the sheet
