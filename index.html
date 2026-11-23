@@ -333,6 +333,7 @@
   .infp { margin-top:4px; } .infp .gpn { display:flex; align-items:center; }
   .gtats { display:flex; flex-wrap:wrap; gap:3px; } .gtat.two { color:#c9c3e6; background:#1d1a2e; }
   .gadr span { display:block; } .gadr i { font-style:normal; font-weight:800; color:var(--dim); } .gadp { color:#ffc94d !important; font-weight:700; }
+  .gspec.on { border-color:var(--accent); } .gopt .gspec { flex:1 1 120px; min-width:0; }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
   .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
@@ -1112,7 +1113,7 @@ async function showGen() {
           `<button class="gchip e ${genMove != null ? "dest" : nl === lvl && cg.skills.length < 8 ? "tg" : ""}" data-es="${lvl}" title="${genMove != null ? "Move here" : "Fill this slot next"}">${genMove != null ? "here" : nl === lvl && cg.skills.length < 8 ? "next" : ""}</button>`).join("")}</div></div>`; }).join("");
       // detail drawer under a skill: description, plus attribute and specialty choices once picked
       // "Choose One" skills can be taken once per option (Pilot: Spacecraft, Watercraft, Land craft), each copy in its own slot
-      const maxOf = (n) => { const o = chooseOpts(n); return o ? o.length : needsSpec(n) ? 8 : 1; };
+      const maxOf = (n) => needsSpec(n) ? 8 : 1;
       const copiesOf = (n) => cg.skills.map((s, i) => [s, i]).filter(([s]) => s.base === n);
       const slotLab = (lvl) => LEVEL_SLOTS.find(x => x[1] === lvl)?.[0] ?? sgn(lvl);
       const at = (a) => `<span class="gat">${a} ${sgn(cg.attrs[a] ?? 0)}</span>`;
@@ -1120,7 +1121,7 @@ async function showGen() {
         const canAdd = copies.length < max && nl != null;
         const nextMath = nl != null ? ` + ${slotLab(nl)} next slot = <b>${sgn((cg.attrs[sk.attrs[0]] ?? 0) + nl)}</b>` : " <small>(slots full)</small>";
         let meta;
-        if (!copies.length) meta = `${sk.attrs.map(at).join(" or ")}${nextMath}${multi && opts ? ` <small>· can take up to ${max}, one per option</small>` : ""}`;
+        if (!copies.length) meta = `${sk.attrs.map(at).join(" or ")}${nextMath}${multi ? ` <small>· can take more than once, each with a different specialty</small>` : ""}`;
         else if (!multi) { const [c] = copies[0]; meta = `${at(c.attr)} + ${slotLab(c.level)} slot = <b>${total(c)}</b>${sk.attrs.length > 1 ? ` <small>(can use ${sk.attrs.join(" or ")})</small>` : ""}`; }
         else meta = `${at(sk.attrs[0])} <small>· ${copies.length} of ${max} taken${canAdd ? ` · tap the name again to add another${nextMath.replace(" + ", " (")})` : ""}</small>`;
         let h = `<div class="gsd"><div class="gmeta">${meta}</div><span class="gdx">${esc2(sk.desc)}</span>`;
@@ -1128,8 +1129,9 @@ async function showGen() {
           const taken = new Set(copies.filter(([o]) => o !== c).map(([o]) => o.spec));
           h += `<div class="${multi ? "ginst" : ""}">${multi ? `<div class="ginh"><small>${esc2(c.spec || "Pick one")} · ${slotLab(c.level)} slot = <b>${total(c)}</b></small><button class="mx" data-sx="${i}" title="Remove this one">✕</button></div>` : ""}`;
           if (sk.attrs.length > 1) h += `<div class="gopt"><small>Roll with</small>${sk.attrs.map(a => `<button class="sbtn ${a === c.attr ? "on" : ""}" data-sa="${i}" data-v="${a}">${a} ${sgn(cg.attrs[a])}</button>`).join("")}</div>`;
-          if (opts) h += `<div class="gopt">${multi ? "" : "<small>Pick one</small>"}${opts.map(o => `<button class="sbtn ${o === c.spec ? "on" : ""}" data-sp="${i}" data-v="${esc2(o)}" ${taken.has(o) ? "disabled" : ""}>${esc2(o)}</button>`).join("")}</div>`;
-          else if (needsSpec(sk.name)) h += `<div class="gopt">${multi ? "" : "<small>Your specialty</small>"}<input class="gspec" data-spf="${i}" value="${esc2(c.spec || "")}" placeholder="e.g. Botany"></div>`;
+          if (needsSpec(sk.name)) { const own = c.spec && !(opts || []).includes(c.spec) ? c.spec : "";
+            h += `<div class="gopt">${opts ? opts.map(o => `<button class="sbtn ${o === c.spec ? "on" : ""}" data-sp="${i}" data-v="${esc2(o)}" ${taken.has(o) ? "disabled" : ""}>${esc2(o)}</button>`).join("") : ""}
+              <input class="gspec ${own ? "on" : ""}" data-spf="${i}" value="${esc2(own)}" placeholder="${opts ? "Or write your own" : "Your specialty, e.g. Botany"}"></div>`; }
           h += `</div>`;
         }
         return h + `</div>`; };
