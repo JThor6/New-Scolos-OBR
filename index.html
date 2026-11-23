@@ -896,7 +896,7 @@ async function skillList() { // [{name, attrs:[...], desc}] from the Master's Sk
   return out;
 }
 async function typeInfo(type) { // rundown rows, first Extraordinary Power, gods (Priest) and schools (Mage)
-  const tab = TYPES.find(x => x.trim() === type) || type; // the Master's tab names can carry stray spaces ("Mercenary ")
+  const tab = TYPES.find(x => x.trim() === type) || type; // match tab names loosely in case a stray space sneaks into a tab name
   const v = rows(await getTab(tab)), info = { rows: [], power: "", powers: [], gods: [], schools: [] };
   let mode = "", pw = null;
   for (const [a, b, c] of v) {
