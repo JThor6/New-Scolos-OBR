@@ -344,6 +344,7 @@
   .cob { background:none; border:none; padding:0; color:var(--ink); font:inherit; text-align:left; cursor:pointer; text-decoration:underline dotted #6b5aa0; text-underline-offset:3px; }
   .welc { position:relative; margin:2px 0 8px; padding:7px 30px 7px 10px; border-left:3px solid #5b3f9e; border-radius:6px; background:rgba(60,38,110,.45); font-size:12px; line-height:1.5; color:#ddd5f3; }
   .welc b { display:block; color:#bb99ff; font-size:10px; letter-spacing:.6px; margin-bottom:2px; }
+  .welrd { display:inline-flex; align-items:center; justify-content:center; width:22px; height:18px; vertical-align:-4px; border-radius:4px; background:rgba(187,153,255,.25); color:#bb99ff; } .welrd svg { width:14px; height:14px; }
   #welx { position:absolute; top:5px; right:5px; width:22px; height:22px; border-radius:5px; border:1px solid #5b3f9e; background:transparent; color:#ddd5f3; cursor:pointer; font-weight:800; }
   .discw { text-align:center; margin:18px 0 6px; } .discb { background:none; border:none; color:var(--dim); font-size:11px; font-weight:700; cursor:pointer; text-decoration:underline dotted; text-underline-offset:3px; } .discb:hover { color:var(--accent); }
   .cob:hover, .cob.ion { color:var(--accent); }
@@ -796,10 +797,10 @@ function drawSheet() {
   const trained = chips(...L.trained, "skills"), untrained = chips(...L.untrained, "untrained");
   const copMaxT = V("H28");
   $("shbody").innerHTML = `${store.get("ns.welcomeOff") ? "" : `<div class="welc"><button id="welx" title="Got it">✕</button><b>WELCOME TO THE TABLE</b>
-      <div>🎲 Tap any attribute or skill box to roll it.</div>
+      <div><span class="welrd">${ROLL_ICON}</span> Tap any attribute or skill box to roll it.</div>
       <div>📖 Underlined words explain themselves: tap one to see what it does.</div>
-      <div>📜 Everyone's rolls are on the DICE tab and in REFERENCE → Roll History.</div>
-      <div>⚙ Manage Character is where you spend XP and change gear.</div></div>`}
+      <div>📜 Roll History is on the DICE tab and in REFERENCE.</div>
+      <div>⚙ Manage Character is where you spend XP, spend credits and change gear.</div></div>`}
     <div class="shead"><div class="shn"><b>${esc2(V("C3") || "Unnamed")}</b><small>${[V("C4"), V("F5") !== "" ? "Level " + V("F5") : ""].filter(Boolean).map(esc2).join(" · ")}${V("F7") !== "" ? `<span class="cred" title="Credits">¤ ${esc2((n => n == null ? V("F7") : n.toLocaleString("en-US"))(num(V("F7"))))} credits</span>` : ""}</small></div>
       <span class="shbtns"><button id="reload" class="ibtn" title="Reload from Google Sheet">↻</button><button id="mgr" class="ibtn mgrb" title="Manage character: XP, skills, gear, notes">⚙ Manage Character</button></span></div>
     <div class="stab">ATTRIBUTES</div>
