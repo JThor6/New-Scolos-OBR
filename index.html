@@ -1768,8 +1768,9 @@ function drawMonsters() {
     const dead = /^(true|x|yes|dead)$/i.test(c(row, 19));
     const sheetRow = row + 1;
     const roll = (label, val) => /^[+\-−]?\d+$/.test(val) ? `<button class="rd" data-m="${esc2(val)}" data-l="${esc2(label)}" data-w="${esc2(name)}" title="Roll ${esc2(label)}">${ROLL_ICON}</button>` : "";
-    const attrs = [["Raw Str", 3], ["Adroitness", 4], ["Intellect", 5], ["Charm", 6]].map(([n, i]) =>
-      `<div class="att"><small>${n}</small><b>${esc2(c(row, i) || "-")}</b>${roll(n, c(row, i)).replace('class="rd"', 'class="rd ra"')}</div>`).join("");
+    // always Adroitness, Raw Strength, Intellect, Charm left to right (the tracker sheet's columns are in a different order)
+    const attrs = [["Adroitness", 4, "Adroitness"], ["Raw Str.", 3, "Raw Strength"], ["Intellect", 5, "Intellect"], ["Charm", 6, "Charm"]].map(([n, i, full]) =>
+      `<div class="att"><small>${n}</small><b>${esc2(c(row, i) || "-")}</b>${roll(full, c(row, i)).replace('class="rd"', 'class="rd ra"')}</div>`).join("");
     html += `<div class="mcard ${dead ? "dead" : ""}" data-g="${esc2("m:" + (c(row, 1) || name))}">
       <div class="mtop"><b>${esc2(name)}</b><small>${esc2(c(row, 2))}</small>
         <button class="sbtn mdead ${dead ? "on" : ""}" data-r="${sheetRow}" data-on="${dead ? "" : "1"}">${dead ? "☠ DEAD" : "DEAD?"}</button></div>
