@@ -30,6 +30,16 @@
   .modtag { color:var(--dim); font-weight:700; margin-left:2px; }
   .total { margin-left:auto; font-family:'Luckiest Guy', 'Bangers', Impact, sans-serif; font-size:27px; padding-top:3px; }
   .big .total { font-size:38px; }
+  .hand { margin-top:8px; padding:8px 10px 10px; border:1px solid #444a66; border-radius:8px; background:var(--paper); }
+  .hand .hnote { font-size:12px; color:var(--dim); margin-bottom:4px; } .hand label { display:block; margin-top:8px; }
+  .hand select, .hand input:not([type=checkbox]) { width:100%; box-sizing:border-box; }
+  .hsub { font-weight:400; color:var(--dim); font-size:11px; text-transform:none; }
+  .hdice { display:flex; gap:8px; margin-top:4px; }
+  .hdie { flex:1; height:52px; border:2px solid var(--ink); border-radius:8px; background:rgba(10,12,20,.6); color:var(--ink); font-size:26px; font-weight:900; cursor:pointer; }
+  .hdie.p { color:var(--plus); border-color:var(--plus); } .hdie.m { color:var(--minus); border-color:var(--minus); } .hdie.q { color:var(--dim); border-style:dashed; border-color:#444a66; font-size:18px; }
+  .hpw { display:flex !important; align-items:center; gap:6px; font-size:12.5px; text-transform:none; }
+  .htot { margin:10px 0 6px; font-size:14px; } .htot b { font-size:20px; color:#ffc94d; } .htot span { color:var(--dim); font-size:12px; }
+  #hSend { width:100%; min-height:40px; } #hSend:disabled { opacity:.45; cursor:default; }
   .histbtn { width:100%; margin-top:14px; box-sizing:border-box; padding:7px; font-family:'Bangers', Impact, sans-serif; font-size:18px; letter-spacing:1px; border:2px solid #444a66; border-radius:8px; background:var(--paper); color:var(--ink); cursor:pointer; }
   .line { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; padding:5px 2px; border-bottom:1px solid #333a55; }
   .line .n { flex-basis:100%; font-size:12px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -515,6 +525,8 @@
   <div id="last"></div>
   <div style="display:flex;gap:6px;align-items:stretch"><button id="histbtn" class="histbtn" style="flex:1">SHOW ROLL HISTORY</button><button id="dicepop" class="histbtn" style="flex:none;width:44px;color:var(--dim);display:flex;align-items:center;justify-content:center" title="Pop out roll history"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
   <div id="history" hidden><div class="empty">No rolls yet.</div></div>
+  <button id="handbtn" class="histbtn">ROLLED REAL DICE? LOG IT</button>
+  <div id="hand" class="hand" hidden></div>
 </main>
 <script type="module">
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
@@ -652,7 +664,7 @@ async function quickRoll(modText, label, whoName, br = "", monPen = 0) {
   try { await doQuickRoll(modText, label, whoName, whoName ? monPen : sheetPen(), br); }
   finally { setTimeout(() => setRollBusy(false), Math.max(0, 1500 - (Date.now() - t0))); }
 }
-async function doQuickRoll(modText, label, whoName, pen = 0, br = "") {
+async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = null) {
   const m = (parseInt(String(modText).replace("−", "-"), 10) || 0) + pen;
   // If the GM called for initiative, a player's next Adroitness roll is their initiative
   let initSid = "";
@@ -662,7 +674,8 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "") {
   }
   const ks = !whoName && ksArmed() && KS_ATTACK.test(String(label || ""));
   if (ks) { label = "KILL SHOT · " + label; setKS(false); fillPowers(); setTimeout(() => markPowerUsed(), 0); }
-  const dice = ks ? [1, 1, 1, 1] : [rollDie(), rollDie(), rollDie(), rollDie()];
+  const dice = ks ? [1, 1, 1, 1] : real || [rollDie(), rollDie(), rollDie(), rollDie()];
+  if (real) label = (String(label || "Roll").slice(0, 46) + " · real dice").trim(); // rolled with physical dice, typed in
   const who = whoName || (standalone ? "Test" : await OBR.player.getName());
   const r = { id: crypto.randomUUID().slice(0, 8), pid: me || "local", who, label: String(label || "").slice(0, 60), dice, mod: m, total: dice.reduce((a, b) => a + b, 0) + m, ts: Date.now() };
   if (ks) r.ks = 1; else if (!whoName && /^⚡/.test(r.label)) r.pw = 1; // Kill Shot shows red, other daily power rolls gold
@@ -680,6 +693,60 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "") {
     updateInitBanner();
   }
 }
+
+// ---------------- REAL DICE (DICE tab) ----------------
+// For players who roll physical dice: pick what you rolled (from your sheet), tap each die to match yours, send it.
+// It goes out like any roll: card on everyone's screen, Roll History, wounds, initiative and Kill Shot all apply.
+let hand = { dice: [0, 0, 0, 0], set: [false, false, false, false], pick: "", mod: "0", pw: false };
+function handOptions() {
+  const out = [];
+  if (sheetVals) {
+    for (const [a, c] of Object.entries(ATTR_CELL)) out.push({ k: "a:" + a, n: a, m: num(V(c)) ?? 0, g: "Attributes" });
+    const L = layout();
+    for (const [g, [a, b]] of [["Skills", L.trained], ["Untrained Skills", L.untrained]]) for (let r = a; r <= b; r++) {
+      const nm = V("B" + r); if (!nm) continue;
+      out.push({ k: "s:" + r, n: nm, m: num(V("F" + r)) ?? 0, g, br: V("C" + r) && V("D" + r) !== "" ? `${V("C" + r)}|${V("D" + r)}|${V("E" + r)}` : "" });
+    }
+  }
+  out.push({ k: "other", n: "Something else (type the modifier)", m: null, g: "Other" });
+  return out;
+}
+function drawHand() {
+  const box = $("hand"); if (!box || box.hidden) return;
+  const opts = handOptions(), o = opts.find(x => x.k === hand.pick);
+  if (o && o.m != null) hand.mod = String(o.m);
+  const pen = sheetVals && !isGM ? sheetPen() : 0, modN = parseInt(String(hand.mod).replace("−", "-"), 10) || 0;
+  const done = hand.set.every(Boolean), tot = hand.dice.reduce((a, b) => a + b, 0) + modN + pen;
+  const groups = [...new Set(opts.map(x => x.g))];
+  const face = (d, on) => !on ? "?" : d > 0 ? "+" : d < 0 ? "−" : "";
+  box.innerHTML = `<div class="hnote">Rolled your own dice? Enter them here and the whole table sees the roll.</div>
+    <label>What did you roll?</label>
+    <select id="hPick"><option value="">Pick one…</option>${groups.map(g => `<optgroup label="${esc2(g)}">${opts.filter(x => x.g === g).map(x => `<option value="${esc2(x.k)}" ${x.k === hand.pick ? "selected" : ""}>${esc2(x.n)}${x.m != null ? ` (${x.m >= 0 ? "+" : ""}${x.m})` : ""}</option>`).join("")}</optgroup>`).join("")}</select>
+    ${hand.pick === "other" ? `<label>Modifier</label><input id="hMod" inputmode="numeric" value="${esc2(hand.mod)}" placeholder="0">` : ""}
+    <label>Your four dice <span class="hsub">(tap each one: blank, +, −)</span></label>
+    <div class="hdice">${hand.dice.map((d, i) => `<button class="hdie ${!hand.set[i] ? "q" : d > 0 ? "p" : d < 0 ? "m" : ""}" data-i="${i}">${face(d, hand.set[i])}</button>`).join("")}</div>
+    ${sheetVals && !isGM ? `<label class="hpw"><input type="checkbox" id="hPw" ${hand.pw ? "checked" : ""} ${powerUsed() && !hand.pw ? "disabled" : ""}> Extraordinary Power roll${powerUsed() ? " (already used today)" : " (ticks Used today)"}</label>` : ""}
+    <div class="htot">${done && hand.pick ? `Total <b>${tot >= 0 ? "+" : ""}${tot}</b>${pen ? ` <span>(wounded ${pen})</span>` : ""}` : `<span>${!hand.pick ? "Pick what you rolled" : "Tap all four dice"}</span>`}</div>
+    <button id="hSend" class="sbtn" ${done && hand.pick ? "" : "disabled"}>SEND TO THE TABLE</button>`;
+  $("hPick").onchange = () => { hand.pick = $("hPick").value; if (hand.pick === "other") hand.mod = "0"; drawHand(); };
+  if ($("hMod")) $("hMod").oninput = () => { hand.mod = $("hMod").value; drawHand(); const el = $("hMod"); el.focus(); el.setSelectionRange(el.value.length, el.value.length); };
+  box.querySelectorAll(".hdie").forEach(b => b.onclick = () => { const i = +b.dataset.i;
+    if (!hand.set[i]) { hand.set[i] = true; hand.dice[i] = 0; } else hand.dice[i] = hand.dice[i] === 0 ? 1 : hand.dice[i] === 1 ? -1 : 0; drawHand(); });
+  if ($("hPw")) $("hPw").onchange = () => { hand.pw = $("hPw").checked; drawHand(); };
+  $("hSend").onclick = async () => {
+    if (rollBusy) return;
+    const o = handOptions().find(x => x.k === hand.pick); if (!o) return;
+    if (hand.pw && powerUsed()) return drawHand();
+    const label = (hand.pw ? "⚡ " : "") + (o.k === "other" ? "Roll" : o.n);
+    const mod = o.m != null ? o.m : (parseInt(String(hand.mod).replace("−", "-"), 10) || 0);
+    setRollBusy(true);
+    try { await doQuickRoll(mod, label, "", sheetVals && !isGM ? sheetPen() : 0, o.br || "", [...hand.dice]); if (hand.pw) markPowerUsed(); }
+    finally { setTimeout(() => setRollBusy(false), 1500); }
+    hand = { dice: [0, 0, 0, 0], set: [false, false, false, false], pick: "", mod: "0", pw: false };
+    $("hand").hidden = true; $("handbtn").textContent = "ROLLED REAL DICE? LOG IT";
+  };
+}
+$("handbtn").onclick = () => { const h = $("hand"); h.hidden = !h.hidden; $("handbtn").textContent = h.hidden ? "ROLLED REAL DICE? LOG IT" : "CLOSE REAL DICE"; drawHand(); };
 
 // ---------------- CHARACTER TAB (internal id "sheet") ----------------
 const BRIDGE = "https://script.google.com/macros/s/AKfycbx5cjtXVGyFeoQx0EzJ-47gk4uXT6mXdgs90zaBmUB-zctUFm6OxD8fyWZWWuUQT0ua/exec";
