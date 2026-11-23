@@ -121,6 +121,9 @@
   .grun div { margin:4px 0; } .grun small { display:block; color:var(--dim); font-weight:800; font-size:10px; text-transform:uppercase; }
   .gpow { background:var(--paper); border:2px solid #000; border-left:4px solid #e0a83a; border-radius:8px; padding:6px 8px; margin-top:6px; font-size:12px; line-height:1.35; }
   .gpow div { margin:3px 0; } .gpow b { color:var(--dim); } .gpn { font-weight:800; font-size:14px; color:#e0a83a; }
+  .gfirst { background:#1f2a1f; border:2px solid #000; outline:1px solid #5a9a5a; border-radius:8px; padding:5px 8px; margin:6px 0; font-size:12px; line-height:1.4; }
+  .gfirst summary { cursor:pointer; font-weight:800; color:#9fd89f; font-size:12px; }
+  .gfirst p { margin:5px 0; } .gfirst ul { margin:4px 0; padding-left:18px; } .gfirst li { margin:2px 0; }
   .gnote { color:var(--dim); font-size:11px; margin:4px 0; }
   .gerr { color:var(--minus); font-size:12px; min-height:14px; margin-top:6px; }
   .gnav { margin-top:4px; }
@@ -1070,6 +1073,9 @@ function attrNeeds(info, list) {
   }
   return out;
 }
+// "First time?" help at the top of each step after Type. Open until the player closes it once; then it stays closed (tap to reopen).
+const firstTime = (title, body) => `<details class="gfirst" ${store.get("ns.genHelpOff") ? "" : "open"}><summary>FIRST TIME? ${title}</summary><div class="gfb">${body}</div></details>`;
+const bindFirstTime = () => document.querySelectorAll(".gfirst").forEach(d => d.ontoggle = () => store.set("ns.genHelpOff", d.open ? "" : "1"));
 const canReach = (i) => { for (let j = 0; j < i; j++) if (stepWhy(j)) return false; return true; };
 const SHORT = { Adroitness: "Adr", "Raw Strength": "Str", Intellect: "Int", Charm: "Cha" };
 let genData = {}; // Skills step: Skill List + type info kept in memory so each tap redraws instantly
@@ -1088,6 +1094,7 @@ async function showGen() {
     ${cg.step < 4 ? summary() : ""}<button id="gReset" class="greset">START OVER</button>`;
   const go = (d) => { cg.step = Math.max(0, Math.min(4, cg.step + d)); cgSave(); showGen(); };
   const bind = () => {
+    bindFirstTime();
     $("gNameTop").oninput = () => { cg.name = $("gNameTop").value; cgSave(); if (genRecheck) genRecheck();
       const pv = document.querySelector(".shp .shn b"); if (pv) pv.textContent = cg.name.trim() || "Unnamed"; }; // keep the sheet preview in step
     $("gBack").onclick = () => go(-1); if ($("gNext")) $("gNext").onclick = () => go(1);
@@ -1151,7 +1158,10 @@ async function showGen() {
            <table class="mtab">${ATTRS.map(a => { const r = cg.attrs[a], up = r < 3 ? ATTR_COST[String(r + 1)] - ATTR_COST[String(r)] : null;
              return `<tr><td>${a}</td><td class="mv">${sgn(r)}</td><td><span class="mctl"><button data-ga="${a}" data-d="-1" ${r > -3 ? "" : "disabled"}>−</button><button data-ga="${a}" data-d="1" ${up != null && up <= left ? "" : "disabled"}>+</button></span><span class="mcost">${up != null ? `+1: ${up} pts` : "max"}</span></td></tr>`; }).join("")}</table>
            <div class="gpts ${left < 0 ? "bad" : ""}">Points left: <b>${left}</b> of 42</div>` : "";
-      put(bar + `<div class="sec">PICK A SET</div>
+      put(bar + firstTime("How attributes work", `<p>Every character has four attributes:</p>
+          <ul>${ATTRS.map(a => `<li><b>${a}</b>: ${ATTR_DOES[a]}</li>`).join("")}</ul>
+          <p>Each one goes from <b>-3</b> (bad) to <b>+3</b> (great). <b>0</b> is average. Your attributes feed into your skills, so a good attribute makes every skill under it better.</p>
+          <p>You have 42 points to spend. The easy way: tap a <b>Set</b> below, then pick which attribute gets which value. The box underneath shows which attributes a ${esc2(cg.type || "character")} leans on most.</p>`) + `<div class="sec">PICK A SET</div>
         <div class="gnote">Most players pick a set. Each one spends all 42 points for you; then you choose which attribute gets which value.</div>
         ${advice}
         <div class="gsets">${ATTR_SETS.map((s, i) => `<button class="sbtn ${i === cg.preset ? "on" : ""}" data-set="${i}">Set ${i + 1}<small>${s.map(sgn).join(" / ")}</small></button>`).join("")}</div>
@@ -1227,7 +1237,9 @@ async function showGen() {
       const groups = ATTRS.slice().sort((a, b) => cg.attrs[b] - cg.attrs[a]).map(a => { const rows = avail.filter(s => s.attrs[0] === a && suggRank(s.name) < 0 && !fightList.includes(s));
         return rows.length ? `<div class="gsh">${a.toUpperCase()} <span>${sgn(cg.attrs[a])}</span></div>${rows.map(row).join("")}` : ""; }).join("");
       const canFill = [...suggList, ...fightList].some(s => pickedIdx(s.name) < 0) && cg.skills.length < 8;
-      put(bar + `<div class="gtray"><div class="gtt">SKILLS ${cg.skills.length}/8 <small>${genMove != null ? "tap a slot to move it there" : "tap a skill below to fill the next slot"}</small></div>${tray}</div>
+      put(bar + firstTime("How skills work", `<p>You get <b>8 skills</b>. Each one goes in a slot: one <b>+1</b>, three <b>0</b>, two <b>-2</b> and two <b>-3</b>.</p>
+          <p>A skill's total is its attribute plus its slot. That total is what you add when you roll it. Example: Adroitness +1 in the 0 slot = <b>+1</b>.</p>
+          <p>Put the skills you'll use most in the best slots. <b>★</b> marks skills suggested for your type, and <b>★ Fill suggested</b> fills the open slots for you. Make sure you take a way to fight (Ranged Weapons or Melee Weapon Fighting).</p>`) + `<div class="gtray"><div class="gtt">SKILLS ${cg.skills.length}/8 <small>${genMove != null ? "tap a slot to move it there" : "tap a skill below to fill the next slot"}</small></div>${tray}</div>
         <div class="gnote">Tap a skill to pick it. Total = attribute + slot level. Tap a filled slot (or drag it) to move it.${need ? ` ${cg.type}s must take ${cg.type === "Priest" ? "Prayer" : "Spellcasting"}.` : ""}</div>
         <div class="gtools"><input id="gq" class="gq" placeholder="Search skills…" value="${esc2(genQ)}">${canFill ? `<button id="gFill" class="sbtn" title="Put your type's suggested skills in the open slots, in order">★ Fill suggested</button>` : ""}</div>
         <div id="gsl">${suggList.length ? `<div class="gsh">★ SUGGESTED FOR ${esc2(cg.type.toUpperCase())}</div>${suggNote ? `<div class="gsnote">${esc2(suggNote)}</div>` : ""}${suggList.map(row).join("")}` : ""}${fightList.length ? `<div class="gsh">⚔ EVERYONE: HOW YOU FIGHT</div><div class="gsnote2">Every character needs a way to shoot and hit back.</div>${fightList.map(row).join("")}` : ""}${groups}</div>
@@ -1277,7 +1289,9 @@ async function showGen() {
       const rs = cg.attrs["Raw Strength"], e = cg.equip;
       const melee = Math.max(0, (e.melee ? 2 : 0) + rs), ranged = e.ranged ? 4 : 0, armor = e.armor ? Math.max(1, 2 + rs) : Math.max(0, rs);
       const item = (k, label, rule) => `<label class="gl">${label} <small>${rule}</small><input id="ge_${k}" value="${esc2(e[k])}" placeholder="Name it, or leave blank for none"></label>`;
-      put(bar + `<div class="sec">STARTING EQUIPMENT</div>
+      put(bar + firstTime("What to put here", `<p>Name the armor and weapons your character starts with, like "Flak vest" or "Pistol". Leave a box blank if you don't carry one.</p>
+          <p>Armor adds +2 to your Defense Rating, a melee weapon +2 to Offense, and a ranged weapon +4 to Offense. The bonus boxes update as you type.</p>
+          <p>Add anything else you carry under Other Gear, one item per line. You start with 1,000 credits to buy more later. Ask your GM if you're not sure something is allowed.</p>`) + `<div class="sec">STARTING EQUIPMENT</div>
         ${item("armor", "Armor", "+2 Defense Rating")}${item("melee", "Melee weapon", "+2 Offense Rating")}${item("ranged", "Ranged weapon", "+4 Offense Rating")}
         <div class="g3">${`<div class="fld"><small>Melee Dmg Bonus</small><div>${sgn(melee)}</div></div><div class="fld"><small>Ranged Dmg Bonus</small><div>${sgn(ranged)}</div></div><div class="fld"><small>Armor Bonus</small><div>${sgn(armor)}</div></div>`}</div>
         <div class="gnote">Melee = Offense Rating + Raw Str (min 0). Ranged = Offense Rating only. Armor = Defense Rating + Raw Str (min +1 in armor, 0 without).</div>
@@ -1295,7 +1309,8 @@ async function showGen() {
       if (cg.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cg.email)) return "That email doesn't look right.";
       return cg.name.trim() ? "" : "Give your character a name (box at the top)."; };
     const xpBtns = [-10, -1, 1, 10].map(d => `<button class="sbtn" data-xp="${d}">${d > 0 ? "+" : ""}${d}</button>`).join("");
-    put(bar + `<div class="sec">FINISH</div>
+    put(bar + firstTime("Last step", `<p>Make sure your character has a name (box at the top). Put in your Google email so the new sheet is shared with you.</p>
+          <p>Leave "Start with XP" off unless your GM tells you to start at a higher level. Check the sheet preview, then tap <b>CREATE CHARACTER</b>. After that, pick your character on the SHEET tab.</p>`) + `<div class="sec">FINISH</div>
       <label class="gl">Your Google email <small>(the new sheet is shared with you)</small><input id="gEmail" value="${esc2(cg.email)}" placeholder="you@gmail.com" inputmode="email"></label>
       <label class="gchk"><input type="checkbox" id="gXpOn" ${cg.xpOn ? "checked" : ""}> Start with XP (higher level)</label>
       ${cg.xpOn ? `<div class="mrow"><b class="gxp">${cg.xp} XP</b>${xpBtns}</div><div class="gnote">Goes into Current XP, to spend in the Sheet Manager.</div>` : ""}
