@@ -423,10 +423,12 @@
   /* right column lines up: Dmg Pen, the Dead box and Used Today are all as wide as one vitality box, centered on the same line */
   #sh .g5 { grid-template-columns:repeat(4, 1fr) calc((100% - 4px) / 7 + 4px); }
   #sh .g2b { grid-template-columns:1fr calc((100% - 4px) / 7 + 4px); }
-  #sh .g2b > .fld.c { display:flex; flex-direction:column; align-items:center; justify-content:center; padding-left:0; padding-right:0; }
+  #sh .g2b > .fld.c { display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding:3px 0 6px; }
+  #sh .g2b > .fld.c .chk { margin:auto 0; } /* centered in the space under the label */
   #sh .att.dp { display:flex; flex-direction:column; align-items:center; justify-content:center; padding-left:0; padding-right:0; }
   /* every checkbox on the vitality track sits on the same line, however many lines its label has */
-  #sh .vit .box .chk { margin-top:auto; }
+  #sh .vit .box { position:relative; padding-bottom:28px; }
+  #sh .vit .box .chk { position:absolute; bottom:5px; left:50%; transform:translateX(-50%); margin:0; }
   /* Monsters tab: same look as the character sheet (big dice, roomy boxes) */
   #mo .matt { grid-template-columns:repeat(4, 1fr); gap:4px; margin-top:4px; }
   #mo .att { display:grid; grid-template-columns:1fr auto; align-items:center; padding:4px 4px 5px; column-gap:2px; border-width:2px; }
