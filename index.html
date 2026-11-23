@@ -386,6 +386,20 @@
   /* bigger attribute dice: as big as the box allows */
   #sh .rd.ra { width:34px; height:34px; } #sh .rd.ra svg { width:22px; height:22px; }
   @media (min-width: 420px) { #sh .rd.ra { width:48px; height:40px; border-radius:8px; } #sh .rd.ra svg { width:26px; height:26px; } #sh .att:not(.dp) { padding-right:5px; } }
+  /* Monsters tab: same look as the character sheet (big dice, roomy boxes) */
+  #mo .matt { grid-template-columns:repeat(4, 1fr); gap:4px; margin-top:4px; }
+  #mo .att { display:grid; grid-template-columns:1fr auto; align-items:center; padding:4px 4px 5px; column-gap:2px; border-width:2px; }
+  #mo .att small { grid-column:1 / -1; } #mo .att b { padding:0; text-align:center; font-size:19px; }
+  #mo .rd.ra { position:static; width:34px; height:34px; margin:2px 0 0; border-radius:7px; background:rgba(187,153,255,.2); } #mo .rd.ra svg { width:22px; height:22px; }
+  #mo .mrow2 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; margin-top:4px; } #mo .matk { grid-column:1 / -1; }
+  #mo .matk { min-height:44px; } #mo .matk span { display:flex; align-items:center; } #mo .matk span small { font-size:11px; font-weight:800; color:var(--dim); letter-spacing:.5px; } #mo .matk b { font-size:18px; }
+  #mo .mrow2 .fld > div { font-size:15px; font-weight:800; }
+  #mo .pvit.mv { gap:6px; margin-top:8px; flex-wrap:wrap; } #mo .pvit i small { font-size:10px; }
+  #mo .mw { width:26px; height:26px; border-radius:5px; }
+  #mo .mtop { gap:8px; } #mo .mtop b { font-size:16px; } #mo .mdead { padding:5px 10px; }
+  #mo .mcard { padding:8px 9px 10px; margin-top:10px; }
+  #mo .mtext i { font-style:normal; font-weight:800; color:var(--dim); }
+  @media (min-width: 420px) { #mo .rd.ra { width:48px; height:40px; border-radius:8px; } #mo .rd.ra svg { width:26px; height:26px; } }
   .err { color:var(--minus); margin-top:8px; font-weight:700; }
   .empty { color:var(--dim); margin-top:8px; }
   .ow { padding:2px 10px 8px; }
@@ -1424,16 +1438,14 @@ function drawMonsters() {
     html += `<div class="mcard ${dead ? "dead" : ""}" data-g="${esc2("m:" + (c(row, 1) || name))}">
       <div class="mtop"><b>${esc2(name)}</b><small>${esc2(c(row, 2))}</small>
         <button class="sbtn mdead ${dead ? "on" : ""}" data-r="${sheetRow}" data-on="${dead ? "" : "1"}">${dead ? "☠ DEAD" : "DEAD?"}</button></div>
-      <div class="g4">${attrs}</div>
-      <div class="g4 mstats">
-        <div class="fld"><small>Attack</small><div>${esc2(c(row, 7) || "-")} ${roll("Attack", c(row, 7))}</div></div>
-        <div class="fld"><small>Offense</small><div>${esc2(c(row, 8) || "-")}</div></div>
-        <div class="fld"><small>Defense</small><div>${esc2(c(row, 9) || "-")}</div></div>
-        <div class="fld"><small>Armor</small><div>${esc2(c(row, 10) || "-")}</div></div>
-      </div>
+      <div class="g4 matt">${attrs}</div>
+      <div class="mrow2"><div class="skc matk"><span><small>ATTACK</small></span><b>${esc2(c(row, 7) || "-")}</b>${roll("Attack", c(row, 7))}</div>
+        <div class="fld c"><small>Offense</small><div>${esc2(c(row, 8) || "-")}</div></div>
+        <div class="fld c"><small>Defense</small><div>${esc2(c(row, 9) || "-")}</div></div>
+        <div class="fld c"><small>Armor</small><div>${esc2(c(row, 10) || "-")}</div></div></div>
       <div class="pvit mv">${WOUNDS.map((w, i) => { const on = !!c(row, 12 + i); return `<i><small>${w}</small><button class="mw ${on ? "x" : ""}" data-r="${sheetRow}" data-c="${13 + i}" data-on="${on ? "" : "1"}"></button></i>`; }).join("")}</div>
-      ${c(row, 11) ? `<div class="mtext">${esc2(c(row, 11))}</div>` : ""}
-      ${c(row, 20) ? `<div class="mtext mnote">${esc2(c(row, 20))}</div>` : ""}
+      ${c(row, 11) ? `<div class="mtext"><i>Special:</i> ${esc2(c(row, 11))}</div>` : ""}
+      ${c(row, 20) ? `<div class="mtext mnote"><i>Loot / Notes:</i> ${esc2(c(row, 20))}</div>` : ""}
     </div>`;
   }
   $("mo").innerHTML = encounterPicker() + html;
