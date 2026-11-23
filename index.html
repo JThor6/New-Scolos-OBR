@@ -751,10 +751,10 @@ function drawSheet() {
     <div class="infp gpow" data-for="combat" hidden></div>
 
     ${trained.h ? `<div class="stab">SKILLS</div>${trained.h}` : ""}
+    ${untrained.h ? `<div class="stab">UNTRAINED SKILLS</div>${untrained.h}` : ""}
     ${eq.length ? `<div class="stab">EQUIPPED</div><div class="lbox">${lines(eq)}</div>` : ""}
+    ${inv.length ? `<div class="stab">INVENTORY</div><div class="lbox">${lines(inv)}</div>` : ""}
     <div class="drs">
-    ${drawer("untrained", "UNTRAINED SKILLS", untrained.n, untrained.h)}
-    ${drawer("inv", "INVENTORY", inv.length, inv.length ? `<div class="lbox">${lines(inv)}</div>` : "")}
     ${drawer("notes", "NOTES", "", notes.length ? `<div class="lbox">${lines(notes)}</div>` : "")}
     </div>
     <div id="sherr" class="err" hidden></div>
