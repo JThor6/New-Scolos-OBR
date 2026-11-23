@@ -356,6 +356,11 @@
   .pwroll { display:flex; align-items:center; gap:7px; width:100%; padding:6px 9px; border:1px solid #6b4fb8; border-radius:7px; background:rgba(91,63,158,.55); color:#f0eaff; font:700 12.5px system-ui; text-align:left; cursor:pointer; }
   .pwroll:hover { background:rgba(110,78,190,.8); } .pwroll span { flex:1; } .pwroll b { font-size:15px; color:#ffc94d; } .pwroll svg { flex:none; width:16px; height:16px; }
   body.rollbusy .pwroll { opacity:.55; cursor:default; }
+  .ksarm { border-color:#c0392b; background:rgba(140,30,30,.55); } .ksarm:hover { background:rgba(170,40,40,.8); } .ksarm.on { background:#b3261e; color:#fff; }
+  .ksbar { display:flex; gap:8px; align-items:flex-start; margin:4px 0 8px; padding:7px 9px; border:2px solid #e04a3f; border-radius:8px; background:rgba(150,25,25,.45); color:#ffe3e0; font-size:12.5px; line-height:1.4; }
+  .ksbar b { color:#ff6b5e; font-size:13.5px; letter-spacing:.5px; } .ksbar span { flex:1; }
+  .ksbar button { background:none; border:1px solid #e04a3f; border-radius:5px; color:#ffe3e0; cursor:pointer; font-weight:800; width:24px; height:24px; }
+  .skc.ksatk { outline:2px solid #e04a3f; outline-offset:-1px; background:rgba(150,25,25,.35) !important; }
   .pwmiss { font-size:11.5px; color:var(--dim); font-style:italic; }
   .pwd { margin-top:4px; } .pwd .gpn { display:flex; align-items:center; } .pwx { margin-left:auto; background:none; border:none; color:var(--dim); cursor:pointer; font-size:12px; }
   .inft { cursor:pointer; text-decoration:underline dotted #6b5aa0; text-underline-offset:3px; } .inft:hover, .inft.ion { color:var(--accent) !important; text-decoration-color:var(--accent); }
@@ -628,9 +633,12 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "") {
     const st = (await OBR.room.getMetadata())[INIT];
     if (st?.open && store.get("ns.initDone") !== st.sid) { initSid = st.sid; label = "Adroitness · Initiative"; }
   }
-  const dice = [rollDie(), rollDie(), rollDie(), rollDie()];
+  const ks = !whoName && ksArmed() && KS_ATTACK.test(String(label || ""));
+  if (ks) { label = "🎯 KILL SHOT · " + label; setKS(false); fillPowers(); }
+  const dice = ks ? [1, 1, 1, 1] : [rollDie(), rollDie(), rollDie(), rollDie()];
   const who = whoName || (standalone ? "Test" : await OBR.player.getName());
   const r = { id: crypto.randomUUID().slice(0, 8), pid: me || "local", who, label: String(label || "").slice(0, 60), dice, mod: m, total: dice.reduce((a, b) => a + b, 0) + m, ts: Date.now() };
+  if (ks) r.ks = 1; else if (!whoName && /^⚡/.test(r.label)) r.pw = 1; // Kill Shot shows red, other daily power rolls gold
   if (pen) r.wnd = pen;
   if (!whoName && myChar()) r.char = myChar(); // the character's name, with the player's name small beside it
   if (br) { const [at, av, sr] = String(br).split("|"); r.at = String(at || "").trim().slice(0, 14); r.av = String(av || "").trim(); if (sr !== undefined) r.sr = String(sr).trim(); }
@@ -813,6 +821,7 @@ function drawSheet() {
       <div>⚙ Manage Character is where you spend XP, spend credits and change gear.</div></div>`}
     <div class="shead"><div class="shn"><b>${esc2(V("C3") || "Unnamed")}</b><small>${[V("C4"), V("F5") !== "" ? "Level " + V("F5") : ""].filter(Boolean).map(esc2).join(" · ")}${V("F7") !== "" ? `<span class="cred" title="Credits">¤ ${esc2((n => n == null ? V("F7") : n.toLocaleString("en-US"))(num(V("F7"))))} credits</span>` : ""}</small></div>
       <span class="shbtns"><button id="reload" class="ibtn" title="Reload from Google Sheet">↻</button><button id="mgr" class="ibtn mgrb" title="Manage character: XP, skills, gear, notes">⚙ Manage Character</button></span></div>
+    <div id="ksbar" class="ksbar" hidden></div>
     <div class="stab">ATTRIBUTES</div>
     <div class="g5">${[["Adroitness", "C7"], ["Raw Str.", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att"><small class="inft" data-inf="at:${{ "Raw Str.": "Raw Strength" }[n] || n}" data-sec="attr">${n}</small><b>${esc2(V(c))}</b><button class="rd ra" data-m="${esc2(V(c))}" data-l="${{ "Raw Str.": "Raw Strength" }[n] || n}" data-b="${({ "Raw Str.": "Raw Strength" }[n] || n) + "|" + esc2(V(c))}" title="Roll ${n}">${ROLL_ICON}</button></div>`).join("")}
       <!-- Easter egg: the 9+ DEAD box marked turns Dmg Pen. into a skull and crossbones -->
@@ -839,7 +848,7 @@ function drawSheet() {
     </div>
     <div id="sherr" class="err" hidden></div>
     ${isGM ? "" : `<div class="discw"><button id="disc" class="discb" title="Pick a different character">⇄ Switch character</button></div>`}`;
-  fillPowers(); bindInfo();
+  fillPowers(); bindInfo(); updateKS();
   document.querySelectorAll("#shbody .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l, "", b.dataset.b); });
   // the whole attribute or skill box rolls, except its underlined name (that opens the info)
   document.querySelectorAll("#shbody .att, #shbody .skc").forEach(box => { const rd = box.querySelector(".rd"); if (!rd) return;
@@ -1505,10 +1514,23 @@ function bindInfo() {
     infOpen = infOpen === e.dataset.inf ? "" : e.dataset.inf; show(); });
   if (infOpen) show();
 }
+// Kill Shot (Mercenary): armed from the power's description; the next attack roll from the sheet
+// (Ranged Weapons, Melee Weapon Fighting, Martial Arts, Unconventional Weapons) comes up +, +, +, + and shows in red.
+const KS_ATTACK = /ranged weapon|melee weapon|martial art|unconventional weapon/i;
+const ksArmed = () => store.get(ck("ns.killShot")) === "1";
+function setKS(on) { store.set(ck("ns.killShot"), on ? "1" : ""); updateKS(); }
+function updateKS() {
+  const on = ksArmed(), bar = $("ksbar"); if (!bar) return;
+  bar.hidden = !on;
+  bar.innerHTML = on ? `<span>🎯 <b>KILL SHOT ARMED</b><br>Your next attack roll counts as +, +, +, +. Roll Ranged Weapons, Melee Weapon Fighting, Martial Arts or Unconventional Weapons.</span><button id="ksx" title="Cancel Kill Shot">✕</button>` : "";
+  if (on) $("ksx").onclick = () => { setKS(false); fillPowers(); };
+  document.querySelectorAll("#shbody .skc").forEach(b => { const l = b.querySelector(".rd")?.dataset.l || ""; b.classList.toggle("ksatk", on && KS_ATTACK.test(l)); });
+}
 // Roll buttons inside an Extraordinary Power's description (only for powers that call for a roll).
 // k: skill or attribute to roll, x: extra modifier, t: button text. The roll card shows "⚡ <power> · <what>".
 const POWER_ROLLS = {
   "tapping the quietwire": [{ k: "Streetwise", t: "Roll Streetwise" }],
+  "kill shot": "arm", // arms Kill Shot: the next attack roll from the sheet comes up +, +, +, +
   "ghost in the machine": [{ k: "Hacking", t: "Roll Hacking" }],
   "last rites": [{ k: "Hacking", t: "Reboot a big machine: roll Hacking" }],
   "spirit walk": [{ k: "Intellect", t: "Tether: roll Intellect" }, { k: "Raw Strength", t: "Tether: roll Raw Strength" }],
@@ -1532,6 +1554,7 @@ function powerMod(k) {
 }
 function powerRollBtns(name) {
   const list = POWER_ROLLS[String(name).toLowerCase().trim()]; if (!list) return "";
+  if (list === "arm") return `<div class="pwrolls"><button class="pwroll ksarm ${ksArmed() ? "on" : ""}">🎯<span>${ksArmed() ? "Kill Shot is armed. Tap to cancel" : "Arm Kill Shot: your next attack roll is +, +, +, +"}</span></button></div>`;
   return `<div class="pwrolls">${list.map((r, i) => { const pm = powerMod(r.k);
     if (!pm) return `<div class="pwmiss">${esc2(r.k)} isn't on your sheet. Ask your GM.</div>`;
     const tot = pm.m + (r.x || 0);
@@ -1565,7 +1588,8 @@ async function fillPowers() {
       box.innerHTML = `<div class="gpn">${k[0] === "a" ? "Always on · " : "⚡ "}${esc2(x.name)}<button class="pwx" title="Close">✕</button></div>` +
         (k[0] === "a" ? `<div>${esc2(x.text)}</div>` : (x.rules.map(([a, b]) => `<div>${a ? `<b>${esc2(a)}:</b> ` : ""}${esc2(b)}</div>`).join("") || `<div>No details on the type tab.</div>`) + powerRollBtns(x.name));
       box.querySelector(".pwx").onclick = () => { pwOpen = ""; show(); };
-      box.querySelectorAll(".pwroll").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l, "", b.dataset.b); });
+      box.querySelectorAll(".ksarm").forEach(b => b.onclick = (e) => { e.stopPropagation(); setKS(!ksArmed()); show(); });
+      box.querySelectorAll(".pwroll:not(.ksarm)").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l, "", b.dataset.b); });
     };
     document.querySelectorAll(".pwb").forEach(b => b.onclick = () => { pwOpen = pwOpen === b.dataset.pk ? "" : b.dataset.pk; show(); });
     show();

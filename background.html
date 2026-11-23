@@ -26,6 +26,7 @@ async function showRoll(r, spin) {
   url.searchParams.set("mod", r.mod || 0);
   url.searchParams.set("total", r.total);
   if (r.label) url.searchParams.set("label", r.label);
+  if (r.ks) url.searchParams.set("ks", "1"); else if (r.pw) url.searchParams.set("pw", "1"); // Kill Shot red card, daily power gold card
   if (r.wnd) url.searchParams.set("wnd", r.wnd); // the card shows it on the name line, whatever the label's length
   if (spin) url.searchParams.set("spin", "1");
   const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
