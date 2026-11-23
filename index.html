@@ -34,6 +34,12 @@
   .hand .hnote { font-size:12px; color:var(--dim); margin-bottom:4px; } .hand label { display:block; margin-top:8px; }
   .hand select, .hand input:not([type=checkbox]) { width:100%; box-sizing:border-box; }
   .hwnd { margin-top:6px; padding:4px 8px; border-left:3px solid #c0392b; background:rgba(140,30,30,.35); color:#ffd0cc; font-size:12px; font-weight:700; border-radius:4px; }
+  .hgrp { margin:7px 0 3px; font-size:10.5px; font-weight:800; letter-spacing:.5px; text-transform:uppercase; color:var(--dim); }
+  .hchips { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
+  .hchip { display:flex; align-items:center; gap:6px; min-height:34px; padding:4px 8px; border:1px solid #444a66; border-radius:6px; background:rgba(10,12,20,.45); color:var(--ink); font:600 12.5px system-ui; text-align:left; cursor:pointer; }
+  .hchip span { flex:1; min-width:0; line-height:1.25; } .hchip small { display:block; color:var(--dim); font-size:10.5px; font-weight:600; }
+  .hchip b { flex:none; color:#ffc94d; font-size:14px; } .hchip:hover { background:rgba(61,52,96,.55); }
+  .hchip.on { background:#3d3460; border-color:var(--accent); } .hchip:disabled { opacity:.4; cursor:default; }
   .hsub { font-weight:400; color:var(--dim); font-size:11px; text-transform:none; }
   .hdice { display:flex; gap:8px; margin-top:4px; }
   .hcol { flex:1; display:flex; flex-direction:column; gap:4px; min-width:0; }
@@ -735,18 +741,18 @@ function drawHand() {
   const done = hand.set.every(Boolean), tot = hand.dice.reduce((a, b) => a + b, 0) + modN + pen;
   const groups = [...new Set(opts.map(x => x.g))];
   const face = (d, on) => !on ? "?" : d > 0 ? "+" : d < 0 ? "−" : "";
-  box.innerHTML = `<div class="hnote">Rolling physical dice? Enter them here and the whole table sees the roll. Extraordinary Power rolls are in the list too.</div>
+  box.innerHTML = `<div class="hnote">Rolling physical dice? Enter them here and the whole table sees the roll. Your Extraordinary Power rolls are in there too.</div>
     ${pen ? `<div class="hwnd">Wounded: ${pen} to every roll. It's added to the total for you.</div>` : ""}
-    <label>What did you roll?</label>
-    <select id="hPick"><option value="">Pick one…</option>${groups.map(g => `<optgroup label="${esc2(g)}">${opts.filter(x => x.g === g).map(x => `<option value="${esc2(x.k)}" ${x.k === hand.pick ? "selected" : ""} ${x.off ? "disabled" : ""}>${esc2(x.n)}${x.m != null ? ` (${x.m >= 0 ? "+" : ""}${x.m})` : ""}${x.off ? (x.start ? " · used today" : " · use the power first") : ""}</option>`).join("")}</optgroup>`).join("")}</select>
-    ${hand.pick === "other" ? `<label>Modifier</label><input id="hMod" inputmode="numeric" value="${esc2(hand.mod)}" placeholder="0">` : ""}
     <label>Your four dice <span class="hsub">(tap a die to cycle it, or pick +, blank or − under it)</span></label>
     <div class="hdice">${hand.dice.map((d, i) => `<div class="hcol"><button class="hdie ${!hand.set[i] ? "q" : d > 0 ? "p" : d < 0 ? "m" : ""}" data-i="${i}">${face(d, hand.set[i])}</button>
       <div class="hpick">${[[1, "+", "p"], [0, "", "b"], [-1, "−", "m"]].map(([v, t, c]) => `<button class="hpb ${c} ${hand.set[i] && d === v ? "on" : ""}" data-i="${i}" data-v="${v}" title="${v > 0 ? "Plus" : v < 0 ? "Minus" : "Blank"}">${t || "○"}</button>`).join("")}</div></div>`).join("")}</div>
+    <label>What did you roll?</label>
+    ${groups.map(g => `<div class="hgrp">${esc2(g)}</div><div class="hchips">${opts.filter(x => x.g === g).map(x => `<button class="hchip ${x.k === hand.pick ? "on" : ""}" data-k="${esc2(x.k)}" ${x.off ? "disabled" : ""}><span>${esc2(x.k === "other" ? "Something else" : x.n)}${x.off ? `<small>${x.start ? "used today" : "use the power first"}</small>` : ""}</span>${x.m != null ? `<b>${x.m >= 0 ? "+" : ""}${x.m}</b>` : ""}</button>`).join("")}</div>`).join("")}
+    ${hand.pick === "other" ? `<label>Modifier</label><input id="hMod" inputmode="numeric" value="${esc2(hand.mod)}" placeholder="0">` : ""}
     ${sheetVals && !isGM && hand.pick === "other" ? `<label class="hpw"><input type="checkbox" id="hPw" ${hand.pw ? "checked" : ""} ${powerUsed() && !hand.pw ? "disabled" : ""}> Extraordinary Power roll${powerUsed() ? " (already used today)" : " (ticks Used today)"}</label>` : ""}
     <div class="htot">${done && hand.pick ? `Total <b>${tot >= 0 ? "+" : ""}${tot}</b>${pen ? ` <span>(wounded ${pen})</span>` : ""}` : `<span>${!hand.pick ? "Pick what you rolled" : "Tap all four dice"}</span>`}</div>
     <button id="hSend" class="sbtn" ${done && hand.pick ? "" : "disabled"}>TRANSMIT TO THE TABLE</button>`;
-  $("hPick").onchange = () => { hand.pick = $("hPick").value; if (hand.pick === "other") hand.mod = "0"; drawHand(); };
+  box.querySelectorAll(".hchip").forEach(b => b.onclick = () => { hand.pick = hand.pick === b.dataset.k ? "" : b.dataset.k; if (hand.pick === "other") hand.mod = "0"; drawHand(); });
   if ($("hMod")) $("hMod").oninput = () => { hand.mod = $("hMod").value; drawHand(); const el = $("hMod"); el.focus(); el.setSelectionRange(el.value.length, el.value.length); };
   box.querySelectorAll(".hdie").forEach(b => b.onclick = () => { const i = +b.dataset.i;
     if (!hand.set[i]) { hand.set[i] = true; hand.dice[i] = 0; } else hand.dice[i] = hand.dice[i] === 0 ? 1 : hand.dice[i] === 1 ? -1 : 0; drawHand(); });
