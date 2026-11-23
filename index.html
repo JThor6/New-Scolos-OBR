@@ -352,6 +352,11 @@
   .cob:hover, .cob.ion { color:var(--accent); }
   .copuse { display:block; margin-top:6px; padding:4px 9px; border:1px solid #6b4fb8; border-radius:6px; background:rgba(91,63,158,.55); color:#e6defa; font-weight:400; font-size:12px; cursor:pointer; } .copuse:hover:not(:disabled) { background:rgba(110,78,190,.75); } .copuse:disabled { background:rgba(68,74,102,.5); border-color:#444a66; color:#9aa0b8; cursor:default; }
   .pwb:hover, .pwb.on { color:var(--accent); text-decoration-color:var(--accent); }
+  .pwrolls { display:flex; flex-direction:column; gap:5px; margin-top:8px; padding-top:7px; border-top:1px dashed #6b5aa0; }
+  .pwroll { display:flex; align-items:center; gap:7px; width:100%; padding:6px 9px; border:1px solid #6b4fb8; border-radius:7px; background:rgba(91,63,158,.55); color:#f0eaff; font:700 12.5px system-ui; text-align:left; cursor:pointer; }
+  .pwroll:hover { background:rgba(110,78,190,.8); } .pwroll span { flex:1; } .pwroll b { font-size:15px; color:#ffc94d; } .pwroll svg { flex:none; width:16px; height:16px; }
+  body.rollbusy .pwroll { opacity:.55; cursor:default; }
+  .pwmiss { font-size:11.5px; color:var(--dim); font-style:italic; }
   .pwd { margin-top:4px; } .pwd .gpn { display:flex; align-items:center; } .pwx { margin-left:auto; background:none; border:none; color:var(--dim); cursor:pointer; font-size:12px; }
   .inft { cursor:pointer; text-decoration:underline dotted #6b5aa0; text-underline-offset:3px; } .inft:hover, .inft.ion { color:var(--accent) !important; text-decoration-color:var(--accent); }
   .infp { margin-top:4px; } .infp .gpn { display:flex; align-items:center; }
@@ -1500,6 +1505,38 @@ function bindInfo() {
     infOpen = infOpen === e.dataset.inf ? "" : e.dataset.inf; show(); });
   if (infOpen) show();
 }
+// Roll buttons inside an Extraordinary Power's description (only for powers that call for a roll).
+// k: skill or attribute to roll, x: extra modifier, t: button text. The roll card shows "⚡ <power> · <what>".
+const POWER_ROLLS = {
+  "tapping the quietwire": [{ k: "Streetwise", t: "Roll Streetwise" }],
+  "ghost in the machine": [{ k: "Hacking", t: "Roll Hacking" }],
+  "last rites": [{ k: "Hacking", t: "Reboot a big machine: roll Hacking" }],
+  "spirit walk": [{ k: "Intellect", t: "Tether: roll Intellect" }, { k: "Raw Strength", t: "Tether: roll Raw Strength" }],
+  "corpse walk": [{ k: "Intellect", t: "Tether: roll Intellect" }, { k: "Raw Strength", t: "Tether: roll Raw Strength" }],
+  "meltdown": [{ k: "Intellect", t: "Roll Intellect" }, { k: "Intellect", x: -2, t: "Shockwave, everyone within 10 ft: Intellect -2", l: "Shockwave (10 ft)" }],
+  "mind over matter": [{ k: "Intellect", t: "Big feat: roll Intellect" }],
+  "disappear completely": [{ k: "Sneak", t: "Stay quiet: roll Sneak" }],
+  "borrowed face": [{ k: "Acting / Impersonation", t: "Pass the test: roll Acting / Impersonation" }],
+  "mind touch": [{ k: "Insight", t: "Plant a feeling: roll Insight" }, { k: "Insight", x: -2, t: "Pushing it, whole room: Insight -2", l: "Pushing it" }],
+};
+const ATTR_CELL = { Adroitness: "C7", "Raw Strength": "C8", Intellect: "C9", Charm: "C10" };
+// Find what to add for a power roll: an attribute, or a skill on the character's sheet (trained, then untrained)
+function powerMod(k) {
+  if (ATTR_CELL[k]) return { m: num(V(ATTR_CELL[k])) ?? 0, br: "" };
+  const L = layout(), n = normName(k);
+  for (const [a, b] of [L.trained, L.untrained]) for (let r = a; r <= b; r++) {
+    const nm = V("B" + r); if (!nm) continue; const m = normName(nm);
+    if (m === n || m.startsWith(n) || n.startsWith(m)) return { m: num(V("F" + r)) ?? 0, br: V("C" + r) && V("D" + r) !== "" ? `${V("C" + r)}|${V("D" + r)}|${V("E" + r)}` : "" };
+  }
+  return null;
+}
+function powerRollBtns(name) {
+  const list = POWER_ROLLS[String(name).toLowerCase().trim()]; if (!list) return "";
+  return `<div class="pwrolls">${list.map((r, i) => { const pm = powerMod(r.k);
+    if (!pm) return `<div class="pwmiss">${esc2(r.k)} isn't on your sheet. Ask your GM.</div>`;
+    const tot = pm.m + (r.x || 0);
+    return `<button class="pwroll" data-i="${i}" data-m="${tot}" data-l="${esc2(`⚡ ${name} · ${r.l || r.k}${r.x ? ` ${r.x}` : ""}`)}" data-b="${esc2(r.x ? "" : pm.br)}">${ROLL_ICON}<span>${esc2(r.t)}</span><b>${tot >= 0 ? "+" : ""}${tot}</b></button>`; }).join("")}</div>`;
+}
 let pwOpen = ""; // which power's rules are open under the Extraordinary Power box (kept across refreshes)
 async function fillPowers() {
   const type = V("C4").trim().toLowerCase();
@@ -1526,8 +1563,9 @@ async function fillPowers() {
       if (!x) { box.hidden = true; box.innerHTML = ""; return; }
       box.hidden = false;
       box.innerHTML = `<div class="gpn">${k[0] === "a" ? "Always on · " : "⚡ "}${esc2(x.name)}<button class="pwx" title="Close">✕</button></div>` +
-        (k[0] === "a" ? `<div>${esc2(x.text)}</div>` : x.rules.map(([a, b]) => `<div>${a ? `<b>${esc2(a)}:</b> ` : ""}${esc2(b)}</div>`).join("") || `<div>No details on the type tab.</div>`);
+        (k[0] === "a" ? `<div>${esc2(x.text)}</div>` : (x.rules.map(([a, b]) => `<div>${a ? `<b>${esc2(a)}:</b> ` : ""}${esc2(b)}</div>`).join("") || `<div>No details on the type tab.</div>`) + powerRollBtns(x.name));
       box.querySelector(".pwx").onclick = () => { pwOpen = ""; show(); };
+      box.querySelectorAll(".pwroll").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l, "", b.dataset.b); });
     };
     document.querySelectorAll(".pwb").forEach(b => b.onclick = () => { pwOpen = pwOpen === b.dataset.pk ? "" : b.dataset.pk; show(); });
     show();
