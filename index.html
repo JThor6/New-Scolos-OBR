@@ -361,6 +361,7 @@
   .pwb { background:none; border:none; padding:0; color:var(--ink); font:inherit; cursor:pointer; text-decoration:underline dotted #6b5aa0; text-underline-offset:3px; }
   .cob { background:none; border:none; padding:0; color:var(--ink); font:inherit; text-align:left; cursor:pointer; text-decoration:underline dotted #6b5aa0; text-underline-offset:3px; }
   .welc { position:relative; margin:2px 0 8px; padding:7px 30px 7px 10px; border-left:3px solid #5b3f9e; border-radius:6px; background:rgba(60,38,110,.45); font-size:12px; line-height:1.5; color:#ddd5f3; }
+  .welc i { font-style:normal; font-weight:700; color:#c9b8f5; }
   .welc b { display:block; color:#bb99ff; font-size:10px; letter-spacing:.6px; margin-bottom:2px; }
   .welrd { display:inline-flex; align-items:center; justify-content:center; width:22px; height:18px; vertical-align:-4px; border-radius:4px; background:rgba(187,153,255,.25); color:#bb99ff; } .welrd svg { width:14px; height:14px; }
   #welx { position:absolute; top:5px; right:5px; width:22px; height:22px; border-radius:5px; border:1px solid #5b3f9e; background:transparent; color:#ddd5f3; cursor:pointer; font-weight:800; }
@@ -833,11 +834,15 @@ function drawSheet() {
   const lines = (items) => items.map(esc2).join("<br>");
   const trained = chips(...L.trained, "skills"), untrained = chips(...L.untrained, "untrained");
   const copMaxT = V("H28");
-  $("shbody").innerHTML = `${store.get("ns.welcomeOff") ? "" : `<div class="welc"><button id="welx" title="Got it">✕</button><b>WELCOME TO THE TABLE</b>
-      <div><span class="welrd">${ROLL_ICON}</span> Tap any attribute or skill box to roll it.</div>
-      <div>📖 Underlined words explain themselves: tap one to see what it does.</div>
-      <div>📜 Roll History is on the DICE tab and in REFERENCE.</div>
-      <div>⚙ Manage Character is where you spend XP, spend credits and change gear.</div></div>`}
+  $("shbody").innerHTML = `${store.get("ns.welcomeOff2") ? "" : `<div class="welc"><button id="welx" title="Got it, hide this">✕</button><b>WELCOME TO THE TABLE</b>
+      <div><span class="welrd">${ROLL_ICON}</span> Tap the dice button on any attribute or skill to roll it. Everyone sees the roll.</div>
+      <div><i>Underlined</i> words explain themselves: tap one to see what it does.</div>
+      <div><i>Extraordinary Power:</i> tap a power's name for its rules and its button. The button uses the power and ticks Used today. Rolls that come up while it's running sit under it.</div>
+      <div><i>${esc2((V("C4") || "Type").trim().toUpperCase())} RULES</i> (in the power box) and <i>Skill List</i> (by SKILLS) open your rules beside the map.</div>
+      <div><i>Vitality Track:</i> tap a box to mark a wound; HEAL moves them left. A Critical Wound or worse gives -1 to every roll (the sheet adds it for you).</div>
+      <div><i>Roll History</i> (under Manage Character) shows the table's rolls.</div>
+      <div><i>Manage Character</i> is where you spend XP and credits, change gear, write notes and export a PDF.</div>
+      <div>Tap ✕ to hide this. It won't come back.</div></div>`}
     <div class="shead"><div class="shn"><b>${esc2(V("C3") || "Unnamed")}</b><small>${[V("C4"), V("F5") !== "" ? "Level " + V("F5") : ""].filter(Boolean).map(esc2).join(" · ")}${V("F7") !== "" ? `<span class="cred" title="Credits">¤ ${esc2((n => n == null ? V("F7") : n.toLocaleString("en-US"))(num(V("F7"))))} credits</span>` : ""}</small></div>
       <span class="shcol"><span class="shbtns"><button id="reload" class="ibtn" title="Reload from Google Sheet">↻</button><button id="mgr" class="ibtn mgrb" title="Manage character: XP, skills, gear, notes">⚙ Manage Character</button></span><button class="sref hist" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></span></div>
     <div id="ksbar" class="ksbar" hidden></div>
@@ -876,7 +881,7 @@ function drawSheet() {
   document.querySelectorAll("#shbody details.dr").forEach(d => d.ontoggle = () => { drawOpen[d.dataset.k] = d.open; });
   $("reload").onclick = () => loadSheet();
   $("mgr").onclick = () => { mgrOn = true; drawSheet(); };
-  if ($("welx")) $("welx").onclick = () => { store.set("ns.welcomeOff", "1"); $("welx").parentElement.remove(); };
+  if ($("welx")) $("welx").onclick = () => { store.set("ns.welcomeOff2", "1"); $("welx").parentElement.remove(); };
   if ($("disc")) $("disc").onclick = () => { setSheetId(""); pickCharacter(); };
   // The 3 Light Wound boxes always fill left to right (Heal slides wounds left): tapping any empty one marks the leftmost
   // empty one, tapping a marked one clears the rightmost marked one. Medium and up stay exactly where you tap.
