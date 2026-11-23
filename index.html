@@ -362,6 +362,14 @@
   #sh .g5 { grid-template-columns:repeat(5,1fr); gap:3px; }
   #sh .att { padding:4px 1px 5px; } #sh .att small { font-size:7.5px; letter-spacing:-.2px; white-space:nowrap; overflow:hidden; } #sh .att b { font-size:19px; display:block; padding-right:9px; }
   #sh .rd.ra { width:15px; height:15px; bottom:1px; right:1px; }
+  /* bigger roll buttons: easier to hit */
+  .rd { width:28px; height:28px; border-radius:7px; background:rgba(187,153,255,.12); opacity:1; }
+  .rd svg { width:18px; height:18px; }
+  .rd:hover { background:rgba(187,153,255,.28); }
+  .skc { padding:3px 3px 3px 7px; min-height:34px; } .skg { gap:4px; }
+  .skt .rdc { width:32px; }
+  #sh .att { padding:4px 1px 3px; } #sh .att b { padding-right:0; }
+  #sh .rd.ra { position:static; display:flex; margin:3px auto 0; width:calc(100% - 6px); height:24px; } #sh .rd.ra svg { width:16px; height:16px; }
   .err { color:var(--minus); margin-top:8px; font-weight:700; }
   .empty { color:var(--dim); margin-top:8px; }
   .ow { padding:2px 10px 8px; }
