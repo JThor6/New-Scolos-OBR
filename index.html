@@ -444,6 +444,7 @@
   #mo .matk { min-height:44px; } #mo .matk span { display:flex; align-items:center; } #mo .matk span small { font-size:11px; font-weight:800; color:var(--dim); letter-spacing:.5px; } #mo .matk b { font-size:18px; }
   #mo .mrow2 .fld > div { font-size:15px; font-weight:800; }
   #mo .pvit.mv { gap:6px; margin-top:8px; flex-wrap:wrap; } #mo .pvit i small { font-size:10px; }
+  #mo .mwnd { color:#ff8f8f; font-size:12px; font-weight:900; white-space:nowrap; }
   #mo .mw { width:30px; height:30px; border-radius:5px; }
   #mo .pvit.mv { justify-content:space-between; gap:2px; } #mo .pvit.mv i { flex:1; min-width:0; gap:2px; }
   #mo .pvit.mv .wd { font-size:13px; font-weight:900; color:var(--ink); line-height:1; } #mo .pvit.mv small { font-size:10px; }
@@ -605,11 +606,11 @@ function setRollBusy(on) { rollBusy = on; document.body.classList.toggle("rollbu
 // The open sheet's character name (shown on rolls)
 const myChar = () => String(sheetVals?.[2]?.[2] || "").trim().slice(0, 30);
 const sheetPen = () => num(sheetVals?.[11]?.[2]) || 0;
-async function quickRoll(modText, label, whoName, br = "") {
+async function quickRoll(modText, label, whoName, br = "", monPen = 0) {
   if (rollBusy) return;
   setRollBusy(true);
   const t0 = Date.now();
-  try { await doQuickRoll(modText, label, whoName, whoName ? 0 : sheetPen(), br); }
+  try { await doQuickRoll(modText, label, whoName, whoName ? monPen : sheetPen(), br); }
   finally { setTimeout(() => setRollBusy(false), Math.max(0, 1500 - (Date.now() - t0))); }
 }
 async function doQuickRoll(modText, label, whoName, pen = 0, br = "") {
@@ -1770,12 +1771,14 @@ function drawMonsters() {
     const name = c(row, 0); if (!name) continue;
     const dead = /^(true|x|yes|dead)$/i.test(c(row, 19));
     const sheetRow = row + 1;
-    const roll = (label, val) => /^[+\-−]?\d+$/.test(val) ? `<button class="rd" data-m="${esc2(val)}" data-l="${esc2(label)}" data-w="${esc2(name)}" title="Roll ${esc2(label)}">${ROLL_ICON}</button>` : "";
+    // monsters take the same wound penalty as players: -1 each for Critical Wound and Down & KO'ed
+    const pen = -[16, 17].filter(i => c(row, i)).length;
+    const roll = (label, val) => /^[+\-−]?\d+$/.test(val) ? `<button class="rd" data-m="${esc2(val)}" data-l="${esc2(label)}" data-w="${esc2(name)}" data-p="${pen}" title="Roll ${esc2(label)}">${ROLL_ICON}</button>` : "";
     // always Adroitness, Raw Strength, Intellect, Charm left to right (the tracker sheet's columns are in a different order)
     const attrs = [["Adroitness", 4, "Adroitness"], ["Raw Str.", 3, "Raw Strength"], ["Intellect", 5, "Intellect"], ["Charm", 6, "Charm"]].map(([n, i, full]) =>
       `<div class="att"><small>${n}</small><b>${esc2(c(row, i) || "-")}</b>${roll(full, c(row, i)).replace('class="rd"', 'class="rd ra"')}</div>`).join("");
     html += `<div class="mcard ${dead ? "dead" : ""}" data-g="${esc2("m:" + (c(row, 1) || name))}">
-      <div class="mtop"><b>${esc2(name)}</b><small>${esc2(c(row, 2))}</small>
+      <div class="mtop"><b>${esc2(name)}</b>${pen && !dead ? `<span class="mwnd">wounded ${pen}</span>` : ""}<small>${esc2(c(row, 2))}</small>
         <button class="sbtn mdead ${dead ? "on" : ""}" data-r="${sheetRow}" data-on="${dead ? "" : "1"}">${dead ? "☠ DEAD" : "DEAD?"}</button></div>
       <div class="g4 matt">${attrs}</div>
       <div class="mrow2"><div class="skc matk"><span><small>ATTACK</small></span><b>${esc2(c(row, 7) || "-")}</b>${roll("Attack", c(row, 7))}</div>
@@ -1794,7 +1797,7 @@ function drawMonsters() {
   $("iAdd").onclick = addInitEntry; $("iNeg").onclick = () => flipSign($("iNum")); $("iNum").onkeydown = (e) => { if (e.key === "Enter") addInitEntry(); };
   drawInitList();
   markTurn();
-  document.querySelectorAll("#mo .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l, b.dataset.w); });
+  document.querySelectorAll("#mo .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l, b.dataset.w, "", parseInt(b.dataset.p) || 0); });
   // the whole Attack box rolls, not just the dice button
   document.querySelectorAll("#mo .matk, #mo .matt .att").forEach(box => { if (box.querySelector(".rd")) box.onclick = () => box.querySelector(".rd").click(); });
   document.querySelectorAll("#mo .mw, #mo .mdead").forEach(b => b.onclick = async () => {
