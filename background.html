@@ -3,7 +3,7 @@
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
 import { allRolls, INIT, initEntries, markList, rollLog } from "./shared.js";
 // Runs all session, even when the dice panel is closed.
-// Shows rolls as small cards in the bottom-right. Up to 8 at once (two rows of 4, filling right to left),
+// Shows rolls as small cards at the bottom middle of the map. Up to 8 at once (two rows of 4, middle cards first),
 // so when everyone rolls together (initiative) the whole table's results are visible.
 const TOAST = "com.newscolos.dice/toast";
 const W = 210, H = 74, GAP = 6, SLOTS = 8, PER_ROW = 4, SHOW_MS = 9000;
@@ -29,13 +29,20 @@ async function showRoll(r, spin) {
   if (r.wnd) url.searchParams.set("wnd", r.wnd); // the card shows it on the name line, whatever the label's length
   if (spin) url.searchParams.set("spin", "1");
   const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
-  const col = slot % PER_ROW, row = Math.floor(slot / PER_ROW);
+  // Cards sit at the bottom middle of the map, just above Owlbear's bottom toolbar, out of the way of the
+  // REFERENCE pop-out (upper right). If the New Scolos panel is open on the left, they center in the space beside it.
+  let left = 0;
+  try { if (await OBR.action.isOpen()) left = ((await OBR.action.getWidth()) || 520) + 40; } catch {}
+  const space = vw - left - 20, per = Math.max(1, Math.min(PER_ROW, Math.floor((space + GAP) / (W + GAP))));
+  const order = [1, 2, 0, 3].filter(i => i < per).concat([...Array(per).keys()].filter(i => i > 3)); // middle cards first
+  const idx = slot % per, row = Math.floor(slot / per), col = per === 1 ? 0 : (order[idx] ?? idx);
+  const rowW = per * W + (per - 1) * GAP, x0 = left + (vw - left - rowW) / 2;
   await OBR.popover.open({ // every card the same size: room for the longest skill name (3 lines)
     id, url: url.href, width: W, height: H + 32,
     anchorReference: "POSITION",
-    anchorPosition: { left: vw - 80 - col * (W + GAP), top: vh - 70 - row * (H + 32 + GAP) }, // clear of the corner buttons
-    anchorOrigin: { horizontal: "RIGHT", vertical: "BOTTOM" },
-    transformOrigin: { horizontal: "RIGHT", vertical: "BOTTOM" },
+    anchorPosition: { left: Math.round(x0 + col * (W + GAP)), top: vh - 80 - row * (H + 32 + GAP) },
+    anchorOrigin: { horizontal: "LEFT", vertical: "BOTTOM" },
+    transformOrigin: { horizontal: "LEFT", vertical: "BOTTOM" },
     disableClickAway: true, hidePaper: true,
   });
 }
