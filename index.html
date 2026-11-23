@@ -1479,8 +1479,9 @@ async function setTrack(now) { // write a whole vitality track (7 true/false), o
   if (!changes.length) return false;
   busy = true; writeGen++; healWait = Date.now() + 1200;
   const before = JSON.stringify(sheetVals);
-  cols.forEach((c, i) => setCell(c + "16", now[i] ? "X" : "")); drawSheet();
-  document.querySelectorAll(".healb").forEach(b => b.disabled = true);
+  // nothing moves on screen until the save is finished; the buttons say so meanwhile
+  document.querySelectorAll(".healb, .vit .box").forEach(b => b.disabled = true);
+  if ($("heal")) $("heal").textContent = "SAVING…";
   // newer bridge: the whole track in one write. Older bridge: one box at a time, in order.
   let res = [await bridgePost({ track: now }).catch(e => ({ ok: false, error: e.message }))];
   if (!res[0].ok && /nothing to change/i.test(res[0].error || "")) {
@@ -1489,7 +1490,7 @@ async function setTrack(now) { // write a whole vitality track (7 true/false), o
   }
   busy = false; writeGen++;
   const bad = res.find(r => !r.ok);
-  if (!bad) { setTimeout(() => { drawSheet(); loadSheet(true); }, Math.max(0, healWait - Date.now())); return true; }
+  if (!bad) { cols.forEach((c, i) => setCell(c + "16", now[i] ? "X" : "")); cache.set("sheet." + sheetId(), sheetVals); setTimeout(() => loadSheet(true), 1500); return true; }
   sheetVals = JSON.parse(before); drawSheet(); loadSheet(true); // re-read so the sheet shows whatever did save
   $("sherr").hidden = false; $("sherr").textContent = "Vitality track didn't fully save: " + (bad.error || "unknown error");
   return false;
