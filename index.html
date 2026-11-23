@@ -310,8 +310,10 @@
   .gsd { flex-basis:100%; padding:0 8px 6px; font-size:11px; line-height:1.35; color:var(--dim); cursor:pointer; } .gsr.on .gsd { color:#c9c3e6; }
   .gopt { display:flex; flex-wrap:wrap; align-items:center; gap:4px; margin-top:5px; } .gopt small { flex-basis:100%; font-size:10px; font-weight:800; color:var(--dim); text-transform:uppercase; }
   .gopt .sbtn { font-size:11px; padding:3px 7px; } .gspec { padding:4px 6px; font-size:12px; }
-  .ghelpt { width:100%; margin-top:6px; padding:5px; font-weight:800; font-size:11px; letter-spacing:.5px; border:2px solid #444a66; border-radius:8px; background:#1b1e2e; color:var(--dim); cursor:pointer; }
-  .ghelpt.on { border-color:#5a9a5a; color:#9fd89f; }
+  .ghelpt, .ghelpoff { padding:3px 9px; font-weight:700; font-size:11px; border:1px solid #3b2f5c; border-radius:6px; background:#1d1630; color:#a99bd0; cursor:pointer; }
+  .ghelpt { width:100%; margin-top:6px; padding:5px; }
+  .ghelpoff { display:block; margin:-2px 0 6px auto; }
+  .ghelpt:hover, .ghelpoff:hover { border-color:#5a4a8a; color:#cfc3ec; }
   .greset { width:100%; margin-top:10px; padding:8px; font-family:'Bangers', Impact, sans-serif; font-size:18px; letter-spacing:1px; border:2px solid #6b5aa0; border-radius:8px; background:var(--paper); color:var(--accent); cursor:pointer; }
   .greset:hover { border-color:var(--accent); } .greset.armed { background:var(--accent); color:#000; border-color:#000; }
   .gadv { background:var(--paper); border:2px solid #000; outline:1px solid #6b5aa0; border-radius:8px; padding:5px 8px 7px; margin:6px 0; }
@@ -1103,7 +1105,8 @@ function attrNeeds(info, list) {
 }
 // "First time?" help at the top of each step after Type. Open until the player closes it once; then it stays closed (tap to reopen).
 const helpHidden = () => !!store.get("ns.genHelpHide"); // toggle under START OVER turns the boxes off completely
-const firstTime = (title, body) => helpHidden() ? "" : `<details class="gfirst" ${store.get("ns.genHelpOff") ? "" : "open"}><summary>FIRST TIME? ${title}</summary><div class="gfb">${body}</div></details>`;
+const firstTime = (title, body) => helpHidden() ? "" : `<details class="gfirst" ${store.get("ns.genHelpOff") ? "" : "open"}><summary>FIRST TIME? ${title}</summary><div class="gfb">${body}</div></details>
+  <button class="ghelpoff" data-helpoff="1" title="Hide the FIRST TIME? boxes. Turn them back on at the bottom.">Hide first-time help</button>`;
 const bindFirstTime = () => document.querySelectorAll(".gfirst").forEach(d => d.ontoggle = () => store.set("ns.genHelpOff", d.open ? "" : "1"));
 const canReach = (i) => { for (let j = 0; j < i; j++) if (stepWhy(j)) return false; return true; };
 const SHORT = { Adroitness: "Adr", "Raw Strength": "Str", Intellect: "Int", Charm: "Cha" };
@@ -1121,11 +1124,12 @@ async function showGen() {
       `Skills ${cg.skills.length}/8`].filter(Boolean).map((x, i) => i === 0 && cg.name.trim() ? `<b>${esc2(cg.name.trim())}</b> · ${x}` : x).join(" · ")}</div><small>Your progress saves automatically, so you can close this and come back.</small></div>`;
   const nav = (why, info = "") => `<div class="gerr ginfo" id="gerr">${why || info}</div><div class="g2 gnav"><button id="gBack" class="sbtn" ${cg.step ? "" : "disabled"}>◀ BACK</button>${cg.step < 4 ? `<button id="gNext" class="sbtn on" ${why ? "disabled" : ""}>NEXT ▶</button>` : `<button id="gMake" class="sbtn on" ${why ? "disabled" : ""}>CREATE CHARACTER</button>`}</div>
     ${cg.step < 4 ? summary() : ""}<button id="gReset" class="greset">START OVER</button>
-    <button id="gHelpT" class="ghelpt ${helpHidden() ? "" : "on"}" title="Show or hide the FIRST TIME? boxes on each step">FIRST-TIME HELP: ${helpHidden() ? "OFF" : "ON"}</button>`;
+    ${helpHidden() ? `<button id="gHelpT" class="ghelpt" title="Show the FIRST TIME? boxes again">Show first-time help</button>` : ""}`;
   const go = (d) => { cg.step = Math.max(0, Math.min(4, cg.step + d)); cgSave(); showGen(); };
   const bind = () => {
     bindFirstTime();
-    $("gHelpT").onclick = () => { store.set("ns.genHelpHide", helpHidden() ? "" : "1"); store.set("ns.genHelpOff", ""); showGen(); };
+    if ($("gHelpT")) $("gHelpT").onclick = () => { store.set("ns.genHelpHide", ""); store.set("ns.genHelpOff", ""); showGen(); };
+    document.querySelectorAll("[data-helpoff]").forEach(b => b.onclick = () => { store.set("ns.genHelpHide", "1"); showGen(); });
     $("gNameTop").oninput = () => { cg.name = $("gNameTop").value; cgSave(); if (genRecheck) genRecheck();
       const pv = document.querySelector(".shp .shn b"); if (pv) pv.textContent = cg.name.trim() || "Unnamed"; }; // keep the sheet preview in step
     $("gBack").onclick = () => go(-1); if ($("gNext")) $("gNext").onclick = () => go(1);
