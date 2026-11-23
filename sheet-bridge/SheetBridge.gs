@@ -234,6 +234,59 @@ async function exportPdf(id) {
   return { ok: true, url: file.getUrl(), name: name };
 }
 
+// ---------- Rules Work in Progress: Jake's rules draft (Google Doc), read live for the REFERENCE tab ----------
+const RULES_DOC_ID = '1A8ioFtPR16XFjo6pBZ6B8-wZwiVGDWLwGYshLY-SerM'; // New Scolos 2026 Main Rules Draft
+// Returns every doc tab as simple blocks the add-on draws itself:
+// {h: 1-6, r: runs} heading · {p: runs} paragraph · {li: runs, n: nesting} bullet · {t: [[cell text]]} table
+// runs = [[text, bold, italic], ...]
+function rulesDoc() {
+  const doc = DocumentApp.openById(RULES_DOC_ID), tabs = [];
+  const runs = function (el) {
+    const t = el.editAsText(), s = t.getText(), idx = t.getTextAttributeIndices(), out = [];
+    for (let i = 0; i < idx.length; i++) {
+      const a = idx[i], b = i + 1 < idx.length ? idx[i + 1] : s.length;
+      if (b > a) out.push([s.slice(a, b), !!t.isBold(a), !!t.isItalic(a)]);
+    }
+    return out;
+  };
+  const HEAD = {};
+  HEAD[DocumentApp.ParagraphHeading.TITLE] = 1; HEAD[DocumentApp.ParagraphHeading.HEADING1] = 1;
+  HEAD[DocumentApp.ParagraphHeading.HEADING2] = 2; HEAD[DocumentApp.ParagraphHeading.HEADING3] = 3;
+  HEAD[DocumentApp.ParagraphHeading.HEADING4] = 4; HEAD[DocumentApp.ParagraphHeading.HEADING5] = 5;
+  HEAD[DocumentApp.ParagraphHeading.HEADING6] = 6; HEAD[DocumentApp.ParagraphHeading.SUBTITLE] = 2;
+  const readBody = function (body) {
+    const out = [];
+    for (let i = 0; i < body.getNumChildren(); i++) {
+      const c = body.getChild(i), type = c.getType();
+      if (type === DocumentApp.ElementType.PARAGRAPH) {
+        const p = c.asParagraph(); if (!p.getText().trim()) continue;
+        const h = HEAD[p.getHeading()];
+        out.push(h ? { h: h, r: runs(p) } : { p: runs(p) });
+      } else if (type === DocumentApp.ElementType.LIST_ITEM) {
+        const li = c.asListItem(); if (!li.getText().trim()) continue;
+        out.push({ li: runs(li), n: li.getNestingLevel() });
+      } else if (type === DocumentApp.ElementType.TABLE) {
+        const t = c.asTable(), rows = [];
+        for (let r = 0; r < t.getNumRows(); r++) {
+          const row = t.getRow(r), cells = [];
+          for (let k = 0; k < row.getNumCells(); k++) cells.push(row.getCell(k).getText().trim());
+          rows.push(cells);
+        }
+        out.push({ t: rows });
+      }
+    }
+    return out;
+  };
+  const walk = function (list) {
+    list.forEach(function (tab) {
+      if (tab.getType() === DocumentApp.TabType.DOCUMENT_TAB) tabs.push({ title: tab.getTitle(), blocks: readBody(tab.asDocumentTab().getBody()) });
+      walk(tab.getChildTabs());
+    });
+  };
+  walk(doc.getTabs());
+  return { ok: true, title: doc.getName(), tabs: tabs };
+}
+
 function json(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
@@ -285,6 +338,7 @@ function doGet(e) {
       const out = sheetsIn(campaignFolder(CHARACTER_FOLDER_ID, p.campaign)).map(function (f) { return { id: f.id, name: f.name }; });
       return json({ ok: true, sheets: out });
     }
+    if (p.doc === 'rules') return json(rulesDoc()); // REFERENCE → New Scolos Rules Work in Progress
     if (p.tab) { // a whole tab, e.g. Combat Options or Priest (used by the Rules tab)
       openMain(p.id); // folder check
       const t = SpreadsheetApp.openById(p.id).getSheetByName(p.tab);

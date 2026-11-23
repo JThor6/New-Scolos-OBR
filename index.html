@@ -1937,7 +1937,7 @@ function showRules() {
     if (d.dataset.k === "__rolls") return render(lastRolls);
     if (!d.open || body.dataset.done) return;
     body.innerHTML = `<div class="rr">Loading…</div>`;
-    try { body.innerHTML = await sectionHtml(d.dataset.k) || "<div class='rr'>Nothing here yet.</div>"; body.dataset.done = "1"; }
+    try { body.innerHTML = await sectionHtml(d.dataset.k) || "<div class='rr'>Nothing here yet.</div>"; if (d.dataset.k !== "wip") body.dataset.done = "1"; } // the rules draft re-reads every time it's opened
     catch (e) { body.innerHTML = `<div class="rr err">Couldn't load: ${esc2(e.message || e)}</div>`; }
   }));
 }

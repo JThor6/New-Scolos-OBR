@@ -10,7 +10,7 @@ async function bridgeGet(params) {
 export const MASTER = "1_cnTDLNHIsaVMAOkOKSKK0YawUHt38ZewW1o5-yWbhU";
 export const TYPES = ["Mercenary", "Hacker", "Revenant", "Subject Zero", "Wraith", "Mentalist", "Mage", "Priest"]; // easiest to hardest; the picker and REFERENCE list follow this order
 export const SECTIONS = [["Your Turn & Movement", "turn"], ["Attacking & Damage", "attack"], ["Combat Options", "tab:Combat Options"],
-  ["Skill List", "tab:Skill List"], ["Dice Odds", "odds"], ["The Gods", "gods"], ["Schools of Magic", "schools"], ...TYPES.map(t => [t.trim(), "tab:" + t])];
+  ["Skill List", "tab:Skill List"], ["Dice Odds", "odds"], ["The Gods", "gods"], ["Schools of Magic", "schools"], ...TYPES.map(t => [t.trim(), "tab:" + t]), ["New Scolos Rules Work in Progress", "wip"]];
 const tabCache = {};
 const saved = {
   get: (k) => { try { return JSON.parse(localStorage.getItem("ns.cache.rules." + k) || "null"); } catch { return null; } },
@@ -74,6 +74,7 @@ async function oddsHtml() {
 }
 
 export async function sectionHtml(key) {
+  if (key === "wip") return wipHtml();
   if (key === "odds") return oddsHtml();
   if (key.startsWith("tab:")) {
     const v = await getTab(key.slice(4));
@@ -96,4 +97,74 @@ export async function sectionHtml(key) {
   }
   if (key === "turn") return rowsHtml(col(m, "G", 46, 56)); // older layout
   return rowsHtml([...col(m, "B", 57, 70), ...col(m, "G", 57, 60), ...col(m, "E", 61, 70)]);
+}
+
+// ---------- Rules Work in Progress: Jake's rules draft Google Doc, read live through the bridge ----------
+// Little tabs across the top: one per tab of the doc (if it has more than one), then one per heading section.
+// Tap one to show just that part; ALL shows the whole thing.
+if (typeof document !== "undefined" && !document.getElementById("wipcss")) {
+  document.head.insertAdjacentHTML("beforeend", `<style id="wipcss">
+  .wip { font-size:13px; line-height:1.45; }
+  .wipnote { color:#9aa0b8; font-size:11px; padding:2px 2px 6px; }
+  .wiptabs { display:flex; flex-wrap:wrap; gap:4px; padding:2px 0 8px; }
+  .wipchip { border:2px solid #444a66; background:rgba(15,17,28,.55); color:#f1f3f9; border-radius:7px; padding:3px 8px; font-size:11px; font-weight:800; cursor:pointer; }
+  .wipchip.on { background:#bb99ff; color:#000; border-color:#000; }
+  .wipsec[hidden] { display:none !important; }
+  .wip h3 { margin:12px 0 4px; font-family:'Bangers', Impact, sans-serif; font-weight:400; letter-spacing:1px; color:#bb99ff; font-size:19px; }
+  .wip h4 { margin:10px 0 3px; color:#bb99ff; font-size:14px; } .wip h5 { margin:8px 0 2px; font-size:13px; }
+  .wip p { margin:0 0 7px; }
+  .wip ul { margin:0 0 7px; padding-left:18px; } .wip li { margin:2px 0; }
+  .wip .tw { overflow-x:auto; margin:4px 0 9px; }
+  .wip table { border-collapse:collapse; font-size:11px; min-width:100%; }
+  .wip td { border:1px solid #444a66; padding:3px 5px; vertical-align:top; }
+  .wip tr:first-child td { font-weight:800; background:rgba(187,153,255,.15); }
+  </style>`);
+  document.addEventListener("click", (e) => {
+    const chip = e.target.closest(".wipchip"); if (!chip) return;
+    e.preventDefault();
+    const box = chip.closest(".wip"), want = chip.dataset.s;
+    box.querySelectorAll(".wipchip").forEach(c => c.classList.toggle("on", c === chip));
+    box.querySelectorAll(".wipsec").forEach(sec => { sec.hidden = want !== "all" && !sec.dataset.s.split(" ").includes(want); });
+  });
+}
+function runsHtml(r) {
+  return (r || []).map(([t, b, i]) => { let h = esc2(t).replace(/\n|\v|\r/g, "<br>"); if (b) h = `<b>${h}</b>`; if (i) h = `<i>${h}</i>`; return h; }).join("");
+}
+function wipRender(d) {
+  const multi = d.tabs.length > 1, chips = [`<button class="wipchip on" data-s="all">ALL</button>`];
+  let body = "", n = 0;
+  d.tabs.forEach((tab, ti) => {
+    const tk = "t" + ti;
+    if (multi) chips.push(`<button class="wipchip" data-s="${tk}">${esc2(tab.title)}</button>`);
+    // split the tab into sections at its top headings
+    const top = Math.min(...tab.blocks.filter(b => b.h).map(b => b.h), 9);
+    let sec = [], key = "";
+    const flush = () => { if (sec.length) body += `<div class="wipsec" data-s="${tk}${key ? " " + key : ""}">${sec.join("")}</div>`; sec = []; };
+    let list = [];
+    const endList = () => { if (list.length) { sec.push(`<ul>${list.join("")}</ul>`); list = []; } };
+    for (const b of tab.blocks) {
+      if (b.li) { list.push(`<li style="margin-left:${(b.n || 0) * 14}px">${runsHtml(b.li)}</li>`); continue; }
+      endList();
+      if (b.h) {
+        const text = b.r.map(x => x[0]).join("").trim();
+        if (b.h === top) { flush(); key = "s" + (n++); chips.push(`<button class="wipchip" data-s="${key}">${esc2(text)}</button>`); }
+        sec.push(`<h${Math.min(b.h + 2, 5)}>${esc2(text)}</h${Math.min(b.h + 2, 5)}>`);
+      } else if (b.p) sec.push(`<p>${runsHtml(b.p)}</p>`);
+      else if (b.t) sec.push(`<div class="tw"><table>${b.t.map(r => `<tr>${r.map(c => `<td>${esc2(c).replace(/\n/g, "<br>")}</td>`).join("")}</tr>`).join("")}</table></div>`);
+    }
+    endList(); flush();
+  });
+  return `<div class="wip"><div class="wipnote">Work in progress: unfinished and changing. Read live from the rules draft.</div>` +
+    `<div class="wiptabs">${chips.join("")}</div>${body || "<div class='rr'>The rules draft is empty.</div>"}</div>`;
+}
+async function wipFetch() {
+  const r = await bridgeGet({ doc: "rules" });
+  if (!r.ok) throw new Error(r.error);
+  saved.set("wip", r); return r;
+}
+async function wipHtml() {
+  const old = saved.get("wip");
+  if (old) { wipFetch().catch(() => {}); return wipRender(old); } // saved copy right away, fresh one for next time
+  try { return wipRender(await wipFetch()); }
+  catch (e) { throw new Error(`${e.message || e} (if this is new, the Sheet Bridge needs its update)`); }
 }
