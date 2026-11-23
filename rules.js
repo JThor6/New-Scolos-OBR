@@ -48,6 +48,18 @@ function rowsHtml(values) {
     return `<div class="rr ${/^extraordinary power/i.test(label) ? "ep" : ""}"><b>${esc2(label)}</b>${esc2(text)}</div>`;
   }).join("");
 }
+// One card per school: bright name, what it is, verbs, then Small / Big / Huge examples with their cost tags.
+// Header row h holds the column names (Suggested verbs, Small (1 SP, diff 0), ...); schools run until a blank row.
+function schoolCards(v, h) {
+  const t = (r, i) => String(r?.[i] ?? "").trim(); let html = "";
+  for (let r = h + 1; r < v.length && t(v[r], 1); r++) {
+    const sizes = [4, 5, 6].filter(i => t(v[r], i)).map(i => { const m = t(v[h], i).match(/^(\w+)\s*\((.*)\)$/) || [, t(v[h], i), ""];
+      return `<div class="sz"><b>${esc2(m[1])}</b>${m[2] ? `<span class="cost">${esc2(m[2])}</span>` : ""} ${esc2(t(v[r], i))}</div>`; }).join("");
+    html += `<div class="rr school"><b class="sn">${esc2(t(v[r], 1))}</b><div class="sw">${esc2(t(v[r], 2))}</div>` +
+      (t(v[r], 3) ? `<div class="sv"><span>Verbs:</span> ${esc2(t(v[r], 3))}</div>` : "") + sizes + `</div>`;
+  }
+  return html;
+}
 // Column K on the Main Sheet is an outline: the first line after a blank row (and any line ending in ":") is a heading,
 // everything else is a bullet. Keeps every line the same size instead of guessing from length.
 function outlineHtml(lines) {
@@ -93,15 +105,18 @@ export async function sectionHtml(key) {
   if (key === "odds") return oddsHtml();
   if (key.startsWith("tab:")) {
     const v = await getTab(key.slice(4));
+    if (/^tab:mage\s*$/i.test(key)) { // the schools chart is a wide table: show it as one card per school
+      const t = (r, i) => String(r?.[i] ?? "").trim(), h = v.findIndex(r => /^schools of magic$/i.test(t(r, 1)));
+      if (h >= 0) { let e = h + 1; while (e < v.length && t(v[e], 1)) e++;
+        return rowsHtml(v.slice(0, h)) + `<div class="rh">Schools of Magic</div>` + schoolCards(v, h) + rowsHtml(v.slice(e)); }
+    }
     if (key.includes("Priest")) { const g = v.findIndex(r => r.join("").trim() === "THE GODS"); return rowsHtml(g > 0 ? v.slice(0, g) : v); }
     return rowsHtml(v);
   }
   if (key === "schools") { // the chart on the Mage tab: one school per row (name, what it is, suggested verbs), ends at a blank row
     const v = await getTab("Mage"), t = (r, i) => String(r?.[i] ?? "").trim(), h = v.findIndex(r => /^schools of magic$/i.test(t(r, 1)));
     if (h < 0) return "<div class='rr'>No schools list found on the Mage tab.</div>";
-    let html = "<div class='rr'>Mages pick a Major school (small, big or huge spells) and a Minor school (small spells only). Spells use the school's verbs.</div>";
-    for (let r = h + 1; r < v.length && t(v[r], 1); r++) html += `<div class="rr"><b>${esc2(t(v[r], 1))}</b>${esc2(t(v[r], 2))}${t(v[r], 3) ? `<br><span style="color:#9aa0b8">Verbs: ${esc2(t(v[r], 3))}</span>` : ""}</div>`;
-    return html;
+    return "<div class='rr'>Mages pick a Major school (small, big or huge spells) and a Minor school (small spells only). Spells use the school's verbs.</div>" + schoolCards(v, h);
   }
   if (key === "gods") { const v = await getTab("Priest"); const g = v.findIndex(r => r.join("").trim() === "THE GODS"); return g > 0 ? rowsHtml(v.slice(g + 1)) : "<div class='rr'>No gods list found.</div>"; }
   const m = await getTab("Main Sheet");
