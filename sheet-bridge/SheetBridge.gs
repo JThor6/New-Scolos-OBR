@@ -120,6 +120,69 @@ function setupPermissions() {
   Logger.log('Drive access OK: copied and removed a test sheet. Now deploy a new version.');
 }
 
+// ---------------- PDF EXPORT ----------------
+// Fills Jake's fillable template (New_Scolos_Character_Sheet.pdf) from a character's Main Sheet,
+// saves it in the character folder (replacing that character's previous export) and returns a link.
+const PDF_TEMPLATE_ID = '1nJhcRYr7xSSEk89Oi0ELtabyUgHUMGVF';
+// pdf-lib needs setTimeout, which Apps Script doesn't have
+var setTimeout = function (f, t) { Utilities.sleep(t || 0); return f(); };
+
+async function exportPdf(id) {
+  const sh = openMain(id), ss = sh.getParent();
+  const grid = sh.getRange('A1:L300').getDisplayValues();
+  const v = function (a1) { const m = /^([A-L])(\d+)$/.exec(a1); return String(((grid[Number(m[2]) - 1] || [])[m[1].charCodeAt(0) - 65]) || '').trim(); };
+  const colB = grid.map(function (r) { return String(r[1]).trim().toLowerCase(); });
+  const at = function (label, from) { for (let i = from || 0; i < colB.length; i++) if (colB[i] === label) return i + 1; return 0; };
+  const tr = at('trained skills') || 19, ut = at('untrained skills', tr) || 37, inv = at('inventory', ut) || 46;
+  let co = 0; for (let i = 0; i < ut; i++) if (String((grid[i] || [])[6]).trim().toLowerCase() === 'combat options') { co = i + 1; break; }
+  let end = grid.length; while (end > inv && !grid[end - 1].slice(1, 7).join('').trim()) end--;
+
+  eval(UrlFetchApp.fetch('https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js').getContentText());
+  const tpl = DriveApp.getFileById(PDF_TEMPLATE_ID).getBlob().getBytes();
+  const pdf = await PDFLib.PDFDocument.load(new Uint8Array(tpl));
+  const form = pdf.getForm();
+  const set = function (f, val) { try { form.getTextField(f).setText(val || ''); } catch (e) {} };
+  const check = function (f, on) { try { const c = form.getCheckBox(f); on ? c.check() : c.uncheck(); } catch (e) {} };
+
+  // Top. Priests and Mages: invocations / spell points and their god or schools go on the Extraordinary Power line.
+  const type = v('C4'), notes = []; for (let r = inv + 1; r <= end; r++) if (v('G' + r)) notes.push(v('G' + r));
+  const note = function (re) { for (let i = 0; i < notes.length; i++) { const m = re.exec(notes[i]); if (m) return m[1].trim(); } return ''; };
+  const ptsName = /priest/i.test(type) ? 'Invocations' : /mage/i.test(type) ? 'Spell Points' : (v('E13') && !/\//.test(v('E13')) ? v('E13') : '');
+  const ptsMax = /^\d+$/.test(v('H13')) ? v('H13') : /^\d+$/.test(v('G13')) ? v('G13') : '';
+  const extra = [];
+  if (ptsName && (v('F13') !== '' || ptsMax)) extra.push(ptsName + ' ' + (v('F13') || '0') + (ptsMax ? ' / ' + ptsMax : ''));
+  const god = note(/^god:\s*(.+)$/i), major = note(/^major school:\s*(.+)$/i), minor = note(/^minor school:\s*(.+)$/i);
+  if (god) extra.push('God: ' + god);
+  if (major || minor) extra.push('Major: ' + (major || '-') + ' · Minor: ' + (minor || '-'));
+  set('Name', v('C3')); set('Type', type); set('Level', v('F5')); set('Credits', v('F7'));
+  set('ExtPower', [v('C5')].concat(extra).filter(String).join('  ·  '));
+  check('ExtPowerUsed', v('F6').toUpperCase() === 'TRUE');
+  set('CurrentXP', v('F3')); set('SpentXP', v('F4')); set('AttrSpent', v('F10')); set('AttrRemaining', v('F12'));
+  set('Adroitness', v('C7')); set('RawStrength', v('C8')); set('Intellect', v('C9')); set('Charm', v('C10')); set('DamagePenalty', v('C12'));
+  ['B', 'C', 'D', 'E', 'F', 'G', 'H'].forEach(function (c, i) { const m = v(c + '16'); check('Wound' + (i + 1), m !== '' && m.toUpperCase() !== 'FALSE' && m !== '0'); });
+
+  // Skills: found by their headings, packed into the template's 16 trained / 8 untrained rows
+  const skills = function (prefix, from, to, max) { let n = 0; for (let r = from; r <= to && n < max; r++) { if (!v('B' + r)) continue; n++;
+    set(prefix + n + '_Skill', v('B' + r)); set(prefix + n + '_Attribute', v('C' + r)); set(prefix + n + '_Rank', v('D' + r)); set(prefix + n + '_Level', v('E' + r)); set(prefix + n + '_Total', v('F' + r)); } };
+  skills('Trained', tr + 1, ut - 1, 16); skills('Untrained', ut + 1, inv - 1, 8);
+
+  // Combat, options, gear
+  set('MeleeDmg', v('H23')); set('RangedDmg', v('H24')); set('ArmorBonus', v('H25')); set('COPPerCombat', v('H28')); set('COPSpent', v('H29'));
+  const opts = []; if (co) for (let r = co + 1; r < ut; r++) if (v('G' + r)) opts.push(v('G' + r));
+  set('CombatOptions', opts.join('\n'));
+  const invList = [], eq = [];
+  for (let r = inv + 1; r <= end; r++) { const t = ['B', 'C', 'D'].map(function (c) { return v(c + r); }).filter(String).join(' - '); if (t) invList.push(t); if (v('E' + r)) eq.push(v('E' + r)); }
+  set('Inventory', invList.join('\n')); set('Equipped', eq.join('\n'));
+
+  // Save next to the character sheet, replacing this character's previous export, viewable by anyone with the link
+  const name = (v('C3') || 'Character') + ' - New Scolos Sheet.pdf';
+  const parents = DriveApp.getFileById(id).getParents(), folder = parents.hasNext() ? parents.next() : DriveApp.getRootFolder();
+  const old = folder.getFilesByName(name); while (old.hasNext()) old.next().setTrashed(true);
+  const file = folder.createFile(Utilities.newBlob(Array.from(await pdf.save()), 'application/pdf', name));
+  file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  return { ok: true, url: file.getUrl(), name: name };
+}
+
 function json(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
@@ -178,6 +241,7 @@ function doPost(e) {
     const b = JSON.parse(e.postData.contents);
     if (b.code !== TABLE_CODE) return json({ ok: false, error: 'Wrong table code.' });
     if (b.create) return json(createCharacter(b.create));
+    if (b.exportPdf) return exportPdf(b.id).then(json, function (err) { return json({ ok: false, error: String(err.message || err) }); });
     const sh = openMain(b.id);
     if (b.tracker) { // GM monster tracker: wound boxes (columns M-S) and Dead (column T) on the Extension Tracker tab
       const t = SpreadsheetApp.openById(b.id).getSheetByName(TRACKER_TAB);

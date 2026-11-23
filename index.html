@@ -848,6 +848,9 @@ function drawManager() {
     <div class="stab">NOTES</div>
     <textarea id="notes" rows="5" maxlength="2000">${esc2(notes.join("\n"))}</textarea>
     <button id="noteGo" class="sbtn" style="width:100%;margin-top:4px">SAVE NOTES</button>
+    <div class="stab">PRINT</div>
+    <button id="pdfGo" class="sbtn" style="width:100%">⬇ EXPORT TO PDF</button>
+    <div id="pdfOut" class="mnote" style="color:var(--dim)">Makes a printable copy of this sheet and opens it in a new browser tab.</div>
     <div id="sherr" class="err" hidden></div>`;
   const err = (m) => { $("sherr").hidden = false; $("sherr").textContent = m; };
   $("mgr").onclick = () => { mgrOn = false; loadSheet(true); drawSheet(); };
@@ -906,6 +909,13 @@ function drawManager() {
   document.querySelectorAll("[data-eq]").forEach(b => b.onclick = () => mgrSave({ ["E" + b.dataset.eq]: "" }));
   document.querySelectorAll("[data-inv]").forEach(b => b.onclick = () => { const i = b.dataset.inv; mgrSave({ ["B" + i]: "", ["C" + i]: "", ["D" + i]: "" }); });
   drawMgrCombat(err);
+  $("pdfGo").onclick = async () => {
+    const b = $("pdfGo"), out = $("pdfOut"); b.disabled = true; b.textContent = "BUILDING PDF…"; out.textContent = "This takes about 10–20 seconds."; sync(1);
+    const r = await bridgePost({ exportPdf: 1 }).catch(e => ({ ok: false, error: e.message }));
+    sync(-1); b.disabled = false; b.textContent = "⬇ EXPORT TO PDF";
+    if (!r || !r.ok) { out.innerHTML = `<span class="err">Couldn't make the PDF: ${esc2(r?.error || "no answer from the Sheet Bridge")}</span>`; return; }
+    out.innerHTML = `Ready: <a href="${esc2(r.url)}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:800">Open ${esc2(r.name)}</a>`;
+  };
   $("noteGo").onclick = () => {
     const room = L.nc === "G" ? 200 : Math.min(30, L.notes[1] - L.notes[0] + 1), lines = $("notes").value.split("\n").slice(0, room), cells = {};
     const used = notes.length; // clear old lines past the new end
