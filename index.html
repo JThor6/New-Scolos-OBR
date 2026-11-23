@@ -426,6 +426,9 @@
   #sh .g2b > .fld.c { display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding:3px 0 6px; }
   #sh .g2b > .fld.c .chk { margin:auto 0; } /* centered in the space under the label */
   #sh .att.dp { display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding:4px 0 5px; border-width:3px; }
+  #sh .att.dp { cursor:pointer; user-select:none; }
+  #sh .att.dp b.egg { font-size:24px; line-height:1; animation:eggpop .35s ease-out; }
+  @keyframes eggpop { 0% { transform:scale(.3) rotate(-25deg); opacity:0; } 70% { transform:scale(1.25) rotate(8deg); opacity:1; } 100% { transform:scale(1) rotate(0); } }
   #sh .att.dp b { margin:auto 0; } /* label at the same height as CHARM etc., number centered under it like theirs */
   /* every checkbox on the vitality track sits on the same line, however many lines its label has */
   #sh .vit .box { position:relative; padding-bottom:28px; }
@@ -824,6 +827,13 @@ function drawSheet() {
   document.querySelectorAll("#shbody details.dr").forEach(d => d.ontoggle = () => { drawOpen[d.dataset.k] = d.open; });
   $("reload").onclick = () => loadSheet();
   $("mgr").onclick = () => { mgrOn = true; drawSheet(); };
+  // Easter egg: click the Dmg Pen. box (not its label) and the number turns into a skull and crossbones for a few seconds
+  document.querySelectorAll("#sh .att.dp").forEach(box => box.onclick = (e) => {
+    if (e.target.closest(".inft")) return;
+    const b = box.querySelector("b"); if (!b || b.dataset.egg) return;
+    b.dataset.egg = b.textContent; b.textContent = "☠"; b.classList.add("egg");
+    setTimeout(() => { if (b.isConnected) { b.textContent = b.dataset.egg; delete b.dataset.egg; b.classList.remove("egg"); } }, 3000);
+  });
   if ($("disc")) $("disc").onclick = () => { setSheetId(""); pickCharacter(); };
   document.querySelectorAll(".box").forEach(b => b.onclick = () => (healUndo.delete(sheetId()), 0) || save({ wound: +b.dataset.w, on: !b.classList.contains("x") }, () => { const c = "BCDEFGH"[+b.dataset.w] + "16"; setCell(c, b.classList.contains("x") ? "" : "X"); }));
   $("heal").onclick = heal;
