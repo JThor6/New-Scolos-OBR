@@ -72,7 +72,7 @@ OBR.onReady(async () => {
       if (st.cur === me) note("⚔ Your turn!", "SUCCESS");
       else { // soft heads-up for whoever is on deck
         const list = initEntries(md), i = list.findIndex(e => e.id === st.cur);
-        if (list.length > 1 && i >= 0 && list[(i + 1) % list.length].id === me) note("Your turn is next", "DEFAULT", 3000);
+        if (list.length > 1 && i >= 0 && list[(i + 1) % list.length].id === me) note("On deck: your turn is next", "DEFAULT", 3000);
       }
     }
     if (st?.open && st.sid !== lastSid) {
