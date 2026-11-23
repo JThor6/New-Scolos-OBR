@@ -30,7 +30,7 @@
   .modtag { color:var(--dim); font-weight:700; margin-left:2px; }
   .total { margin-left:auto; font-family:'Luckiest Guy', 'Bangers', Impact, sans-serif; font-size:27px; padding-top:3px; }
   .big .total { font-size:38px; }
-  .histbtn { width:100%; margin-top:14px; padding:7px; font-family:'Bangers', Impact, sans-serif; font-size:18px; letter-spacing:1px; border:2px solid #444a66; border-radius:8px; background:var(--paper); color:var(--ink); cursor:pointer; }
+  .histbtn { width:100%; margin-top:14px; box-sizing:border-box; padding:7px; font-family:'Bangers', Impact, sans-serif; font-size:18px; letter-spacing:1px; border:2px solid #444a66; border-radius:8px; background:var(--paper); color:var(--ink); cursor:pointer; }
   .line { display:flex; flex-wrap:wrap; align-items:center; gap:4px 8px; padding:5px 2px; border-bottom:1px solid #333a55; }
   .line .n { flex-basis:100%; font-size:12px; font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .line .t { color:var(--dim); font-size:10px; font-weight:400; margin-left:4px; }
@@ -209,21 +209,6 @@
   #initx { background:transparent !important; color:#f1f3f9 !important; padding:4px 6px !important; }
   .initban button { background:#bb99ff; color:#000; border:0; border-radius:8px; font:800 13px system-ui; padding:6px 10px; cursor:pointer; }
   @keyframes spin { to { transform:rotate(360deg); } }
-  /* roll history */
-  .hl { padding:6px 2px; border-bottom:1px solid #333a55; }
-  .hl .hn { font-size:12px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .hl .t { color:var(--dim); font-size:10px; font-weight:400; margin-left:4px; }
-  .hl .wtag { margin-left:6px; color:#ff8f8f; font-size:11px; font-weight:900; }
-  .hl .hr { display:flex; align-items:center; gap:8px; margin-top:4px; }
-  .hl .hd { margin:0; flex:none; } .hl .die { width:20px; height:20px; font-size:14px; border-width:1.5px; }
-  .hl .hlbl { flex:1; min-width:0; font-size:12px; font-weight:700; color:var(--accent); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .hl .hlbl.full { white-space:normal; margin-top:3px; line-height:1.25; }
-  .hl .tot { flex:none; margin-left:auto; font-family:'Luckiest Guy', 'Bangers', Impact, sans-serif; font-size:19px; min-width:36px; text-align:right; padding-top:2px; }
-  .hl .brk { margin:5px 0 0 2px; padding:4px 8px; border-left:2px solid #444a66; font-size:11px; }
-  .hl .br { display:flex; justify-content:space-between; color:var(--dim); font-weight:700; padding:1px 0; }
-  .hl .br small { font-weight:400; opacity:.75; margin-left:3px; } .hl .br b { color:var(--text, #fff); }
-  .hl .br .wr, .hl .br:has(.wr) b { color:#ff8f8f; }
-  .hl .br.res { border-top:1px solid #444a66; margin-top:2px; padding-top:3px; color:#fff; }
   .histdet { width:100%; margin:4px 0 2px; padding:4px; font-size:11px; font-weight:800; border:1px solid #3a3d55; border-radius:6px; background:var(--paper); color:var(--dim); cursor:pointer; }
   .mcard { border:2px solid #000; outline:1px solid #444a66; border-radius:8px; background:var(--paper); padding:6px 8px 8px; margin-top:8px; }
   .mcard.turn { outline:2px solid var(--accent); box-shadow:0 0 0 3px rgba(187,153,255,.18); background:rgba(187,153,255,.10); }
@@ -478,12 +463,13 @@
   <button id="roll">ROLL</button>
   <div id="err" class="err" hidden></div>
   <div id="last"></div>
-  <button id="histbtn" class="histbtn">SHOW ROLL HISTORY</button>
+  <div style="display:flex;gap:6px;align-items:stretch"><button id="histbtn" class="histbtn" style="flex:1">SHOW ROLL HISTORY</button><button id="dicepop" class="histbtn pop" style="flex:none;width:44px;float:none;color:var(--dim)" title="Pop out roll history"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
   <div id="history" hidden><div class="empty">No rolls yet.</div></div>
 </main>
 <script type="module">
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
-import { NS, KEEP, rollKey, allRolls, fmt, INIT, initEntries } from "./shared.js";
+import { NS, KEEP, rollKey, allRolls, fmt, INIT, initEntries, rollLine, ROLL_CSS } from "./shared.js";
+document.head.insertAdjacentHTML("beforeend", `<style>${ROLL_CSS}</style>`);
 import { TYPES, SECTIONS, getTab, sectionHtml } from "./rules.js";
 
 const $ = (id) => document.getElementById(id);
@@ -546,32 +532,20 @@ function spin(r) {
 // DETAIL ON: same top line, the full skill name, then a little table of how the result was built:
 // Dice +2 / Adroitness (attribute) +1 / Skill rank +1 / Wounded -1 / Result +3
 let histDetail = (() => { try { return localStorage.getItem("ns.histDetail") === "on"; } catch { return false; } })();
-function line(r) {
-  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const time = new Date(r.ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-  const n = (v) => { const x = parseInt(String(v ?? "").replace("−", "-"), 10); return isNaN(x) ? null : x; };
-  let label = String(r.label || ""), pen = n(r.wnd);
-  // Rolls saved before the fix kept the wound inside the label, and long names cut it off ("... (wounded").
-  // Take it out of the label; if the number got cut off it was -1 (the only penalty a character can still roll with).
-  const wm = label.match(/\s*\((w(?:o(?:u(?:n(?:d(?:e(?:d)?)?)?)?)?)?)\b([^)]*)\)?\s*$/i);
-  if (wm && (wm[1].length >= 4 || !wm[2])) { if (pen == null) pen = n((wm[2] || "").match(/-\d+/)?.[0]) ?? -1; label = label.slice(0, wm.index).trim(); }
-  const wtag = pen ? `<span class="wtag">wounded ${fmt(pen)}</span>` : "";
-  const dice = `<span class="dice hd">${r.dice.map(d => `<div class="${cls(d)}">${face(d)}</div>`).join("")}</span>`;
-  const head = `<div class="hn">${esc(r.who)} <span class="t">${time}</span>${wtag}</div>`;
-  if (!histDetail) return `<div class="hl">${head}<div class="hr">${dice}<span class="hlbl">${esc(label || "Roll")}</span><span class="tot">${fmt(r.total)}</span></div></div>`;
-  const ds = r.dice.reduce((a, b) => a + b, 0), rows = [["Dice", ds]];
-  if (r.at) {
-    rows.push([`${esc(r.at)} <small>attribute</small>`, n(r.av) ?? 0]);
-    if (r.sr !== undefined) rows.push([`${esc(label)} <small>skill rank</small>`, n(r.sr) ?? 0]);
-  } else {
-    const other = (r.mod || 0) - (pen || 0); // older rolls and the DICE tab: one total modifier
-    if (other) rows.push(["Modifier", other]);
-  }
-  if (pen) rows.push([`<span class="wr">Wounded</span>`, pen]);
-  const table = rows.map(([k, v]) => `<div class="br"><span>${k}</span><b>${fmt(v)}</b></div>`).join("") +
-    `<div class="br res"><span>Result</span><b>${fmt(r.total)}</b></div>`;
-  return `<div class="hl det">${head}<div class="hlbl full">${esc(label || "Roll")}</div><div class="hr">${dice}<span class="hlbl"></span><span class="tot">${fmt(r.total)}</span></div><div class="brk">${table}</div></div>`;
-}
+const line = (r) => rollLine(r, histDetail);
+// Pop-out: roll history in its own solid window in the upper right (same spot as the initiative list), so it stays up beside the sheet
+$("dicepop").onclick = async () => {
+  if (standalone) return window.open("dicelist.html");
+  const u = new URL("go.html", location.href); u.searchParams.set("p", "dicelist");
+  const ref = new URLSearchParams(location.search).get("obrref"); if (ref) u.searchParams.set("obrref", ref);
+  const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
+  OBR.popover.open({ id: "com.newscolos.dicelist", url: u.href, width: 340, height: Math.max(360, Math.round(vh * 0.75)), hidePaper: true,
+    anchorReference: "POSITION", anchorPosition: { left: vw - 70, top: 70 },
+    anchorOrigin: { horizontal: "RIGHT", vertical: "TOP" }, transformOrigin: { horizontal: "RIGHT", vertical: "TOP" },
+    disableClickAway: true }).catch(() => {});
+};
+// the pop-out's SIMPLE/DETAILED switch and this one stay in step
+window.addEventListener("storage", (e) => { if (e.key === "ns.histDetail") { histDetail = e.newValue === "on"; render(lastRolls); } });
 let lastRolls = [];
 function render(rolls) {
   lastRolls = rolls;
