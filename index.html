@@ -84,6 +84,11 @@
   .fld small, .att small { display:block; font-size:9px; font-weight:800; text-transform:uppercase; color:var(--dim); }
   .fld > div { font-size:15px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .fld.c { text-align:center; }
+  .ephd { display:flex; align-items:center; justify-content:space-between; gap:6px; margin-bottom:2px; }
+  .tref { display:inline-flex; align-items:center; gap:4px; flex:none; background:var(--accent); color:#000; border:none; border-radius:6px; padding:3px 8px; font:800 11px system-ui; letter-spacing:.4px; cursor:pointer; }
+  .tref:hover { filter:brightness(1.12); }
+  .sref { display:inline-flex; align-items:center; gap:3px; margin-left:6px; background:none; border:none; color:var(--dim); font:700 11px system-ui; cursor:pointer; padding:0; vertical-align:middle; }
+  .sref:hover { color:var(--accent); }
   .epx { display:flex; gap:10px; align-items:flex-start; }
   .epx .epl { flex:1; min-width:0; }
   .epp { white-space:nowrap; padding-left:8px !important; padding-right:8px !important; text-align:center; }
@@ -832,7 +837,7 @@ function drawSheet() {
     <div class="infp gpow" data-for="attr" hidden></div>
     <div class="stab">VITALITY TRACK</div><button id="heal" class="healb" title="Heal one: every wound moves one box left; the leftmost Light Wound goes away" ${"BCDEFGH".split("").some(c => V(c + "16")) ? "" : "disabled"}>✚ HEAL</button>${(healUndo.get(sheetId()) || []).length ? `<button id="healUndo" class="healb undo" title="Put the vitality track back the way it was before the last heal">↶ UNDO (${healUndo.get(sheetId()).length})</button>` : ""}
     <div class="vit">${["B", "C", "D", "E", "F", "G", "H"].map((c, i) => { const t = V(c + "15"); const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<button class="box ${V(c + "16") ? "x" : ""}" data-w="${i}"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk ${V(c + "16") ? "x" : ""}">${V(c + "16") ? "✕" : ""}</span></button>`; }).join("")}</div>
-    <div class="g2b ${ptInEP() ? "g2p" : ""}"><div class="fld"><div class="epl"><small>Extraordinary Power</small><div id="pwname">${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div></div></div>
+    <div class="g2b ${ptInEP() ? "g2p" : ""}"><div class="fld"><div class="epl"><div class="ephd"><small>Extraordinary Power</small>${typeRefBtn()}</div><div id="pwname">${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div></div></div>
       <div class="fld c"><small>Used today</small><button id="pw" class="chk ${used ? "x" : ""}">${used ? "✕" : ""}</button></div>${ptInEP() ? `
       <div class="fld c epp"><small>${esc2(V("E13"))}${ptMaxV() ? ` <span>/ ${esc2(ptMaxV())}</span>` : ""}</small>${ptCtl()}</div>` : ""}</div>
     <div id="pwd" class="gpow pwd" hidden></div>
@@ -843,7 +848,7 @@ function drawSheet() {
       <div class="fld c"><small class="inft" data-inf="cop" data-sec="combat">COP${copMaxT !== "" ? ` <span class="dimn">/ ${esc2(copMaxT)}</span>` : ""}</small><div class="ctl"><button id="copm" title="Use a point">−</button><b id="copv" title="Points left this combat">${esc2((m => isNaN(m) ? (V("H29") || "0") : String(Math.max(0, m - (parseInt(V("H29")) || 0))))(parseInt(copMaxT)))}</b><button id="copp" title="Give a point back">+</button></div></div></div>
     <div class="infp gpow" data-for="combat" hidden></div>
 
-    ${trained.h ? `<div class="stab">SKILLS</div>${trained.h}` : ""}
+    ${trained.h ? `<div class="stab">SKILLS</div><button class="sref" data-k="tab:Skill List" title="Open the Skill List beside the map">${REF_SVG}Skill List</button>${trained.h}` : ""}
     ${untrained.h ? `<div class="stab">UNTRAINED SKILLS</div>${untrained.h}` : ""}
     ${eq.length ? `<div class="stab">EQUIPPED</div><div class="lbox">${lines(eq)}</div>` : ""}
     ${inv.length ? `<div class="stab">INVENTORY</div><div class="lbox">${lines(inv)}</div>` : ""}
@@ -1629,6 +1634,13 @@ async function fillPowers() {
 // Max invocations / spell points: number in H13 (label in G13); older layout had the number in G13
 // Priest and Mage: their Invocations / Spell Points sit inside the Extraordinary Power box to save space
 function ptInEP() { return !!V("E13") && /^(priest|mage)$/i.test(V("C4")); }
+// Opens the character's own type tab (all their rules) in the REFERENCE pop-out; it remembers see-through or solid.
+const REF_SVG = `<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+function typeRefBtn() {
+  const t = TYPES.find(x => x.trim().toLowerCase() === V("C4").trim().toLowerCase()); if (!t) return "";
+  return `<button class="tref" data-k="${esc2("tab:" + t)}" title="Open all your ${esc2(t.trim())} rules beside the map">${REF_SVG}${esc2(t.trim().toUpperCase())} RULES</button>`;
+}
+document.addEventListener("click", (e) => { const b = e.target.closest(".tref, .sref"); if (!b) return; e.preventDefault(); e.stopPropagation(); popOut(b.dataset.k); }, true);
 function ptCtl() { return `<div class="ctl"><button id="ptm">−</button><b>${esc2(V("F13") || "0")}</b><button id="ptp">+</button></div>`; }
 function ptMaxV() { return /^\d+$/.test(V("H13")) ? V("H13") : /^\d+$/.test(V("G13")) ? V("G13") : ""; }
 // Healing: every mark on the vitality track shifts one box left; the leftmost (Light Wound) drops off.
