@@ -76,8 +76,11 @@ if (OBR.isAvailable) OBR.onReady(async () => {
 const q = new URLSearchParams(location.search);
 const pick = document.getElementById("pick");
 pick.innerHTML = REF_GROUPS.map(([g, keys]) => `<optgroup label="${esc2(g)}">${keys.map(k => ALL.find(x => x[1] === k)).filter(Boolean).map(([t, k]) => `<option value="${esc2(k)}">${esc2(t)}</option>`).join("")}</optgroup>`).join("");
+// Tell the panel which section is open, so tapping the same button again closes this pop-out
+const mark = (k) => { try { k ? localStorage.setItem("ns.popOpen", k) : localStorage.removeItem("ns.popOpen"); } catch {} };
+window.addEventListener("pagehide", () => mark(""));
 async function show(k) {
-  pick.value = k; cur = k;
+  pick.value = k; cur = k; mark(k);
   document.getElementById("t").textContent = (ALL.find(s => s[1] === k)?.[0] || "Reference").toUpperCase();
   if (k === "__rolls") return drawRolls();
   const m = document.getElementById("m");
@@ -90,6 +93,6 @@ pick.onchange = () => show(pick.value);
 const solid = (on) => { document.body.classList.toggle("solid", on); try { localStorage.setItem("ns.popSolid", on ? "1" : ""); } catch {} };
 try { solid(localStorage.getItem("ns.popSolid") === "1"); } catch {}
 document.getElementById("op").onclick = () => solid(!document.body.classList.contains("solid"));
-document.getElementById("x").onclick = () => OBR.isAvailable ? OBR.popover.close("com.newscolos.rules") : window.close();
+document.getElementById("x").onclick = () => mark("") || OBR.isAvailable ? OBR.popover.close("com.newscolos.rules") : window.close();
 show(q.get("k") || SECTIONS[0][1]);
 </script></body></html>
