@@ -282,6 +282,8 @@
   html.solid .gtray { background:#1b1e2e; }
   .gtt { font-family:'Bangers', Impact, sans-serif; font-size:16px; letter-spacing:1px; color:var(--accent); margin:0 0 3px 2px; }
   .gtt small { font-family:system-ui; font-size:10px; color:var(--dim); letter-spacing:0; margin-left:4px; }
+  .gtip { font:600 13px/1.35 system-ui; color:#e8e6f5; background:#2a2545; border-left:3px solid var(--accent); border-radius:4px; padding:4px 7px; margin:0 0 5px; }
+  .gtip b { color:var(--accent); }
   .gtr { display:flex; gap:4px; align-items:flex-start; margin-top:3px; }
   .gtl { flex:none; width:24px; height:24px; display:flex; align-items:center; justify-content:center; font-family:'Bangers', Impact, sans-serif; font-size:15px; background:#000; border-radius:5px; }
   .gtc { flex:1; display:flex; flex-wrap:wrap; gap:3px; min-width:0; }
@@ -1324,7 +1326,7 @@ async function showGen() {
       const canFill = [...suggList, ...fightList].some(s => pickedIdx(s.name) < 0) && cg.skills.length < 8;
       put(bar + firstTime("How skills work", `<p>You get <b>8 skills</b>. Each one goes in a slot: one <b>+1</b>, three <b>0</b>, two <b>-2</b> and two <b>-3</b>.</p>
           <p>A skill's total is its attribute plus its slot. That total is what you add when you roll it. Example: Adroitness +1 in the 0 slot = <b>+1</b>.</p>
-          <p>Put the skills you'll use most in the best slots. <b>★</b> marks skills suggested for your type, and <b>★ Fill suggested</b> fills the open slots for you. Make sure you take a way to fight (Ranged Weapons or Melee Weapon Fighting).</p>`) + `<div class="gtray"><div class="gtt">SKILLS ${cg.skills.length}/8 <small>${genMove != null ? "tap a slot to move it there" : "tap a skill below to fill the next slot"}</small></div>${tray}</div>
+          <p>Put the skills you'll use most in the best slots. <b>★</b> marks skills suggested for your type, and <b>★ Fill suggested</b> fills the open slots for you. Make sure you take a way to fight (Ranged Weapons or Melee Weapon Fighting).</p>`) + `<div class="gtray"><div class="gtt">SKILLS ${cg.skills.length}/8</div><div class="gtip">${genMove != null ? "Now tap another slot to move it there (or swap)." : `👉 Tap a skill below to fill the next slot.${cg.skills.length ? "<br>Once a skill is in, you can <b>drag it</b> (or tap it) to another slot to move or swap it, or tap <b>✕</b> to take it out." : ""}`}</div>${tray}</div>
         <div class="gnote">Tap a skill to pick it. Total = attribute + slot level. Tap a filled slot (or drag it) to move it.${need ? ` ${cg.type}s must take ${cg.type === "Priest" ? "Prayer" : "Spellcasting"}.` : ""}</div>
         <div class="gtools"><input id="gq" class="gq" placeholder="Search skills…" value="${esc2(genQ)}">${canFill ? `<button id="gFill" class="sbtn" title="Put your type's suggested skills in the open slots, in order">★ Fill suggested</button>` : ""}</div>
         <div id="gsl">${suggList.length ? `<div class="gsh">★ SUGGESTED FOR ${esc2(cg.type.toUpperCase())}</div>${suggNote ? `<div class="gsnote">${esc2(suggNote)}</div>` : ""}${suggList.map(row).join("")}` : ""}${fightList.length ? `<div class="gsh">⚔ EVERYONE: HOW YOU FIGHT</div><div class="gsnote2">Every character needs a way to shoot and hit back.</div>${fightList.map(row).join("")}` : ""}${groups}</div>
