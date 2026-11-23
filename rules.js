@@ -8,7 +8,7 @@ async function bridgeGet(params) {
   return (await fetch(u)).json();
 }
 export const MASTER = "1_cnTDLNHIsaVMAOkOKSKK0YawUHt38ZewW1o5-yWbhU";
-export const TYPES = ["Priest", "Mage", "Mentalist", "Mercenary", "Wraith", "Revenant", "Hacker", "Subject Zero"];
+export const TYPES = ["Mercenary", "Hacker", "Revenant", "Subject Zero", "Wraith", "Mentalist", "Mage", "Priest"]; // easiest to hardest; the picker and REFERENCE list follow this order
 export const SECTIONS = [["Your Turn & Movement", "turn"], ["Attacking & Damage", "attack"], ["Combat Options", "tab:Combat Options"],
   ...TYPES.map(t => [t.trim(), "tab:" + t]), ["The Gods", "gods"], ["Schools of Magic", "schools"], ["Skill List", "tab:Skill List"], ["Dice Odds", "odds"]];
 const tabCache = {};
