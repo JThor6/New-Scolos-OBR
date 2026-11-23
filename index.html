@@ -525,7 +525,7 @@
   <div id="last"></div>
   <div style="display:flex;gap:6px;align-items:stretch"><button id="histbtn" class="histbtn" style="flex:1">SHOW ROLL HISTORY</button><button id="dicepop" class="histbtn" style="flex:none;width:44px;color:var(--dim);display:flex;align-items:center;justify-content:center" title="Pop out roll history"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
   <div id="history" hidden><div class="empty">No rolls yet.</div></div>
-  <button id="handbtn" class="histbtn">ROLLED REAL DICE? LOG IT</button>
+  <button id="handbtn" class="histbtn">ANALOG DICE UPLINK</button>
   <div id="hand" class="hand" hidden></div>
 </main>
 <script type="module">
@@ -675,7 +675,7 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
   const ks = !whoName && ksArmed() && KS_ATTACK.test(String(label || ""));
   if (ks) { label = "KILL SHOT · " + label; setKS(false); fillPowers(); setTimeout(() => markPowerUsed(), 0); }
   const dice = ks ? [1, 1, 1, 1] : real || [rollDie(), rollDie(), rollDie(), rollDie()];
-  if (real) label = (String(label || "Roll").slice(0, 46) + " · real dice").trim(); // rolled with physical dice, typed in
+  if (real) label = (String(label || "Roll").slice(0, 46) + " · analog").trim(); // rolled with physical dice, typed in
   const who = whoName || (standalone ? "Test" : await OBR.player.getName());
   const r = { id: crypto.randomUUID().slice(0, 8), pid: me || "local", who, label: String(label || "").slice(0, 60), dice, mod: m, total: dice.reduce((a, b) => a + b, 0) + m, ts: Date.now() };
   if (ks) r.ks = 1; else if (!whoName && /^⚡/.test(r.label)) r.pw = 1; // Kill Shot shows red, other daily power rolls gold
@@ -697,6 +697,7 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
 // ---------------- REAL DICE (DICE tab) ----------------
 // For players who roll physical dice: pick what you rolled (from your sheet), tap each die to match yours, send it.
 // It goes out like any roll: card on everyone's screen, Roll History, wounds, initiative and Kill Shot all apply.
+let myDaily = []; // the open character's daily power names (filled when the sheet's power box loads)
 let hand = { dice: [0, 0, 0, 0], set: [false, false, false, false], pick: "", mod: "0", pw: false };
 function handOptions() {
   const out = [];
@@ -707,6 +708,15 @@ function handOptions() {
       const nm = V("B" + r); if (!nm) continue;
       out.push({ k: "s:" + r, n: nm, m: num(V("F" + r)) ?? 0, g, br: V("C" + r) && V("D" + r) !== "" ? `${V("C" + r)}|${V("D" + r)}|${V("E" + r)}` : "" });
     }
+  }
+  // Extraordinary Power rolls, the same ones as the buttons in the power box (starting a power uses it; rolls while it runs don't)
+  if (sheetVals && !isGM) for (const name of myDaily) {
+    const e = POWER_ROLLS[name.toLowerCase().trim()]; if (!e || typeof e !== "object") continue;
+    const add = (list, start, fl) => (list || []).forEach((r, i) => { const pm = powerMod(r.k); if (!pm) return;
+      out.push({ k: `p:${name}:${start ? "s" : "f"}:${fl || ""}:${i}`, n: `${name}: ${r.t}${pm.un ? " (untrained)" : ""}`, m: pm.m + (r.x || 0), g: "Extraordinary Power",
+        pw: true, start, off: start ? powerUsed() : !powerUsed(), br: r.x ? "" : pm.br,
+        label: `⚡ ${name} · ${fl ? fl + " (" + (r.l || r.k) + ")" : r.l || r.k}${r.x ? ` ${r.x}` : ""}${pm.un ? " untrained" : ""}` }); });
+    add(e.act, true); add(e.alt, true); add(e.follow, false, e.fl);
   }
   out.push({ k: "other", n: "Something else (type the modifier)", m: null, g: "Other" });
   return out;
@@ -719,15 +729,15 @@ function drawHand() {
   const done = hand.set.every(Boolean), tot = hand.dice.reduce((a, b) => a + b, 0) + modN + pen;
   const groups = [...new Set(opts.map(x => x.g))];
   const face = (d, on) => !on ? "?" : d > 0 ? "+" : d < 0 ? "−" : "";
-  box.innerHTML = `<div class="hnote">Rolled your own dice? Enter them here and the whole table sees the roll.</div>
+  box.innerHTML = `<div class="hnote">Rolling physical dice? Enter them here and the whole table sees the roll. Extraordinary Power rolls are in the list too.</div>
     <label>What did you roll?</label>
-    <select id="hPick"><option value="">Pick one…</option>${groups.map(g => `<optgroup label="${esc2(g)}">${opts.filter(x => x.g === g).map(x => `<option value="${esc2(x.k)}" ${x.k === hand.pick ? "selected" : ""}>${esc2(x.n)}${x.m != null ? ` (${x.m >= 0 ? "+" : ""}${x.m})` : ""}</option>`).join("")}</optgroup>`).join("")}</select>
+    <select id="hPick"><option value="">Pick one…</option>${groups.map(g => `<optgroup label="${esc2(g)}">${opts.filter(x => x.g === g).map(x => `<option value="${esc2(x.k)}" ${x.k === hand.pick ? "selected" : ""} ${x.off ? "disabled" : ""}>${esc2(x.n)}${x.m != null ? ` (${x.m >= 0 ? "+" : ""}${x.m})` : ""}${x.off ? (x.start ? " · used today" : " · use the power first") : ""}</option>`).join("")}</optgroup>`).join("")}</select>
     ${hand.pick === "other" ? `<label>Modifier</label><input id="hMod" inputmode="numeric" value="${esc2(hand.mod)}" placeholder="0">` : ""}
     <label>Your four dice <span class="hsub">(tap each one: blank, +, −)</span></label>
     <div class="hdice">${hand.dice.map((d, i) => `<button class="hdie ${!hand.set[i] ? "q" : d > 0 ? "p" : d < 0 ? "m" : ""}" data-i="${i}">${face(d, hand.set[i])}</button>`).join("")}</div>
-    ${sheetVals && !isGM ? `<label class="hpw"><input type="checkbox" id="hPw" ${hand.pw ? "checked" : ""} ${powerUsed() && !hand.pw ? "disabled" : ""}> Extraordinary Power roll${powerUsed() ? " (already used today)" : " (ticks Used today)"}</label>` : ""}
+    ${sheetVals && !isGM && hand.pick === "other" ? `<label class="hpw"><input type="checkbox" id="hPw" ${hand.pw ? "checked" : ""} ${powerUsed() && !hand.pw ? "disabled" : ""}> Extraordinary Power roll${powerUsed() ? " (already used today)" : " (ticks Used today)"}</label>` : ""}
     <div class="htot">${done && hand.pick ? `Total <b>${tot >= 0 ? "+" : ""}${tot}</b>${pen ? ` <span>(wounded ${pen})</span>` : ""}` : `<span>${!hand.pick ? "Pick what you rolled" : "Tap all four dice"}</span>`}</div>
-    <button id="hSend" class="sbtn" ${done && hand.pick ? "" : "disabled"}>SEND TO THE TABLE</button>`;
+    <button id="hSend" class="sbtn" ${done && hand.pick ? "" : "disabled"}>TRANSMIT TO THE TABLE</button>`;
   $("hPick").onchange = () => { hand.pick = $("hPick").value; if (hand.pick === "other") hand.mod = "0"; drawHand(); };
   if ($("hMod")) $("hMod").oninput = () => { hand.mod = $("hMod").value; drawHand(); const el = $("hMod"); el.focus(); el.setSelectionRange(el.value.length, el.value.length); };
   box.querySelectorAll(".hdie").forEach(b => b.onclick = () => { const i = +b.dataset.i;
@@ -736,17 +746,17 @@ function drawHand() {
   $("hSend").onclick = async () => {
     if (rollBusy) return;
     const o = handOptions().find(x => x.k === hand.pick); if (!o) return;
-    if (hand.pw && powerUsed()) return drawHand();
-    const label = (hand.pw ? "⚡ " : "") + (o.k === "other" ? "Roll" : o.n);
+    if (o.off || (hand.pw && powerUsed())) return drawHand();
+    const pwOther = o.k === "other" && hand.pw, label = o.label || ((pwOther ? "⚡ " : "") + (o.k === "other" ? "Roll" : o.n));
     const mod = o.m != null ? o.m : (parseInt(String(hand.mod).replace("−", "-"), 10) || 0);
     setRollBusy(true);
-    try { await doQuickRoll(mod, label, "", sheetVals && !isGM ? sheetPen() : 0, o.br || "", [...hand.dice]); if (hand.pw) markPowerUsed(); }
+    try { await doQuickRoll(mod, label, "", sheetVals && !isGM ? sheetPen() : 0, o.br || "", [...hand.dice]); if (pwOther || (o.pw && o.start)) markPowerUsed(); if (o.pw) fillPowers(); }
     finally { setTimeout(() => setRollBusy(false), 1500); }
     hand = { dice: [0, 0, 0, 0], set: [false, false, false, false], pick: "", mod: "0", pw: false };
-    $("hand").hidden = true; $("handbtn").textContent = "ROLLED REAL DICE? LOG IT";
+    $("hand").hidden = true; $("handbtn").textContent = "ANALOG DICE UPLINK";
   };
 }
-$("handbtn").onclick = () => { const h = $("hand"); h.hidden = !h.hidden; $("handbtn").textContent = h.hidden ? "ROLLED REAL DICE? LOG IT" : "CLOSE REAL DICE"; drawHand(); };
+$("handbtn").onclick = () => { const h = $("hand"); h.hidden = !h.hidden; $("handbtn").textContent = h.hidden ? "ANALOG DICE UPLINK" : "CLOSE UPLINK"; drawHand(); };
 
 // ---------------- CHARACTER TAB (internal id "sheet") ----------------
 const BRIDGE = "https://script.google.com/macros/s/AKfycbx5cjtXVGyFeoQx0EzJ-47gk4uXT6mXdgs90zaBmUB-zctUFm6OxD8fyWZWWuUQT0ua/exec";
@@ -1695,6 +1705,7 @@ async function fillPowers() {
       if (/^always on/i.test(b)) { const name = b.replace(/^always on/i, "").replace(/\([^)]*\)/g, "").replace(/^[\s:]+/, "").trim(); always.push({ name, text: c }); }
       else if (/^extraordinary power/i.test(b) && c) { const name = c.replace(/\s*\((once|one) per day\)\s*/ig, " ").trim(); daily.push({ name, rules: info?.powers.find(p => p.name === c)?.rules || [] }); }
     }
+    myDaily = daily.map(x => x.name); drawHand();
     if (!$("pwlist")) return;
     $("pwlist").innerHTML =
       (always.length ? `<div><span>ALWAYS ON:</span> ${always.map((x, i) => x.name ? `<button class="pwb ${pwOpen === "a" + i ? "on" : ""}" data-pk="a${i}">${esc2(x.name)}</button>` : esc2(x.text)).join(", ")}</div>` : "") +
