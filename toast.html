@@ -24,8 +24,8 @@
   const dice = (q.get("dice") || "").split(",").map(Number);
   const mod = Number(q.get("mod") || 0);
   // "(wounded -1)" goes up on the name line so a long skill name can never push it out of sight
-  let label = q.get("label") || "", wnd = "";
-  const wm = label.match(/\s*\((wounded [^)]*)\)\s*$/i); if (wm) { wnd = wm[1]; label = label.slice(0, wm.index); }
+  let label = q.get("label") || "", wnd = q.get("wnd") ? "wounded " + q.get("wnd") : "";
+  const wm = label.match(/\s*\((wounded [^)]*)\)\s*$/i); if (wm) { wnd = wnd || wm[1]; label = label.slice(0, wm.index); }
   const lsize = label.length > 44 ? 10 : label.length > 30 ? 11 : 12; // long skill names get a smaller font
   document.getElementById("t").innerHTML =
     `<span class="who"><span style="overflow:hidden;text-overflow:ellipsis">${esc(q.get("who") || "")}</span>${wnd ? `<span class="wnd">${esc(wnd)}</span>` : ""}</span>` +
