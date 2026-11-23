@@ -444,7 +444,9 @@
   #mo .matk { min-height:44px; } #mo .matk span { display:flex; align-items:center; } #mo .matk span small { font-size:11px; font-weight:800; color:var(--dim); letter-spacing:.5px; } #mo .matk b { font-size:18px; }
   #mo .mrow2 .fld > div { font-size:15px; font-weight:800; }
   #mo .pvit.mv { gap:6px; margin-top:8px; flex-wrap:wrap; } #mo .pvit i small { font-size:10px; }
-  #mo .mw { width:26px; height:26px; border-radius:5px; }
+  #mo .mw { width:30px; height:30px; border-radius:5px; }
+  #mo .pvit.mv { justify-content:space-between; gap:2px; } #mo .pvit.mv i { flex:1; min-width:0; gap:2px; }
+  #mo .pvit.mv .wd { font-size:13px; font-weight:900; color:var(--ink); line-height:1; } #mo .pvit.mv small { font-size:10px; }
   #mo .mtop { gap:8px; } #mo .mtop b { font-size:16px; } #mo .mdead { padding:5px 10px; }
   #mo .mcard { padding:8px 9px 10px; margin-top:10px; }
   #mo .mtext i { font-style:normal; font-weight:800; color:var(--dim); }
@@ -1620,6 +1622,7 @@ async function refreshCharList() {
 // L Special, M-S the 7 wound boxes, T Dead, U Loot / Notes.
 const DEFAULT_ENCOUNTER = "1bZy2SITk6KEyIYH-cgiheQbp5-RUFGEkubag49ukPBM"; // Scratch Encounter Tracking Sheet
 const WOUNDS = ["LW", "LW", "LW", "MW", "CW", "KO", "D"];
+const WOUND_DMG = ["1-2", "1-2", "1-2", "3-4", "5-6", "7-8", "9+"]; // damage that lands in each box, like the sheet
 let monVals = null;
 const monId = () => store.get(ck("ns.encounter")) || (campaign ? (encList[0]?.id || "") : DEFAULT_ENCOUNTER);
 async function showMonsters() {
@@ -1779,7 +1782,7 @@ function drawMonsters() {
         <div class="fld c"><small>Offense</small><div>${esc2(c(row, 8) || "-")}</div></div>
         <div class="fld c"><small>Defense</small><div>${esc2(c(row, 9) || "-")}</div></div>
         <div class="fld c"><small>Armor</small><div>${esc2(c(row, 10) || "-")}</div></div></div>
-      <div class="pvit mv">${WOUNDS.map((w, i) => { const on = !!c(row, 12 + i); return `<i><small>${w}</small><button class="mw ${on ? "x" : ""}" data-r="${sheetRow}" data-c="${13 + i}" data-on="${on ? "" : "1"}"></button></i>`; }).join("")}</div>
+      <div class="pvit mv">${WOUNDS.map((w, i) => { const on = !!c(row, 12 + i); return `<i><b class="wd">${WOUND_DMG[i]}</b><small>${w}</small><button class="mw ${on ? "x" : ""}" data-r="${sheetRow}" data-c="${13 + i}" data-on="${on ? "" : "1"}"></button></i>`; }).join("")}</div>
       ${c(row, 11) ? `<div class="mtext"><i>Special:</i> ${esc2(c(row, 11))}</div>` : ""}
       ${c(row, 20) ? `<div class="mtext mnote"><i>Loot / Notes:</i> ${esc2(c(row, 20))}</div>` : ""}
     </div>`;
