@@ -124,6 +124,8 @@ function setupPermissions() {
 // Fills Jake's fillable template (New_Scolos_Character_Sheet.pdf) from a character's Main Sheet,
 // saves it in the character folder (replacing that character's previous export) and returns a link.
 const PDF_TEMPLATE_ID = '1nJhcRYr7xSSEk89Oi0ELtabyUgHUMGVF';
+// Run once from the editor (function dropdown → authorizePdf → Run → Allow) so the bridge may download pdf-lib.
+function authorizePdf() { UrlFetchApp.fetch('https://unpkg.com/pdf-lib@1.17.1/package.json'); Logger.log('PDF export allowed. Now deploy a new version.'); }
 // pdf-lib needs setTimeout, which Apps Script doesn't have
 var setTimeout = function (f, t) { Utilities.sleep(t || 0); return f(); };
 
