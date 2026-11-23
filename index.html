@@ -33,6 +33,7 @@
   .hand { margin-top:8px; padding:8px 10px 10px; border:1px solid #444a66; border-radius:8px; background:var(--paper); }
   .hand .hnote { font-size:12px; color:var(--dim); margin-bottom:4px; } .hand label { display:block; margin-top:8px; }
   .hand select, .hand input:not([type=checkbox]) { width:100%; box-sizing:border-box; }
+  .hwnd { margin-top:6px; padding:4px 8px; border-left:3px solid #c0392b; background:rgba(140,30,30,.35); color:#ffd0cc; font-size:12px; font-weight:700; border-radius:4px; }
   .hsub { font-weight:400; color:var(--dim); font-size:11px; text-transform:none; }
   .hdice { display:flex; gap:8px; margin-top:4px; }
   .hdie { flex:1; height:52px; border:2px solid var(--ink); border-radius:8px; background:rgba(10,12,20,.6); color:var(--ink); font-size:26px; font-weight:900; cursor:pointer; }
@@ -730,6 +731,7 @@ function drawHand() {
   const groups = [...new Set(opts.map(x => x.g))];
   const face = (d, on) => !on ? "?" : d > 0 ? "+" : d < 0 ? "−" : "";
   box.innerHTML = `<div class="hnote">Rolling physical dice? Enter them here and the whole table sees the roll. Extraordinary Power rolls are in the list too.</div>
+    ${pen ? `<div class="hwnd">Wounded: ${pen} to every roll. It's added to the total for you.</div>` : ""}
     <label>What did you roll?</label>
     <select id="hPick"><option value="">Pick one…</option>${groups.map(g => `<optgroup label="${esc2(g)}">${opts.filter(x => x.g === g).map(x => `<option value="${esc2(x.k)}" ${x.k === hand.pick ? "selected" : ""} ${x.off ? "disabled" : ""}>${esc2(x.n)}${x.m != null ? ` (${x.m >= 0 ? "+" : ""}${x.m})` : ""}${x.off ? (x.start ? " · used today" : " · use the power first") : ""}</option>`).join("")}</optgroup>`).join("")}</select>
     ${hand.pick === "other" ? `<label>Modifier</label><input id="hMod" inputmode="numeric" value="${esc2(hand.mod)}" placeholder="0">` : ""}
@@ -750,13 +752,15 @@ function drawHand() {
     const pwOther = o.k === "other" && hand.pw, label = o.label || ((pwOther ? "⚡ " : "") + (o.k === "other" ? "Roll" : o.n));
     const mod = o.m != null ? o.m : (parseInt(String(hand.mod).replace("−", "-"), 10) || 0);
     setRollBusy(true);
+    if (!isGM && sheetId() && !standalone) { await loadSheet(true).catch(() => {}); } // last check for wounds marked on the sheet
     try { await doQuickRoll(mod, label, "", sheetVals && !isGM ? sheetPen() : 0, o.br || "", [...hand.dice]); if (pwOther || (o.pw && o.start)) markPowerUsed(); if (o.pw) fillPowers(); }
     finally { setTimeout(() => setRollBusy(false), 1500); }
     hand = { dice: [0, 0, 0, 0], set: [false, false, false, false], pick: "", mod: "0", pw: false };
     $("hand").hidden = true; $("handbtn").textContent = "ANALOG DICE UPLINK";
   };
 }
-$("handbtn").onclick = () => { const h = $("hand"); h.hidden = !h.hidden; $("handbtn").textContent = h.hidden ? "ANALOG DICE UPLINK" : "CLOSE UPLINK"; drawHand(); };
+$("handbtn").onclick = () => { const h = $("hand"); h.hidden = !h.hidden; $("handbtn").textContent = h.hidden ? "ANALOG DICE UPLINK" : "CLOSE UPLINK"; drawHand();
+  if (!h.hidden && !isGM && sheetId() && !standalone) loadSheet(true).then(drawHand).catch(() => {}); }; // fresh wounds and modifiers from the sheet
 
 // ---------------- CHARACTER TAB (internal id "sheet") ----------------
 const BRIDGE = "https://script.google.com/macros/s/AKfycbx5cjtXVGyFeoQx0EzJ-47gk4uXT6mXdgs90zaBmUB-zctUFm6OxD8fyWZWWuUQT0ua/exec";
