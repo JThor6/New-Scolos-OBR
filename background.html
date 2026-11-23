@@ -29,9 +29,8 @@ async function showRoll(r, spin) {
   if (spin) url.searchParams.set("spin", "1");
   const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
   const col = slot % PER_ROW, row = Math.floor(slot / PER_ROW);
-  const lines = r.label ? Math.min(3, Math.ceil(String(r.label).length / 26)) : 0; // long labels wrap onto up to 3 lines
-  await OBR.popover.open({
-    id, url: url.href, width: W, height: H - 16 + lines * 16,
+  await OBR.popover.open({ // every card the same size: room for the longest skill name (3 lines)
+    id, url: url.href, width: W, height: H + 32,
     anchorReference: "POSITION",
     anchorPosition: { left: vw - 80 - col * (W + GAP), top: vh - 70 - row * (H + 32 + GAP) }, // clear of the corner buttons
     anchorOrigin: { horizontal: "RIGHT", vertical: "BOTTOM" },
