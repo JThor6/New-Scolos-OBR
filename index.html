@@ -420,13 +420,13 @@
 </style>
 </head>
 <body>
-<header><h1>NEW SCOLOS</h1><span class="hctl"><span id="syncdot" class="syncdot" hidden title="Syncing with Google Sheets">⟳</span><button id="solid" class="tab" title="See-through / solid">◐</button><button id="size" class="tab" title="Change panel size">S</button></span><nav><button class="tab on" data-t="dice">DICE</button><button class="tab" data-t="sheet">SHEET</button><button class="tab" data-t="rules">REFERENCE</button><button class="tab" data-t="gen">CHARACTER GENERATOR</button><button class="tab" data-t="mon" id="monTab" hidden>MONSTERS</button></nav></header>
+<header><h1>NEW SCOLOS</h1><span class="hctl"><span id="syncdot" class="syncdot" hidden title="Syncing with Google Sheets">⟳</span><button id="solid" class="tab" title="See-through / solid">◐</button><button id="size" class="tab" title="Change panel size">S</button></span><nav><button class="tab on" data-t="sheet">SHEET</button><button class="tab" data-t="rules">REFERENCE</button><button class="tab" data-t="dice">DICE</button><button class="tab" data-t="gen">CHARACTER GENERATOR</button><button class="tab" data-t="mon" id="monTab" hidden>MONSTERS</button></nav></header>
 <div id="initban" class="initban" hidden><span>⚔ Initiative! Your next Adroitness roll counts.</span><button id="initgo">ROLL</button><button id="initx" title="Hide">✕</button></div>
-<section id="sheet" hidden><div id="sh"></div></section>
+<section id="sheet"><div id="sh"><div class="empty">Loading…</div></div></section>
 <section id="rules" hidden><div id="ru"></div></section>
 <section id="gen" hidden><div id="cg"></div></section>
 <section id="mon" hidden><div id="mo"></div></section>
-<main id="dice">
+<main id="dice" hidden>
   <label>Modifier</label>
   <div style="display:flex;gap:8px;align-items:stretch"><input id="modin" inputmode="numeric" placeholder="0" style="font-size:22px;font-weight:800;text-align:center;width:110px"><button id="modneg" class="negbtn" title="Flip to minus / plus">±</button></div>
   <button id="roll">ROLL</button>
@@ -1677,12 +1677,14 @@ $("initgo").onclick = () => {
   document.querySelector('.tab[data-t="sheet"]').click(); // sheet not loaded yet: open it so they can roll from there
 };
 if (standalone) {
+  document.querySelector('.tab[data-t="sheet"]').click();
   document.querySelector("nav").insertAdjacentHTML("beforeend", `<span style="color:var(--dim);font-size:10px">TEST</span>`);
 } else {
   OBR.onReady(async () => {
     me = await OBR.player.getId();
     isGM = (await OBR.player.getRole()) === "GM";
     $("monTab").hidden = !isGM;
+    document.querySelector('.tab[data-t="sheet"]').click(); // Sheet is the first tab: open it once the GM/player role is known
     if (isGM) { initMd = await OBR.room.getMetadata(); OBR.room.onMetadataChange((m) => { initMd = m; drawInitList(); markTurn(); }); }
     applySize();
     render(allRolls(await OBR.room.getMetadata()));
