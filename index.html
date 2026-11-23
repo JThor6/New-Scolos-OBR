@@ -1781,8 +1781,9 @@ function drawMonsters() {
     const name = c(row, 0); if (!name) continue;
     const dead = /^(true|x|yes|dead)$/i.test(c(row, 19));
     const sheetRow = row + 1;
-    // monsters take the same wound penalty as players: -1 each for Critical Wound and Down & KO'ed
-    const pen = -[16, 17].filter(i => c(row, i)).length;
+    // wound penalty: -1 once Critical Wound or Down & KO'ed is marked (they don't stack); mooks/minions never take it
+    const mook = /\b(mook|minion)s?\b/i.test(c(row, 0) + " " + c(row, 2));
+    const pen = !mook && [16, 17].some(i => c(row, i)) ? -1 : 0;
     const roll = (label, val) => /^[+\-−]?\d+$/.test(val) ? `<button class="rd" data-m="${esc2(val)}" data-l="${esc2(label)}" data-w="${esc2(name)}" data-p="${pen}" title="Roll ${esc2(label)}">${ROLL_ICON}</button>` : "";
     // always Adroitness, Raw Strength, Intellect, Charm left to right (the tracker sheet's columns are in a different order)
     const attrs = [["Adroitness", 4, "Adroitness"], ["Raw Str.", 3, "Raw Strength"], ["Intellect", 5, "Intellect"], ["Charm", 6, "Charm"]].map(([n, i, full]) =>
