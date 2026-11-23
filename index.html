@@ -797,6 +797,8 @@ function drawManager() {
   $("shbody").innerHTML = `
     <button id="mgr" class="sbtn mgrbtn on">✓ DONE MANAGING</button>
     <div class="mtitle">${esc2(V("C3"))} · Level ${levelOf(xpSpent())}</div>
+    <div class="stab">CREDITS</div>
+    <div class="mrow"><b class="mcred">${esc2(V("F7") || "0")}</b><input id="crAmt" inputmode="numeric" placeholder="Amount"><button id="crAdd" class="sbtn">+ ADD</button><button id="crSub" class="sbtn">− SPEND</button></div>
     <div class="g4">${`<div class="fld"><small>XP to spend</small><div>${xpNow()}</div></div><div class="fld"><small>XP spent</small><div>${xpSpent()}</div></div><div class="fld"><small>Attr. pts left</small><div>${attrLeft()}</div></div><div class="fld"><small>Attr. pts spent</small><div>${num(V("F10")) || 0}</div></div>`}</div>
     <div class="mrow"><span class="mtot" title="Current XP + Spent XP">Total earned<b>${xpNow() + xpSpent()}</b></span><input id="xpAdd" inputmode="numeric" placeholder="XP earned"><button id="xpGo" class="sbtn">+ ADD XP</button></div>
     <div class="stab">ATTRIBUTES</div><table class="mtab">${attrRows}</table>
@@ -804,8 +806,6 @@ function drawManager() {
     <div class="stab">UNTRAINED SKILLS</div><table class="mtab">${skillRows(...L.untrained) || `<tr><td class="empty">None yet.</td></tr>`}</table>
     <div class="madd"><input id="skName" placeholder="New skill name"><select id="skAttr">${attrOpts}</select><button id="skGo" class="sbtn">ADD</button></div>
     <div class="mnote">New skills start Untrained at -4 and move to Trained at -3. Raising a skill spends XP; raising an attribute spends attribute points (costs from the chart on your sheet). − refunds the last step.</div>
-    <div class="stab">CREDITS</div>
-    <div class="mrow"><b class="mcred">${esc2(V("F7") || "0")}</b><input id="crAmt" inputmode="numeric" placeholder="Amount"><button id="crAdd" class="sbtn">+ ADD</button><button id="crSub" class="sbtn">− SPEND</button></div>
     <div class="stab">EQUIPPED</div>${listRows(...L.inv, ["E"], "eq")}
     <div class="mrow"><input id="eqName" placeholder="Equip an item"><button id="eqGo" class="sbtn">ADD</button></div>
     <div class="stab">INVENTORY</div>${listRows(...L.inv, ["B", "C", "D"], "inv")}
