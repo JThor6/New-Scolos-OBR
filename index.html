@@ -338,6 +338,9 @@
   .gname.need { border-color:var(--minus); }
   .ibtn.mgrb { width:auto; padding:0 9px; font:800 12px system-ui; white-space:nowrap; display:inline-flex; align-items:center; gap:4px; }
   .cred { display:inline-block; margin-left:6px; padding:0 6px; border-radius:9px; background:rgba(255,201,77,.12); border:1px solid rgba(255,201,77,.35); color:#ffc94d; font-weight:800; font-size:11px; vertical-align:1px; white-space:nowrap; }
+  .cowrap { display:flex; flex-wrap:wrap; gap:4px 10px; align-items:flex-start; } .cowrap .copl { flex:0 1 auto; }
+  .codesc { flex:1 1 150px; min-width:0; border-left:2px solid #e0a83a; padding:1px 0 2px 8px; font-size:12px; line-height:1.35; white-space:normal; }
+  .codesc .gpn { display:flex; align-items:center; font-size:13px; } .codesc div { white-space:normal; }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
   .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
@@ -724,7 +727,7 @@ function drawSheet() {
     ${V("E13") && !ptInEP() ? `<div class="g2">${ptMaxV() ? F(esc2(/\d/.test(V("G13")) || !V("G13") ? "Max " + V("E13") : V("G13")), ptMaxV()) : ""}<div class="fld"><small>${esc2(V("E13"))}</small>${ptCtl()}</div></div>` : ""}
     <div class="stab">COMBAT</div>
     <div class="gcb3">${F("Melee", V("H23"), "c", "cb:Melee Damage Bonus")}${F("Ranged", V("H24"), "c", "cb:Ranged Damage Bonus")}${F("Armor", V("H25"), "c", "cb:Armor Bonus")}</div>
-    <div class="gcop"><div class="fld"><small>Combat Options</small><div class="copl">${opts.length ? opts.map(o => `<button class="cob" data-inf="co:${esc2(o)}" data-sec="combat">${esc2(o)}</button>`).join("<br>") : `<span class="dimn2">None yet</span>`}</div></div>
+    <div class="gcop"><div class="fld"><small>Combat Options</small><div class="cowrap"><div class="copl">${opts.length ? opts.map(o => `<button class="cob" data-inf="co:${esc2(o)}" data-sec="combat">${esc2(o)}</button>`).join("<br>") : `<span class="dimn2">None yet</span>`}</div><div class="codesc" hidden></div></div></div>
       <div class="fld c"><small class="inft" data-inf="cop" data-sec="combat">COP${copMaxT !== "" ? ` <span class="dimn">/ ${esc2(copMaxT)}</span>` : ""}</small><div class="ctl"><button id="copm">−</button><b id="copv">${esc2(V("H29") || "0")}</b><button id="copp">+</button></div></div></div>
     <div class="infp gpow" data-for="combat" hidden></div>
     <div class="stab">ATTRIBUTES</div>
@@ -1292,9 +1295,10 @@ function bindInfo() {
   const show = async () => {
     document.querySelectorAll("#shbody [data-inf]").forEach(e => e.classList.toggle("ion", e.dataset.inf === infOpen));
     const el = [...document.querySelectorAll("#shbody [data-inf]")].find(e => e.dataset.inf === infOpen);
-    document.querySelectorAll("#shbody .infp").forEach(p => { if (!el || p.dataset.for !== el.dataset.sec) { p.hidden = true; p.innerHTML = ""; } });
+    const inBox = infOpen.startsWith("co:"); // combat options open inside the Combat Options box, beside the list
+    document.querySelectorAll("#shbody .infp, #shbody .codesc").forEach(p => { if (!el || (inBox ? !p.classList.contains("codesc") : p.dataset.for !== el.dataset.sec)) { p.hidden = true; p.innerHTML = ""; } });
     if (!el) return;
-    const p = document.querySelector(`#shbody .infp[data-for="${el.dataset.sec}"]`); if (!p) return;
+    const p = inBox ? document.querySelector("#shbody .codesc") : document.querySelector(`#shbody .infp[data-for="${el.dataset.sec}"]`); if (!p) return;
     const key = infOpen, h = await infoHtml(key); if (key !== infOpen) return;
     p.hidden = false; p.innerHTML = h.replace("</div>", `<button class="pwx" title="Close">✕</button></div>`);
     p.querySelector(".pwx").onclick = () => { infOpen = ""; show(); };
