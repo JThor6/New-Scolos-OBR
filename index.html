@@ -376,6 +376,13 @@
   .skc .rd { align-self:stretch; height:auto; width:44px; margin:0; border-radius:0; border-left:1px solid #444a66; background:rgba(187,153,255,.18); }
   .skc .rd svg { width:22px; height:22px; } .skc .rd:hover { background:rgba(187,153,255,.38); }
   #sh .rd.ra { height:30px; margin-top:4px; width:calc(100% - 4px); border-radius:6px; background:rgba(187,153,255,.18); } #sh .rd.ra svg { width:20px; height:20px; }
+  /* attributes: value on the left, a big roll button beside it (the old look, bigger button) */
+  #sh .g5 { grid-template-columns:repeat(4, 1fr) .75fr; }
+  #sh .att:not(.dp) { display:grid; grid-template-columns:1fr auto; align-items:center; padding:4px 4px 5px 4px; column-gap:2px; }
+  #sh .att:not(.dp) small { grid-column:1 / -1; }
+  #sh .att:not(.dp) b { padding:0; text-align:center; }
+  #sh .rd.ra { position:static; width:30px; height:30px; margin:2px 0 0; border-radius:7px; background:rgba(187,153,255,.2); }
+  #sh .rd.ra svg { width:20px; height:20px; }
   .err { color:var(--minus); margin-top:8px; font-weight:700; }
   .empty { color:var(--dim); margin-top:8px; }
   .ow { padding:2px 10px 8px; }
