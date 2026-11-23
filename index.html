@@ -482,8 +482,11 @@
   #mo .mw { width:30px; height:30px; border-radius:5px; }
   #mo .pvit.mv { justify-content:space-between; gap:2px; } #mo .pvit.mv i { flex:1; min-width:0; gap:2px; }
   #mo .pvit.mv .wd { font-size:13px; font-weight:900; color:var(--ink); line-height:1; } #mo .pvit.mv small { font-size:10px; }
-  #mo .mtop { gap:8px; } #mo .mtop b { font-size:18px; color:#bb99ff; letter-spacing:.2px; }
-  .mkind { padding:1px 7px; border:1px solid #5a4b8a; border-radius:5px; background:#2e2a48; color:#d6c8ff; font-size:12.5px; font-weight:700; white-space:nowrap; } #mo .mdead { padding:5px 10px; }
+  /* each monster starts with a full-width yellow banner, so cards are easy to find while scrolling */
+  #mo .mtop { gap:8px; margin:-8px -9px 8px; padding:7px 9px; background:rgba(214,160,30,.30); border-bottom:2px solid #d6a01e; border-radius:6px 6px 0 0; }
+  #mo .mtop b { font-size:18px; color:#ffd666; letter-spacing:.2px; }
+  .mkind { padding:1px 7px; border:1px solid #d6a01e; border-radius:5px; background:rgba(0,0,0,.35); color:#ffe39a; font-size:12.5px; font-weight:700; white-space:nowrap; }
+  #mo .mcard.dead .mtop { background:rgba(120,30,30,.5); border-bottom-color:#a33; } #mo .mcard.dead .mtop b { color:#e8b4b4; } #mo .mdead { padding:5px 10px; }
   #mo .mcard { padding:8px 9px 10px; margin-top:10px; }
   #mo .mtext i { font-style:normal; font-weight:800; color:var(--dim); }
   @media (min-width: 420px) { #mo .rd.ra { width:48px; height:40px; border-radius:8px; } #mo .rd.ra svg { width:26px; height:26px; } }
