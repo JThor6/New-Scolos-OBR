@@ -344,6 +344,7 @@
   .gcb3 .fld small, .shp .gcb .fld small { white-space:normal; line-height:1.15; }
   .att.dp.on { background:rgba(255,107,107,.08); border-color:rgba(255,107,107,.45) !important; } .att.dp.on b { color:#e58a8a; } .att.dp em { display:block; font-style:normal; font-size:8px; font-weight:700; color:#c98585; text-transform:uppercase; }
   .gsr.tap { border-color:var(--accent); background:rgba(61,52,96,.7); }
+  #gsl .gsr { cursor:pointer; } #gsl .gsr:hover { border-color:#6b5aa0; } #gsl .gopt, #gsl .ginh { cursor:default; }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
   .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
@@ -1175,7 +1176,9 @@ async function showGen() {
       filter();
       $("gq").oninput = () => { genQ = $("gq").value; filter(); };
       if ($("gFill")) $("gFill").onclick = () => { for (const s of suggList) if (pickedIdx(s.name) < 0) addSkill(s.name); genTarget = null; genInfo = cg.skills.find(specMissing)?.base || genInfo; redraw(); };
-      document.querySelectorAll("[data-sk]").forEach(b => b.onclick = () => { b.closest(".gsr")?.classList.add("tap"); const n = b.dataset.sk, i = pickedIdx(n);
+      // the whole skill card is the button (except the option buttons, write-in box and ✕ inside it)
+      document.querySelectorAll("#gsl .gsr").forEach(card => card.onclick = (e) => { if (e.target.closest(".gopt, .ginh, input, select")) return;
+        card.classList.add("tap"); const n = card.dataset.row, i = pickedIdx(n);
         if (i >= 0 && maxOf(n) > 1) { if (copiesOf(n).length < maxOf(n)) { addSkill(n); genTarget = null; } } // multi-pick skills: tapping again adds another copy; ✕ removes one
         else if (i >= 0) { cg.skills.splice(i, 1); genMove = null; if (genInfo === n) genInfo = ""; }
         else { if (cg.skills.length >= 8) { genInfo = n; return redraw(); } addSkill(n); genTarget = null; genInfo = (needsSpec(n) || (list.find(x => x.name === n)?.attrs.length > 1)) ? n : genInfo; }
@@ -1198,7 +1201,6 @@ async function showGen() {
           else if (d.startsWith("s:") && lvl != null) addSkill(d.slice(2), lvl);
           redraw(); };
       });
-      document.querySelectorAll(".gdx").forEach(d => d.onclick = () => d.closest(".gsr").querySelector("[data-sk]").click());
       document.querySelectorAll("[data-sa]").forEach(b => b.onclick = () => { cg.skills[+b.dataset.sa].attr = b.dataset.v; redraw(); });
       const setSpec = (i, v) => { const s = cg.skills[i]; s.spec = v.trim().slice(0, 40); s.name = s.spec ? `${baseShort(s.base)} (${s.spec})` : baseShort(s.base); };
       document.querySelectorAll("[data-sp]").forEach(b => b.onclick = () => { setSpec(+b.dataset.sp, b.dataset.v); redraw(); });
