@@ -88,7 +88,7 @@
   .tref { display:inline-flex; align-items:center; gap:4px; flex:none; background:var(--accent); color:#000; border:none; border-radius:6px; padding:3px 8px; font:800 11px system-ui; letter-spacing:.4px; cursor:pointer; }
   .tref:hover { filter:brightness(1.12); }
   .sref { display:inline-flex; align-items:center; gap:3px; margin-left:6px; background:none; border:none; color:var(--dim); font:700 11px system-ui; cursor:pointer; padding:0; vertical-align:middle; }
-  .sref:hover { color:var(--accent); }
+  .sref:hover { color:var(--accent); } .sref.epref { margin:5px 0 0; }
   .epx { display:flex; gap:10px; align-items:flex-start; }
   .epx .epl { flex:1; min-width:0; }
   .epp { white-space:nowrap; padding-left:8px !important; padding-right:8px !important; text-align:center; }
@@ -839,7 +839,7 @@ function drawSheet() {
     <div class="vit">${["B", "C", "D", "E", "F", "G", "H"].map((c, i) => { const t = V(c + "15"); const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<button class="box ${V(c + "16") ? "x" : ""}" data-w="${i}"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk ${V(c + "16") ? "x" : ""}">${V(c + "16") ? "✕" : ""}</span></button>`; }).join("")}</div>
     <div class="g2b ${ptInEP() ? "g2p" : ""}"><div class="fld"><div class="epl"><div class="ephd"><small>Extraordinary Power</small>${typeRefBtn()}</div><div id="pwname">${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div></div></div>
       <div class="fld c"><small>Used today</small><button id="pw" class="chk ${used ? "x" : ""}">${used ? "✕" : ""}</button></div>${ptInEP() ? `
-      <div class="fld c epp"><small>${esc2(V("E13"))}${ptMaxV() ? ` <span>/ ${esc2(ptMaxV())}</span>` : ""}</small>${ptCtl()}</div>` : ""}</div>
+      <div class="fld c epp"><small>${esc2(V("E13"))}${ptMaxV() ? ` <span>/ ${esc2(ptMaxV())}</span>` : ""}</small>${ptCtl()}${/^priest$/i.test(V("C4").trim()) ? `<button class="sref epref" data-k="gods" title="Open The Gods beside the map">${REF_SVG}The Gods</button>` : /^mage$/i.test(V("C4").trim()) ? `<button class="sref epref" data-k="schools" title="Open Schools of Magic beside the map">${REF_SVG}Schools</button>` : ""}</div>` : ""}</div>
     <div id="pwd" class="gpow pwd" hidden></div>
     ${V("E13") && !ptInEP() ? `<div class="g2">${ptMaxV() ? F(esc2(/\d/.test(V("G13")) || !V("G13") ? "Max " + V("E13") : V("G13")), ptMaxV()) : ""}<div class="fld"><small>${esc2(V("E13"))}</small>${ptCtl()}</div></div>` : ""}
     <div class="stab">COMBAT</div>
