@@ -1530,19 +1530,21 @@ function updateKS() {
 }
 // Roll buttons inside an Extraordinary Power's description (only for powers that call for a roll).
 // k: skill or attribute to roll, x: extra modifier, t: button text. The roll card shows "⚡ <power> · <what>".
+// The button is how the power starts. act: activation rolls (rolling one uses the power). No act: a Use button (no roll).
+// follow: rolls the power itself calls for once it's running (they unlock after it's used and don't count as a new use).
+// Plain skill rolls the power only mentions in passing (Sneak to stay quiet, Acting when someone tests you) stay on the skill list.
 const POWER_ROLLS = {
-  "tapping the quietwire": [{ k: "Streetwise", t: "Roll Streetwise" }],
+  "tapping the quietwire": { act: [{ k: "Streetwise", t: "Roll Streetwise" }] },
   "kill shot": "arm", // arms Kill Shot: the next attack roll from the sheet comes up +, +, +, +
-  "ghost in the machine": [{ k: "Hacking", t: "Roll Hacking" }],
-  "last rites": [{ k: "Hacking", t: "Reboot a big machine: roll Hacking" }],
-  // Walk powers: a Use button (no roll) marks Used today; Tether rolls only unlock once it's in use, and don't count as a new use
-  "spirit walk": { use: true, tether: [{ k: "Intellect", t: "Tether: roll Intellect" }, { k: "Raw Strength", t: "Tether: roll Raw Strength" }] },
-  "corpse walk": { use: true, tether: [{ k: "Intellect", t: "Tether: roll Intellect" }, { k: "Raw Strength", t: "Tether: roll Raw Strength" }] },
-  "meltdown": [{ k: "Intellect", t: "Roll Intellect" }, { k: "Intellect", x: -2, t: "Expanded Shockwave: everyone within 10 ft", l: "Expanded Shockwave (10 ft)" }],
-  "mind over matter": [{ k: "Intellect", t: "Big feat: roll Intellect" }],
-  "disappear completely": [{ k: "Sneak", t: "Stay quiet: roll Sneak" }],
-  "borrowed face": [{ k: "Acting / Impersonation", t: "Pass the test: roll Acting / Impersonation" }],
-  "mind touch": [{ k: "Insight", t: "Plant a feeling: roll Insight" }, { k: "Insight", x: -2, t: "Pushing it, whole room: Insight -2", l: "Pushing it" }],
+  "ghost in the machine": { act: [{ k: "Hacking", t: "Get in: roll Hacking" }], fn: "Inside, doing something the system would fight?", fl: "Once inside", follow: [{ k: "Hacking", t: "Roll Hacking (same difficulty)" }] },
+  "last rites": { fn: "Rebooting something huge, like a warship or war mech?", fl: "Big reboot", follow: [{ k: "Hacking", t: "Roll Hacking" }] },
+  "spirit walk": { fn: "Going past 100 yards?", fl: "Tether", follow: [{ k: "Intellect", t: "Tether: roll Intellect" }, { k: "Raw Strength", t: "Tether: roll Raw Strength" }] },
+  "corpse walk": { fn: "Corpse past 100 yards?", fl: "Tether", follow: [{ k: "Intellect", t: "Tether: roll Intellect" }, { k: "Raw Strength", t: "Tether: roll Raw Strength" }] },
+  "meltdown": { act: [{ k: "Intellect", t: "Roll Intellect" }, { k: "Intellect", x: -2, t: "Expanded Shockwave: everyone within 10 ft", l: "Expanded Shockwave (10 ft)" }] },
+  "mind over matter": { fn: "Something big, like flying the crew or tearing a wall open?", fl: "Big feat", follow: [{ k: "Intellect", t: "Big feat: roll Intellect" }] },
+  "disappear completely": { fn: "Near enemies, or they're searching?", fl: "Stay quiet", follow: [{ k: "Sneak", t: "Stay quiet: roll Sneak" }] },
+  "borrowed face": { fn: "Someone who knows them is testing you?", fl: "Pass the test", follow: [{ k: "Acting / Impersonation", t: "Pass the test: roll Acting / Impersonation" }] },
+  "mind touch": { fn: "Planting a feeling?", fl: "Plant a feeling", follow: [{ k: "Insight", t: "Plant a feeling: roll Insight" }, { k: "Insight", x: -2, t: "Pushing it, whole room: Insight -2", l: "Pushing it" }] },
 };
 const ATTR_CELL = { Adroitness: "C7", "Raw Strength": "C8", Intellect: "C9", Charm: "C10" };
 // Find what to add for a power roll: an attribute, or a skill on the character's sheet (trained, then untrained)
@@ -1553,8 +1555,11 @@ function powerMod(k) {
     const nm = V("B" + r); if (!nm) continue; const m = normName(nm);
     if (m === n || m.startsWith(n) || n.startsWith(m)) return { m: num(V("F" + r)) ?? 0, br: V("C" + r) && V("D" + r) !== "" ? `${V("C" + r)}|${V("D" + r)}|${V("E" + r)}` : "" };
   }
+  // Not on the sheet: roll it untrained (attribute + -4, the starting level for an untrained skill)
+  const a = SKILL_ATTR[k]; if (a) return { m: (num(V(ATTR_CELL[a])) ?? 0) - 4, br: "", un: true };
   return null;
 }
+const SKILL_ATTR = { "Streetwise": "Charm", "Hacking": "Intellect", "Insight": "Intellect", "Sneak": "Adroitness", "Acting / Impersonation": "Charm" };
 // Using a power ticks "Used today" (F6) on its own. Tries again for a few seconds if another save is still going.
 // pwPending covers the moment between the click and the sheet saving, so a second click can't use it again.
 let pwPending = false;
@@ -1566,21 +1571,17 @@ function markPowerUsed(tries = 0) {
   save({ power: true }, () => { setCell("F6", "TRUE"); pwPending = false; });
 }
 function powerRollBtns(name) {
-  const list = POWER_ROLLS[String(name).toLowerCase().trim()];
-  const usedNote = powerUsed() ? `<div class="pwused">✕ Already used today. Check with your GM before using it again.</div>` : "";
-  if (!list) return `<div class="pwrolls">${usedNote}<button class="pwroll pwuse" data-n="${esc2(name)}" ${powerUsed() ? "disabled" : ""}>⚡<span>${powerUsed() ? "Used today" : `Use ${esc2(name)}: marks Used today`}</span></button></div>`;
-  if (list.use) {
-    const on = powerUsed();
-    return `<div class="pwrolls">${usedNote}<button class="pwroll pwuse" data-n="${esc2(name)}" ${on ? "disabled" : ""}>⚡<span>${on ? "Used today" : `Use ${esc2(name)}: marks Used today`}</span></button>
-      <div class="pwtn">Going past 100 yards? ${on ? "Roll a Tether:" : "Tether rolls unlock once you use it."}</div>${list.tether.map(t => { const pm = powerMod(t.k);
-        if (!pm) return `<div class="pwmiss">${esc2(t.k)} isn't on your sheet. Ask your GM.</div>`;
-        return `<button class="pwroll pwtether" data-m="${pm.m}" data-l="${esc2(`⚡ ${name} · Tether (${t.k})`)}" data-b="${esc2(pm.br)}" ${on ? "" : "disabled"}>${ROLL_ICON}<span>${esc2(t.t)}</span><b>${pm.m >= 0 ? "+" : ""}${pm.m}</b></button>`; }).join("")}</div>`;
-  }
-  if (list === "arm") return `<div class="pwrolls">${usedNote}<button class="pwroll ksarm ${ksArmed() ? "on" : ""}" ${powerUsed() && !ksArmed() ? "disabled" : ""}><span>${ksArmed() ? "Kill Shot is armed. Tap to cancel" : "Arm Kill Shot: your next attack roll is +, +, +, +"}</span></button></div>`;
-  return `<div class="pwrolls">${usedNote}${list.map((r, i) => { const pm = powerMod(r.k);
+  const e = POWER_ROLLS[String(name).toLowerCase().trim()] || {}, on = powerUsed();
+  const usedNote = on ? `<div class="pwused">✕ Already used today. Check with your GM before using it again.</div>` : "";
+  const btn = (r, cls, dis, lbl) => { const pm = powerMod(r.k);
     if (!pm) return `<div class="pwmiss">${esc2(r.k)} isn't on your sheet. Ask your GM.</div>`;
     const tot = pm.m + (r.x || 0);
-    return `<button class="pwroll" data-i="${i}" ${powerUsed() ? "disabled" : ""} data-m="${tot}" data-l="${esc2(`⚡ ${name} · ${r.l || r.k}${r.x ? ` ${r.x}` : ""}`)}" data-b="${esc2(r.x ? "" : pm.br)}">${ROLL_ICON}<span>${esc2(r.t)}</span><b>${tot >= 0 ? "+" : ""}${tot}</b></button>`; }).join("")}</div>`;
+    return `<button class="pwroll ${cls}" ${dis ? "disabled" : ""} data-m="${tot}" data-l="${esc2(`⚡ ${name} · ${lbl ? lbl + " (" + (r.l || r.k) + ")" : r.l || r.k}${r.x ? ` ${r.x}` : ""}${pm.un ? " untrained" : ""}`)}" data-b="${esc2(r.x ? "" : pm.br)}">${ROLL_ICON}<span>${esc2(r.t)}${pm.un ? " (untrained)" : ""}</span><b>${tot >= 0 ? "+" : ""}${tot}</b></button>`; };
+  if (e === "arm") return `<div class="pwrolls">${usedNote}<button class="pwroll ksarm ${ksArmed() ? "on" : ""}" ${on && !ksArmed() ? "disabled" : ""}><span>${ksArmed() ? "Kill Shot is armed. Tap to cancel" : "Arm Kill Shot: your next attack roll is +, +, +, +"}</span></button></div>`;
+  const start = e.act ? e.act.map(r => btn(r, "", on)).join("")
+    : `<button class="pwroll pwuse" data-n="${esc2(name)}" ${on ? "disabled" : ""}>⚡<span>${on ? "Used today" : `Use ${esc2(name)}: marks Used today`}</span></button>`;
+  const follow = e.follow ? `<div class="pwtn">${esc2(e.fn)} ${on ? "Roll it here:" : "These rolls unlock once you use it."}</div>` + e.follow.map(r => btn(r, "pwtether", !on, e.fl)).join("") : "";
+  return `<div class="pwrolls">${usedNote}${start}${follow}</div>`;
 }
 let pwOpen = ""; // which power's rules are open under the Extraordinary Power box (kept across refreshes)
 async function fillPowers() {
