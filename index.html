@@ -752,7 +752,8 @@ function coSlots() {
   for (let r = 1; r < L.untrained[0]; r++) if (V("G" + r).toLowerCase() === "combat options") { const out = []; for (let i = r + 1; i <= Math.min(r + 10, stop); i++) out.push("G" + i); return out; }
   return ["G32", "G33", "G34", "G35", "G36", "G37", "G38", "G39", "G40", "G41"];
 }
-let mgrOn = false; // Sheet Manager view on/off (per sheet view)
+let mgrOn = false;
+let eggUntil = 0, eggTimer = 0; // Dmg Pen. skull Easter egg // Sheet Manager view on/off (per sheet view)
 // Find each section by its heading in column B, so sheets with extra rows (like a longer inventory) still work
 function layout() {
   const at = (label, from = 1) => { for (let i = from; i <= (sheetVals?.length || 0); i++) if (V("B" + i).toLowerCase() === label) return i; return 0; };
@@ -787,7 +788,7 @@ function drawSheet() {
       <span class="shbtns"><button id="reload" class="ibtn" title="Reload from Google Sheet">↻</button><button id="mgr" class="ibtn mgrb" title="Manage character: XP, skills, gear, notes">⚙ Manage Character</button></span></div>
     <div class="stab">ATTRIBUTES</div>
     <div class="g5">${[["Adroitness", "C7"], ["Raw Str.", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att"><small class="inft" data-inf="at:${{ "Raw Str.": "Raw Strength" }[n] || n}" data-sec="attr">${n}</small><b>${esc2(V(c))}</b><button class="rd ra" data-m="${esc2(V(c))}" data-l="${{ "Raw Str.": "Raw Strength" }[n] || n}" data-b="${({ "Raw Str.": "Raw Strength" }[n] || n) + "|" + esc2(V(c))}" title="Roll ${n}">${ROLL_ICON}</button></div>`).join("")}
-      <div class="att dp ${sheetPen() ? "on" : ""}"><small class="inft" data-inf="dp" data-sec="attr">Dmg Pen.</small><b>${esc2(V("C12"))}</b>${sheetPen() ? `<em>all rolls</em>` : ""}</div></div>
+      <div class="att dp ${sheetPen() ? "on" : ""}"><small class="inft" data-inf="dp" data-sec="attr">Dmg Pen.</small>${Date.now() < eggUntil ? `<b class="egg">☠</b>` : `<b>${esc2(V("C12"))}</b>`}${sheetPen() ? `<em>all rolls</em>` : ""}</div></div>
     <div class="infp gpow" data-for="attr" hidden></div>
     <div class="stab">VITALITY TRACK</div><button id="heal" class="healb" title="Heal one: every wound moves one box left; the leftmost Light Wound goes away" ${"BCDEFGH".split("").some(c => V(c + "16")) ? "" : "disabled"}>✚ HEAL</button>${(healUndo.get(sheetId()) || []).length ? `<button id="healUndo" class="healb undo" title="Put the vitality track back the way it was before the last heal">↶ UNDO (${healUndo.get(sheetId()).length})</button>` : ""}
     <div class="vit">${["B", "C", "D", "E", "F", "G", "H"].map((c, i) => { const t = V(c + "15"); const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<button class="box ${V(c + "16") ? "x" : ""}" data-w="${i}"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk ${V(c + "16") ? "x" : ""}">${V(c + "16") ? "✕" : ""}</span></button>`; }).join("")}</div>
@@ -818,12 +819,12 @@ function drawSheet() {
   document.querySelectorAll("#shbody details.dr").forEach(d => d.ontoggle = () => { drawOpen[d.dataset.k] = d.open; });
   $("reload").onclick = () => loadSheet();
   $("mgr").onclick = () => { mgrOn = true; drawSheet(); };
-  // Easter egg: click the Dmg Pen. box (not its label) and the number turns into a skull and crossbones for a few seconds
+  // Easter egg: click the Dmg Pen. box (not its label) and the number turns into a skull and crossbones for a few seconds.
+  // Kept in eggUntil so a sheet refresh in the middle doesn't wipe it.
   document.querySelectorAll("#sh .att.dp").forEach(box => box.onclick = (e) => {
     if (e.target.closest(".inft")) return;
-    const b = box.querySelector("b"); if (!b || b.dataset.egg) return;
-    b.dataset.egg = b.textContent; b.textContent = "☠"; b.classList.add("egg");
-    setTimeout(() => { if (b.isConnected) { b.textContent = b.dataset.egg; delete b.dataset.egg; b.classList.remove("egg"); } }, 3000);
+    eggUntil = Date.now() + 3000; drawSheet();
+    clearTimeout(eggTimer); eggTimer = setTimeout(() => { if (sheetVals && !mgrOn && !partyOn && document.querySelector("#sh .att.dp")) drawSheet(); }, 3050);
   });
   if ($("disc")) $("disc").onclick = () => { setSheetId(""); pickCharacter(); };
   document.querySelectorAll(".box").forEach(b => b.onclick = () => (healUndo.delete(sheetId()), 0) || save({ wound: +b.dataset.w, on: !b.classList.contains("x") }, () => { const c = "BCDEFGH"[+b.dataset.w] + "16"; setCell(c, b.classList.contains("x") ? "" : "X"); }));
