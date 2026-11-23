@@ -1004,7 +1004,7 @@ async function sheetPreview() {
   const extra = cg.god ? `God: ${cg.god}` : cg.major ? `Major: ${cg.major} · Minor: ${cg.minor}` : "";
   const gear = [e.armor, e.melee, e.ranged].filter(Boolean), other = cg.gear.split("\n").map(x => x.trim()).filter(Boolean);
   return `<div class="shp">
-    <div class="shead"><div class="shn"><b>${esc2(cg.name.trim() || "Unnamed")}</b><small>${esc2(cg.type)} · Level 0 · 1,000 credits${cg.xpOn && cg.xp ? ` · ${cg.xp} XP to spend` : ""}</small></div></div>
+    <div class="shead"><div class="shn"><b>${esc2(cg.name.trim() || "Unnamed")}</b><small>${esc2(cg.type)} · Level 0 · ${(1000 - (+cg.spent || 0)).toLocaleString()} credits${cg.xpOn && cg.xp ? ` · ${cg.xp} XP to spend` : ""}</small></div></div>
     <div class="stab">VITALITY TRACK</div>
     <div class="vit">${wounds.map(t => { const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<div class="box"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk"></span></div>`; }).join("")}</div>
     <div class="g2b"><div class="fld"><small>Extraordinary Power</small><div>${esc2(cg.power || "—")}</div>${extra ? `<div class="pwl">${esc2(extra)}</div>` : ""}</div><div class="fld c"><small>Used today</small><span class="chk"></span></div></div>
@@ -1033,6 +1033,7 @@ function stepWhy(i) {
     const seen = new Set(); for (const s of cg.skills) { const k = s.base + "|" + (s.spec || "").toLowerCase(); if (seen.has(k)) return `You have ${s.name} twice. Pick a different option for one.`; seen.add(k); }
     return cg.skills.every(s => s.name.trim()) ? "" : "Every skill needs a name.";
   }
+  if (i === 3) return (+cg.spent || 0) > 1000 ? "You only have 1,000 credits to spend." : "";
   return "";
 }
 // skills like "Pilot (Choose One: Spacecraft, Watercraft, Land craft)" need a specialty picked
@@ -1291,21 +1292,26 @@ async function showGen() {
       const item = (k, label, rule) => `<label class="gl">${label} <small>${rule}</small><input id="ge_${k}" value="${esc2(e[k])}" placeholder="Name it, or leave blank for none"></label>`;
       put(bar + firstTime("What to put here", `<p>Name the armor and weapons your character starts with, like "Flak vest" or "Pistol". Leave a box blank if you don't carry one.</p>
           <p>Armor adds +2 to your Defense Rating, a melee weapon +2 to Offense, and a ranged weapon +4 to Offense. The bonus boxes update as you type.</p>
-          <p>Add anything else you carry under Other Gear, one item per line. You start with 1,000 credits to buy more later. Ask your GM if you're not sure something is allowed.</p>`) + `<div class="sec">STARTING EQUIPMENT</div>
+          <p>Add anything else you carry under Other Gear, one item per line. You start with 1,000 credits. If you buy anything now, tap <b>Spend Credits</b> and put in the total you spent. Ask your GM if you're not sure something is allowed.</p>`) + `<div class="sec">STARTING EQUIPMENT</div>
         ${item("armor", "Armor", "+2 Defense Rating")}${item("melee", "Melee weapon", "+2 Offense Rating")}${item("ranged", "Ranged weapon", "+4 Offense Rating")}
         <div class="g3">${`<div class="fld"><small>Melee Dmg Bonus</small><div>${sgn(melee)}</div></div><div class="fld"><small>Ranged Dmg Bonus</small><div>${sgn(ranged)}</div></div><div class="fld"><small>Armor Bonus</small><div>${sgn(armor)}</div></div>`}</div>
         <div class="gnote">Melee = Offense Rating + Raw Str (min 0). Ranged = Offense Rating only. Armor = Defense Rating + Raw Str (min +1 in armor, 0 without).</div>
         <div class="sec">OTHER GEAR (one per line)</div>
         <textarea id="gGear" rows="5" placeholder="Rope&#10;Medkit x2">${esc2(cg.gear)}</textarea>
-        <div class="gpts">Starting credits: <b>1,000</b></div>
-        ${nav("")}`);
+        ${cg.spendOn || +cg.spent ? `<div class="gspend"><label class="gl">Credits spent on gear <small>(total for everything above)</small>
+            <input id="gSpent" value="${+cg.spent || ""}" placeholder="0" inputmode="numeric"></label>
+            <div class="gpts">Starting credits: 1,000 − ${(+cg.spent || 0).toLocaleString()} spent = <b>${(1000 - (+cg.spent || 0)).toLocaleString()}</b> left</div></div>`
+          : `<div class="gpts">Starting credits: <b>1,000</b></div><button id="gSpend" class="sbtn" style="width:100%">¤ SPEND CREDITS</button>`}
+        ${nav(stepWhy(3))}`);
       for (const k of ["armor", "melee", "ranged"]) $("ge_" + k).onchange = () => { e[k] = $("ge_" + k).value.trim().slice(0, 60); cgSave(); showGen(); };
       $("gGear").oninput = () => { cg.gear = $("gGear").value; cgSave(); };
+      if ($("gSpend")) $("gSpend").onclick = () => { cg.spendOn = true; cgSave(); showGen(); setTimeout(() => $("gSpent")?.focus(), 0); };
+      if ($("gSpent")) $("gSpent").onchange = () => { cg.spent = Math.max(0, Math.round(Number(String($("gSpent").value).replace(/[^\d.]/g, "")) || 0)); cgSave(); showGen(); };
       return bind();
     }
     // ---- 5. FINISH ----
     if (!cg.email && store.get("ns.email")) { cg.email = store.get("ns.email"); cgSave(); }
-    const finishWhy = () => { for (let j = 0; j < 3; j++) { const w = stepWhy(j); if (w) return `Step ${j + 1} (${GSTEPS[j]}) isn't done: ${w}`; }
+    const finishWhy = () => { for (let j = 0; j < 4; j++) { const w = stepWhy(j); if (w) return `Step ${j + 1} (${GSTEPS[j]}) isn't done: ${w}`; }
       if (cg.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cg.email)) return "That email doesn't look right.";
       return cg.name.trim() ? "" : "Give your character a name (box at the top)."; };
     const xpBtns = [-10, -1, 1, 10].map(d => `<button class="sbtn" data-xp="${d}">${d > 0 ? "+" : ""}${d}</button>`).join("");
@@ -1328,7 +1334,7 @@ async function showGen() {
       const notes = cg.type === "Priest" ? [`God: ${cg.god}`] : cg.type === "Mage" ? [`Major school: ${cg.major}`, `Minor school: ${cg.minor}`] : [];
       const body = { create: { name: cg.name.trim(), type: cg.type, power: cg.power || "", attrs: cg.attrs, email: cg.email, xp: cg.xpOn ? cg.xp : 0,
         skills: cg.skills.map(s => ({ name: s.name.trim(), attr: s.attr, level: s.level })),
-        equip: cg.equip, gear: cg.gear.split("\n").map(s => s.trim()).filter(Boolean), notes } };
+        equip: cg.equip, spent: Math.min(1000, Math.max(0, +cg.spent || 0)), gear: cg.gear.split("\n").map(s => s.trim()).filter(Boolean), notes } };
       const r = await fetch(BRIDGE, { method: "POST", body: JSON.stringify({ code: store.get("ns.code"), campaign, ...body }) }).then(x => x.json()).catch(e => ({ ok: false, error: e.message }));
       sync(-1);
       if (!r.ok) { $("gerr").classList.remove("ginfo"); $("gerr").textContent = "Didn't create the sheet: " + (r.error || "unknown error"); $("gMake").disabled = false; $("gMake").textContent = "CREATE CHARACTER"; return; }
