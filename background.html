@@ -41,8 +41,16 @@ async function showRoll(r, spin) {
 }
 
 // Announcements show for 5 seconds, then close themselves
+// One message at a time: a new one first clears the old one and its timer. Before, the 5-second close timer
+// of "Roll for initiative!" could fire after a quick NEXT and take the leader's "Your turn!" down with it.
+let noteId = "", noteTimer = 0;
 async function note(msg, kind, ms = 5000) {
-  try { const id = await OBR.notification.show(msg, kind); setTimeout(() => OBR.notification.close(id).catch(() => {}), ms); } catch {}
+  try {
+    clearTimeout(noteTimer);
+    if (noteId) { const old = noteId; noteId = ""; await OBR.notification.close(old).catch(() => {}); }
+    const id = await OBR.notification.show(msg, kind); noteId = id;
+    noteTimer = setTimeout(() => { if (noteId === id) { noteId = ""; OBR.notification.close(id).catch(() => {}); } }, ms);
+  } catch {}
 }
 OBR.onReady(async () => {
   // Right-click a token → "Mark" panel: Dead, Unconscious, or your own condition, shown above its head
