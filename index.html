@@ -1658,11 +1658,12 @@ function campaignPicker() {
   return `<div class="encpick" id="campBox"><small>CAMPAIGN</small><select id="campSel"><option value="">Main campaign</option>${
     names.map(n => `<option value="${esc2(n)}" ${n === campaign ? "selected" : ""}>${esc2(n)}</option>`).join("")}</select></div>`;
 }
-const pickers = () => gmTools() + campaignPicker() + encounterPicker();
+const pickers = () => gmTools() + encounterPicker();
 // Bottom of the GM tab: move a character into the Stasis folder (nothing is deleted; GM empties Stasis in Drive)
 let stList = cache.get(ck("stList")) || [];
 function stasisBox() {
-  return `<div id="stBox"><div class="sec">CLEAN UP CHARACTERS</div>
+  // the campaign dropdown sits down here, between the monsters and Clean Up, since it's rarely changed
+  return `<div style="margin-top:18px">${campaignPicker()}</div><div id="stBox"><div class="sec">CLEAN UP CHARACTERS</div>
     <div class="help">Moves a character sheet (and its PDF) into the Stasis folder in New Scolos Characters. Players stop seeing it. To bring one back, drag it out of Stasis in Google Drive. Empty Stasis by hand in Drive when you're ready.</div>
     <div class="encpick"><small>CHARACTER</small><select id="stSel"><option value="">Pick a character…</option>${
       stList.map(c => `<option value="${esc2(c.id)}">${esc2(c.name)}</option>`).join("")}</select></div>
