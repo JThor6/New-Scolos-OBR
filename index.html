@@ -463,7 +463,7 @@
   <button id="roll">ROLL</button>
   <div id="err" class="err" hidden></div>
   <div id="last"></div>
-  <div style="display:flex;gap:6px;align-items:stretch"><button id="histbtn" class="histbtn" style="flex:1">SHOW ROLL HISTORY</button><button id="dicepop" class="histbtn pop" style="flex:none;width:44px;float:none;color:var(--dim)" title="Pop out roll history"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+  <div style="display:flex;gap:6px;align-items:stretch"><button id="histbtn" class="histbtn" style="flex:1">SHOW ROLL HISTORY</button><button id="dicepop" class="histbtn" style="flex:none;width:44px;color:var(--dim);display:flex;align-items:center;justify-content:center" title="Pop out roll history"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
   <div id="history" hidden><div class="empty">No rolls yet.</div></div>
 </main>
 <script type="module">
@@ -534,7 +534,7 @@ function spin(r) {
 let histDetail = (() => { try { return localStorage.getItem("ns.histDetail") === "on"; } catch { return false; } })();
 const line = (r) => rollLine(r, histDetail);
 // Pop-out: roll history in its own solid window in the upper right (same spot as the initiative list), so it stays up beside the sheet
-$("dicepop").onclick = async () => {
+async function openDiceList() {
   if (standalone) return window.open("dicelist.html");
   const u = new URL("go.html", location.href); u.searchParams.set("p", "dicelist");
   const ref = new URLSearchParams(location.search).get("obrref"); if (ref) u.searchParams.set("obrref", ref);
@@ -543,15 +543,18 @@ $("dicepop").onclick = async () => {
     anchorReference: "POSITION", anchorPosition: { left: vw - 70, top: 70 },
     anchorOrigin: { horizontal: "RIGHT", vertical: "TOP" }, transformOrigin: { horizontal: "RIGHT", vertical: "TOP" },
     disableClickAway: true }).catch(() => {});
-};
+}
+$("dicepop").onclick = openDiceList;
 // the pop-out's SIMPLE/DETAILED switch and this one stay in step
 window.addEventListener("storage", (e) => { if (e.key === "ns.histDetail") { histDetail = e.newValue === "on"; render(lastRolls); } });
 let lastRolls = [];
 function render(rolls) {
   lastRolls = rolls;
-  $("history").innerHTML = `<button id="histDet" class="histdet">${histDetail ? "DETAILED ▲ (tap for simple)" : "SIMPLE ▼ (tap for detailed)"}</button>` +
+  const html = `<button class="histdet">${histDetail ? "DETAILED ▲ (tap for simple)" : "SIMPLE ▼ (tap for detailed)"}</button>` +
     (rolls.length ? rolls.slice(0, 30).map(line).join("") : `<div class="empty">No rolls yet.</div>`);
-  $("histDet").onclick = () => { histDetail = !histDetail; try { localStorage.setItem("ns.histDetail", histDetail ? "on" : "off"); } catch {} render(lastRolls); };
+  // same list on the DICE tab and in REFERENCE → ROLL HISTORY
+  for (const el of [$("history"), $("refRolls")]) if (el) el.innerHTML = html;
+  document.querySelectorAll(".histdet").forEach(btn => btn.onclick = (e) => { e.preventDefault(); histDetail = !histDetail; try { localStorage.setItem("ns.histDetail", histDetail ? "on" : "off"); } catch {} render(lastRolls); });
 }
 $("histbtn").onclick = () => {
   const h = $("history"); h.hidden = !h.hidden;
@@ -1923,6 +1926,7 @@ $("size").onclick = () => { store.set("ns.size", store.get("ns.size") === "L" ? 
 const POP_ICON = `<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 // Opens one rules section in its own see-through panel in the upper right; it stays up while you use the sheet.
 async function popOut(k) {
+  if (k === "__rolls") return openDiceList();
   if (standalone) return window.open("popout.html?k=" + encodeURIComponent(k));
   const u = new URL("go.html", location.href); u.searchParams.set("p", "popout");
   const ref = new URLSearchParams(location.search).get("obrref"); if (ref) u.searchParams.set("obrref", ref);
@@ -1937,10 +1941,11 @@ function showRules() {
   if (!store.get("ns.code")) { $("ru").innerHTML = `<div class="empty">Open the SHEET tab and enter the table code first.</div>`; return; }
   if ($("ru").dataset.ready) return;
   $("ru").dataset.ready = "1";
-  $("ru").innerHTML = SECTIONS.map(([t, k]) => `<details class="rs" data-k="${k}"><summary>${esc2(t.toUpperCase())}<button class="pop" data-k="${k}" title="Pop out">${POP_ICON}</button></summary><div class="rb"></div></details>`).join("");
+  $("ru").innerHTML = `<details class="rs" data-k="__rolls"><summary>ROLL HISTORY<button class="pop" data-k="__rolls" title="Pop out">${POP_ICON}</button></summary><div class="rb" id="refRolls"></div></details>` + SECTIONS.map(([t, k]) => `<details class="rs" data-k="${k}"><summary>${esc2(t.toUpperCase())}<button class="pop" data-k="${k}" title="Pop out">${POP_ICON}</button></summary><div class="rb"></div></details>`).join("");
   document.querySelectorAll(".pop").forEach(b => b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); popOut(b.dataset.k); });
   document.querySelectorAll("details.rs").forEach(d => d.addEventListener("toggle", async () => {
     const body = d.querySelector(".rb");
+    if (d.dataset.k === "__rolls") return render(lastRolls);
     if (!d.open || body.dataset.done) return;
     body.innerHTML = `<div class="rr">Loading…</div>`;
     try { body.innerHTML = await sectionHtml(d.dataset.k) || "<div class='rr'>Nothing here yet.</div>"; body.dataset.done = "1"; }
