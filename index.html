@@ -881,7 +881,8 @@ async function drawMgrCombat(err) {
     ${room > 0 ? `<div class="mrow"><select id="coPick"><option value="">Add a combat option…</option>${open.map(([n]) => `<option>${esc2(n)}</option>`).join("")}</select><button id="coGo" class="sbtn">ADD</button></div><div id="coDesc" class="mnote" style="color:var(--ink)"></div>`
       : have.length >= max ? `<div class="mnote" style="color:var(--dim)">To swap one, remove it first, then add the new one.</div>` : ""}`;
   // write the whole list back packed from the top, so there are never gaps
-  const write = (list) => { const cells = {}; slots.forEach((a, i) => cells[a] = list[i] || ""); mgrSave(cells); };
+  // only the boxes that actually change are sent (adding one option writes one box)
+  const write = (list) => { const cells = {}; slots.forEach((a, i) => { if ((list[i] || "") !== V(a)) cells[a] = list[i] || ""; }); if (Object.keys(cells).length) mgrSave(cells); };
   box.querySelectorAll("[data-cox]").forEach(b => b.onclick = () => write(have.filter((_, i) => i !== +b.dataset.cox)));
   if ($("coPick")) {
     $("coPick").onchange = () => { $("coDesc").textContent = (all.find(([n]) => n === $("coPick").value) || [])[1] || ""; };
@@ -1576,7 +1577,9 @@ async function save(body, apply) {
     if (/table code/i.test(r.error || "")) { store.set("ns.code", ""); return connectForm("The table code changed. Type the new one to keep saving."); }
     drawSheet(); $("sherr").hidden = false;
     $("sherr").textContent = "Didn't save to the sheet: " + (r.error || "unknown error") +
-      (/permission|access|denied|authoriz/i.test(r.error || "") ? " (The sheet must be shared with Jake as Editor.)" : "");
+      (/permission|access|denied|authoriz/i.test(r.error || "") ? " (The sheet must be shared with Jake as Editor.)" : "") +
+      (/manager cannot change/i.test(r.error || "") ? " (The Sheet Bridge needs its latest update.)" : "");
+    $("sherr").scrollIntoView({ block: "center", behavior: "smooth" }); // the message can be far down the page
   }
 }
 
