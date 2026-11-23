@@ -329,9 +329,8 @@
   .cob:hover, .cob.ion { color:var(--accent); }
   .pwb:hover, .pwb.on { color:var(--accent); text-decoration-color:var(--accent); }
   .pwd { margin-top:4px; } .pwd .gpn { display:flex; align-items:center; } .pwx { margin-left:auto; background:none; border:none; color:var(--dim); cursor:pointer; font-size:12px; }
-  .inf { cursor:pointer; } .fld.inf:hover, .att.inf:hover, .skc.inf:hover { border-color:#6b5aa0; outline-color:#6b5aa0; }
-  .skc.ion, .fld.ion, .att.ion { border-color:var(--accent) !important; outline-color:var(--accent) !important; } .pwb.ion { color:var(--accent); }
-  .infp { margin-top:4px; } .infp .gpn { display:flex; align-items:center; } .skc span { text-decoration:underline dotted #555b75; text-underline-offset:3px; }
+  .inft { cursor:pointer; text-decoration:underline dotted #6b5aa0; text-underline-offset:3px; } .inft:hover, .inft.ion { color:var(--accent) !important; text-decoration-color:var(--accent); }
+  .infp { margin-top:4px; } .infp .gpn { display:flex; align-items:center; }
   .gtats { display:flex; flex-wrap:wrap; gap:3px; } .gtat.two { color:#c9c3e6; background:#1d1a2e; }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
@@ -675,9 +674,9 @@ function layout() {
 const drawOpen = {}; // which fold-out drawers are open, so the 30-second refresh doesn't snap them shut
 function drawSheet() {
   if (mgrOn) return drawManager();
-  const F = (label, val, cls = "", inf = "") => `<div class="fld ${cls} ${inf ? "inf" : ""}" ${inf ? `data-inf="${inf}" data-sec="combat"` : ""}><small>${label}</small><div>${esc2(val)}</div></div>`;
+  const F = (label, val, cls = "", inf = "") => `<div class="fld ${cls}"><small ${inf ? `class="inft" data-inf="${inf}" data-sec="combat"` : ""}>${label}</small><div>${esc2(val)}</div></div>`;
   const chips = (from, to, sec) => { let h = "", n = 0; for (let i = from; i <= to; i++) if (V("B" + i)) { n++;
-    h += `<div class="skc inf" data-inf="sk:${i}" data-sec="${sec}"><span>${esc2(V("B" + i))}</span><b>${esc2(V("F" + i))}</b><button class="rd" data-m="${esc2(V("F" + i))}" data-l="${esc2(V("B" + i))}" title="Roll ${esc2(V("B" + i))}">${ROLL_ICON}</button></div>`; }
+    h += `<div class="skc"><span class="inft" data-inf="sk:${i}" data-sec="${sec}">${esc2(V("B" + i))}</span><b>${esc2(V("F" + i))}</b><button class="rd" data-m="${esc2(V("F" + i))}" data-l="${esc2(V("B" + i))}" title="Roll ${esc2(V("B" + i))}">${ROLL_ICON}</button></div>`; }
     return { h: h ? `<div class="skg">${h}</div><div class="infp gpow" data-for="${sec}" hidden></div>` : "", n }; };
   const drawer = (key, title, count, body) => body ? `<details class="dr" data-k="${key}" ${drawOpen[key] ? "open" : ""}><summary>${title}${count ? ` <small>${count}</small>` : ""}</summary><div class="drb">${body}</div></details>` : "";
   const inv = [], eq = [], L = layout();
@@ -702,12 +701,12 @@ function drawSheet() {
     ${V("E13") && !ptInEP() ? `<div class="g2">${ptMaxV() ? F(esc2(/\d/.test(V("G13")) || !V("G13") ? "Max " + V("E13") : V("G13")), ptMaxV()) : ""}<div class="fld"><small>${esc2(V("E13"))}</small>${ptCtl()}</div></div>` : ""}
     <div class="stab">COMBAT</div>
     <div class="gcb3">${F("Melee", V("H23"), "c", "cb:Melee Damage Bonus")}${F("Ranged", V("H24"), "c", "cb:Ranged Damage Bonus")}${F("Armor", V("H25"), "c", "cb:Armor Bonus")}</div>
-    <div class="gcop"><div class="fld"><small>Combat Options</small><div class="copl">${opts.length ? opts.map(o => `<button class="cob inf" data-inf="co:${esc2(o)}" data-sec="combat">${esc2(o)}</button>`).join("<br>") : `<span class="dimn2">None yet</span>`}</div></div>
-      <div class="fld c inf" data-inf="cop" data-sec="combat"><small>COP${copMaxT !== "" ? ` <span class="dimn">/ ${esc2(copMaxT)}</span>` : ""}</small><div class="ctl"><button id="copm">−</button><b id="copv">${esc2(V("H29") || "0")}</b><button id="copp">+</button></div></div></div>
+    <div class="gcop"><div class="fld"><small>Combat Options</small><div class="copl">${opts.length ? opts.map(o => `<button class="cob" data-inf="co:${esc2(o)}" data-sec="combat">${esc2(o)}</button>`).join("<br>") : `<span class="dimn2">None yet</span>`}</div></div>
+      <div class="fld c"><small class="inft" data-inf="cop" data-sec="combat">COP${copMaxT !== "" ? ` <span class="dimn">/ ${esc2(copMaxT)}</span>` : ""}</small><div class="ctl"><button id="copm">−</button><b id="copv">${esc2(V("H29") || "0")}</b><button id="copp">+</button></div></div></div>
     <div class="infp gpow" data-for="combat" hidden></div>
     <div class="stab">ATTRIBUTES</div>
-    <div class="g5">${[["Adroitness", "C7"], ["Raw Str.", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att inf" data-inf="at:${{ "Raw Str.": "Raw Strength" }[n] || n}" data-sec="attr"><small>${n}</small><b>${esc2(V(c))}</b><button class="rd ra" data-m="${esc2(V(c))}" data-l="${{ "Raw Str.": "Raw Strength" }[n] || n}" title="Roll ${n}">${ROLL_ICON}</button></div>`).join("")}
-      <div class="att dp inf" data-inf="dp" data-sec="attr"><small>Dmg Pen.</small><b>${esc2(V("C12"))}</b></div></div>
+    <div class="g5">${[["Adroitness", "C7"], ["Raw Str.", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att"><small class="inft" data-inf="at:${{ "Raw Str.": "Raw Strength" }[n] || n}" data-sec="attr">${n}</small><b>${esc2(V(c))}</b><button class="rd ra" data-m="${esc2(V(c))}" data-l="${{ "Raw Str.": "Raw Strength" }[n] || n}" title="Roll ${n}">${ROLL_ICON}</button></div>`).join("")}
+      <div class="att dp"><small class="inft" data-inf="dp" data-sec="attr">Dmg Pen.</small><b>${esc2(V("C12"))}</b></div></div>
     <div class="infp gpow" data-for="attr" hidden></div>
     ${trained.h ? `<div class="stab">SKILLS</div>${trained.h}` : ""}
     ${eq.length ? `<div class="stab">EQUIPPED</div><div class="lbox">${lines(eq)}</div>` : ""}
