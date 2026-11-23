@@ -24,7 +24,8 @@ async function showRoll(r, spin) {
   url.searchParams.set("dice", r.dice.join(","));
   url.searchParams.set("mod", r.mod || 0);
   url.searchParams.set("total", r.total);
-  if (r.label) url.searchParams.set("label", r.label);
+  const label = (r.label || "") + (r.wnd ? ` (wounded ${r.wnd})` : ""); // the card puts the wound on the name line
+  if (label) url.searchParams.set("label", label);
   if (spin) url.searchParams.set("spin", "1");
   const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
   const col = slot % PER_ROW, row = Math.floor(slot / PER_ROW);
