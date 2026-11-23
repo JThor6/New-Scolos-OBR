@@ -1012,7 +1012,9 @@ async function showGen() {
     document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { if (+b.dataset.go === cg.step) return; cg.step = +b.dataset.go; cgSave(); showGen(); });
     $("gReset").onclick = () => { if ($("gReset").dataset.armed) { cg = cgNew(); cgSave(); genQ = ""; genMove = genTarget = null; genInfo = ""; return showGen(); } $("gReset").dataset.armed = 1; $("gReset").textContent = "TAP AGAIN TO CLEAR EVERYTHING"; $("gReset").classList.add("armed"); };
   };
-  box.innerHTML = bar + `<div class="empty">Loading…</div>`;
+  // only show "Loading…" if the data isn't ready almost at once (cached tabs redraw instantly, no flicker or scroll jump)
+  let loadT = setTimeout(() => { put(bar + `<div class="empty">Loading…</div>`); }, 250);
+  const put = (h) => { clearTimeout(loadT); box.innerHTML = h; };
   genRecheck = null;
   try {
     // ---- 1. TYPE ----
@@ -1024,7 +1026,7 @@ async function showGen() {
         const nd = ti ? attrNeeds(ti, sl) : null, rank = nd ? ATTRS.slice().sort((a, b) => nd[b].w - nd[a].w || (a === "Adroitness" ? -1 : b === "Adroitness" ? 1 : 0)) : [];
         const main = rank[0] || "", second = rank[1] && nd[rank[1]].w >= 1 ? rank[1] : ""; // a second attribute only when the type's skills or powers use it
         return `<button class="gtc2 ${t === cg.type ? "on" : ""}" data-ty="${esc2(t)}"><b>${esc2(t)}</b>${main && nd[main].w ? `<span class="gtats"><span class="gtat">${esc2(main)}</span>${second ? `<span class="gtat two">${esc2(second)}</span>` : ""}</span>` : ""}<span class="gtw">${esc2(who)}</span></button>`; };
-      box.innerHTML = bar + `<div class="sec">PICK A CHARACTER TYPE</div>
+      put(bar + `<div class="sec">PICK A CHARACTER TYPE</div>
         <div class="gtcards">${names.map((t, i) => card(t, infos[i])).join("")}</div>
         ${info ? `<div class="sec">${esc2(cg.type.toUpperCase())}</div>` : ""}
         ${info ? `<div class="grun">${info.rows.map(([a, b]) => `<div><small>${esc2(a)}</small>${esc2(b)}</div>`).join("")}</div>
@@ -1039,7 +1041,7 @@ async function showGen() {
           <div class="gpicked">Major: <b>${esc2(cg.major || "—")}</b> · Minor: <b>${esc2(cg.minor || "—")}</b></div>
           <div class="gcards">${info.schools.map(([n, d, vb]) => `<div class="gcard ${n === cg.major ? "on" : n === cg.minor ? "on2" : ""}"><b>${esc2(n)}${n === cg.major ? " <small>MAJOR</small>" : n === cg.minor ? " <small>MINOR</small>" : ""}</b><span>${esc2(d)}</span>${vb ? `<span class="gvb"><i>Verbs:</i> ${esc2(vb)}</span>` : ""}
             <div class="gcb2"><button class="sbtn ${n === cg.major ? "on" : ""}" data-sch="major" data-n="${esc2(n)}">Major</button><button class="sbtn ${n === cg.minor ? "on" : ""}" data-sch="minor" data-n="${esc2(n)}" ${cg.major === n ? "disabled" : ""}>Minor</button></div></div>`).join("")}</div>` : ""}
-        ${nav(stepWhy(0))}`;
+        ${nav(stepWhy(0))}`);
       cg.power = info?.power || "";
       document.querySelectorAll("[data-ty]").forEach(b => b.onclick = () => { if (cg.type !== b.dataset.ty) { cg.type = b.dataset.ty; cg.god = cg.major = cg.minor = "";
         cg.skills = cg.skills.filter(s => !/^(prayer|spellcasting)/i.test(s.base)); } cgSave(); showGen(); });
@@ -1067,13 +1069,13 @@ async function showGen() {
            <table class="mtab">${ATTRS.map(a => { const r = cg.attrs[a], up = r < 3 ? ATTR_COST[String(r + 1)] - ATTR_COST[String(r)] : null;
              return `<tr><td>${a}</td><td class="mv">${sgn(r)}</td><td><span class="mctl"><button data-ga="${a}" data-d="-1" ${r > -3 ? "" : "disabled"}>−</button><button data-ga="${a}" data-d="1" ${up != null && up <= left ? "" : "disabled"}>+</button></span><span class="mcost">${up != null ? `+1: ${up} pts` : "max"}</span></td></tr>`; }).join("")}</table>
            <div class="gpts ${left < 0 ? "bad" : ""}">Points left: <b>${left}</b> of 42</div>` : "";
-      box.innerHTML = bar + `<div class="sec">PICK A SET</div>
+      put(bar + `<div class="sec">PICK A SET</div>
         <div class="gnote">Most players pick a set. Each one spends all 42 points for you; then you choose which attribute gets which value.</div>
         ${advice}
         <div class="gsets">${ATTR_SETS.map((s, i) => `<button class="sbtn ${i === cg.preset ? "on" : ""}" data-set="${i}">Set ${i + 1}<small>${s.map(sgn).join(" / ")}</small></button>`).join("")}</div>
         ${table}
         ${cg.custom ? "" : `<button id="gCustom" class="sbtn gcust">or spend points myself</button>`}
-        ${nav(stepWhy(1), cg.custom && left > 0 ? `${left} point${left === 1 ? "" : "s"} left unspent. They don't carry over.` : "")}`;
+        ${nav(stepWhy(1), cg.custom && left > 0 ? `${left} point${left === 1 ? "" : "s"} left unspent. They don't carry over.` : "")}`);
       document.querySelectorAll("[data-pa]").forEach(s => s.onchange = () => { // swap values so the set stays whole
         const a = s.dataset.pa, v = +s.value, old = cg.attrs[a], other = ATTRS.find(x => x !== a && cg.attrs[x] === v);
         cg.attrs[a] = v; if (other) cg.attrs[other] = old; cgSave(); showGen(); });
@@ -1133,17 +1135,17 @@ async function showGen() {
         return h + `</div>`; };
       const row = (sk) => { const copies = copiesOf(sk.name), s = copies[0]?.[0], star = suggRank(sk.name) >= 0, max = maxOf(sk.name);
         const would = s ? `<em class="on">${max > 1 ? `×${copies.length}` : total(s)}</em>` : nl != null ? `<em title="Total if it goes in the next slot">${sgn((cg.attrs[sk.attrs[0]] ?? 0) + nl)}</em>` : `<em class="full">full</em>`;
-        return `<div class="gsr ${s ? "on" : ""}" data-row="${esc2(sk.name)}"><button class="gsk2" data-sk="${esc2(sk.name)}" draggable="${copies.length < max ? "true" : "false"}"><b>${star ? "★ " : ""}${esc2(sk.name)}</b>${would}</button>${detail(sk)}</div>`; };
+        return `<div class="gsr ${s ? "on" : ""}" data-row="${esc2(sk.name)}"><button class="gsk2" data-sk="${esc2(sk.name)}"><b>${star ? "★ " : ""}${esc2(sk.name)}</b>${would}</button>${detail(sk)}</div>`; };
       const suggNote = String((info?.rows.find(([a]) => /^suggested skills note/i.test(a)) || [])[1] || "");
       const suggList = avail.filter(s => suggRank(s.name) >= 0).sort((a, b) => suggRank(a.name) - suggRank(b.name));
       const groups = ATTRS.slice().sort((a, b) => cg.attrs[b] - cg.attrs[a]).map(a => { const rows = avail.filter(s => s.attrs[0] === a && suggRank(s.name) < 0);
         return rows.length ? `<div class="gsh">${a.toUpperCase()} <span>${sgn(cg.attrs[a])}</span></div>${rows.map(row).join("")}` : ""; }).join("");
       const canFill = suggList.some(s => pickedIdx(s.name) < 0) && cg.skills.length < 8;
-      box.innerHTML = bar + `<div class="gtray"><div class="gtt">SKILLS ${cg.skills.length}/8 <small>${genMove != null ? "tap a slot to move it there" : "tap a skill below to fill the next slot"}</small></div>${tray}</div>
+      put(bar + `<div class="gtray"><div class="gtt">SKILLS ${cg.skills.length}/8 <small>${genMove != null ? "tap a slot to move it there" : "tap a skill below to fill the next slot"}</small></div>${tray}</div>
         <div class="gnote">Tap a skill to pick it. Total = attribute + slot level. Tap a filled slot (or drag it) to move it.${need ? ` ${cg.type}s must take ${cg.type === "Priest" ? "Prayer" : "Spellcasting"}.` : ""}</div>
         <div class="gtools"><input id="gq" class="gq" placeholder="Search skills…" value="${esc2(genQ)}">${canFill ? `<button id="gFill" class="sbtn" title="Put your type's suggested skills in the open slots, in order">★ Fill suggested</button>` : ""}</div>
         <div id="gsl">${suggList.length ? `<div class="gsh">★ SUGGESTED FOR ${esc2(cg.type.toUpperCase())}</div>${suggNote ? `<div class="gsnote">${esc2(suggNote)}</div>` : ""}${suggList.map(row).join("")}` : ""}${groups}</div>
-        ${nav(stepWhy(2))}`;
+        ${nav(stepWhy(2))}`);
       const addSkill = (n, lvl) => { const sk = list.find(x => x.name === n); if (!sk || cg.skills.length >= 8 || copiesOf(n).length >= maxOf(n)) return;
         const sp = suggSpecOf(n), spec = sp && !copiesOf(n).some(([c]) => c.spec === sp) ? sp : "";
         cg.skills.push({ base: n, name: spec ? `${baseShort(n)} (${spec})` : baseShort(n), attr: sk.attrs[0], level: lvl ?? nextLvl() ?? -3, spec }); };
@@ -1168,7 +1170,6 @@ async function showGen() {
       document.querySelectorAll("[data-sx]").forEach(b => b.onclick = (e) => { e.stopPropagation(); cg.skills.splice(+b.dataset.sx, 1); genMove = null; redraw(); });
       // drag and drop: chips between slots, or a skill from the list straight into an empty slot
       document.querySelectorAll("[data-ci]").forEach(c => c.ondragstart = (e) => { e.dataTransfer.setData("text/plain", "c:" + c.dataset.ci); c.classList.add("drag"); });
-      document.querySelectorAll(".gsk2[draggable=true]").forEach(b => b.ondragstart = (e) => e.dataTransfer.setData("text/plain", "s:" + b.dataset.sk));
       document.querySelectorAll("[data-ci], [data-es]").forEach(t => {
         t.ondragover = (e) => { e.preventDefault(); t.classList.add("over"); };
         t.ondragleave = () => t.classList.remove("over");
@@ -1189,14 +1190,14 @@ async function showGen() {
       const rs = cg.attrs["Raw Strength"], e = cg.equip;
       const melee = Math.max(0, (e.melee ? 2 : 0) + rs), ranged = e.ranged ? 4 : 0, armor = e.armor ? Math.max(1, 2 + rs) : Math.max(0, rs);
       const item = (k, label, rule) => `<label class="gl">${label} <small>${rule}</small><input id="ge_${k}" value="${esc2(e[k])}" placeholder="Name it, or leave blank for none"></label>`;
-      box.innerHTML = bar + `<div class="sec">STARTING EQUIPMENT</div>
+      put(bar + `<div class="sec">STARTING EQUIPMENT</div>
         ${item("armor", "Armor", "+2 Defense Rating")}${item("melee", "Melee weapon", "+2 Offense Rating")}${item("ranged", "Ranged weapon", "+4 Offense Rating")}
         <div class="g3">${`<div class="fld"><small>Melee Dmg Bonus</small><div>${sgn(melee)}</div></div><div class="fld"><small>Ranged Dmg Bonus</small><div>${sgn(ranged)}</div></div><div class="fld"><small>Armor Bonus</small><div>${sgn(armor)}</div></div>`}</div>
         <div class="gnote">Melee = Offense Rating + Raw Str (min 0). Ranged = Offense Rating only. Armor = Defense Rating + Raw Str (min +1 in armor, 0 without).</div>
         <div class="sec">OTHER GEAR (one per line)</div>
         <textarea id="gGear" rows="5" placeholder="Rope&#10;Medkit x2">${esc2(cg.gear)}</textarea>
         <div class="gpts">Starting credits: <b>1,000</b></div>
-        ${nav("")}`;
+        ${nav("")}`);
       for (const k of ["armor", "melee", "ranged"]) $("ge_" + k).onchange = () => { e[k] = $("ge_" + k).value.trim().slice(0, 60); cgSave(); showGen(); };
       $("gGear").oninput = () => { cg.gear = $("gGear").value; cgSave(); };
       return bind();
@@ -1207,13 +1208,13 @@ async function showGen() {
       if (cg.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cg.email)) return "That email doesn't look right.";
       return cg.name.trim() ? "" : "Give your character a name (box at the top)."; };
     const xpBtns = [-10, -1, 1, 10].map(d => `<button class="sbtn" data-xp="${d}">${d > 0 ? "+" : ""}${d}</button>`).join("");
-    box.innerHTML = bar + `<div class="sec">FINISH</div>
+    put(bar + `<div class="sec">FINISH</div>
       <label class="gl">Your Google email <small>(the new sheet is shared with you)</small><input id="gEmail" value="${esc2(cg.email)}" placeholder="you@gmail.com" inputmode="email"></label>
       <label class="gchk"><input type="checkbox" id="gXpOn" ${cg.xpOn ? "checked" : ""}> Start with XP (higher level)</label>
       ${cg.xpOn ? `<div class="mrow"><b class="gxp">${cg.xp} XP</b>${xpBtns}</div><div class="gnote">Goes into Current XP, to spend in the Sheet Manager.</div>` : ""}
       <div class="sec">YOUR SHEET</div>
       ${await sheetPreview()}
-      ${nav(finishWhy())}`;
+      ${nav(finishWhy())}`);
     const recheck = () => { const w = finishWhy(); $("gerr").textContent = w; $("gMake").disabled = !!w; };
     genRecheck = recheck;
     $("gEmail").oninput = () => { cg.email = $("gEmail").value.trim(); cgSave(); recheck(); };
@@ -1237,9 +1238,9 @@ async function showGen() {
     };
     return bind();
   } catch (e) {
-    box.innerHTML = bar + `<div class="err">Couldn't load: ${esc2(e.message || e)}</div>
+    put(bar + `<div class="err">Couldn't load: ${esc2(e.message || e)}</div>
       <div class="g2 gnav"><button id="gBack" class="sbtn">◀ BACK</button><button id="gRetry" class="sbtn">TRY AGAIN</button></div>
-      <button id="gPick" class="histbtn" style="margin-top:8px">PICK A DIFFERENT TYPE</button>`;
+      <button id="gPick" class="histbtn" style="margin-top:8px">PICK A DIFFERENT TYPE</button>`);
     $("gBack").onclick = () => { cg.step = Math.max(0, cg.step - 1); cgSave(); showGen(); };
     $("gRetry").onclick = () => showGen();
     $("gPick").onclick = () => { cg.step = 0; cg.type = ""; cgSave(); showGen(); };
