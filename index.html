@@ -337,6 +337,7 @@
   .gspec.on { border-color:var(--accent); } .gopt .gspec { flex:1 1 120px; min-width:0; }
   .gname.need { border-color:var(--minus); }
   .ibtn.mgrb { width:auto; padding:0 9px; font:800 12px system-ui; white-space:nowrap; display:inline-flex; align-items:center; gap:4px; }
+  .cred { display:inline-block; margin-left:6px; padding:0 6px; border-radius:9px; background:rgba(255,201,77,.12); border:1px solid rgba(255,201,77,.35); color:#ffc94d; font-weight:800; font-size:11px; vertical-align:1px; white-space:nowrap; }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
   .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
@@ -713,7 +714,7 @@ function drawSheet() {
   const trained = chips(...L.trained, "skills"), untrained = chips(...L.untrained, "untrained");
   const copMaxT = V("H28");
   $("shbody").innerHTML = `
-    <div class="shead"><div class="shn"><b>${esc2(V("C3") || "Unnamed")}</b><small>${[V("C4"), V("F5") !== "" ? "Level " + V("F5") : "", V("F7") !== "" ? V("F7") + " cr" : ""].filter(Boolean).map(esc2).join(" · ")}</small></div>
+    <div class="shead"><div class="shn"><b>${esc2(V("C3") || "Unnamed")}</b><small>${[V("C4"), V("F5") !== "" ? "Level " + V("F5") : ""].filter(Boolean).map(esc2).join(" · ")}${V("F7") !== "" ? `<span class="cred" title="Credits">¤ ${esc2(V("F7"))} cr</span>` : ""}</small></div>
       <span class="shbtns"><button id="reload" class="ibtn" title="Reload from Google Sheet">↻</button><button id="mgr" class="ibtn mgrb" title="Manage character: XP, skills, gear, notes">⚙ Manage Character</button></span></div>
     <div class="stab">VITALITY TRACK</div>
     <div class="vit">${["B", "C", "D", "E", "F", "G", "H"].map((c, i) => { const t = V(c + "15"); const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<button class="box ${V(c + "16") ? "x" : ""}" data-w="${i}"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk ${V(c + "16") ? "x" : ""}">${V(c + "16") ? "✕" : ""}</span></button>`; }).join("")}</div>
@@ -1593,7 +1594,7 @@ function drawParty(body, chars) {
       const status = worst < 0 ? "Unhurt" : cell(v, "BCDEFGH"[worst] + "15").replace(/^\S+\s+/, "");
       const used = cell(v, "F6").toUpperCase() === "TRUE";
       return `<div class="pcard">
-        <div class="ptop"><b>${esc2(cell(v, "C3"))}</b><small>${esc2(cell(v, "C4"))}</small><span class="ppw ${used ? "u" : ""}">${used ? "POWER USED" : "POWER READY"}</span></div>
+        <div class="ptop"><b>${esc2(cell(v, "C3"))}</b><small>${esc2(cell(v, "C4"))}${cell(v, "F7") !== "" ? `<span class="cred" title="Credits">¤ ${esc2(cell(v, "F7"))} cr</span>` : ""}</small><span class="ppw ${used ? "u" : ""}">${used ? "POWER USED" : "POWER READY"}</span></div>
         <div class="pvit">${marks.map((m, i) => `<i><small>${["LW", "LW", "LW", "MW", "CW", "KO", "D"][i]}</small><span class="${m ? "x" : ""}"></span></i>`).join("")}<em class="${worst >= 4 ? "bad" : ""}">${esc2(status)}</em></div>
       </div>`;
     }).join("") : `<div class="empty">No characters found.</div>`;
