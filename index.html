@@ -1490,7 +1490,7 @@ async function setTrack(now) { // write a whole vitality track (7 true/false), o
   }
   busy = false; writeGen++;
   const bad = res.find(r => !r.ok);
-  if (!bad) { cols.forEach((c, i) => setCell(c + "16", now[i] ? "X" : "")); cache.set("sheet." + sheetId(), sheetVals); setTimeout(() => loadSheet(true), 1500); return true; }
+  if (!bad) { cols.forEach((c, i) => setCell(c + "16", now[i] ? "X" : "")); const dp = res[res.length - 1].dp; if (dp != null) setCell("C12", dp); cache.set("sheet." + sheetId(), sheetVals); setTimeout(() => loadSheet(true), 1500); return true; }
   sheetVals = JSON.parse(before); drawSheet(); loadSheet(true); // re-read so the sheet shows whatever did save
   $("sherr").hidden = false; $("sherr").textContent = "Vitality track didn't fully save: " + (bad.error || "unknown error");
   return false;
@@ -1504,7 +1504,7 @@ async function save(body, apply) {
   apply(); drawSheet(); // show it right away
   const r = await bridgePost(body).catch(e => ({ ok: false, error: e.message }));
   busy = false; writeGen++;
-  if (r.ok) { loadSheet(true); return; } // re-read so the sheet's own formulas (like Damage Penalty) show up
+  if (r.ok) { if (r.dp != null) { setCell("C12", r.dp); drawSheet(); } loadSheet(true); return; } // re-read so the sheet's own formulas (like Damage Penalty) show up
   if (!r.ok) {
     sheetVals = JSON.parse(before);
     // wrong code: ask for it again right away instead of failing every save

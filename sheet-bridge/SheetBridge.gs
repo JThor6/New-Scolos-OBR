@@ -360,7 +360,9 @@ function doPost(e) {
     } else {
       throw new Error('Nothing to change.');
     }
-    return json({ ok: true });
+    // send back the new Damage Penalty (a formula on C12) so the add-on shows it without a second read
+    SpreadsheetApp.flush();
+    return json({ ok: true, dp: sh.getRange('C12').getDisplayValue() });
   } catch (err) {
     return json({ ok: false, error: String(err.message || err) });
   }
