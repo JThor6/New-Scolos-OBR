@@ -895,7 +895,7 @@ function drawManager() {
     <div class="mrow"><b class="mcred">${esc2((num(V("F7")) ?? 0).toLocaleString("en-US"))}</b><input id="crAmt" inputmode="numeric" placeholder="Amount"><button id="crAdd" class="sbtn">+ ADD</button><button id="crSub" class="sbtn">− SPEND</button></div>
     <div class="stab">XP & ATTRIBUTE POINTS</div>
     <div class="g4">${`<div class="fld"><small>XP to spend</small><div>${xpNow()}</div></div><div class="fld"><small>XP spent</small><div>${xpSpent()}</div></div><div class="fld"><small>Attr. pts left</small><div>${attrLeft()}</div></div><div class="fld"><small>Attr. pts spent</small><div>${num(V("F10")) || 0}</div></div>`}</div>
-    <div class="mrow"><span class="mtot" title="Current XP + Spent XP">Total earned<b>${xpNow() + xpSpent()}</b></span><input id="xpAdd" inputmode="numeric" placeholder="XP earned"><button id="xpGo" class="sbtn">+ ADD XP</button></div>
+    <div class="mrow"><span class="mtot" title="Current XP + Spent XP">Total earned<b>${xpNow() + xpSpent()}</b></span><input id="xpAdd" inputmode="numeric" placeholder="XP"><button id="xpGo" class="sbtn">+ ADD XP</button><button id="xpSub" class="sbtn">− SUBTRACT XP</button></div>
     <div class="stab">ATTRIBUTES</div><table class="mtab">${attrRows}</table>
     <div class="stab">TRAINED SKILLS</div><table class="mtab">${skillRows(...L.trained) || `<tr><td class="empty">None yet.</td></tr>`}</table>
     <div class="stab">UNTRAINED SKILLS</div><table class="mtab">${skillRows(...L.untrained) || `<tr><td class="empty">None yet.</td></tr>`}</table>
@@ -959,6 +959,10 @@ function drawManager() {
     mgrSave({ ["B" + row]: name, ["C" + row]: $("skAttr").value, ["E" + row]: -4 });
   };
   $("xpGo").onclick = () => { const n = num($("xpAdd").value); if (!n || n < 0) return; mgrSave({ F3: xpNow() + n }); };
+  // takes back unspent XP only (spent XP comes back with the − on a skill)
+  $("xpSub").onclick = () => { const n = num($("xpAdd").value); if (!n || n < 0) return;
+    if (n > xpNow()) return err(`Only ${xpNow()} XP left to spend. To take back spent XP, lower a skill with its − first.`);
+    mgrSave({ F3: xpNow() - n }); };
   const cred = (sign) => { const amt = num($("crAmt").value), cur = num(V("F7")) || 0; if (!amt || amt < 0) return;
     if (sign < 0 && amt > cur) return err("Not enough credits.");
     mgrSave({ F7: cur + sign * amt }); };
