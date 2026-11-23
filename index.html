@@ -245,6 +245,7 @@
   .dimn { color:var(--ink); }
   .copts { font-size:12px; line-height:1.35; color:var(--ink); background:var(--paper); border:1px solid #444a66; border-radius:7px; padding:4px 7px; margin-top:4px; }
   .skg { display:grid; grid-template-columns:repeat(auto-fill, minmax(max(180px, 32%), 1fr)); gap:3px; }
+  .rollbox { cursor:pointer; } .rollbox:hover { border-color:var(--accent) !important; } .rollbox .inft { cursor:help; }
   .skc { display:flex; align-items:center; gap:4px; background:var(--paper); border:1px solid #444a66; border-radius:6px; padding:3px 3px 3px 6px; font-size:12px; min-width:0; }
   .skc span { flex:1; min-width:0; line-height:1.2; overflow-wrap:break-word; }
   .skc b { font-size:14px; min-width:22px; text-align:right; }
@@ -810,6 +811,9 @@ function drawSheet() {
     ${isGM ? "" : `<button id="disc" class="histbtn">SWITCH CHARACTER</button>`}`;
   fillPowers(); bindInfo();
   document.querySelectorAll("#shbody .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l, "", b.dataset.b); });
+  // the whole attribute or skill box rolls, except its underlined name (that opens the info)
+  document.querySelectorAll("#shbody .att, #shbody .skc").forEach(box => { const rd = box.querySelector(".rd"); if (!rd) return;
+    box.classList.add("rollbox"); box.onclick = (e) => { if (e.target.closest(".inft, .rd")) return; rd.click(); }; });
   document.querySelectorAll("#shbody details.dr").forEach(d => d.ontoggle = () => { drawOpen[d.dataset.k] = d.open; });
   $("reload").onclick = () => loadSheet();
   $("mgr").onclick = () => { mgrOn = true; drawSheet(); };
