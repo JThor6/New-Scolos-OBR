@@ -30,6 +30,16 @@
   .modtag { color:var(--dim); font-weight:700; margin-left:2px; }
   .total { margin-left:auto; font-family:'Luckiest Guy', 'Bangers', Impact, sans-serif; font-size:27px; padding-top:3px; }
   .big .total { font-size:38px; }
+  /* uplink pop-out: only the uplink shows */
+  .uplhead { display:none; }
+  body.upl > header, body.upl nav, body.upl #initban, body.upl section { display:none !important; }
+  body.upl #dice { display:block !important; padding-top:0; }
+  body.upl #dice > *:not(#hand):not(#uplhead) { display:none !important; }
+  body.upl .uplhead { display:flex; align-items:center; gap:6px; position:sticky; top:0; z-index:2; padding:7px 10px; margin:0 -10px; background:rgba(0,0,0,.55); border-radius:12px 12px 0 0; }
+  body.upl .uplhead b { flex:1; font-family:'Bangers', Impact, sans-serif; font-weight:400; font-size:20px; letter-spacing:1px; color:#bb99ff; }
+  body.upl .uplhead button { background:transparent; border:2px solid #444a66; color:#f1f3f9; border-radius:6px; width:26px; height:26px; cursor:pointer; font-weight:800; padding:0; }
+  body.upl #hand { margin-top:6px; }
+  body.upl { background:rgba(24,27,42,.85); border:1px solid rgba(255,255,255,.12); border-radius:12px; min-height:100vh; box-sizing:border-box; padding:0 10px 10px; overflow:hidden auto; }
   .hand { margin-top:8px; padding:8px 10px 10px; border:1px solid #444a66; border-radius:8px; background:var(--paper); }
   .hand .hnote { font-size:12px; color:var(--dim); margin-bottom:4px; } .hand label { display:block; margin-top:8px; }
   .hand select, .hand input:not([type=checkbox]) { width:100%; box-sizing:border-box; }
@@ -539,7 +549,8 @@
   <div id="last"></div>
   <div style="display:flex;gap:6px;align-items:stretch"><button id="histbtn" class="histbtn" style="flex:1">SHOW ROLL HISTORY</button><button id="dicepop" class="histbtn" style="flex:none;width:44px;color:var(--dim);display:flex;align-items:center;justify-content:center" title="Pop out roll history"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
   <div id="history" hidden><div class="empty">No rolls yet.</div></div>
-  <button id="handbtn" class="histbtn">ANALOG DICE UPLINK</button>
+  <div id="handrow" style="display:flex;gap:6px;align-items:stretch"><button id="handbtn" class="histbtn" style="flex:1">ANALOG DICE UPLINK</button><button id="handpop" class="histbtn" style="flex:none;width:44px;color:var(--dim);display:flex;align-items:center;justify-content:center" title="Pop the uplink out beside the map"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+  <div id="uplhead" class="uplhead"><b>ANALOG DICE UPLINK</b><button id="uplx" title="Close">✕</button></div>
   <div id="hand" class="hand" hidden></div>
 </main>
 <script type="module">
@@ -2239,8 +2250,9 @@ async function popOut(k) {
   // Same button again while that section is showing: close the pop-out instead
   let open = ""; try { open = localStorage.getItem("ns.popOpen") || ""; } catch {}
   if (open === k && !standalone) { try { localStorage.removeItem("ns.popOpen"); } catch {} return OBR.popover.close("com.newscolos.rules").catch(() => {}); }
-  if (standalone) return window.open("popout.html?k=" + encodeURIComponent(k));
-  const u = new URL("go.html", location.href); u.searchParams.set("p", "popout");
+  if (standalone) return window.open(k === "__uplink" ? "index.html?uplink=1" : "popout.html?k=" + encodeURIComponent(k));
+  const u = new URL("go.html", location.href); u.searchParams.set("p", k === "__uplink" ? "index" : "popout");
+  if (k === "__uplink") u.searchParams.set("uplink", "1");
   const ref = new URLSearchParams(location.search).get("obrref"); if (ref) u.searchParams.set("obrref", ref);
   u.searchParams.set("k", k);
   const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
@@ -2286,6 +2298,18 @@ $("initgo").onclick = () => {
   if (adr != null && String(adr).trim() !== "") return quickRoll(adr, "Adroitness");
   document.querySelector('.tab[data-t="sheet"]').click(); // sheet not loaded yet: open it so they can roll from there
 };
+// Uplink mode: this page opened as the pop-out beside the map, showing only the Analog Dice Uplink.
+// The character sheet still loads (hidden) so modifiers, wounds and powers stay right.
+const UPLINK = new URLSearchParams(location.search).get("uplink") === "1";
+if (UPLINK) {
+  document.body.classList.add("upl");
+  $("hand").hidden = false;
+  drawHand();
+  try { localStorage.setItem("ns.popOpen", "__uplink"); } catch {}
+  window.addEventListener("pagehide", () => { try { if (localStorage.getItem("ns.popOpen") === "__uplink") localStorage.removeItem("ns.popOpen"); } catch {} });
+  $("uplx").onclick = () => { try { localStorage.removeItem("ns.popOpen"); } catch {} standalone ? window.close() : OBR.popover.close("com.newscolos.rules").catch(() => {}); };
+}
+$("handpop").onclick = () => popOut("__uplink");
 if (standalone) {
   document.querySelector('.tab[data-t="sheet"]').click();
   document.querySelector("nav").insertAdjacentHTML("beforeend", `<span style="color:var(--dim);font-size:10px">TEST</span>`);
@@ -2303,7 +2327,7 @@ if (standalone) {
     $("monTab").hidden = !isGM;
     document.querySelector('.tab[data-t="sheet"]').click(); // Character is the first tab: open it once the GM/player role is known
     if (isGM) { initMd = await OBR.room.getMetadata(); OBR.room.onMetadataChange((m) => { initMd = m; drawInitList(); markTurn(); }); }
-    applySize();
+    if (!UPLINK) applySize();
     render(rollLog(OBR.room.id, allRolls(await OBR.room.getMetadata())));
     OBR.room.onMetadataChange((md) => { render(rollLog(OBR.room.id, allRolls(md))); updateInitBanner(md); });
     updateInitBanner();
