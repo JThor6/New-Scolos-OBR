@@ -355,7 +355,7 @@
   .pwrolls { display:flex; flex-direction:column; gap:5px; margin-top:8px; padding-top:7px; border-top:1px dashed #6b5aa0; }
   .pwroll { display:flex; align-items:center; gap:7px; width:100%; padding:6px 9px; border:1px solid #6b4fb8; border-radius:7px; background:rgba(91,63,158,.55); color:#f0eaff; font:700 12.5px system-ui; text-align:left; cursor:pointer; }
   .pwroll:hover { background:rgba(110,78,190,.8); } .pwroll span { flex:1; } .pwroll b { font-size:15px; color:#ffc94d; } .pwroll svg { flex:none; width:16px; height:16px; }
-  body.rollbusy .pwroll { opacity:.55; cursor:default; }
+  body.rollbusy .pwroll { opacity:.55; cursor:default; } .pwroll:disabled { opacity:.4; cursor:not-allowed; } .pwroll:disabled:hover { background:rgba(91,63,158,.55); }
   .ksarm { border-color:#c0392b; background:rgba(140,30,30,.55); } .ksarm:hover { background:rgba(170,40,40,.8); } .ksarm.on { background:#b3261e; color:#fff; }
   .ksbar { display:flex; gap:8px; align-items:flex-start; margin:4px 0 8px; padding:7px 9px; border:2px solid #e04a3f; border-radius:8px; background:rgba(150,25,25,.45); color:#ffe3e0; font-size:12.5px; line-height:1.4; } .ksbar[hidden] { display:none; }
   .ksbar b { color:#ff6b5e; font-size:13.5px; letter-spacing:.5px; } .ksbar span { flex:1; }
@@ -1555,21 +1555,24 @@ function powerMod(k) {
   return null;
 }
 // Using a power ticks "Used today" (F6) on its own. Tries again for a few seconds if another save is still going.
-const powerUsed = () => V("F6").toUpperCase() === "TRUE";
+// pwPending covers the moment between the click and the sheet saving, so a second click can't use it again.
+let pwPending = false;
+const powerUsed = () => pwPending || V("F6").toUpperCase() === "TRUE";
 function markPowerUsed(tries = 0) {
-  if (powerUsed() || !sheetVals) return;
-  if (busy) { if (tries < 10) setTimeout(() => markPowerUsed(tries + 1), 600); return; }
-  save({ power: true }, () => setCell("F6", "TRUE"));
+  if (V("F6").toUpperCase() === "TRUE" || !sheetVals) { pwPending = false; return; }
+  pwPending = true;
+  if (busy) { if (tries < 10) setTimeout(() => markPowerUsed(tries + 1), 600); else pwPending = false; return; }
+  save({ power: true }, () => { setCell("F6", "TRUE"); pwPending = false; });
 }
 function powerRollBtns(name) {
   const list = POWER_ROLLS[String(name).toLowerCase().trim()];
   const usedNote = powerUsed() ? `<div class="pwused">✕ Already used today. Check with your GM before using it again.</div>` : "";
   if (!list) return `<div class="pwrolls">${usedNote}<button class="pwroll pwuse" data-n="${esc2(name)}" ${powerUsed() ? "disabled" : ""}>⚡<span>${powerUsed() ? "Used today" : `Use ${esc2(name)}: marks Used today`}</span></button></div>`;
-  if (list === "arm") return `<div class="pwrolls">${usedNote}<button class="pwroll ksarm ${ksArmed() ? "on" : ""}"><span>${ksArmed() ? "Kill Shot is armed. Tap to cancel" : "Arm Kill Shot: your next attack roll is +, +, +, +"}</span></button></div>`;
+  if (list === "arm") return `<div class="pwrolls">${usedNote}<button class="pwroll ksarm ${ksArmed() ? "on" : ""}" ${powerUsed() && !ksArmed() ? "disabled" : ""}><span>${ksArmed() ? "Kill Shot is armed. Tap to cancel" : "Arm Kill Shot: your next attack roll is +, +, +, +"}</span></button></div>`;
   return `<div class="pwrolls">${usedNote}${list.map((r, i) => { const pm = powerMod(r.k);
     if (!pm) return `<div class="pwmiss">${esc2(r.k)} isn't on your sheet. Ask your GM.</div>`;
     const tot = pm.m + (r.x || 0);
-    return `<button class="pwroll" data-i="${i}" data-m="${tot}" data-l="${esc2(`⚡ ${name} · ${r.l || r.k}${r.x ? ` ${r.x}` : ""}`)}" data-b="${esc2(r.x ? "" : pm.br)}">${ROLL_ICON}<span>${esc2(r.t)}</span><b>${tot >= 0 ? "+" : ""}${tot}</b></button>`; }).join("")}</div>`;
+    return `<button class="pwroll" data-i="${i}" ${powerUsed() ? "disabled" : ""} data-m="${tot}" data-l="${esc2(`⚡ ${name} · ${r.l || r.k}${r.x ? ` ${r.x}` : ""}`)}" data-b="${esc2(r.x ? "" : pm.br)}">${ROLL_ICON}<span>${esc2(r.t)}</span><b>${tot >= 0 ? "+" : ""}${tot}</b></button>`; }).join("")}</div>`;
 }
 let pwOpen = ""; // which power's rules are open under the Extraordinary Power box (kept across refreshes)
 async function fillPowers() {
@@ -1599,9 +1602,13 @@ async function fillPowers() {
       box.innerHTML = `<div class="gpn">${k[0] === "a" ? "Always on · " : "⚡ "}${esc2(x.name)}<button class="pwx" title="Close">✕</button></div>` +
         (k[0] === "a" ? `<div>${esc2(x.text)}</div>` : (x.rules.map(([a, b]) => `<div>${a ? `<b>${esc2(a)}:</b> ` : ""}${esc2(b)}</div>`).join("") || `<div>No details on the type tab.</div>`) + powerRollBtns(x.name));
       box.querySelector(".pwx").onclick = () => { pwOpen = ""; show(); };
-      box.querySelectorAll(".ksarm").forEach(b => b.onclick = (e) => { e.stopPropagation(); setKS(!ksArmed()); show(); });
-      box.querySelectorAll(".pwuse").forEach(b => b.onclick = (e) => { e.stopPropagation(); markPowerUsed(); });
-      box.querySelectorAll(".pwroll:not(.ksarm):not(.pwuse)").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (rollBusy) return; await quickRoll(b.dataset.m, b.dataset.l, "", b.dataset.b); markPowerUsed(); });
+      box.querySelectorAll(".ksarm").forEach(b => b.onclick = (e) => { e.stopPropagation(); if (powerUsed() && !ksArmed()) return; setKS(!ksArmed()); show(); });
+      box.querySelectorAll(".pwuse").forEach(b => b.onclick = (e) => { e.stopPropagation(); if (powerUsed()) return; markPowerUsed(); show(); });
+      box.querySelectorAll(".pwroll:not(.ksarm):not(.pwuse)").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (rollBusy || powerUsed()) return;
+        // once per day: lock every power button right away so a second click can't roll it again
+        box.querySelectorAll(".pwroll").forEach(x => x.disabled = true);
+        markPowerUsed();
+        await quickRoll(b.dataset.m, b.dataset.l, "", b.dataset.b); show(); });
     };
     document.querySelectorAll(".pwb").forEach(b => b.onclick = () => { pwOpen = pwOpen === b.dataset.pk ? "" : b.dataset.pk; show(); });
     show();
