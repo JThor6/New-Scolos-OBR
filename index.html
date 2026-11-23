@@ -361,6 +361,8 @@
   .ksbar b { color:#ff6b5e; font-size:13.5px; letter-spacing:.5px; } .ksbar span { flex:1; }
   .ksbar button { background:none; border:1px solid #e04a3f; border-radius:5px; color:#ffe3e0; cursor:pointer; font-weight:800; width:24px; height:24px; }
   .skc.ksatk { outline:2px solid #e04a3f; outline-offset:-1px; background:rgba(150,25,25,.35) !important; }
+  .pwused { font-size:11.5px; font-weight:700; color:#ff8f8f; }
+  .pwuse { border-color:#b8902e; background:rgba(120,88,20,.55); } .pwuse:hover:not(:disabled) { background:rgba(150,110,25,.8); } .pwuse:disabled { opacity:.55; cursor:default; }
   .pwmiss { font-size:11.5px; color:var(--dim); font-style:italic; }
   .pwd { margin-top:4px; } .pwd .gpn { display:flex; align-items:center; } .pwx { margin-left:auto; background:none; border:none; color:var(--dim); cursor:pointer; font-size:12px; }
   .inft { cursor:pointer; text-decoration:underline dotted #6b5aa0; text-underline-offset:3px; } .inft:hover, .inft.ion { color:var(--accent) !important; text-decoration-color:var(--accent); }
@@ -634,7 +636,7 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "") {
     if (st?.open && store.get("ns.initDone") !== st.sid) { initSid = st.sid; label = "Adroitness · Initiative"; }
   }
   const ks = !whoName && ksArmed() && KS_ATTACK.test(String(label || ""));
-  if (ks) { label = "🎯 KILL SHOT · " + label; setKS(false); fillPowers(); }
+  if (ks) { label = "🎯 KILL SHOT · " + label; setKS(false); fillPowers(); setTimeout(() => markPowerUsed(), 0); }
   const dice = ks ? [1, 1, 1, 1] : [rollDie(), rollDie(), rollDie(), rollDie()];
   const who = whoName || (standalone ? "Test" : await OBR.player.getName());
   const r = { id: crypto.randomUUID().slice(0, 8), pid: me || "local", who, label: String(label || "").slice(0, 60), dice, mod: m, total: dice.reduce((a, b) => a + b, 0) + m, ts: Date.now() };
@@ -1552,10 +1554,19 @@ function powerMod(k) {
   }
   return null;
 }
+// Using a power ticks "Used today" (F6) on its own. Tries again for a few seconds if another save is still going.
+const powerUsed = () => V("F6").toUpperCase() === "TRUE";
+function markPowerUsed(tries = 0) {
+  if (powerUsed() || !sheetVals) return;
+  if (busy) { if (tries < 10) setTimeout(() => markPowerUsed(tries + 1), 600); return; }
+  save({ power: true }, () => setCell("F6", "TRUE"));
+}
 function powerRollBtns(name) {
-  const list = POWER_ROLLS[String(name).toLowerCase().trim()]; if (!list) return "";
-  if (list === "arm") return `<div class="pwrolls"><button class="pwroll ksarm ${ksArmed() ? "on" : ""}">🎯<span>${ksArmed() ? "Kill Shot is armed. Tap to cancel" : "Arm Kill Shot: your next attack roll is +, +, +, +"}</span></button></div>`;
-  return `<div class="pwrolls">${list.map((r, i) => { const pm = powerMod(r.k);
+  const list = POWER_ROLLS[String(name).toLowerCase().trim()];
+  const usedNote = powerUsed() ? `<div class="pwused">✕ Already used today. Check with your GM before using it again.</div>` : "";
+  if (!list) return `<div class="pwrolls">${usedNote}<button class="pwroll pwuse" data-n="${esc2(name)}" ${powerUsed() ? "disabled" : ""}>⚡<span>${powerUsed() ? "Used today" : `Use ${esc2(name)}: marks Used today`}</span></button></div>`;
+  if (list === "arm") return `<div class="pwrolls">${usedNote}<button class="pwroll ksarm ${ksArmed() ? "on" : ""}">🎯<span>${ksArmed() ? "Kill Shot is armed. Tap to cancel" : "Arm Kill Shot: your next attack roll is +, +, +, +"}</span></button></div>`;
+  return `<div class="pwrolls">${usedNote}${list.map((r, i) => { const pm = powerMod(r.k);
     if (!pm) return `<div class="pwmiss">${esc2(r.k)} isn't on your sheet. Ask your GM.</div>`;
     const tot = pm.m + (r.x || 0);
     return `<button class="pwroll" data-i="${i}" data-m="${tot}" data-l="${esc2(`⚡ ${name} · ${r.l || r.k}${r.x ? ` ${r.x}` : ""}`)}" data-b="${esc2(r.x ? "" : pm.br)}">${ROLL_ICON}<span>${esc2(r.t)}</span><b>${tot >= 0 ? "+" : ""}${tot}</b></button>`; }).join("")}</div>`;
@@ -1589,7 +1600,8 @@ async function fillPowers() {
         (k[0] === "a" ? `<div>${esc2(x.text)}</div>` : (x.rules.map(([a, b]) => `<div>${a ? `<b>${esc2(a)}:</b> ` : ""}${esc2(b)}</div>`).join("") || `<div>No details on the type tab.</div>`) + powerRollBtns(x.name));
       box.querySelector(".pwx").onclick = () => { pwOpen = ""; show(); };
       box.querySelectorAll(".ksarm").forEach(b => b.onclick = (e) => { e.stopPropagation(); setKS(!ksArmed()); show(); });
-      box.querySelectorAll(".pwroll:not(.ksarm)").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l, "", b.dataset.b); });
+      box.querySelectorAll(".pwuse").forEach(b => b.onclick = (e) => { e.stopPropagation(); markPowerUsed(); });
+      box.querySelectorAll(".pwroll:not(.ksarm):not(.pwuse)").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (rollBusy) return; await quickRoll(b.dataset.m, b.dataset.l, "", b.dataset.b); markPowerUsed(); });
     };
     document.querySelectorAll(".pwb").forEach(b => b.onclick = () => { pwOpen = pwOpen === b.dataset.pk ? "" : b.dataset.pk; show(); });
     show();
