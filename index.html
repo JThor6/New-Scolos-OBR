@@ -382,6 +382,9 @@
   #sh .att:not(.dp) b { padding:0; text-align:center; }
   #sh .rd.ra { position:static; width:30px; height:30px; margin:2px 0 0; border-radius:7px; background:rgba(187,153,255,.2); }
   #sh .rd.ra svg { width:20px; height:20px; }
+  /* bigger attribute dice: as big as the box allows */
+  #sh .rd.ra { width:34px; height:34px; } #sh .rd.ra svg { width:22px; height:22px; }
+  @media (min-width: 420px) { #sh .rd.ra { width:48px; height:40px; border-radius:8px; } #sh .rd.ra svg { width:26px; height:26px; } #sh .att:not(.dp) { padding-right:5px; } }
   .err { color:var(--minus); margin-top:8px; font-weight:700; }
   .empty { color:var(--dim); margin-top:8px; }
   .ow { padding:2px 10px 8px; }
