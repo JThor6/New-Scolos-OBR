@@ -348,6 +348,7 @@
   .gsnote2 { font-size:11px; color:var(--dim); margin:-1px 2px 3px; }
   .mco1 span b { display:block; } .mco1 span small { display:block; color:var(--dim); font-size:11px; line-height:1.3; }
   #mco select { flex:1; min-width:0; }
+  #mo .matk { cursor:pointer; transition:border-color .1s, background .1s; } #mo .matk:hover { border-color:var(--accent); background:rgba(187,153,255,.08); } #mo .matk:active { background:rgba(187,153,255,.18); }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
   .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
@@ -1536,6 +1537,8 @@ function drawMonsters() {
   drawInitList();
   markTurn();
   document.querySelectorAll("#mo .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l, b.dataset.w); });
+  // the whole Attack box rolls, not just the dice button
+  document.querySelectorAll("#mo .matk").forEach(box => box.onclick = () => box.querySelector(".rd")?.click());
   document.querySelectorAll("#mo .mw, #mo .mdead").forEach(b => b.onclick = async () => {
     const row = +b.dataset.r, col = b.dataset.c ? +b.dataset.c : 20, on = !!b.dataset.on;
     await monSet(row, col, on);
