@@ -332,6 +332,7 @@
   .inft { cursor:pointer; text-decoration:underline dotted #6b5aa0; text-underline-offset:3px; } .inft:hover, .inft.ion { color:var(--accent) !important; text-decoration-color:var(--accent); }
   .infp { margin-top:4px; } .infp .gpn { display:flex; align-items:center; }
   .gtats { display:flex; flex-wrap:wrap; gap:3px; } .gtat.two { color:#c9c3e6; background:#1d1a2e; }
+  .gadr span { display:block; } .gadr i { font-style:normal; font-weight:800; color:var(--dim); } .gadp { color:#ffc94d !important; font-weight:700; }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
   .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
@@ -943,10 +944,10 @@ const needsSpec = (base) => /\(Choose One/i.test(base);
 const baseShort = (base) => String(base).replace(/\s*\((Choose One[^)]*|Type Restricted[^)]*)\)\s*/i, " ").trim();
 const specMissing = (s) => needsSpec(s.base) && !s.spec && s.name === baseShort(s.base);
 // Which attributes a type leans on, read from its "Suggested skills" row and the Skill List. Required/core skills count double.
-const ATTR_DOES = { Adroitness: "Dodging: attacks roll against it. Also initiative, guns, blades, piloting and sneaking.",
-  "Raw Strength": "Adds to melee damage and to your armor bonus. Intimidation.",
-  Intellect: "Knowledge, tech, hacking, investigating. Spellcasting for Mages.",
-  Charm: "Talking people around: con, haggling, seduction, public speaking. Prayer for Priests." };
+const ATTR_DOES = { Adroitness: "dodging (attacks roll against it), initiative, guns, blades, piloting, sneaking",
+  "Raw Strength": "melee damage, armor bonus, intimidation",
+  Intellect: "knowledge, tech, hacking, investigating, spellcasting",
+  Charm: "talking people around, haggling, public speaking, prayer" };
 function attrNeeds(info, list) {
   const raw = String((info?.rows.find(([a]) => /^suggested skills/i.test(a)) || [])[1] || "").split(/[,;]/).map(x => x.trim()).filter(Boolean);
   const out = Object.fromEntries(ATTRS.map(a => [a, { w: 0, skills: [], powers: [] }]));
@@ -1031,7 +1032,7 @@ async function showGen() {
       const needs = cg.type ? attrNeeds(await typeInfo(cg.type).catch(() => null), await skillList().catch(() => [])) : null;
       const order = ATTRS.slice().sort((a, b) => (needs?.[b].w || 0) - (needs?.[a].w || 0) || (a === "Adroitness" ? -1 : b === "Adroitness" ? 1 : 0));
       const advice = needs ? `<div class="gadv"><div class="gadvt">WHAT A ${esc2(cg.type.toUpperCase())} NEEDS</div>${order.map(a => { const n = needs[a];
-          return `<div class="gadr ${n.w >= 2 ? "hi" : n.w ? "mid" : ""}"><b>${a}${n.w >= 2 ? " ★" : ""}</b><span>${n.powers.length ? `Your power rolls it: ${esc2(n.powers.join(", "))}. ` : ""}${n.skills.length ? `Your suggested skills: ${esc2(n.skills.join(", "))}. ` : ""}${ATTR_DOES[a]}</span></div>`; }).join("")}
+          return `<div class="gadr ${n.w >= 2 ? "hi" : n.w ? "mid" : ""}"><b>${a}${n.w >= 2 ? " ★" : ""}</b>${n.powers.length ? `<span class="gadp">${esc2(n.powers.join(" and "))} roll${n.powers.length === 1 ? "s" : ""} ${a}.</span>` : ""}${n.skills.length ? `<span><i>Skills:</i> ${esc2(n.skills.join(", "))}</span>` : ""}<span><i>Good for:</i> ${ATTR_DOES[a]}</span></div>`; }).join("")}
         ${cg.preset != null ? `<button id="gBest" class="sbtn gbest">★ Put my best values where a ${esc2(cg.type)} needs them</button>` : ""}</div>` : "";
       const table = cg.preset != null
         ? `<div class="gnote">Using <b>Set ${cg.preset + 1}</b>. Pick which value goes on each attribute. Changing one swaps it with the attribute that had that value.</div>
@@ -1249,7 +1250,7 @@ async function infoHtml(key) {
       for (const l of K) if (l.toLowerCase().startsWith(k) || (k === "armor bonus" && /^any armor|^ex:/i.test(l))) h += row("", l); } catch {}
     return `<div class="gpn">${esc2(key.slice(3))}</div>${h || row("", "Damage and armor bonuses come from your gear and Raw Strength.")}`;
   }
-  if (key.startsWith("at:")) { const a = key.slice(3); return `<div class="gpn">${esc2(a)} ${esc2(V({ Adroitness: "C7", "Raw Strength": "C8", Intellect: "C9", Charm: "C10" }[a]))}</div>${row("", ATTR_DOES[a] || "")}`; }
+  if (key.startsWith("at:")) { const a = key.slice(3); return `<div class="gpn">${esc2(a)} ${esc2(V({ Adroitness: "C7", "Raw Strength": "C8", Intellect: "C9", Charm: "C10" }[a]))}</div>${row("Good for", ATTR_DOES[a] || "")}`; }
   if (key === "dp") return `<div class="gpn">Damage Penalty ${esc2(V("C12"))}</div>${row("", "Comes from your Vitality Track: wounds marked (-1) add to it as they're checked.")}`;
   return "";
 }
