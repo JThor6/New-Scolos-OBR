@@ -355,7 +355,7 @@
   .pwrolls { display:flex; flex-direction:column; gap:5px; margin-top:8px; padding-top:7px; border-top:1px dashed #6b5aa0; }
   .pwroll { display:flex; align-items:center; gap:7px; width:100%; padding:6px 9px; border:1px solid #6b4fb8; border-radius:7px; background:rgba(91,63,158,.55); color:#f0eaff; font:700 12.5px system-ui; text-align:left; cursor:pointer; }
   .pwroll:hover { background:rgba(110,78,190,.8); } .pwroll span { flex:1; } .pwroll b { font-size:15px; color:#ffc94d; } .pwroll svg { flex:none; width:16px; height:16px; }
-  body.rollbusy .pwroll { opacity:.55; cursor:default; } .pwroll:disabled { opacity:.4; cursor:not-allowed; } .pwroll:disabled:hover { background:rgba(91,63,158,.55); }
+  body.rollbusy .pwroll { opacity:.55; cursor:default; } .pwtn { font-size:11.5px; font-weight:700; color:#c9b8f5; margin:4px 0 0; } .pwroll:disabled { opacity:.4; cursor:not-allowed; } .pwroll:disabled:hover { background:rgba(91,63,158,.55); }
   .ksarm { border-color:#c0392b; background:rgba(140,30,30,.55); } .ksarm:hover { background:rgba(170,40,40,.8); } .ksarm.on { background:#b3261e; color:#fff; }
   .ksbar { display:flex; gap:8px; align-items:flex-start; margin:4px 0 8px; padding:7px 9px; border:2px solid #e04a3f; border-radius:8px; background:rgba(150,25,25,.45); color:#ffe3e0; font-size:12.5px; line-height:1.4; } .ksbar[hidden] { display:none; }
   .ksbar b { color:#ff6b5e; font-size:13.5px; letter-spacing:.5px; } .ksbar span { flex:1; }
@@ -1535,8 +1535,9 @@ const POWER_ROLLS = {
   "kill shot": "arm", // arms Kill Shot: the next attack roll from the sheet comes up +, +, +, +
   "ghost in the machine": [{ k: "Hacking", t: "Roll Hacking" }],
   "last rites": [{ k: "Hacking", t: "Reboot a big machine: roll Hacking" }],
-  "spirit walk": [{ k: "Intellect", t: "Tether: roll Intellect" }, { k: "Raw Strength", t: "Tether: roll Raw Strength" }],
-  "corpse walk": [{ k: "Intellect", t: "Tether: roll Intellect" }, { k: "Raw Strength", t: "Tether: roll Raw Strength" }],
+  // Walk powers: a Use button (no roll) marks Used today; Tether rolls only unlock once it's in use, and don't count as a new use
+  "spirit walk": { use: true, tether: [{ k: "Intellect", t: "Tether: roll Intellect" }, { k: "Raw Strength", t: "Tether: roll Raw Strength" }] },
+  "corpse walk": { use: true, tether: [{ k: "Intellect", t: "Tether: roll Intellect" }, { k: "Raw Strength", t: "Tether: roll Raw Strength" }] },
   "meltdown": [{ k: "Intellect", t: "Roll Intellect" }, { k: "Intellect", x: -2, t: "Expanded Shockwave: everyone within 10 ft", l: "Expanded Shockwave (10 ft)" }],
   "mind over matter": [{ k: "Intellect", t: "Big feat: roll Intellect" }],
   "disappear completely": [{ k: "Sneak", t: "Stay quiet: roll Sneak" }],
@@ -1568,6 +1569,13 @@ function powerRollBtns(name) {
   const list = POWER_ROLLS[String(name).toLowerCase().trim()];
   const usedNote = powerUsed() ? `<div class="pwused">✕ Already used today. Check with your GM before using it again.</div>` : "";
   if (!list) return `<div class="pwrolls">${usedNote}<button class="pwroll pwuse" data-n="${esc2(name)}" ${powerUsed() ? "disabled" : ""}>⚡<span>${powerUsed() ? "Used today" : `Use ${esc2(name)}: marks Used today`}</span></button></div>`;
+  if (list.use) {
+    const on = powerUsed();
+    return `<div class="pwrolls">${usedNote}<button class="pwroll pwuse" data-n="${esc2(name)}" ${on ? "disabled" : ""}>⚡<span>${on ? "Used today" : `Use ${esc2(name)}: marks Used today`}</span></button>
+      <div class="pwtn">Going past 100 yards? ${on ? "Roll a Tether:" : "Tether rolls unlock once you use it."}</div>${list.tether.map(t => { const pm = powerMod(t.k);
+        if (!pm) return `<div class="pwmiss">${esc2(t.k)} isn't on your sheet. Ask your GM.</div>`;
+        return `<button class="pwroll pwtether" data-m="${pm.m}" data-l="${esc2(`⚡ ${name} · Tether (${t.k})`)}" data-b="${esc2(pm.br)}" ${on ? "" : "disabled"}>${ROLL_ICON}<span>${esc2(t.t)}</span><b>${pm.m >= 0 ? "+" : ""}${pm.m}</b></button>`; }).join("")}</div>`;
+  }
   if (list === "arm") return `<div class="pwrolls">${usedNote}<button class="pwroll ksarm ${ksArmed() ? "on" : ""}" ${powerUsed() && !ksArmed() ? "disabled" : ""}><span>${ksArmed() ? "Kill Shot is armed. Tap to cancel" : "Arm Kill Shot: your next attack roll is +, +, +, +"}</span></button></div>`;
   return `<div class="pwrolls">${usedNote}${list.map((r, i) => { const pm = powerMod(r.k);
     if (!pm) return `<div class="pwmiss">${esc2(r.k)} isn't on your sheet. Ask your GM.</div>`;
@@ -1604,7 +1612,8 @@ async function fillPowers() {
       box.querySelector(".pwx").onclick = () => { pwOpen = ""; show(); };
       box.querySelectorAll(".ksarm").forEach(b => b.onclick = (e) => { e.stopPropagation(); if (powerUsed() && !ksArmed()) return; setKS(!ksArmed()); show(); });
       box.querySelectorAll(".pwuse").forEach(b => b.onclick = (e) => { e.stopPropagation(); if (powerUsed()) return; markPowerUsed(); show(); });
-      box.querySelectorAll(".pwroll:not(.ksarm):not(.pwuse)").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (rollBusy || powerUsed()) return;
+      box.querySelectorAll(".pwtether").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (rollBusy || !powerUsed()) return; await quickRoll(b.dataset.m, b.dataset.l, "", b.dataset.b); });
+      box.querySelectorAll(".pwroll:not(.ksarm):not(.pwuse):not(.pwtether)").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (rollBusy || powerUsed()) return;
         // once per day: lock every power button right away so a second click can't roll it again
         box.querySelectorAll(".pwroll").forEach(x => x.disabled = true);
         markPowerUsed();
