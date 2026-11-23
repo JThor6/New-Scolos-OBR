@@ -10,7 +10,7 @@ async function bridgeGet(params) {
 export const MASTER = "1_cnTDLNHIsaVMAOkOKSKK0YawUHt38ZewW1o5-yWbhU";
 export const TYPES = ["Mercenary", "Hacker", "Revenant", "Subject Zero", "Wraith", "Mentalist", "Mage", "Priest"]; // easiest to hardest; the picker and REFERENCE list follow this order
 export const SECTIONS = [["Your Turn & Movement", "turn"], ["Attacking & Damage", "attack"], ["Combat Options", "tab:Combat Options"],
-  ["Skill List", "tab:Skill List"], ["The Gods", "gods"], ["Schools of Magic", "schools"], ...TYPES.map(t => [t.trim(), "tab:" + t]), ["Dice Odds", "odds"]];
+  ["Skill List", "tab:Skill List"], ["Dice Odds", "odds"], ["The Gods", "gods"], ["Schools of Magic", "schools"], ...TYPES.map(t => [t.trim(), "tab:" + t])];
 const tabCache = {};
 const saved = {
   get: (k) => { try { return JSON.parse(localStorage.getItem("ns.cache.rules." + k) || "null"); } catch { return null; } },
