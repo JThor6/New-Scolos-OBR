@@ -1008,7 +1008,8 @@ async function showGen() {
     ${cg.step < 4 ? summary() : ""}<button id="gReset" class="greset">START OVER</button>`;
   const go = (d) => { cg.step = Math.max(0, Math.min(4, cg.step + d)); cgSave(); showGen(); };
   const bind = () => {
-    $("gNameTop").oninput = () => { cg.name = $("gNameTop").value; cgSave(); if (genRecheck) genRecheck(); };
+    $("gNameTop").oninput = () => { cg.name = $("gNameTop").value; cgSave(); if (genRecheck) genRecheck();
+      const pv = document.querySelector(".shp .shn b"); if (pv) pv.textContent = cg.name.trim() || "Unnamed"; }; // keep the sheet preview in step
     $("gBack").onclick = () => go(-1); if ($("gNext")) $("gNext").onclick = () => go(1);
     document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { if (+b.dataset.go === cg.step) return; cg.step = +b.dataset.go; cgSave(); showGen(); });
     $("gReset").onclick = () => { if ($("gReset").dataset.armed) { cg = cgNew(); cgSave(); genQ = ""; genMove = genTarget = null; genInfo = ""; return showGen(); } $("gReset").dataset.armed = 1; $("gReset").textContent = "TAP AGAIN TO CLEAR EVERYTHING"; $("gReset").classList.add("armed"); };
