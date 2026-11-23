@@ -36,7 +36,12 @@
   .hwnd { margin-top:6px; padding:4px 8px; border-left:3px solid #c0392b; background:rgba(140,30,30,.35); color:#ffd0cc; font-size:12px; font-weight:700; border-radius:4px; }
   .hsub { font-weight:400; color:var(--dim); font-size:11px; text-transform:none; }
   .hdice { display:flex; gap:8px; margin-top:4px; }
-  .hdie { flex:1; height:52px; border:2px solid var(--ink); border-radius:8px; background:rgba(10,12,20,.6); color:var(--ink); font-size:26px; font-weight:900; cursor:pointer; }
+  .hcol { flex:1; display:flex; flex-direction:column; gap:4px; min-width:0; }
+  .hpick { display:flex; gap:3px; }
+  .hpb { flex:1; height:26px; padding:0; border:1px solid #444a66; border-radius:5px; background:rgba(10,12,20,.5); color:var(--dim); font-size:15px; font-weight:900; cursor:pointer; }
+  .hpb.p { color:var(--plus); } .hpb.m { color:var(--minus); } .hpb.b { font-size:11px; }
+  .hpb.on { background:#3d3460; border-color:#6b5aa0; } .hpb.p.on { border-color:var(--plus); } .hpb.m.on { border-color:var(--minus); } .hpb.b.on { border-color:var(--ink); color:var(--ink); }
+  .hdie { width:100%; height:52px; border:2px solid var(--ink); border-radius:8px; background:rgba(10,12,20,.6); color:var(--ink); font-size:26px; font-weight:900; cursor:pointer; }
   .hdie.p { color:var(--plus); border-color:var(--plus); } .hdie.m { color:var(--minus); border-color:var(--minus); } .hdie.q { color:var(--dim); border-style:dashed; border-color:#444a66; font-size:18px; }
   .hpw { display:flex !important; align-items:center; gap:6px; font-size:12.5px; text-transform:none; }
   .htot { margin:10px 0 6px; font-size:14px; } .htot b { font-size:20px; color:#ffc94d; } .htot span { color:var(--dim); font-size:12px; }
@@ -735,8 +740,9 @@ function drawHand() {
     <label>What did you roll?</label>
     <select id="hPick"><option value="">Pick one…</option>${groups.map(g => `<optgroup label="${esc2(g)}">${opts.filter(x => x.g === g).map(x => `<option value="${esc2(x.k)}" ${x.k === hand.pick ? "selected" : ""} ${x.off ? "disabled" : ""}>${esc2(x.n)}${x.m != null ? ` (${x.m >= 0 ? "+" : ""}${x.m})` : ""}${x.off ? (x.start ? " · used today" : " · use the power first") : ""}</option>`).join("")}</optgroup>`).join("")}</select>
     ${hand.pick === "other" ? `<label>Modifier</label><input id="hMod" inputmode="numeric" value="${esc2(hand.mod)}" placeholder="0">` : ""}
-    <label>Your four dice <span class="hsub">(tap each one: blank, +, −)</span></label>
-    <div class="hdice">${hand.dice.map((d, i) => `<button class="hdie ${!hand.set[i] ? "q" : d > 0 ? "p" : d < 0 ? "m" : ""}" data-i="${i}">${face(d, hand.set[i])}</button>`).join("")}</div>
+    <label>Your four dice <span class="hsub">(tap a die to cycle it, or pick +, blank or − under it)</span></label>
+    <div class="hdice">${hand.dice.map((d, i) => `<div class="hcol"><button class="hdie ${!hand.set[i] ? "q" : d > 0 ? "p" : d < 0 ? "m" : ""}" data-i="${i}">${face(d, hand.set[i])}</button>
+      <div class="hpick">${[[1, "+", "p"], [0, "", "b"], [-1, "−", "m"]].map(([v, t, c]) => `<button class="hpb ${c} ${hand.set[i] && d === v ? "on" : ""}" data-i="${i}" data-v="${v}" title="${v > 0 ? "Plus" : v < 0 ? "Minus" : "Blank"}">${t || "○"}</button>`).join("")}</div></div>`).join("")}</div>
     ${sheetVals && !isGM && hand.pick === "other" ? `<label class="hpw"><input type="checkbox" id="hPw" ${hand.pw ? "checked" : ""} ${powerUsed() && !hand.pw ? "disabled" : ""}> Extraordinary Power roll${powerUsed() ? " (already used today)" : " (ticks Used today)"}</label>` : ""}
     <div class="htot">${done && hand.pick ? `Total <b>${tot >= 0 ? "+" : ""}${tot}</b>${pen ? ` <span>(wounded ${pen})</span>` : ""}` : `<span>${!hand.pick ? "Pick what you rolled" : "Tap all four dice"}</span>`}</div>
     <button id="hSend" class="sbtn" ${done && hand.pick ? "" : "disabled"}>TRANSMIT TO THE TABLE</button>`;
@@ -744,6 +750,7 @@ function drawHand() {
   if ($("hMod")) $("hMod").oninput = () => { hand.mod = $("hMod").value; drawHand(); const el = $("hMod"); el.focus(); el.setSelectionRange(el.value.length, el.value.length); };
   box.querySelectorAll(".hdie").forEach(b => b.onclick = () => { const i = +b.dataset.i;
     if (!hand.set[i]) { hand.set[i] = true; hand.dice[i] = 0; } else hand.dice[i] = hand.dice[i] === 0 ? 1 : hand.dice[i] === 1 ? -1 : 0; drawHand(); });
+  box.querySelectorAll(".hpb").forEach(b => b.onclick = () => { const i = +b.dataset.i; hand.set[i] = true; hand.dice[i] = +b.dataset.v; drawHand(); });
   if ($("hPw")) $("hPw").onchange = () => { hand.pw = $("hPw").checked; drawHand(); };
   $("hSend").onclick = async () => {
     if (rollBusy) return;
