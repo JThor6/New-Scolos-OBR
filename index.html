@@ -1367,7 +1367,10 @@ async function showGen() {
       const rs = cg.attrs["Raw Strength"], e = cg.equip;
       const melee = Math.max(0, (e.melee ? 2 : 0) + rs), ranged = e.ranged ? 4 : 0, armor = e.armor ? Math.max(1, 2 + rs) : Math.max(0, rs);
       const item = (k, label, rule) => `<label class="gl">${label} <small>${rule}</small><input id="ge_${k}" value="${esc2(e[k])}" placeholder="Name it, or leave blank for none"></label>`;
-      put(bar + firstTime("What to put here", `<p>Name the armor and weapons your character starts with, like "Flak vest" or "Pistol". Leave a box blank if you don't carry one.</p>
+      put(bar + firstTime("What to put here", `<p><b>Get creative!</b> You name your own armor and weapons, so pick whatever fits your character. The name is just flavor: every armor gives the same bonus, every melee weapon gives the same bonus, and every ranged weapon gives the same bonus. Leave a box blank if you don't carry one.</p>
+          <p>Armor ideas: "Flak vest", "Patched riot plates", "Armored trench coat", "Scavenged mech plating", "Blessed robes".<br>
+          Melee ideas: "Las. sword", "Stun baton", "Rusty pipe", "Grandpa's machete", "Vibro-knife".<br>
+          Ranged ideas: "Pistol", "Laser rifle", "Sawed-off scattergun", "Precinct-issue sidearm", "Homemade rail pistol".</p>
           <p>Armor adds +2 to your Defense Rating, a melee weapon +2 to Offense, and a ranged weapon +4 to Offense. The bonus boxes update as you type.</p>
           <p>Add anything else you carry under Other Gear, one item per line. You start with 1,000 credits. If you buy anything now, tap <b>Spend Credits</b> and put in the total you spent. Ask your GM if you're not sure something is allowed.</p>`) + `<div class="sec">STARTING EQUIPMENT</div>
         ${item("armor", "Armor", "+2 Defense Rating")}${item("melee", "Melee weapon", "+2 Offense Rating")}${item("ranged", "Ranged weapon", "+4 Offense Rating")}
