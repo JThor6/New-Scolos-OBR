@@ -224,8 +224,9 @@
   .iadd { display:grid; grid-template-columns:1fr 54px 40px auto; gap:5px; margin-top:6px; }
   .iadd input { padding:4px 6px; }
   .help { font-size:11px; color:var(--dim); line-height:1.35; margin:3px 0 2px; }
-  .shead { display:flex; align-items:center; gap:4px; margin:2px 0 2px; }
-  .shn { flex:1; min-width:0; }
+  .shead { display:flex; flex-wrap:wrap; align-items:center; gap:4px; margin:2px 0 2px; }
+  .shn { flex:1 1 170px; min-width:0; }
+  .shbtns { display:flex; gap:4px; margin-left:auto; }
   .shn b { display:block; font-family:'Bangers', Impact, sans-serif; font-weight:400; font-size:22px; letter-spacing:1px; line-height:1.05; overflow-wrap:anywhere; }
   .shn small { display:block; color:var(--dim); font-size:12px; font-weight:700; }
   .ibtn { background:var(--paper); color:var(--ink); border:2px solid #444a66; border-radius:7px; width:30px; height:30px; font-size:16px; cursor:pointer; padding:0; flex:none; }
@@ -335,6 +336,7 @@
   .gadr span { display:block; } .gadr i { font-style:normal; font-weight:800; color:var(--dim); } .gadp { color:#ffc94d !important; font-weight:700; }
   .gspec.on { border-color:var(--accent); } .gopt .gspec { flex:1 1 120px; min-width:0; }
   .gname.need { border-color:var(--minus); }
+  .ibtn.mgrb { width:auto; padding:0 9px; font:800 12px system-ui; white-space:nowrap; display:inline-flex; align-items:center; gap:4px; }
   .gcust { width:100%; margin-top:6px; font-size:12px; font-weight:700; color:var(--dim); }
   .ginfo { color:var(--dim) !important; }
   .gsum { margin-top:8px; padding:5px 8px; border:1px dashed #444a66; border-radius:7px; font-size:12px; font-weight:700; }
@@ -712,7 +714,7 @@ function drawSheet() {
   const copMaxT = V("H28");
   $("shbody").innerHTML = `
     <div class="shead"><div class="shn"><b>${esc2(V("C3") || "Unnamed")}</b><small>${[V("C4"), V("F5") !== "" ? "Level " + V("F5") : "", V("F7") !== "" ? V("F7") + " cr" : ""].filter(Boolean).map(esc2).join(" · ")}</small></div>
-      <button id="reload" class="ibtn" title="Reload from Google Sheet">↻</button><button id="mgr" class="ibtn" title="Manage character: XP, skills, gear, notes">⚙</button></div>
+      <span class="shbtns"><button id="reload" class="ibtn" title="Reload from Google Sheet">↻</button><button id="mgr" class="ibtn mgrb" title="Manage character: XP, skills, gear, notes">⚙ Manage Character</button></span></div>
     <div class="stab">VITALITY TRACK</div>
     <div class="vit">${["B", "C", "D", "E", "F", "G", "H"].map((c, i) => { const t = V(c + "15"); const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<button class="box ${V(c + "16") ? "x" : ""}" data-w="${i}"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk ${V(c + "16") ? "x" : ""}">${V(c + "16") ? "✕" : ""}</span></button>`; }).join("")}</div>
     <div class="g2b"><div class="fld ${ptInEP() ? "epx" : ""}"><div class="epl"><small>Extraordinary Power</small><div id="pwname">${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div></div>${ptInEP() ? `<div class="epp"><small>${esc2(V("E13"))}${ptMaxV() ? ` <span>/ ${esc2(ptMaxV())}</span>` : ""}</small>${ptCtl()}</div>` : ""}</div>
