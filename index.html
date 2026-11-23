@@ -950,7 +950,14 @@ const ATTR_DOES = { Adroitness: "dodging (attacks roll against it), initiative, 
   Charm: "talking people around, haggling, public speaking, prayer" };
 function attrNeeds(info, list) {
   const raw = String((info?.rows.find(([a]) => /^suggested skills/i.test(a)) || [])[1] || "").split(/[,;]/).map(x => x.trim()).filter(Boolean);
-  const out = Object.fromEntries(ATTRS.map(a => [a, { w: 0, skills: [], powers: [] }]));
+  const out = Object.fromEntries(ATTRS.map(a => [a, { w: 0, skills: [], powers: [], via: [] }]));
+  // powers that roll a skill ("Roll Insight", "Attack with Prayer"): shown under that skill's attribute
+  const skillOf = (t) => { const k = String(t).toLowerCase().split(/\s*[(]\s*/)[0].trim(); return list.find(x => { const b = x.name.toLowerCase(), h = b.split(/\s*[(]\s*/)[0].trim(); return h === k || b.startsWith(k + " "); }); };
+  for (const p of info?.powers || []) for (const [, b] of p.rules)
+    for (const m of String(b).matchAll(/(?:^|[.;:!,]\s+|\byou\s+)(?:[Rr]oll|[Aa]ttack with)\s+([A-Z][A-Za-z\/ ]*?)(?=\s+(?:to|at|against|vs\.?)\b|[.,;]|$)/g)) {
+      const sk = skillOf(m[1]); if (!sk || ATTRS.includes(m[1].trim())) continue;
+      const a = sk.attrs[0], nm = m[1].trim(); if (!out[a].via.some(v => v.power === p.name)) out[a].via.push({ power: p.name, skill: nm });
+    }
   const AT = "(Adroitness|Raw Strength|Intellect|Charm)";
   for (const p of info?.powers || []) for (const [a, b] of p.rules) {
     const hits = new Map(); // attr -> weight; "Roll Intellect" / "Attack with Intellect" = 2, "Intellect or Raw Strength" choices = 1 each
@@ -958,7 +965,8 @@ function attrNeeds(info, list) {
     for (const m of String(b).matchAll(new RegExp(`(?<!target's |their |enemy's )\\b${AT}\\s+roll\\b`, "gi"))) hits.set(ATTRS.find(x => x.toLowerCase() === m[1].toLowerCase()), 2);
     const alt = /roll/i.test(a) && String(b).match(new RegExp(`^${AT}(?:\\s*\\([^)]*\\))?\\s+or\\s+${AT}`, "i"));
     if (alt) for (const x of [alt[1], alt[2]]) { const k = ATTRS.find(y => y.toLowerCase() === x.toLowerCase()); if (!hits.has(k)) hits.set(k, 1); }
-    for (const [k, w] of hits) { if (!out[k].powers.includes(p.name)) { out[k].powers.push(p.name); out[k].w += w; } }
+    for (const [k, w] of hits) { const have = out[k].powers.find(x => x.name === p.name);
+      if (!have) { out[k].powers.push({ name: p.name, alt: w === 1 }); out[k].w += w; } else if (w === 2 && have.alt) { have.alt = false; out[k].w += 1; } }
   }
   for (const r of raw) {
     const key = r.replace(/\(.*?\)/g, "").trim().toLowerCase(), core = /\((core|required)\)/i.test(r);
@@ -1032,7 +1040,10 @@ async function showGen() {
       const needs = cg.type ? attrNeeds(await typeInfo(cg.type).catch(() => null), await skillList().catch(() => [])) : null;
       const order = ATTRS.slice().sort((a, b) => (needs?.[b].w || 0) - (needs?.[a].w || 0) || (a === "Adroitness" ? -1 : b === "Adroitness" ? 1 : 0));
       const advice = needs ? `<div class="gadv"><div class="gadvt">WHAT A ${esc2(cg.type.toUpperCase())} NEEDS</div>${order.map(a => { const n = needs[a];
-          return `<div class="gadr ${n.w >= 2 ? "hi" : n.w ? "mid" : ""}"><b>${a}${n.w >= 2 ? " ★" : ""}</b>${n.powers.length ? `<span class="gadp">${esc2(n.powers.join(" and "))} roll${n.powers.length === 1 ? "s" : ""} ${a}.</span>` : ""}${n.skills.length ? `<span><i>Skills:</i> ${esc2(n.skills.join(", "))}</span>` : ""}<span><i>Good for:</i> ${ATTR_DOES[a]}</span></div>`; }).join("")}
+          return `<div class="gadr ${n.w >= 2 ? "hi" : n.w ? "mid" : ""}"><b>${a}${n.w >= 2 ? " ★" : ""}</b>${(() => { const must = n.powers.filter(x => !x.alt).map(x => x.name), may = n.powers.filter(x => x.alt).map(x => x.name);
+            return (must.length ? `<span class="gadp">${esc2(must.join(" and "))} roll${must.length === 1 ? "s" : ""} ${a}.</span>` : "") +
+              (may.length ? `<span class="gadp">${esc2(may.join(" and "))} can roll ${a}.</span>` : "") +
+              n.via.map(v => `<span class="gadp">${esc2(v.power)} rolls ${esc2(v.skill)}.</span>`).join(""); })()}${n.skills.length ? `<span><i>Skills:</i> ${esc2(n.skills.join(", "))}</span>` : ""}<span><i>Good for:</i> ${ATTR_DOES[a]}</span></div>`; }).join("")}
         ${cg.preset != null ? `<button id="gBest" class="sbtn gbest">★ Put my best values where a ${esc2(cg.type)} needs them</button>` : ""}</div>` : "";
       const table = cg.preset != null
         ? `<div class="gnote">Using <b>Set ${cg.preset + 1}</b>. Pick which value goes on each attribute. Changing one swaps it with the attribute that had that value.</div>
