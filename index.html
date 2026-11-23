@@ -817,7 +817,7 @@ function drawSheet() {
     <div class="stab">COMBAT</div>
     <div class="gcb3">${F("Melee Damage Bonus", V("H23"), "c", "cb:Melee Damage Bonus")}${F("Ranged Damage Bonus", V("H24"), "c", "cb:Ranged Damage Bonus")}${F("Armor Bonus", V("H25"), "c", "cb:Armor Bonus")}</div>
     <div class="gcop"><div class="fld"><small>Combat Options</small><div class="cowrap"><div class="copl">${opts.length ? opts.map(o => `<button class="cob" data-inf="co:${esc2(o)}" data-sec="combat">${esc2(tc(o))}</button>`).join("<br>") : `<span class="dimn2">None yet</span>`}</div><div class="codesc" hidden></div></div></div>
-      <div class="fld c"><small class="inft" data-inf="cop" data-sec="combat">COP${copMaxT !== "" ? ` <span class="dimn">/ ${esc2(copMaxT)}</span>` : ""}</small><div class="ctl"><button id="copm">−</button><b id="copv">${esc2(V("H29") || "0")}</b><button id="copp">+</button></div></div></div>
+      <div class="fld c"><small class="inft" data-inf="cop" data-sec="combat">COP${copMaxT !== "" ? ` <span class="dimn">/ ${esc2(copMaxT)}</span>` : ""}</small><div class="ctl"><button id="copm" title="Use a point">−</button><b id="copv" title="Points left this combat">${esc2((m => isNaN(m) ? (V("H29") || "0") : String(Math.max(0, m - (parseInt(V("H29")) || 0))))(parseInt(copMaxT)))}</b><button id="copp" title="Give a point back">+</button></div></div></div>
     <div class="infp gpow" data-for="combat" hidden></div>
 
     ${trained.h ? `<div class="stab">SKILLS</div>${trained.h}` : ""}
@@ -844,10 +844,12 @@ function drawSheet() {
   if ($("healUndo")) $("healUndo").onclick = undoHeal;
   $("pw").onclick = () => save({ power: !used }, () => setCell("F6", used ? "FALSE" : "TRUE"));
   const copMax = parseInt(V("H28")); const cop = (d) => { let n = Math.max(0, (parseInt(V("H29")) || 0) + d); if (!isNaN(copMax)) n = Math.min(n, copMax); if (String(n) === (V("H29") || "0")) return; save({ copSpent: n }, () => setCell("H29", String(n))); };
-  $("copm").onclick = () => cop(-1); $("copp").onclick = () => cop(1);
+  // the sheet keeps COP *spent* (H29); the counter shows points LEFT, so − uses a point and + gives one back
+  $("copm").onclick = () => cop(1); $("copp").onclick = () => cop(-1);
   if ($("ptm")) { const pts = (d) => { let n = Math.max(0, (parseInt(V("F13")) || 0) + d); const ptMax = parseInt(ptMaxV()); if (!isNaN(ptMax)) n = Math.min(n, ptMax); if (String(n) === (V("F13") || "0")) return; save({ points: n }, () => setCell("F13", String(n))); };
     $("ptm").onclick = () => pts(-1); $("ptp").onclick = () => pts(1); }
-  if (!isNaN(copMax) && (parseInt(V("H29")) || 0) >= copMax) $("copp").disabled = true;
+  if (!isNaN(copMax) && (parseInt(V("H29")) || 0) >= copMax) $("copm").disabled = true; // none left
+  if ((parseInt(V("H29")) || 0) <= 0) $("copp").disabled = true; // already full
 }
 // ---------------- SHEET MANAGER ----------------
 // Spend XP on skills and attribute points on attributes using the sheet's own cost chart (G4:H12),
@@ -1476,7 +1478,7 @@ function bindInfo() {
     if (inBox && $("copp")) {
       const max = parseInt(V("H28")), spent = parseInt(V("H29")) || 0, left = isNaN(max) ? null : Math.max(0, max - spent);
       p.insertAdjacentHTML("beforeend", `<button class="copuse" ${left === 0 ? "disabled" : ""}>${left === 0 ? "NO COP LEFT" : `USE IT: SPEND 1 COP${left != null ? ` (${left} left)` : ""}`}</button>`);
-      p.querySelector(".copuse").onclick = () => { $("copp").click(); };
+      p.querySelector(".copuse").onclick = () => { $("copm").click(); };
     }
   };
   document.querySelectorAll("#shbody [data-inf]").forEach(e => e.onclick = (ev) => { if (ev.target.closest("button:not([data-inf])")) return; ev.stopPropagation();
@@ -1720,8 +1722,8 @@ function bindGmTools() {
   }; };
   arm($("gmDay"), "☀ NEW DAY", () => gmAll("New day", (v) => /^true$/i.test(String(v[5]?.[5] ?? "").trim()) ? { power: false } : null, (v) => { v[5][5] = "FALSE"; }));
   arm($("gmCop"), "⚡ REFILL COP", () => gmAll("Refill COP", (v) => {
-    const max = parseInt(String(v[27]?.[7] ?? "")), now = parseInt(String(v[28]?.[7] ?? "")) || 0;
-    return isNaN(max) || now === max ? null : { copSpent: max };
+    const now = parseInt(String(v[28]?.[7] ?? "")) || 0; // H29 is COP spent: refilling sets it back to 0
+    return now === 0 ? null : { copSpent: 0 };
   }, (v, b) => { v[28] = v[28] || []; v[28][7] = String(b.copSpent); }));
 }
 async function gmAll(label, change, local) {
