@@ -92,7 +92,7 @@ OBR.onReady(async () => {
     }
     if (st?.open && st.sid !== lastSid) {
       lastSid = st.sid;
-      if (!isGM) note("⚔ Roll for initiative! Your next Adroitness roll (on your SHEET) counts.", "INFO");
+      if (!isGM) note("⚔ Roll for initiative! Your next Adroitness roll (on your CHARACTER tab) counts.", "INFO");
     }
     const n = st?.open ? initEntries(md).length : 0;
     let small = false; try { small = localStorage.getItem("ns.barMin") === "1"; } catch {}
