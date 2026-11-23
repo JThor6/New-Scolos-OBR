@@ -591,6 +591,13 @@ async function doQuickRoll(modText, label, whoName, pen = 0) {
 const BRIDGE = "https://script.google.com/macros/s/AKfycbx5cjtXVGyFeoQx0EzJ-47gk4uXT6mXdgs90zaBmUB-zctUFm6OxD8fyWZWWuUQT0ua/exec";
 const store = { get: (k) => { try { return localStorage.getItem(k) || ""; } catch { return ""; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
 let isGM = false, sheetVals = null, busy = false;
+// Campaigns: the GM sets this room's campaign (a subfolder name in Drive) on the MONSTERS tab. "" = main campaign.
+// Everything per-character or per-encounter is remembered per campaign, so one player can be in two games.
+const CAMP = "com.newscolos.campaign";
+let campaign = "";
+const ck = (k) => campaign ? `${k}@${campaign}` : k;
+const sheetId = () => store.get(ck("ns.sheetId"));
+const setSheetId = (v) => store.set(ck("ns.sheetId"), v);
 const esc2 = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const V = (a1) => { const m = a1.match(/^([A-L])(\d+)$/); const row = sheetVals?.[+m[2] - 1] || []; return String(row[m[1].charCodeAt(0) - 65] ?? "").trim(); };
 
@@ -607,13 +614,13 @@ function idFromLink(t) { const m = String(t).match(/\/d\/([a-zA-Z0-9_-]{20,})/);
 
 // Step 1: table code (everyone). Step 2 (players only): pick your character from the list. No links to paste.
 function connectForm(msg) {
-  if (store.get("ns.code") && !isGM && !store.get("ns.sheetId")) return pickCharacter(msg);
+  if (store.get("ns.code") && !isGM && !sheetId()) return pickCharacter(msg);
   $("sh").innerHTML = `<div class="sec">JOIN THE TABLE</div>
     <label>Table code</label><input id="scode" type="password" placeholder="Your GM gives you this">
     <div class="help">This one code unlocks everything: your character sheet, the party overview and the REFERENCE tab.</div>
     <button id="sgo" class="histbtn">CONTINUE</button>
     <div class="err" ${msg ? "" : "hidden"}>${esc2(msg)}</div>`;
-  const go = () => { const code = $("scode").value.trim(); if (!code) return connectForm("Type the table code."); store.set("ns.code", code); store.set("ns.sheetId", isGM ? store.get("ns.sheetId") : ""); showSheetTab(); };
+  const go = () => { const code = $("scode").value.trim(); if (!code) return connectForm("Type the table code."); store.set("ns.code", code); setSheetId(isGM ? sheetId() : ""); showSheetTab(); };
   $("sgo").onclick = go; $("scode").onkeydown = (e) => { if (e.key === "Enter") go(); };
 }
 async function pickCharacter(msg) {
@@ -626,16 +633,16 @@ async function pickCharacter(msg) {
     ${list.map(c => `<button class="histbtn pickc" data-id="${c.id}">${esc2(c.name)}</button>`).join("") || `<div class="empty">No characters found. Ask your GM.</div>`}
     <div class="err" ${msg ? "" : "hidden"}>${esc2(msg || "")}</div>
     <button id="chcode" class="sbtn" style="margin-top:10px">Use a different table code</button>`;
-  document.querySelectorAll(".pickc").forEach(b => b.onclick = () => { store.set("ns.sheetId", b.dataset.id); showSheetTab(); });
+  document.querySelectorAll(".pickc").forEach(b => b.onclick = () => { setSheetId(b.dataset.id); showSheetTab(); });
   $("chcode").onclick = () => { store.set("ns.code", ""); connectForm(); };
 }
 
 async function bridgeGet(params) {
-  const u = new URL(BRIDGE); Object.entries({ code: store.get("ns.code"), ...params }).forEach(([k, v]) => u.searchParams.set(k, v));
+  const u = new URL(BRIDGE); Object.entries({ code: store.get("ns.code"), ...(campaign ? { campaign } : {}), ...params }).forEach(([k, v]) => u.searchParams.set(k, v));
   const res = await fetch(u); return res.json();
 }
 async function bridgePost(body) {
-  const res = await fetch(BRIDGE, { method: "POST", body: JSON.stringify({ code: store.get("ns.code"), id: store.get("ns.sheetId"), ...body }) });
+  const res = await fetch(BRIDGE, { method: "POST", body: JSON.stringify({ code: store.get("ns.code"), id: sheetId(), ...body }) });
   return res.json();
 }
 
@@ -648,23 +655,23 @@ let syncing = 0;
 function sync(d) { syncing = Math.max(0, syncing + d); const el = $("syncdot"); if (el) el.hidden = !syncing; }
 
 async function showSheetTab() {
-  if (!store.get("ns.code") || (!isGM && !store.get("ns.sheetId"))) return connectForm();
+  if (!store.get("ns.code") || (!isGM && !sheetId())) return connectForm();
   $("sh").innerHTML = `<div class="empty">Loading…</div>`;
   try {
     if (isGM) {
       let list;
-      const saved = cache.get("chars");
+      const saved = cache.get(ck("chars"));
       if (saved?.length) { list = { sheets: saved }; refreshCharList(); }
       else {
         $("sh").innerHTML = `<div class="empty">Finding characters…</div>`;
         try { list = { sheets: await characterSheets() }; }
         catch (e) { if (/code/i.test(e.message)) store.set("ns.code", ""); return connectForm(e.message); }
       }
-      let cur = store.get("ns.sheetId");
+      let cur = sheetId();
       if (cur !== "__party" && !list.sheets.some(f => f.id === cur)) cur = list.sheets[0]?.id || "__party";
-      store.set("ns.sheetId", cur);
+      setSheetId(cur);
       $("sh").innerHTML = `<select id="pick"><option value="__party" ${cur === "__party" ? "selected" : ""}>★ Party overview</option>${list.sheets.map(f => `<option value="${f.id}" ${f.id === cur ? "selected" : ""}>${esc2(f.name)}</option>`).join("")}</select><div id="shbody"></div>`;
-      $("pick").onchange = () => { store.set("ns.sheetId", $("pick").value); $("pick").value === "__party" ? showParty() : loadSheet(); };
+      $("pick").onchange = () => { setSheetId($("pick").value); $("pick").value === "__party" ? showParty() : loadSheet(); };
       return cur === "__party" ? showParty() : loadSheet();
     }
     // players: switch between their own sheet and the party overview
@@ -678,7 +685,7 @@ async function showSheetTab() {
 async function loadSheet(quiet) {
   if (!quiet) mgrOn = false;
   partyOn = false;
-  const id = store.get("ns.sheetId"), saved = cache.get("sheet." + id);
+  const id = sheetId(), saved = cache.get("sheet." + id);
   if (!quiet) {
     if (saved) { sheetVals = saved; drawSheet(); quiet = true; } // show the saved copy right away
     else $("shbody").innerHTML = `<div class="empty">Loading sheet…</div>`;
@@ -686,11 +693,11 @@ async function loadSheet(quiet) {
   sync(1);
   const r = await bridgeGet({ id }).catch(e => ({ ok: false, error: e.message }));
   sync(-1);
-  if (id !== store.get("ns.sheetId") || partyOn) return; // switched away while loading
+  if (id !== sheetId() || partyOn) return; // switched away while loading
   if (!r.ok && quiet) return; // background refresh failed: keep what's on screen
   if (!r.ok) {
     if (/code/i.test(r.error || "")) store.set("ns.code", "");
-    if (!isGM) store.set("ns.sheetId", "");
+    if (!isGM) setSheetId("");
     return connectForm(r.error);
   }
   cache.set("sheet." + id, r.values);
@@ -767,7 +774,7 @@ function drawSheet() {
   document.querySelectorAll("#shbody details.dr").forEach(d => d.ontoggle = () => { drawOpen[d.dataset.k] = d.open; });
   $("reload").onclick = () => loadSheet();
   $("mgr").onclick = () => { mgrOn = true; drawSheet(); };
-  if ($("disc")) $("disc").onclick = () => { store.set("ns.sheetId", ""); pickCharacter(); };
+  if ($("disc")) $("disc").onclick = () => { setSheetId(""); pickCharacter(); };
   document.querySelectorAll(".box").forEach(b => b.onclick = () => save({ wound: +b.dataset.w, on: !b.classList.contains("x") }, () => { const c = "BCDEFGH"[+b.dataset.w] + "16"; setCell(c, b.classList.contains("x") ? "" : "X"); }));
   $("pw").onclick = () => save({ power: !used }, () => setCell("F6", used ? "FALSE" : "TRUE"));
   const copMax = parseInt(V("H28")); const cop = (d) => { let n = Math.max(0, (parseInt(V("H29")) || 0) + d); if (!isNaN(copMax)) n = Math.min(n, copMax); if (String(n) === (V("H29") || "0")) return; save({ copSpent: n }, () => setCell("H29", String(n))); };
@@ -1305,12 +1312,12 @@ async function showGen() {
       const body = { create: { name: cg.name.trim(), type: cg.type, power: cg.power || "", attrs: cg.attrs, email: cg.email, xp: cg.xpOn ? cg.xp : 0,
         skills: cg.skills.map(s => ({ name: s.name.trim(), attr: s.attr, level: s.level })),
         equip: cg.equip, gear: cg.gear.split("\n").map(s => s.trim()).filter(Boolean), notes } };
-      const r = await fetch(BRIDGE, { method: "POST", body: JSON.stringify({ code: store.get("ns.code"), ...body }) }).then(x => x.json()).catch(e => ({ ok: false, error: e.message }));
+      const r = await fetch(BRIDGE, { method: "POST", body: JSON.stringify({ code: store.get("ns.code"), campaign, ...body }) }).then(x => x.json()).catch(e => ({ ok: false, error: e.message }));
       sync(-1);
       if (!r.ok) { $("gerr").classList.remove("ginfo"); $("gerr").textContent = "Didn't create the sheet: " + (r.error || "unknown error"); $("gMake").disabled = false; $("gMake").textContent = "CREATE CHARACTER"; return; }
       if (body.create.email) store.set("ns.email", body.create.email);
-      cache.set("chars", null); cg = cgNew(); cgSave(); genQ = ""; genInfo = "";
-      store.set("ns.sheetId", r.id);
+      cache.set(ck("chars"), null); cg = cgNew(); cgSave(); genQ = ""; genInfo = "";
+      setSheetId(r.id);
       $("cg").innerHTML = `<div class="sec">DONE!</div><div class="grun"><div><b>${esc2(r.name)}</b> is in the New Scolos Characters folder${body.create.email ? ` and shared with ${esc2(body.create.email)}` : ""}.</div>${r.warn ? `<div class="err">${esc2(r.warn)}</div>` : ""}</div>
         <button id="gOpen" class="sbtn on" style="width:100%;margin-top:8px">OPEN THE NEW SHEET</button>`;
       $("gOpen").onclick = () => document.querySelector('.tab[data-t="sheet"]').click();
@@ -1446,7 +1453,7 @@ async function characterSheets() {
     return /character sheet/i.test(title) && name ? { id: f.id, name, values: v } : null;
   }));
   const out = all.filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
-  cache.set("chars", out);
+  cache.set(ck("chars"), out);
   for (const c of out) cache.set("sheet." + c.id, c.values);
   return out;
 }
@@ -1468,37 +1475,55 @@ async function refreshCharList() {
 const DEFAULT_ENCOUNTER = "1bZy2SITk6KEyIYH-cgiheQbp5-RUFGEkubag49ukPBM"; // Scratch Encounter Tracking Sheet
 const WOUNDS = ["LW", "LW", "LW", "MW", "CW", "KO", "D"];
 let monVals = null;
-const monId = () => store.get("ns.encounter") || DEFAULT_ENCOUNTER;
+const monId = () => store.get(ck("ns.encounter")) || (campaign ? (encList[0]?.id || "") : DEFAULT_ENCOUNTER);
 async function showMonsters() {
   const box = $("mo");
   if (!store.get("ns.code")) { box.innerHTML = `<div class="empty">Open the SHEET tab and enter the table code first.</div>`; return; }
   const saved = cache.get("mon." + monId());
   refreshEncList();
-  if (saved) { monVals = saved; drawMonsters(); } else { box.innerHTML = encounterPicker() + `<div class="empty">Loading monsters…</div>`; bindPicker(); }
+  refreshCampList();
+  if (!monId()) { box.innerHTML = pickers() + `<div class="empty">No encounters in the "${esc2(campaign)}" campaign yet. Put encounter sheets in the "${esc2(campaign)}" folder inside New Scolos Game Master Files.</div>`; bindPicker(); return; }
+  if (saved) { monVals = saved; drawMonsters(); } else { box.innerHTML = pickers() + `<div class="empty">Loading monsters…</div>`; bindPicker(); }
   sync(1);
   const r = await bridgeGet({ id: monId(), tab: "Extension Tracker" }).catch(e => ({ ok: false, error: e.message }));
   sync(-1);
-  if (!r.ok) { if (!saved) box.innerHTML = `${encounterPicker()}<div class="err">Couldn't load monsters: ${esc2(r.error)}</div>`; bindPicker(); return; }
+  if (!r.ok) { if (!saved) box.innerHTML = `${pickers()}<div class="err">Couldn't load monsters: ${esc2(r.error)}</div>`; bindPicker(); return; }
   cache.set("mon." + monId(), r.values);
   if (JSON.stringify(r.values) !== JSON.stringify(monVals)) { monVals = r.values; drawMonsters(); }
 }
 // Encounter dropdown: every sheet in the encounter folder (one sheet per encounter, each with an "Extension Tracker" tab)
-let encList = cache.get("encList") || [];
+let encList = cache.get(ck("encList")) || [];
 function encounterPicker() {
   const cur = monId(), known = encList.some(e => e.id === cur);
-  return `<div class="encpick"><small>ENCOUNTER</small><select id="encSel">${
+  return `<div class="encpick" id="encBox"><small>ENCOUNTER</small><select id="encSel">${
     (known ? "" : `<option value="${esc2(cur)}">${cur === DEFAULT_ENCOUNTER ? "Scratch Encounter Tracking Sheet" : "Current sheet"}</option>`) +
     encList.map(e => `<option value="${esc2(e.id)}" ${e.id === cur ? "selected" : ""}>${esc2(e.name)}</option>`).join("")}</select></div>`;
 }
 function bindPicker() {
+  if ($("campSel")) $("campSel").onchange = () => OBR.room.setMetadata({ [CAMP]: $("campSel").value }); // everyone in the room follows
   if (!$("encSel")) return;
-  $("encSel").onchange = () => { store.set("ns.encounter", $("encSel").value); monVals = null; showMonsters(); };
+  $("encSel").onchange = () => { store.set(ck("ns.encounter"), $("encSel").value); monVals = null; showMonsters(); };
+}
+// Campaign dropdown (GM): "Main campaign" plus every campaign subfolder in New Scolos Characters
+let campList = cache.get("campList") || [];
+function campaignPicker() {
+  const names = campList.includes(campaign) || !campaign ? campList : [campaign, ...campList];
+  return `<div class="encpick" id="campBox"><small>CAMPAIGN</small><select id="campSel"><option value="">Main campaign</option>${
+    names.map(n => `<option value="${esc2(n)}" ${n === campaign ? "selected" : ""}>${esc2(n)}</option>`).join("")}</select></div>`;
+}
+const pickers = () => campaignPicker() + encounterPicker();
+async function refreshCampList() {
+  const r = await bridgeGet({ list: "campaigns" }).catch(() => null);
+  if (!r?.ok || !Array.isArray(r.campaigns) || JSON.stringify(r.campaigns) === JSON.stringify(campList)) return; // older bridge: no campaigns yet
+  campList = r.campaigns; cache.set("campList", campList);
+  const box = $("campBox"); if (box) { box.outerHTML = campaignPicker(); bindPicker(); }
 }
 async function refreshEncList() {
   const r = await bridgeGet({ list: "encounters" }).catch(() => null);
   if (!r?.ok || JSON.stringify(r.sheets) === JSON.stringify(encList)) return;
-  encList = r.sheets; cache.set("encList", encList);
-  const box = document.querySelector(".encpick"); if (box) { box.outerHTML = encounterPicker(); bindPicker(); }
+  encList = r.sheets; cache.set(ck("encList"), encList);
+  const box = $("encBox"); if (box) { box.outerHTML = encounterPicker(); bindPicker(); }
+  if (campaign && !store.get(ck("ns.encounter")) && !monVals && encList.length) showMonsters(); // first encounter of a new campaign
 }
 function drawMonsters() {
   const v = monVals || [], c = (row, i) => String(v[row]?.[i] ?? "").trim();
@@ -1529,7 +1554,7 @@ function drawMonsters() {
       ${c(row, 20) ? `<div class="mtext mnote"><i>Loot / Notes:</i> ${esc2(c(row, 20))}</div>` : ""}
     </div>`;
   }
-  $("mo").innerHTML = encounterPicker() + html;
+  $("mo").innerHTML = pickers() + html;
   bindPicker();
   $("monRe").onclick = () => showMonsters();
   $("iCall").onclick = callInitiative; $("iMon").onclick = rollMonsterInit; $("iEnd").onclick = endInitiative;
@@ -1648,7 +1673,7 @@ let partyOn = false;
 async function showParty() {
   partyOn = true;
   const body = $("shbody") || ($("sh").insertAdjacentHTML("beforeend", `<div id="shbody"></div>`), $("shbody"));
-  const saved = cache.get("chars");
+  const saved = cache.get(ck("chars"));
   if (saved?.length) drawParty(body, saved.map(c => c.values));
   else body.innerHTML = `<div class="empty">Loading party…</div>`;
   sync(1);
@@ -1747,6 +1772,13 @@ if (standalone) {
   OBR.onReady(async () => {
     me = await OBR.player.getId();
     isGM = (await OBR.player.getRole()) === "GM";
+    campaign = String((await OBR.room.getMetadata())[CAMP] || "");
+    encList = cache.get(ck("encList")) || [];
+    OBR.room.onMetadataChange((md) => { // GM switched this room to another campaign: reload whatever tab is open
+      const c = String(md[CAMP] || ""); if (c === campaign) return;
+      campaign = c; encList = cache.get(ck("encList")) || []; monVals = null; sheetVals = null;
+      document.querySelector(".tab.on")?.click();
+    });
     $("monTab").hidden = !isGM;
     document.querySelector('.tab[data-t="sheet"]').click(); // Sheet is the first tab: open it once the GM/player role is known
     if (isGM) { initMd = await OBR.room.getMetadata(); OBR.room.onMetadataChange((m) => { initMd = m; drawInitList(); markTurn(); }); }

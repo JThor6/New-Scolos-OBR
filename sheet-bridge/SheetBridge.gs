@@ -12,13 +12,28 @@ const CHARACTER_FOLDER_ID = '1AGoMytVf6xI8DWzMewiEtZF65M9kie88';
 const ENCOUNTER_FOLDER_ID = '1UQ_Zq4skyRzjUcaly95g98C2figf6tQs';
 const ALLOWED_FOLDER_IDS = [CHARACTER_FOLDER_ID, ENCOUNTER_FOLDER_ID];
 const TRACKER_TAB = 'Extension Tracker';
+// Campaigns: each campaign is a subfolder (same name) inside the character folder and the encounter folder.
+// Rooms with no campaign set use the sheets sitting directly in those folders (the main campaign).
+function campaignFolder(rootId, name) {
+  name = String(name || '').trim();
+  if (!name) return DriveApp.getFolderById(rootId);
+  const it = DriveApp.getFolderById(rootId).getFoldersByName(name);
+  return it.hasNext() ? it.next() : null;
+}
+function sheetsIn(folder) {
+  const out = [];
+  if (!folder) return out;
+  const it = folder.getFilesByType(MimeType.GOOGLE_SHEETS);
+  while (it.hasNext()) { const f = it.next(); out.push({ id: f.getId(), name: f.getName(), t: f.getLastUpdated().getTime() }); }
+  return out;
+}
 const MASTER_ID = '1_cnTDLNHIsaVMAOkOKSKK0YawUHt38ZewW1o5-yWbhU'; // Master New Scolos File for Characters
 const TYPE_TABS = ['Priest', 'Mage', 'Mentalist', 'Mercenary', 'Wraith', 'Revenant', 'Hacker', 'Subject Zero'];
 const ATTR_COST = { '-3': 0, '-2': 1, '-1': 3, '0': 7, '1': 14, '2': 25, '3': 41 }; // Starting Attribute Calculator, 42 points
 const START_LEVELS = [1, 0, 0, 0, -2, -2, -3, -3];                              // Skill List: starting skill levels
 
 // Character Generator: copy the Master into the characters folder and fill it in
-function createCharacter(c) {
+function createCharacter(c, campaign) {
   const name = String(c.name || '').trim().slice(0, 60);
   if (!name) throw new Error('Give the character a name.');
   const type = String(c.type || '').trim();
@@ -37,7 +52,8 @@ function createCharacter(c) {
   const email = String(c.email || '').trim();
   if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('That email does not look right.');
 
-  const folder = DriveApp.getFolderById(CHARACTER_FOLDER_ID);
+  const folder = campaignFolder(CHARACTER_FOLDER_ID, campaign);
+  if (!folder) throw new Error('No campaign folder named ' + campaign + ' in the characters folder.');
   const file = DriveApp.getFileById(MASTER_ID).makeCopy(name, folder);
   const ss = SpreadsheetApp.openById(file.getId());
   const sh = ss.getSheetByName('Main Sheet');
@@ -193,7 +209,12 @@ function openMain(id) {
   const file = DriveApp.getFileById(id);
   const parents = file.getParents();
   let ok = false;
-  while (parents.hasNext()) if (ALLOWED_FOLDER_IDS.indexOf(parents.next().getId()) >= 0) ok = true;
+  while (parents.hasNext()) { // directly in a New Scolos folder, or in a campaign subfolder of one
+    const f = parents.next();
+    if (ALLOWED_FOLDER_IDS.indexOf(f.getId()) >= 0) ok = true;
+    const up = f.getParents();
+    while (up.hasNext()) if (ALLOWED_FOLDER_IDS.indexOf(up.next().getId()) >= 0) ok = true;
+  }
   if (!ok) throw new Error('That sheet is not in a New Scolos folder the bridge can use.');
   const ss = SpreadsheetApp.openById(id);
   return ss.getSheetByName('Main Sheet') || ss.getSheets()[0];
@@ -216,15 +237,19 @@ function doGet(e) {
       const r = CacheService.getScriptCache().get('pdf:' + p.pdfjob);
       return ContentService.createTextOutput(r || JSON.stringify({ ok: false, error: 'That export expired. Try again.' })).setMimeType(ContentService.MimeType.JSON);
     }
-    if (p.list === 'encounters') { // every encounter sheet in the encounter folder, newest edited first
-      const out = [], it = DriveApp.getFolderById(ENCOUNTER_FOLDER_ID).getFilesByType(MimeType.GOOGLE_SHEETS);
-      while (it.hasNext()) { const f = it.next(); out.push({ id: f.getId(), name: f.getName(), t: f.getLastUpdated().getTime() }); }
+    if (p.list === 'campaigns') { // campaign subfolders of the character folder
+      const out = [], it = DriveApp.getFolderById(CHARACTER_FOLDER_ID).getFolders();
+      while (it.hasNext()) { const n = it.next().getName(); if (!/^archive/i.test(n)) out.push(n); }
+      out.sort();
+      return json({ ok: true, campaigns: out });
+    }
+    if (p.list === 'encounters') { // every encounter sheet in this campaign's encounter folder, newest edited first
+      const out = sheetsIn(campaignFolder(ENCOUNTER_FOLDER_ID, p.campaign));
       out.sort(function (a, b) { return b.t - a.t; });
       return json({ ok: true, sheets: out });
     }
-    if (p.list) {
-      const out = [], it = DriveApp.getFolderById(CHARACTER_FOLDER_ID).getFilesByType(MimeType.GOOGLE_SHEETS);
-      while (it.hasNext()) { const f = it.next(); out.push({ id: f.getId(), name: f.getName() }); }
+    if (p.list) { // character sheets in this campaign's folder
+      const out = sheetsIn(campaignFolder(CHARACTER_FOLDER_ID, p.campaign)).map(function (f) { return { id: f.id, name: f.name }; });
       return json({ ok: true, sheets: out });
     }
     if (p.tab) { // a whole tab, e.g. Combat Options or Priest (used by the Rules tab)
@@ -246,7 +271,7 @@ function doPost(e) {
   try {
     const b = JSON.parse(e.postData.contents);
     if (b.code !== TABLE_CODE) return json({ ok: false, error: 'Wrong table code.' });
-    if (b.create) return json(createCharacter(b.create));
+    if (b.create) return json(createCharacter(b.create, b.campaign));
     if (b.exportPdf) { // start building in the background (a web app can't wait on it), the add-on then asks ?pdfjob= for the result
       openMain(b.id); // folder check up front
       const job = Utilities.getUuid(), cache = CacheService.getScriptCache();
