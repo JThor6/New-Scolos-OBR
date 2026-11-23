@@ -361,6 +361,8 @@
   .pwb { background:none; border:none; padding:0; color:var(--ink); font:inherit; cursor:pointer; text-decoration:underline dotted #6b5aa0; text-underline-offset:3px; }
   .cob { background:none; border:none; padding:0; color:var(--ink); font:inherit; text-align:left; cursor:pointer; text-decoration:underline dotted #6b5aa0; text-underline-offset:3px; }
   .welc { position:relative; margin:2px 0 8px; padding:7px 30px 7px 10px; border-left:3px solid #5b3f9e; border-radius:6px; background:rgba(60,38,110,.45); font-size:12px; line-height:1.5; color:#ddd5f3; }
+  .istep { display:flex; align-items:center; gap:5px; margin-top:5px; } .istep[hidden] { display:none; }
+  .istep #iNext { flex:1; } .istep #iPrev { width:38px; flex:none; } .istep span { font-size:11px; font-weight:700; color:var(--dim); white-space:nowrap; }
   .welc i { font-style:normal; font-weight:700; color:#c9b8f5; }
   .welc b { display:block; color:#bb99ff; font-size:10px; letter-spacing:.6px; margin-bottom:2px; }
   .welrd { display:inline-flex; align-items:center; justify-content:center; width:22px; height:18px; vertical-align:-4px; border-radius:4px; background:rgba(187,153,255,.25); color:#bb99ff; } .welrd svg { width:14px; height:14px; }
@@ -1898,6 +1900,7 @@ function drawMonsters() {
   let html = `<div class="initbox"><div class="sec" style="margin-top:2px;display:flex;align-items:center">INITIATIVE<button class="sref hist" style="margin-left:auto" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></div>
     <div class="g2"><button id="iCall" class="sbtn">⚔ CALL FOR INITIATIVE</button><button id="iMon" class="sbtn">🎲 ROLL MONSTERS</button></div>
     <div id="iList"></div>
+    <div id="iStep" class="istep" hidden><button id="iPrev" class="sbtn" title="Previous turn">◀</button><span id="iRound"></span><button id="iNext" class="sbtn">NEXT TURN ▶</button></div>
     <div class="iadd"><input id="iName" placeholder="Add a name"><input id="iNum" placeholder="+0" inputmode="numeric"><button id="iNeg" class="sbtn negbtn" title="Flip to minus / plus">±</button><button id="iAdd" class="sbtn">ADD</button></div>
     <button id="iEnd" class="sbtn" style="width:100%;margin-top:5px">END COMBAT</button></div>
     <button id="monRe" class="sbtn" style="width:100%;margin-top:8px">↻ RELOAD MONSTERS</button>`;
@@ -1929,6 +1932,7 @@ function drawMonsters() {
   $("mo").innerHTML = pickers() + html + stasisBox();
   bindPicker();
   $("monRe").onclick = () => showMonsters();
+  $("iPrev").onclick = () => initStep(-1); $("iNext").onclick = () => initStep(1);
   $("iCall").onclick = callInitiative; $("iMon").onclick = rollMonsterInit; $("iEnd").onclick = endInitiative;
   $("iAdd").onclick = addInitEntry; $("iNeg").onclick = () => flipSign($("iNum")); $("iNum").onkeydown = (e) => { if (e.key === "Enter") addInitEntry(); };
   drawInitList();
@@ -1991,10 +1995,20 @@ function drawInitList() {
   box.innerHTML = !st?.open ? `<div class="empty" style="font-size:12px">No combat running. Call for initiative to start.</div>`
     : list.length ? list.map((e, i) => `<div class="irow ${e.id === st.cur ? "cur" : ""}"><span class="n">${i + 1}</span><b>${esc2(e.name)}</b><small>${e.pc ? "player" : ""}</small><span class="t">${big(e.total)}</span><button class="ix" data-id="${esc2(e.id)}" title="Remove">✕</button></div>`).join("")
     : `<div class="empty" style="font-size:12px">Waiting for rolls… Players roll Adroitness on their CHARACTER tab.</div>`;
+  if ($("iStep")) { $("iStep").hidden = !list.length; $("iRound").textContent = list.length ? "Round " + (st.round || 1) : ""; }
   box.querySelectorAll(".ix").forEach(b => b.onclick = async () => {
     const s = (await OBR.room.getMetadata())[INIT]; if (!s) return;
     await OBR.room.setMetadata({ [INIT]: { ...s, removed: [...(s.removed || []), b.dataset.id] } });
   });
+}
+// Same as the ◀ / ▶ arrows on the initiative bar at the top: move the turn, and wrap to a new round after the last
+async function initStep(d) {
+  const m = await OBR.room.getMetadata(), st = m[INIT] || {}, list = initEntries(m);
+  if (!st.open || !list.length) return;
+  let i = list.findIndex(e => e.id === st.cur), round = st.round || 1;
+  if (i < 0) i = d > 0 ? 0 : list.length - 1;
+  else { i += d; if (i >= list.length) { i = 0; round++; } if (i < 0) { i = list.length - 1; round = Math.max(1, round - 1); } }
+  await OBR.room.setMetadata({ [INIT]: { ...st, cur: list[i].id, round } });
 }
 async function callInitiative() {
   const sid = crypto.randomUUID().slice(0, 8);
