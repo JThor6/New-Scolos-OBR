@@ -1933,7 +1933,12 @@ function drawMonsters() {
   bindPicker();
   $("monRe").onclick = () => showMonsters();
   $("iPrev").onclick = () => initStep(-1); $("iNext").onclick = () => initStep(1);
-  $("iCall").onclick = callInitiative; $("iMon").onclick = rollMonsterInit; $("iEnd").onclick = endInitiative;
+  $("iCall").onclick = callInitiative; $("iMon").onclick = rollMonsterInit; $("iEnd").onclick = () => { // two taps: the first asks, the second (within 4 s) ends combat
+    const b = $("iEnd");
+    if (b.dataset.arm) { delete b.dataset.arm; b.textContent = "END COMBAT"; return endInitiative(); }
+    b.dataset.arm = "1"; b.textContent = "TAP AGAIN TO END COMBAT";
+    setTimeout(() => { if ($("iEnd")?.dataset.arm) { delete $("iEnd").dataset.arm; $("iEnd").textContent = "END COMBAT"; } }, 4000);
+  };
   $("iAdd").onclick = addInitEntry; $("iNeg").onclick = () => flipSign($("iNum")); $("iNum").onkeydown = (e) => { if (e.key === "Enter") addInitEntry(); };
   drawInitList();
   markTurn();
