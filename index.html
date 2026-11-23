@@ -1895,7 +1895,7 @@ async function refreshEncList() {
 }
 function drawMonsters() {
   const v = monVals || [], c = (row, i) => String(v[row]?.[i] ?? "").trim();
-  let html = `<div class="initbox"><div class="sec" style="margin-top:2px">INITIATIVE</div>
+  let html = `<div class="initbox"><div class="sec" style="margin-top:2px;display:flex;align-items:center">INITIATIVE<button class="sref hist" style="margin-left:auto" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></div>
     <div class="g2"><button id="iCall" class="sbtn">⚔ CALL FOR INITIATIVE</button><button id="iMon" class="sbtn">🎲 ROLL MONSTERS</button></div>
     <div id="iList"></div>
     <div class="iadd"><input id="iName" placeholder="Add a name"><input id="iNum" placeholder="+0" inputmode="numeric"><button id="iNeg" class="sbtn negbtn" title="Flip to minus / plus">±</button><button id="iAdd" class="sbtn">ADD</button></div>
