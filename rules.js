@@ -16,7 +16,7 @@ export const REF_GROUPS = [
   ["Playing", ["__rolls", "turn", "attack", "tab:Combat Options", "odds"]],
   ["Lists", ["tab:Skill List", "gods", "schools"]],
   ["Character Types", TYPES.map(t => "tab:" + t)],
-  ["Rules Draft", ["wip"]],
+  ["Draft Rules WIP", ["wip"]],
 ];
 const tabCache = {};
 const saved = {

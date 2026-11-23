@@ -459,7 +459,7 @@
 </style>
 </head>
 <body>
-<header><h1>NEW SCOLOS</h1><span class="hctl"><span id="syncdot" class="syncdot" hidden title="Syncing with Google Sheets">⟳</span><button id="solid" class="tab" title="See-through / solid">◐</button><button id="size" class="tab" title="Change panel size">S</button></span><nav><button class="tab on" data-t="sheet">SHEET</button><button class="tab" data-t="rules">REFERENCE</button><button class="tab" data-t="dice">DICE</button><button class="tab" data-t="gen">NEW CHARACTER</button><button class="tab" data-t="mon" id="monTab" hidden>GM</button></nav></header>
+<header><h1>NEW SCOLOS</h1><span class="hctl"><span id="syncdot" class="syncdot" hidden title="Syncing with Google Sheets">⟳</span><button id="solid" class="tab" title="See-through / solid">◐</button><button id="size" class="tab" title="Make the panel narrower"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M2 12h8M7 8l3 4-3 4M22 12h-8M17 8l-3 4 3 4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span><nav><button class="tab on" data-t="sheet">SHEET</button><button class="tab" data-t="rules">REFERENCE</button><button class="tab" data-t="dice">DICE</button><button class="tab" data-t="gen">NEW CHARACTER</button><button class="tab" data-t="mon" id="monTab" hidden>GM</button></nav></header>
 <div id="initban" class="initban" hidden><span>⚔ Initiative! Your next Adroitness roll counts.</span><button id="initgo">ROLL</button><button id="initx" title="Hide">✕</button></div>
 <section id="sheet"><div id="sh"><div class="empty">Loading…</div></div></section>
 <section id="rules" hidden><div id="ru"></div></section>
@@ -1932,14 +1932,18 @@ applySolid();
 // ---------------- PANEL SIZE (S / M / L, remembered per player) ----------------
 const SIZES = { S: [264, 680], L: [520, 1400] };
 function applySize() {
-  const k = SIZES[store.get("ns.size")] ? store.get("ns.size") : "S";
-  $("size").textContent = k;
+  const k = SIZES[store.get("ns.size")] ? store.get("ns.size") : "L"; // starts wide
+  // the button shows what it will do: arrows out = make wider, arrows in = make narrower
+  const out = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const inn = `<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M2 12h8M7 8l3 4-3 4M22 12h-8M17 8l-3 4 3 4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  $("size").innerHTML = k === "L" ? inn : out;
+  $("size").title = k === "L" ? "Make the panel narrower" : "Make the panel wider";
   if (standalone) return;
   OBR.action.setWidth(SIZES[k][0]).catch(() => {});
   if (k === "L") OBR.viewport.getHeight().then(vh => OBR.action.setHeight(Math.max(500, vh - 70))).catch(() => OBR.action.setHeight(SIZES.L[1]).catch(() => {})); // fill the screen top to bottom
   else OBR.action.setHeight(SIZES[k][1]).catch(() => {});
 }
-$("size").onclick = () => { store.set("ns.size", store.get("ns.size") === "L" ? "S" : "L"); applySize(); };
+$("size").onclick = () => { store.set("ns.size", (SIZES[store.get("ns.size")] ? store.get("ns.size") : "L") === "L" ? "S" : "L"); applySize(); };
 
 // ---------------- RULES TAB ----------------
 const POP_ICON = `<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
