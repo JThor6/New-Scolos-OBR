@@ -717,7 +717,7 @@ function drawSheet() {
   const trained = chips(...L.trained, "skills"), untrained = chips(...L.untrained, "untrained");
   const copMaxT = V("H28");
   $("shbody").innerHTML = `
-    <div class="shead"><div class="shn"><b>${esc2(V("C3") || "Unnamed")}</b><small>${[V("C4"), V("F5") !== "" ? "Level " + V("F5") : ""].filter(Boolean).map(esc2).join(" · ")}${V("F7") !== "" ? `<span class="cred" title="Credits">¤ ${esc2((n => n == null ? V("F7") : n.toLocaleString("en-US"))(num(V("F7"))))} cr</span>` : ""}</small></div>
+    <div class="shead"><div class="shn"><b>${esc2(V("C3") || "Unnamed")}</b><small>${[V("C4"), V("F5") !== "" ? "Level " + V("F5") : ""].filter(Boolean).map(esc2).join(" · ")}${V("F7") !== "" ? `<span class="cred" title="Credits">¤ ${esc2((n => n == null ? V("F7") : n.toLocaleString("en-US"))(num(V("F7"))))} credits</span>` : ""}</small></div>
       <span class="shbtns"><button id="reload" class="ibtn" title="Reload from Google Sheet">↻</button><button id="mgr" class="ibtn mgrb" title="Manage character: XP, skills, gear, notes">⚙ Manage Character</button></span></div>
     <div class="stab">VITALITY TRACK</div>
     <div class="vit">${["B", "C", "D", "E", "F", "G", "H"].map((c, i) => { const t = V(c + "15"); const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<button class="box ${V(c + "16") ? "x" : ""}" data-w="${i}"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk ${V(c + "16") ? "x" : ""}">${V(c + "16") ? "✕" : ""}</span></button>`; }).join("")}</div>
@@ -929,7 +929,7 @@ async function sheetPreview() {
   const extra = cg.god ? `God: ${cg.god}` : cg.major ? `Major: ${cg.major} · Minor: ${cg.minor}` : "";
   const gear = [e.armor, e.melee, e.ranged].filter(Boolean), other = cg.gear.split("\n").map(x => x.trim()).filter(Boolean);
   return `<div class="shp">
-    <div class="shead"><div class="shn"><b>${esc2(cg.name.trim() || "Unnamed")}</b><small>${esc2(cg.type)} · Level 0 · 1,000 cr${cg.xpOn && cg.xp ? ` · ${cg.xp} XP to spend` : ""}</small></div></div>
+    <div class="shead"><div class="shn"><b>${esc2(cg.name.trim() || "Unnamed")}</b><small>${esc2(cg.type)} · Level 0 · 1,000 credits${cg.xpOn && cg.xp ? ` · ${cg.xp} XP to spend` : ""}</small></div></div>
     <div class="stab">VITALITY TRACK</div>
     <div class="vit">${wounds.map(t => { const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<div class="box"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk"></span></div>`; }).join("")}</div>
     <div class="g2b"><div class="fld"><small>Extraordinary Power</small><div>${esc2(cg.power || "—")}</div>${extra ? `<div class="pwl">${esc2(extra)}</div>` : ""}</div><div class="fld c"><small>Used today</small><span class="chk"></span></div></div>
