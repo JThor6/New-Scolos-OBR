@@ -210,6 +210,10 @@ function doGet(e) {
       catch (e) { copy = String(e.message || e); }
       return json({ ok: true, runsAs: Session.getEffectiveUser().getEmail(), copy: copy });
     }
+    if (p.pdfjob) { // result of an Export to PDF started by POST {exportPdf}
+      const r = CacheService.getScriptCache().get('pdf:' + p.pdfjob);
+      return ContentService.createTextOutput(r || JSON.stringify({ ok: false, error: 'That export expired. Try again.' })).setMimeType(ContentService.MimeType.JSON);
+    }
     if (p.list === 'encounters') { // every encounter sheet in the encounter folder, newest edited first
       const out = [], it = DriveApp.getFolderById(ENCOUNTER_FOLDER_ID).getFilesByType(MimeType.GOOGLE_SHEETS);
       while (it.hasNext()) { const f = it.next(); out.push({ id: f.getId(), name: f.getName(), t: f.getLastUpdated().getTime() }); }
@@ -241,7 +245,14 @@ function doPost(e) {
     const b = JSON.parse(e.postData.contents);
     if (b.code !== TABLE_CODE) return json({ ok: false, error: 'Wrong table code.' });
     if (b.create) return json(createCharacter(b.create));
-    if (b.exportPdf) return exportPdf(b.id).then(json, function (err) { return json({ ok: false, error: String(err.message || err) }); });
+    if (b.exportPdf) { // start building in the background (a web app can't wait on it), the add-on then asks ?pdfjob= for the result
+      openMain(b.id); // folder check up front
+      const job = Utilities.getUuid(), cache = CacheService.getScriptCache();
+      cache.put('pdf:' + job, JSON.stringify({ ok: true, pending: true }), 600);
+      exportPdf(b.id).then(function (r) { cache.put('pdf:' + job, JSON.stringify(r), 600); },
+        function (err) { cache.put('pdf:' + job, JSON.stringify({ ok: false, error: String(err && err.message || err) }), 600); });
+      return json({ ok: true, job: job });
+    }
     const sh = openMain(b.id);
     if (b.tracker) { // GM monster tracker: wound boxes (columns M-S) and Dead (column T) on the Extension Tracker tab
       const t = SpreadsheetApp.openById(b.id).getSheetByName(TRACKER_TAB);

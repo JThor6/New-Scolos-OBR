@@ -911,9 +911,17 @@ function drawManager() {
   drawMgrCombat(err);
   $("pdfGo").onclick = async () => {
     const b = $("pdfGo"), out = $("pdfOut"); b.disabled = true; b.textContent = "BUILDING PDF…"; out.textContent = "This takes about 10–20 seconds."; sync(1);
-    const r = await bridgePost({ exportPdf: 1 }).catch(e => ({ ok: false, error: e.message }));
+    let r = await bridgePost({ exportPdf: 1 }).catch(e => ({ ok: false, error: e.message }));
+    // the bridge builds it in the background: ask for the result every 2 seconds (up to ~90 s)
+    for (let i = 0; r && r.ok && r.job && i < 45; i++) {
+      await new Promise(res => setTimeout(res, 2000));
+      const q = await bridgeGet({ pdfjob: r.job }).catch(() => ({ ok: true, pending: true, job: r.job }));
+      r = q.pending ? { ...q, job: r.job } : q;
+      if (!q.pending) break;
+    }
+    if (r && r.ok && (r.pending || r.job) && !r.url) r = { ok: false, error: "it's taking too long. Try again in a minute." };
     sync(-1); b.disabled = false; b.textContent = "⬇ EXPORT TO PDF";
-    if (!r || !r.ok) { out.innerHTML = `<span class="err">Couldn't make the PDF: ${esc2(r?.error || "no answer from the Sheet Bridge")}</span>`; return; }
+    if (!r || !r.ok) { out.innerHTML = `<span class="err">Couldn't make the PDF: ${esc2(/failed to fetch/i.test(r?.error || "") ? "the Sheet Bridge didn't answer. It may need redeploying (see the project notes)." : r?.error || "no answer from the Sheet Bridge")}</span>`; return; }
     out.innerHTML = `Ready: <a href="${esc2(r.url)}" target="_blank" rel="noopener" style="color:var(--accent);font-weight:800">Open ${esc2(r.name)}</a>`;
   };
   $("noteGo").onclick = () => {
