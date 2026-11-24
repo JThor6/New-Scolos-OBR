@@ -260,7 +260,7 @@ const PORTRAIT_FOLDER_ID = '15BY1xqDO4VCLbG8-vGO8uiobgunsAa9W';
 const PORTRAIT_SMALL_FOLDER = 'Small copies (used by the extension)';
 const PORTRAIT_EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
 const PORTRAIT_MAX = 12;
-function portraitInfo(id) { // { pics: [{full, small, t}], cur: full id, t: when the current portrait last changed, n: pictures ever added }
+function portraitInfo(id) { // { pics: [{full, small, t, f}], cur: full id, t: when the current portrait last changed, n: pictures ever added }
   const s = PropertiesService.getScriptProperties().getProperty('pt:' + id);
   if (!s) return null;
   const i = JSON.parse(s);
@@ -300,7 +300,7 @@ function getPortrait(id, full, fid) {
     if (!f) return { ok: true, none: true };
   }
   const b = f.getBlob();
-  return { ok: true, t: info.t, pic: pic.full, cur: pic.full === info.cur, mime: b.getContentType(), name: f.getName(), data: Utilities.base64Encode(b.getBytes()) };
+  return { ok: true, t: info.t, pic: pic.full, cur: pic.full === info.cur, frame: pic.f || null, mime: b.getContentType(), name: f.getName(), data: Utilities.base64Encode(b.getBytes()) };
 }
 // every picture of this character (small copies) for the picker
 function getGallery(id) {
@@ -309,7 +309,7 @@ function getGallery(id) {
   info = prunePortraits(id, info);
   const pics = info.pics.map(function (p) {
     const b = DriveApp.getFileById(p.small).getBlob();
-    return { id: p.full, t: p.t, mime: b.getContentType(), data: Utilities.base64Encode(b.getBytes()) };
+    return { id: p.full, t: p.t, f: p.f || null, mime: b.getContentType(), data: Utilities.base64Encode(b.getBytes()) };
   });
   return { ok: true, cur: info.cur, t: info.pics.length ? info.t : 0, max: PORTRAIT_MAX, pics: pics };
 }
@@ -350,6 +350,22 @@ function pickPortrait(id, fid) {
     if (!info || !info.pics.some(function (p) { return p.full === fid; })) throw new Error('That picture is gone. Reload and try again.');
     if (info.cur !== fid) { info.cur = fid; info.t = Date.now(); portraitSaveInfo(id, info); }
     return { ok: true, t: info.t };
+  } finally { lock.releaseLock(); }
+}
+// how a picture sits in the round portrait: f = {z: zoom 1-5, x, y: 0-100, which part of the picture shows}
+function framePortrait(id, fid, f) {
+  openMain(id); // folder check
+  const z = Number(f && f.z), x = Number(f && f.x), y = Number(f && f.y);
+  if (!(z >= 1 && z <= 5 && x >= 0 && x <= 100 && y >= 0 && y <= 100)) throw new Error('Bad picture framing.');
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    const info = portraitInfo(id);
+    const pic = info && info.pics.filter(function (p) { return p.full === fid; })[0];
+    if (!pic) throw new Error('That picture is gone. Reload and try again.');
+    pic.f = { z: Math.round(z * 100) / 100, x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
+    if (info.cur === fid) info.t = Date.now(); // the portrait everyone sees changed
+    portraitSaveInfo(id, info);
+    return { ok: true, t: info.t, f: pic.f };
   } finally { lock.releaseLock(); }
 }
 // remove one picture (Drive trash, restorable for 30 days). If it was the portrait, the newest one left takes over.
@@ -448,6 +464,7 @@ function doPost(e) {
     if (b.stasis) return json(moveToStasis(b.id));
     if (b.portrait) return json(savePortrait(b.id, b.portrait));
     if (b.portraitPick) return json(pickPortrait(b.id, String(b.portraitPick)));
+    if (b.portraitFrame) return json(framePortrait(b.id, String(b.portraitFrame), b.frame));
     if (b.portraitRemove) return json(removePortrait(b.id, b.portraitRemove));
     if (b.exportPdf) { // start building in the background (a web app can't wait on it), the add-on then asks ?pdfjob= for the result
       openMain(b.id); // folder check up front
