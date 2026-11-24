@@ -311,6 +311,7 @@
   .ptc.ptadd:hover, .ptdrag .ptc { border-color:var(--accent); color:var(--accent); }
   .ptc.busy { opacity:.55; animation:ptpulse .8s infinite alternate; } @keyframes ptpulse { to { opacity:.25; } }
   .ptdrag { outline:2px dashed var(--accent); outline-offset:-2px; border-radius:8px; }
+  .pogb { flex:none; align-self:center; background:transparent; border:1px solid #444a66; border-radius:6px; color:var(--dim); font-size:10px; font-weight:800; padding:1px 5px; cursor:pointer; } .pogb:hover { color:var(--accent); border-color:var(--accent); }
   .pti { position:relative; flex:none; width:26px; height:26px; border-radius:50%; border:1.5px solid #444a66; padding:0; overflow:hidden; background:var(--paper); cursor:pointer; align-self:center; }
   .ptov { position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:9999; display:flex; align-items:center; justify-content:center; padding:10px; }
   .ptbox { position:relative; background:#151826; border:2px solid var(--accent); border-radius:12px; padding:12px 10px 10px; max-width:100%; max-height:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; gap:6px; overflow:auto; }
@@ -327,13 +328,15 @@
   .ptpan { display:flex; flex-direction:column; align-items:center; gap:7px; margin:4px 0; }
   .ptmsg { font-size:12px; font-weight:700; text-align:center; min-height:15px; } .ptmsg.ok { color:var(--plus); } .ptmsg.bad { color:var(--minus); }
   .ptgh span { font-weight:600; letter-spacing:0; }
+  .pogrow { display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; }
+  .pogpv { width:110px; height:110px; display:block; }
   .ptgh { font-size:11px; font-weight:800; letter-spacing:1px; color:var(--dim); }
   .ptmi { position:relative; display:block; width:44px; height:44px; border-radius:50%; overflow:hidden; border:2px solid var(--accent); flex:none; }
   .ptmi img { width:100%; height:100%; object-fit:cover; display:block; }
   .pted { display:flex; flex-direction:column; align-items:center; gap:7px; width:280px; max-width:100%; }
   .ptedc { position:relative; width:220px; height:220px; max-width:70vw; max-height:70vw; border-radius:50%; overflow:hidden; border:3px solid var(--accent); background:#000; cursor:grab; touch-action:none; user-select:none; }
   .ptedc:active { cursor:grabbing; }
-  .ptedc.locked { cursor:default; touch-action:auto; border-color:#444a66; } .ptedc.locked:active { cursor:default; } .ptedc img { pointer-events:none; -webkit-user-drag:none; }
+  .ptedc.locked { cursor:default; touch-action:auto; border-color:#444a66; width:120px; height:120px; } .ptedc.locked:active { cursor:default; } .ptedc img { pointer-events:none; -webkit-user-drag:none; }
   .ptzoom { display:flex; align-items:center; gap:6px; width:100%; } .ptzoom input { flex:1; accent-color:var(--accent); padding:0; border:none; background:transparent; }
   .ptzoom button { width:30px; height:30px; padding:0; font-size:18px; }
   .ptsw { display:flex; align-items:center; gap:6px; font-size:12px; margin:6px 0 2px; cursor:pointer; } .ptsw input { width:auto; margin:0; }
@@ -634,7 +637,7 @@
   <div id="hand" class="hand" hidden></div>
 </main>
 <script type="module">
-import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
+import OBR, { buildImage, buildImageUpload } from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
 import { NS, KEEP, rollKey, allRolls, fmt, INIT, initEntries, rollLine, ROLL_CSS, rollLog, LOG_MAX, POWER_CARDS } from "./shared.js";
 document.head.insertAdjacentHTML("beforeend", `<style>${ROLL_CSS}</style>`);
 import { TYPES, SECTIONS, REF_GROUPS, getTab, sectionHtml } from "./rules.js";
@@ -2611,6 +2614,77 @@ function bindPt() {
   ptDrop();
 }
 
+// ---------- POGS ----------
+// A pog = the picture in a circle (same framing as the portrait) + the table's ring. Every pog uses POG_STYLE.
+const POG_STYLE = "neon";
+const POG_STYLES = {
+  neon:   { name: "Neon (cyan / magenta)", a: "#19e6ff", b: "#ff2bd6", c: "#7a5cff", glow: "#19e6ff" },
+  acid:   { name: "Acid (green / cyan)",   a: "#7dff3a", b: "#00e5c7", c: "#d6ff3a", glow: "#7dff3a" },
+  amber:  { name: "Amber (gold / orange)", a: "#ffd23a", b: "#ff7a1a", c: "#ffb000", glow: "#ffb000" },
+  violet: { name: "Violet (purple / pink)", a: "#b388ff", b: "#ff4fa3", c: "#6a5cff", glow: "#b388ff" },
+};
+function drawPog(img, f, style, S = 512) {
+  const st = POG_STYLES[style] || POG_STYLES.neon;
+  const cv = document.createElement("canvas"); cv.width = cv.height = S;
+  const g = cv.getContext("2d"), c = S / 2, k = S / 512;
+  const R = 240 * k, r0 = 192 * k; // outer edge, picture radius
+  // picture, framed like the portrait circle
+  g.save(); g.beginPath(); g.arc(c, c, r0, 0, Math.PI * 2); g.clip();
+  g.fillStyle = "#0b0d16"; g.fillRect(0, 0, S, S);
+  if (img) {
+    const a = img.naturalWidth / img.naturalHeight || 1, z = f?.z || 1, x = f?.x ?? 50, y = f?.y ?? 50, D = r0 * 2;
+    const W = (a >= 1 ? a : 1) * D * z, H = (a >= 1 ? 1 : 1 / a) * D * z;
+    g.drawImage(img, c - r0 + (D - W) * x / 100, c - r0 + (D - H) * y / 100, W, H);
+  }
+  // inner shade so the ring sits on top
+  const sh = g.createRadialGradient(c, c, r0 * 0.78, c, c, r0); sh.addColorStop(0, "rgba(0,0,0,0)"); sh.addColorStop(1, "rgba(0,0,0,.45)");
+  g.fillStyle = sh; g.fillRect(0, 0, S, S); g.restore();
+  // dark metal band
+  g.beginPath(); g.arc(c, c, R, 0, Math.PI * 2); g.arc(c, c, r0, 0, Math.PI * 2, true);
+  const band = g.createLinearGradient(0, 0, S, S); band.addColorStop(0, "#353b52"); band.addColorStop(.45, "#0c0f19"); band.addColorStop(1, "#2c3145");
+  g.fillStyle = band; g.fill();
+  // neon gradient (conic) helper
+  const neon = () => { const cg = g.createConicGradient(-Math.PI / 2, c, c); cg.addColorStop(0, st.a); cg.addColorStop(.33, st.b); cg.addColorStop(.66, st.c); cg.addColorStop(1, st.a); return cg; };
+  // outer neon rim in 4 arcs with notches
+  g.save(); g.shadowColor = st.glow; g.shadowBlur = 14 * k; g.strokeStyle = neon(); g.lineWidth = 11 * k; g.lineCap = "butt";
+  const gap = 0.09;
+  for (let i = 0; i < 4; i++) { const a0 = i * Math.PI / 2 + Math.PI / 4 + gap, a1 = (i + 1) * Math.PI / 2 + Math.PI / 4 - gap; g.beginPath(); g.arc(c, c, R - 7 * k, a0, a1); g.stroke(); }
+  g.restore();
+  // notch blocks in the gaps
+  g.save(); g.fillStyle = neon(); g.shadowColor = st.glow; g.shadowBlur = 10 * k;
+  for (let i = 0; i < 4; i++) { const ang = i * Math.PI / 2 + Math.PI / 4; g.save(); g.translate(c, c); g.rotate(ang); g.fillRect(R - 16 * k, -4 * k, 14 * k, 8 * k); g.restore(); }
+  g.restore();
+  // inner neon line
+  g.save(); g.strokeStyle = neon(); g.lineWidth = 5 * k; g.shadowColor = st.glow; g.shadowBlur = 10 * k; g.beginPath(); g.arc(c, c, r0 + 2.5 * k, 0, Math.PI * 2); g.stroke(); g.restore();
+  // tick marks around the band (data-ring look), longer every 6th
+  g.save(); g.strokeStyle = "rgba(220,235,255,.5)"; g.lineWidth = 2 * k;
+  for (let i = 0; i < 72; i++) { const ang = i / 72 * Math.PI * 2; const long = i % 6 === 0; const r1 = r0 + 11 * k, r2 = r0 + (long ? 25 : 17) * k;
+    g.beginPath(); g.moveTo(c + Math.cos(ang) * r1, c + Math.sin(ang) * r1); g.lineTo(c + Math.cos(ang) * r2, c + Math.sin(ang) * r2); g.stroke(); }
+  g.restore();
+  // glossy highlight on the top-left of the band
+  g.save(); g.beginPath(); g.arc(c, c, R - 1.5 * k, Math.PI * 1.05, Math.PI * 1.45); g.strokeStyle = "rgba(255,255,255,.45)"; g.lineWidth = 2.5 * k; g.stroke(); g.restore();
+  return cv;
+}
+
+const loadImg = (src) => new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error("couldn't open the picture")); im.src = src; });
+const b64Blob = async (mime, data) => (await fetch(`data:${mime};base64,${data}`)).blob();
+// Owlbear: put a pog into the person's own Owlbear storage (Owlbear asks to confirm), as a 1-square character
+async function pogToOwlbear(blob, name) {
+  if (!OBR.isReady) throw new Error("this only works inside Owlbear Rodeo");
+  await OBR.assets.uploadImages([buildImageUpload(blob).name(name).dpi(512).offset({ x: 256, y: 256 }).build()], "CHARACTER");
+}
+// …then open Owlbear's picker on it and drop the picked token in the middle of the screen
+async function pogPlace(name) {
+  const picked = await OBR.assets.downloadImages(false, name, "CHARACTER");
+  if (!picked?.length) return false;
+  const d = picked[0], vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
+  let pos = await OBR.viewport.inverseTransformPoint({ x: vw / 2, y: vh / 2 });
+  try { pos = await OBR.scene.grid.snapPosition(pos); } catch {}
+  const item = buildImage(d.image, d.grid).name(d.name || name).position(pos).layer("CHARACTER").rotation(d.rotation || 0).scale(d.scale || { x: 1, y: 1 }).build();
+  await OBR.scene.items.addItems([item]);
+  return true;
+}
+
 // ---------- Manage Character → PORTRAIT ----------
 // Every picture this character has (★ = the portrait), + to add one, and the Adjust Circle editor
 // for the picked picture right there: drag to move it, slider / mouse wheel / − + to zoom, SAVE CIRCLE.
@@ -2659,7 +2733,10 @@ function ptPanelDraw() {
     <div class="pted"><div class="ptedc ${ptP.edit ? "" : "locked"}"><img src="${p.url}" alt=""></div>
       ${ptP.edit ? `<div class="ptzoom"><button class="sbtn" data-z="-1" title="Zoom out">−</button><input type="range" min="1" max="5" step="0.01" value="${ptP.f.z}" title="Zoom"><button class="sbtn" data-z="1" title="Zoom in">+</button></div>
       <div class="ptbtns"><button class="sbtn" data-e="reset">RESET</button><button class="sbtn" data-e="cancel">CANCEL</button><button class="sbtn" data-e="save"></button></div>`
-      : `<div class="ptbtns"><button class="sbtn" data-e="edit">✎ ADJUST CIRCLE</button></div>`}</div>`
+      : `<div class="ptbtns"><button class="sbtn" data-e="edit">✎ ADJUST CIRCLE</button></div>`}</div>
+    ${ptP.edit ? "" : `<div class="ptgh">POG <span>· a token for the map, made from this picture and its circle</span></div>
+    <div class="pogrow">${ptP.pog?.pic === p.id ? `<img class="pogpv" src="${ptP.pog.url}" alt="">` : ""}
+      <div class="ptbtns" style="flex-direction:column"><button class="sbtn ${ptP.pog?.pic === p.id ? "" : "on"}" data-g="make">◎ ${ptP.pog?.pic === p.id ? "REMAKE POG" : "MAKE POG"}</button>${ptP.pog?.pic === p.id ? `<button class="sbtn on" data-g="table">⬇ PUT ON THE TABLE</button><button class="sbtn" data-g="dl">SAVE A COPY</button>` : ""}</div></div>`}`
     : `<div class="mnote" style="text-align:center">Tap + or drop a picture here to add one.</div>`}
     <div id="ptmsg" class="ptmsg ${ptP.msg ? ptP.msg[0] : ""}">${esc2(ptP.msg ? ptP.msg[1] : "")}</div></div>`;
   el.querySelectorAll(".ptg[data-p]").forEach(b => b.onclick = () => { if (b.dataset.p === ptP.sel) return; ptP.sel = b.dataset.p; ptP.f = null; ptP.dirty = false; ptP.edit = false; ptP.msg = null; ptPanelDraw(); });
@@ -2705,8 +2782,35 @@ function ptPanelDraw() {
     ptPanelDraw();
   };
 }
-// USE AS PORTRAIT / SAVE A COPY / REMOVE for the picked picture
+// USE AS PORTRAIT / SAVE A COPY / REMOVE for the picked picture, and the pog buttons
 function bindPtPicButtons(el, p) {
+  const gmk = el.querySelector('[data-g="make"]');
+  if (gmk) gmk.onclick = async () => {
+    gmk.disabled = true; gmk.textContent = "MAKING POG…"; ptSay("", "Drawing the pog and saving it to Google Drive…");
+    try {
+      const r = await bridgeGet({ portrait: ptP.id, pic: p.id, full: 1 });
+      if (!r.ok || r.none) throw new Error(r.ok ? "that picture is gone" : ptBridgeMsg(r.error));
+      const cv = drawPog(await loadImg(`data:${r.mime};base64,${r.data}`), p.f, POG_STYLE, 512);
+      const url = cv.toDataURL("image/png"), name = (V("C3") || "Character").trim();
+      const s2 = await bridgePost({ pog: url.split(",")[1] }).catch(x => ({ ok: false, error: x.message }));
+      ptP.pog = { pic: p.id, url, name };
+      ptP.msg = s2.ok ? ["ok", "✓ Pog made and saved to the GM's Pogs folder. Tap PUT ON THE TABLE to use it."] : ["bad", "Pog made, but it didn't save to Google Drive. " + ptBridgeMsg(s2.error)];
+    } catch (e) { ptP.msg = ["bad", "Couldn't make the pog: " + (e.message || e)]; }
+    ptPanelDraw();
+  };
+  const gtb = el.querySelector('[data-g="table"]');
+  if (gtb) gtb.onclick = async () => {
+    const pg = ptP.pog; gtb.disabled = true; gtb.textContent = "OWLBEAR IS ASKING…";
+    ptSay("", "Owlbear will ask you to confirm the upload, then pick your pog from the list to drop it on the map.");
+    try {
+      await pogToOwlbear(await (await fetch(pg.url)).blob(), pg.name);
+      const placed = await pogPlace(pg.name);
+      ptSay(placed ? "ok" : "", placed ? "✓ Your pog is on the table, in the middle of the screen. It's also saved in your Owlbear characters." : "The pog is saved in your Owlbear characters. Drag it onto the map from there any time.");
+    } catch (e) { ptSay("bad", "Couldn't put it on the table: " + (e.message || e) + ". You can SAVE A COPY and add it to Owlbear by hand."); }
+    gtb.disabled = false; gtb.textContent = "⬇ PUT ON THE TABLE";
+  };
+  const gdl = el.querySelector('[data-g="dl"]');
+  if (gdl) gdl.onclick = () => { const a = document.createElement("a"); a.href = ptP.pog.url; a.download = ptP.pog.name + " - Pog.png"; document.body.append(a); a.click(); a.remove(); };
   const use = el.querySelector('[data-a="use"]');
   use.onclick = async () => {
     use.disabled = true; use.textContent = "SWITCHING…";
@@ -2779,12 +2883,24 @@ function drawParty(body, chars) {
       const status = worst < 0 ? "Unhurt" : cell(v, "BCDEFGH"[worst] + "15").replace(/^\S+\s+/, "");
       const used = cell(v, "F6").toUpperCase() === "TRUE";
       return `<div class="pcard">
-        <div class="ptop">${ptIcon(c.id, cell(v, "C3"))}<b>${esc2(cell(v, "C3"))}</b><small>${esc2(cell(v, "C4"))}</small><span class="ppw ${used ? "u" : ""}">${used ? "POWER USED" : "POWER READY"}</span></div>
+        <div class="ptop">${ptIcon(c.id, cell(v, "C3"))}<b>${esc2(cell(v, "C3"))}</b>${isGM && ptT(c.id) ? `<button class="pogb" data-pog="${esc2(c.id)}" data-n="${esc2(cell(v, "C3"))}" title="Add this character's pog to your Owlbear characters">◎ POG</button>` : ""}<small>${esc2(cell(v, "C4"))}</small><span class="ppw ${used ? "u" : ""}">${used ? "POWER USED" : "POWER READY"}</span></div>
         ${actBadge(cell(v, "C3"))}<div class="pvit">${marks.map((m, i) => `<i><small>${["LW", "LW", "LW", "MW", "CW", "KO", "D"][i]}</small><span class="${m ? "x" : ""}"></span></i>`).join("")}<em class="${worst >= 4 ? "bad" : ""}">${esc2(status)}</em></div>
       </div>`;
     }).join("") : `<div class="empty">No characters found.</div>`;
     fillPts(body);
     body.querySelectorAll(".pti").forEach(b => b.onclick = () => ptView(b.dataset.ptv, b.dataset.n, false));
+    body.querySelectorAll(".pogb").forEach(b => b.onclick = async () => {
+      const note = (t, k = "INFO") => { OBR.notification.show(t, k).then(id => setTimeout(() => OBR.notification.close(id).catch(() => {}), 5000)).catch(() => {}); };
+      b.disabled = true; b.textContent = "…";
+      try {
+        const r = await bridgeGet({ pog: b.dataset.pog });
+        if (!r.ok) throw new Error(ptBridgeMsg(r.error));
+        if (r.none) { note(`${b.dataset.n} has no pog yet. The player makes one in Manage Character → Portrait.`); return; }
+        await pogToOwlbear(await b64Blob(r.mime, r.data), b.dataset.n);
+        note(`${b.dataset.n}'s pog is in your Owlbear characters.`, "SUCCESS");
+      } catch (e) { note("Couldn't add the pog: " + (e.message || e), "ERROR"); }
+      finally { b.disabled = false; b.textContent = "◎ POG"; }
+    });
   }
 }
 

@@ -368,6 +368,33 @@ function framePortrait(id, fid, f) {
     return { ok: true, t: info.t, f: pic.f };
   } finally { lock.releaseLock(); }
 }
+// POGS: the add-on draws the pog (picture + the table's ring) and sends a PNG. One pog per character, saved as
+// "<Name> - Pog.png" in Character Portraits → Pogs (a new one replaces the old one, which goes to Drive's trash).
+const POG_FOLDER = 'Pogs';
+function savePog(id, data) {
+  const sh = openMain(id); // folder check
+  const bytes = Utilities.base64Decode(String(data || ''));
+  if (!bytes.length || bytes.length > 5 * 1024 * 1024) throw new Error('The pog did not come through. Try again.');
+  const name = (String(sh.getRange('C3').getDisplayValue()).trim() || 'Character').replace(/[\\/:*?"<>|]/g, '').slice(0, 60);
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    const info = portraitInfo(id);
+    if (!info || !info.pics.length) throw new Error('Add a portrait first.');
+    const root = DriveApp.getFolderById(PORTRAIT_FOLDER_ID);
+    const it = root.getFoldersByName(POG_FOLDER);
+    const folder = it.hasNext() ? it.next() : root.createFolder(POG_FOLDER);
+    const f = folder.createFile(Utilities.newBlob(bytes, 'image/png', name + ' - Pog.png'));
+    if (info.pog) { try { DriveApp.getFileById(info.pog).setTrashed(true); } catch (e) {} }
+    info.pog = f.getId();
+    portraitSaveInfo(id, info);
+    return { ok: true, name: f.getName() };
+  } finally { lock.releaseLock(); }
+}
+function getPog(id) {
+  const info = portraitInfo(id), f = info && info.pog && liveFile(info.pog);
+  if (!f) return { ok: true, none: true };
+  return { ok: true, name: f.getName(), mime: 'image/png', data: Utilities.base64Encode(f.getBlob().getBytes()) };
+}
 // remove one picture (Drive trash, restorable for 30 days). If it was the portrait, the newest one left takes over.
 function removePortrait(id, fid) {
   openMain(id); // folder check
@@ -409,6 +436,7 @@ function openMain(id) {
 // GET ?code=...&list=1             -> every character sheet in the folder (for the GM)
 // GET ?code=...&portrait=SHEET_ID  -> that character's small portrait (&full=1 for the full picture, &pic=FILE_ID for another of their pictures)
 // GET ?code=...&portraits=SHEET_ID -> all that character's pictures (small copies), for picking a new portrait
+// GET ?code=...&pog=SHEET_ID       -> that character's pog (PNG)
 function doGet(e) {
   try {
     const p = e.parameter;
@@ -441,6 +469,7 @@ function doGet(e) {
     if (p.doc === 'rules') return json(rulesDoc()); // REFERENCE → New Scolos Rules Work in Progress
     if (p.portrait) return json(getPortrait(p.portrait, !!p.full, p.pic || ''));
     if (p.portraits) return json(getGallery(p.portraits));
+    if (p.pog) return json(getPog(p.pog));
     if (p.tab) { // a whole tab, e.g. Combat Options or Priest (used by the Rules tab)
       openMain(p.id); // folder check
       const t = SpreadsheetApp.openById(p.id).getSheetByName(p.tab);
@@ -463,6 +492,7 @@ function doPost(e) {
     if (b.create) return json(createCharacter(b.create, b.campaign));
     if (b.stasis) return json(moveToStasis(b.id));
     if (b.portrait) return json(savePortrait(b.id, b.portrait));
+    if (b.pog) return json(savePog(b.id, b.pog));
     if (b.portraitPick) return json(pickPortrait(b.id, String(b.portraitPick)));
     if (b.portraitFrame) return json(framePortrait(b.id, String(b.portraitFrame), b.frame));
     if (b.portraitRemove) return json(removePortrait(b.id, b.portraitRemove));
