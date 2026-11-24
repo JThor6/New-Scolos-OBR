@@ -1814,7 +1814,7 @@ async function announcePower(n) {
 // Plain skill rolls the power only mentions in passing (Sneak to stay quiet, Acting when someone tests you) stay on the skill list.
 const POWER_ROLLS = {
   "tapping the quietwire": { act: [{ k: "Streetwise", t: "Roll Streetwise" }] },
-  "bullet stop": "aura", // freeze shots or the aura, neither takes your action or the aura (+2 Armor Bonus for the combat, no action)
+  "bullet stop": "aura", // freeze shots or the aura (+2 Armor Bonus for the combat); neither takes up your action
   "kill shot": "arm", // arms Kill Shot: the next attack roll from the sheet comes up +, +, +, +
   "ghost in the machine": { act: [{ k: "Hacking", t: "Get in: roll Hacking" }], fn: "Inside, doing something the system would fight?", fl: "Once inside", follow: [{ k: "Hacking", t: "Roll Hacking (same difficulty)" }] },
   "last rites": { fn: "Rebooting something huge, like a warship or war mech?", fl: "Big reboot", follow: [{ k: "Hacking", t: "Roll Hacking" }] },
@@ -1860,7 +1860,7 @@ function powerRollBtns(name) {
     return `<button class="pwroll ${cls}" ${dis ? "disabled" : ""} data-m="${tot}" data-l="${esc2(`⚡ ${name} · ${lbl ? lbl + " (" + (r.l || r.k) + ")" : r.l || r.k}${r.x ? ` ${r.x}` : ""}${pm.un ? " untrained" : ""}`)}" data-b="${esc2(r.x ? "" : pm.br)}">${ROLL_ICON}<span>${esc2(r.t)}${pm.un ? " (untrained)" : ""}</span><b>${tot >= 0 ? "+" : ""}${tot}</b></button>`; };
   if (e === "arm") return `<div class="pwrolls">${usedNote}<button class="pwroll ksarm ${ksArmed() ? "on" : ""}" ${on && !ksArmed() ? "disabled" : ""}><span>${ksArmed() ? "Kill Shot is armed. Tap to cancel" : "Arm Kill Shot: your next attack roll is +, +, +, +"}</span></button></div>`;
   if (e === "aura") { const a = actGet()?.n === "bullet stop";
-    return `<div class="pwrolls">${usedNote}<button class="pwroll pwuse" data-n="${esc2(name)}" ${on ? "disabled" : ""}>⚡<span>${on ? "Used Today" : "Freeze shots: no action, checks Used Today"}</span></button>` +
+    return `<div class="pwrolls">${usedNote}<button class="pwroll pwuse" data-n="${esc2(name)}" ${on ? "disabled" : ""}>⚡<span>${on ? "Used Today" : "Freeze shots: doesn't take up your action, checks Used Today"}</span></button>` +
       `<div class="pwtn">Either way: use it on your turn. It doesn't take your action, so you can still fight.</div>` +
       `<button class="pwroll bsaura ${a ? "on" : ""}" ${on && !a ? "disabled" : ""}>⚡<span>${a ? "Aura is on: +2 Armor Bonus. Tap to end it" : "Aura: +2 Armor Bonus this combat, allies within 10 ft +2 for a turn"}</span></button></div>`; }
   const start = e.act ? e.act.map(r => btn(r, "", on)).join("")
