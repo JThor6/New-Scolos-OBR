@@ -437,6 +437,11 @@
   .ksbar b { color:#ff6b5e; font-size:13.5px; letter-spacing:.5px; } .ksbar span { flex:1; }
   .ksbar button { background:none; border:1px solid #e04a3f; border-radius:5px; color:#ffe3e0; cursor:pointer; font-weight:800; width:24px; height:24px; }
   .skc.ksatk { outline:2px solid #e04a3f; outline-offset:-1px; background:rgba(150,25,25,.35) !important; }
+  .bsaura { border-color:#7b6cc4; } .bsaura.on { background:#5b46b8; color:#fff; }
+  .bsbar { display:flex; gap:8px; align-items:flex-start; margin:4px 0 8px; padding:7px 9px; border:2px solid #9d86ff; border-radius:8px; background:rgba(60,40,130,.5); color:#ece6ff; font-size:12.5px; line-height:1.4; } .bsbar[hidden] { display:none; }
+  .bsbar b { color:#c7b6ff; font-size:13.5px; letter-spacing:.5px; } .bsbar span { flex:1; }
+  .bsbar button { background:none; border:1px solid #9d86ff; border-radius:5px; color:#ece6ff; cursor:pointer; font-weight:800; width:24px; height:24px; }
+  .bsp { margin-left:5px; padding:0 5px; border-radius:5px; background:#5b46b8; color:#fff; font-size:.8em; font-weight:900; vertical-align:middle; }
   .pwused { font-size:11.5px; font-weight:700; color:#8f63ff; }
   .pwuse { border-color:#b8902e; background:rgba(120,88,20,.55); } .pwuse:hover:not(:disabled) { background:rgba(150,110,25,.8); } .pwuse:disabled { opacity:.55; cursor:default; }
   .pwmiss { font-size:11.5px; color:var(--dim); font-style:italic; }
@@ -1007,7 +1012,7 @@ function drawSheet() {
       <div>Tap ✕ to hide this. It won't come back.</div></div>`}
     ${V("H16") ? "" : (deadSeen.set(sheetId(), false), "")}<div class="shead"><div class="shn"><b>${esc2(V("C3") || "Unnamed")}${V("H16") ? ` <span class="deadtag">(DEAD)</span>` : ""}</b><small>${[V("C4"), V("F5") !== "" ? "Level " + V("F5") : ""].filter(Boolean).map(esc2).join(" · ")}${V("F7") !== "" ? `<span class="cred" title="Credits">¤ ${esc2((n => n == null ? V("F7") : n.toLocaleString("en-US"))(num(V("F7"))))} credits</span>` : ""}</small></div>
       <span class="shcol"><span class="shbtns"><button id="reload" class="ibtn" title="Reload from Google Sheet">↻</button><button id="mgr" class="ibtn mgrb" title="Manage character: XP, skills, gear, notes">⚙ Manage Character</button></span><button class="sref hist" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></span></div>
-    <div id="ksbar" class="ksbar" hidden></div>
+    <div id="ksbar" class="ksbar" hidden></div><div id="bsbar" class="bsbar" hidden></div>
     <div class="stab">ATTRIBUTES</div>
     <div class="g5">${[["Adroitness", "C7"], ["Raw Str.", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att"><small class="inft" data-inf="at:${{ "Raw Str.": "Raw Strength" }[n] || n}" data-sec="attr">${n}</small><b>${esc2(V(c))}</b><button class="rd ra" data-m="${esc2(V(c))}" data-l="${{ "Raw Str.": "Raw Strength" }[n] || n}" data-b="${({ "Raw Str.": "Raw Strength" }[n] || n) + "|" + esc2(V(c))}" title="Roll ${n}">${ROLL_ICON}</button></div>`).join("")}
       <!-- Easter egg: the 9+ DEAD box marked turns Dmg Pen. into a skull and crossbones -->
@@ -1021,7 +1026,7 @@ function drawSheet() {
     <div id="pwd" class="gpow pwd" hidden></div>
     ${V("E13") && !ptInEP() ? `<div class="g2">${ptMaxV() ? F(esc2(/\d/.test(V("G13")) || !V("G13") ? "Max " + V("E13") : V("G13")), ptMaxV()) : ""}<div class="fld"><small>${esc2(V("E13"))}</small>${ptCtl()}</div></div>` : ""}
     <div class="stab">COMBAT</div>
-    <div class="gcb3">${F("Melee Damage Bonus", V("H23"), "c", "cb:Melee Damage Bonus")}${F("Ranged Damage Bonus", V("H24"), "c", "cb:Ranged Damage Bonus")}${F("Armor Bonus", V("H25"), "c", "cb:Armor Bonus")}</div>
+    <div class="gcb3">${F("Melee Damage Bonus", V("H23"), "c", "cb:Melee Damage Bonus")}${F("Ranged Damage Bonus", V("H24"), "c", "cb:Ranged Damage Bonus")}${bsOn() ? `<div class="fld c"><small class="inft" data-inf="cb:Armor Bonus" data-sec="combat">Armor Bonus</small><div>${esc2(V("H25"))}<span class="bsp" title="Bullet Stop aura">+2</span></div></div>` : F("Armor Bonus", V("H25"), "c", "cb:Armor Bonus")}</div>
     <div class="gcop"><div class="fld"><small>Combat Options</small><div class="cowrap"><div class="copl">${opts.length ? opts.map(o => `<button class="cob" data-inf="co:${esc2(o)}" data-sec="combat">${esc2(tc(o))}</button>`).join("<br>") : `<span class="dimn2">None yet</span>`}</div><div class="codesc" hidden></div></div></div>
       <div class="fld c"><small class="inft" data-inf="cop" data-sec="combat">COP${copMaxT !== "" ? ` <span class="dimn">/ ${esc2(copMaxT)}</span>` : ""}</small><div class="ctl"><button id="copm" title="Use a point">−</button><b id="copv" title="Points left this combat">${esc2((m => isNaN(m) ? (V("H29") || "0") : String(Math.max(0, m - (parseInt(V("H29")) || 0))))(parseInt(copMaxT)))}</b><button id="copp" title="Give a point back">+</button></div></div></div>
     <div class="infp gpow" data-for="combat" hidden></div>
@@ -1035,7 +1040,7 @@ function drawSheet() {
     </div>
     <div id="sherr" class="err" hidden></div>
     ${isGM ? "" : `<div class="discw"><button id="disc" class="discb" title="Pick a different character">⇄ Switch character</button></div>`}`;
-  fillPowers(); bindInfo(); updateKS();
+  fillPowers(); bindInfo(); updateKS(); updateBS();
   document.querySelectorAll("#shbody .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l, "", b.dataset.b); });
   // the whole attribute or skill box rolls, except its underlined name (that opens the info)
   document.querySelectorAll("#shbody .att, #shbody .skc").forEach(box => { const rd = box.querySelector(".rd"); if (!rd) return;
@@ -1723,6 +1728,31 @@ function updateKS() {
   if (on) $("ksx").onclick = () => { setKS(false); fillPowers(); };
   document.querySelectorAll("#shbody .skc").forEach(b => { const l = b.querySelector(".rd")?.dataset.l || ""; b.classList.toggle("ksatk", on && KS_ATTACK.test(l)); });
 }
+// Bullet Stop aura (Subject Zero): +2 Armor Bonus for you and allies within 10 ft for the rest of the combat. No action.
+// Kept per character. It joins the combat it was used in (or the next one the GM calls) and ends when that combat ends, or with ✕.
+const bsKey = () => ck("ns.bsAura." + sheetId());
+const bsGet = () => { try { return JSON.parse(store.get(bsKey()) || "null"); } catch { return null; } };
+const bsOn = () => !!bsGet();
+function setBS(on, sid = "") { store.set(bsKey(), on ? JSON.stringify({ sid }) : ""); }
+function updateBS() {
+  const on = bsOn(), bar = $("bsbar"); if (!bar) return;
+  bar.hidden = !on;
+  bar.innerHTML = on ? `<span><b>BULLET STOP ACTIVE</b><br>Debris orbits you. You and allies within 10 ft gain +2 Armor Bonus for the rest of this combat.</span><button id="bsx" title="End the aura">✕</button>` : "";
+  if (on) $("bsx").onclick = () => { setBS(false); drawSheet(); };
+}
+function bsSync(md) {
+  const a = bsGet(); if (!a) return; const st = md?.[INIT];
+  if (!a.sid) { if (st?.open) setBS(true, st.sid); return; }
+  if (!st?.open || st.sid !== a.sid) { setBS(false); if (sheetVals && $("bsbar")) drawSheet(); }
+}
+async function announceBS() {
+  if (standalone) return;
+  const who = await OBR.player.getName();
+  const r = { id: crypto.randomUUID().slice(0, 8), pid: me || "local", who, bs: 1, label: "Bullet Stop", dice: [], mod: 0, total: 0, ts: Date.now() };
+  if (myChar()) r.char = myChar();
+  try { localStorage.setItem("ns.toastReq", JSON.stringify(r)); } catch {}
+  saveRoll(r);
+}
 // Roll buttons inside an Extraordinary Power's description (only for powers that call for a roll).
 // k: skill or attribute to roll, x: extra modifier, t: button text. The roll card shows "⚡ <power> · <what>".
 // The button is how the power starts. act: activation rolls (rolling one uses the power). No act: a Use button (no roll).
@@ -1730,6 +1760,7 @@ function updateKS() {
 // Plain skill rolls the power only mentions in passing (Sneak to stay quiet, Acting when someone tests you) stay on the skill list.
 const POWER_ROLLS = {
   "tapping the quietwire": { act: [{ k: "Streetwise", t: "Roll Streetwise" }] },
+  "bullet stop": "aura", // freeze shots (takes your action) or the aura (+2 Armor Bonus for the combat, no action)
   "kill shot": "arm", // arms Kill Shot: the next attack roll from the sheet comes up +, +, +, +
   "ghost in the machine": { act: [{ k: "Hacking", t: "Get in: roll Hacking" }], fn: "Inside, doing something the system would fight?", fl: "Once inside", follow: [{ k: "Hacking", t: "Roll Hacking (same difficulty)" }] },
   "last rites": { fn: "Rebooting something huge, like a warship or war mech?", fl: "Big reboot", follow: [{ k: "Hacking", t: "Roll Hacking" }] },
@@ -1737,7 +1768,7 @@ const POWER_ROLLS = {
   "corpse walk": { fn: "Corpse past 100 yards?", fl: "Tether", follow: [{ k: "Intellect", t: "Tether: roll Intellect" }, { k: "Raw Strength", t: "Tether: roll Raw Strength" }] },
   // alt: another way to start the power, under its own prompt line (rolling it uses the power, same as act)
   "meltdown": { act: [{ k: "Intellect", t: "Meltdown: roll Intellect" }], an: "Shockwave hitting everyone within 10 ft? That's pushing it:", alt: [{ k: "Intellect", x: -2, t: "Expanded Shockwave: roll Intellect", l: "Expanded Shockwave (10 ft)" }] },
-  "mind over matter": { fn: "Something big, like flying the crew or tearing a wall open?", fl: "Big feat", follow: [{ k: "Intellect", t: "Big feat: roll Intellect" }] },
+  "mind over matter": { fn: "Something big, like flying the crew, tearing a wall open, or moving anyone who doesn't want to be moved?", fl: "Big feat", follow: [{ k: "Intellect", t: "Big feat: roll Intellect" }] },
   "disappear completely": { fn: "Near enemies, or they're searching?", fl: "Stay quiet", follow: [{ k: "Sneak", t: "Stay quiet: roll Sneak" }] },
   "borrowed face": { fn: "Someone who knows them is testing you?", fl: "Pass the test", follow: [{ k: "Acting / Impersonation", t: "Pass the test: roll Acting / Impersonation" }] },
   "mind touch": { fn: "Planting a feeling?", fl: "Plant a feeling", follow: [{ k: "Insight", t: "Plant a feeling: roll Insight" }, { k: "Insight", x: -2, t: "Pushing it, whole room: Insight -2", l: "Pushing it" }] },
@@ -1774,6 +1805,10 @@ function powerRollBtns(name) {
     const tot = pm.m + (r.x || 0);
     return `<button class="pwroll ${cls}" ${dis ? "disabled" : ""} data-m="${tot}" data-l="${esc2(`⚡ ${name} · ${lbl ? lbl + " (" + (r.l || r.k) + ")" : r.l || r.k}${r.x ? ` ${r.x}` : ""}${pm.un ? " untrained" : ""}`)}" data-b="${esc2(r.x ? "" : pm.br)}">${ROLL_ICON}<span>${esc2(r.t)}${pm.un ? " (untrained)" : ""}</span><b>${tot >= 0 ? "+" : ""}${tot}</b></button>`; };
   if (e === "arm") return `<div class="pwrolls">${usedNote}<button class="pwroll ksarm ${ksArmed() ? "on" : ""}" ${on && !ksArmed() ? "disabled" : ""}><span>${ksArmed() ? "Kill Shot is armed. Tap to cancel" : "Arm Kill Shot: your next attack roll is +, +, +, +"}</span></button></div>`;
+  if (e === "aura") { const a = bsOn();
+    return `<div class="pwrolls">${usedNote}<button class="pwroll pwuse" data-n="${esc2(name)}" ${on ? "disabled" : ""}>⚡<span>${on ? "Used Today" : "Freeze shots: takes your action, checks Used Today"}</span></button>` +
+      `<div class="pwtn">Or the aura: on your turn, doesn't use your action.</div>` +
+      `<button class="pwroll bsaura ${a ? "on" : ""}" ${on && !a ? "disabled" : ""}>⚡<span>${a ? "Aura is on: +2 Armor Bonus. Tap to end it" : "Aura: you and allies within 10 ft get +2 Armor Bonus this combat"}</span></button></div>`; }
   const start = e.act ? e.act.map(r => btn(r, "", on)).join("")
     : `<button class="pwroll pwuse" data-n="${esc2(name)}" ${on ? "disabled" : ""}>⚡<span>${on ? "Used Today" : `Use ${esc2(name)}: checks Used Today`}</span></button>`;
   const alt = e.alt ? `<div class="pwtn">${esc2(e.an)}</div>` + e.alt.map(r => btn(r, "", on)).join("") : "";
@@ -1810,9 +1845,14 @@ async function fillPowers() {
         (k[0] === "a" ? `<div>${esc2(x.text)}</div>` : (x.rules.map(([a, b]) => `<div>${a ? `<b>${esc2(a)}:</b> ` : ""}${esc2(b)}</div>`).join("") || `<div>No details on the type tab.</div>`) + powerRollBtns(x.name));
       box.querySelector(".pwx").onclick = () => { pwOpen = ""; show(); };
       box.querySelectorAll(".ksarm").forEach(b => b.onclick = (e) => { e.stopPropagation(); if (powerUsed() && !ksArmed()) return; setKS(!ksArmed()); show(); });
+      box.querySelectorAll(".bsaura").forEach(b => b.onclick = async (e) => { e.stopPropagation();
+        if (bsOn()) { setBS(false); drawSheet(); return; }
+        if (powerUsed()) return;
+        const st = standalone ? null : (await OBR.room.getMetadata().catch(() => ({})))[INIT];
+        setBS(true, st?.open ? st.sid : ""); announceBS(); markPowerUsed(); drawSheet(); });
       box.querySelectorAll(".pwuse").forEach(b => b.onclick = (e) => { e.stopPropagation(); if (powerUsed()) return; markPowerUsed(); show(); });
       box.querySelectorAll(".pwtether").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (rollBusy || !powerUsed()) return; await quickRoll(b.dataset.m, b.dataset.l, "", b.dataset.b); });
-      box.querySelectorAll(".pwroll:not(.ksarm):not(.pwuse):not(.pwtether)").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (rollBusy || powerUsed()) return;
+      box.querySelectorAll(".pwroll:not(.ksarm):not(.pwuse):not(.pwtether):not(.bsaura)").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (rollBusy || powerUsed()) return;
         // once per day: lock every power button right away so a second click can't roll it again
         box.querySelectorAll(".pwroll").forEach(x => x.disabled = true);
         markPowerUsed();
@@ -2474,8 +2514,8 @@ if (standalone) {
     if (isGM) { initMd = await OBR.room.getMetadata(); OBR.room.onMetadataChange((m) => { initMd = m; drawInitList(); markTurn(); }); }
     if (!UPLINK) applySize();
     render(rollLog(OBR.room.id, allRolls(await OBR.room.getMetadata())));
-    OBR.room.onMetadataChange((md) => { render(rollLog(OBR.room.id, allRolls(md))); updateInitBanner(md); });
-    updateInitBanner();
+    OBR.room.onMetadataChange((md) => { render(rollLog(OBR.room.id, allRolls(md))); updateInitBanner(md); bsSync(md); });
+    updateInitBanner(); bsSync(await OBR.room.getMetadata());
   });
 }
 </script>

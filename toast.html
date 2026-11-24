@@ -22,6 +22,9 @@
   body.cp { background:rgba(10,55,80,.75); border:2px solid #4fc3f7; box-shadow:0 0 14px rgba(79,195,247,.55); }
   body.cp .lbl { flex-basis:auto; color:#7fd4ff; font-family:'Bangers', Impact, sans-serif; letter-spacing:1px; font-size:18px; white-space:nowrap; }
   body.cp .left { flex-basis:100%; font-size:12px; font-weight:800; color:#c9e9ff; }
+  body.bs { background:rgba(45,30,105,.78); border:2px solid #9d86ff; box-shadow:0 0 14px rgba(157,134,255,.6); }
+  body.bs .lbl { flex-basis:auto; color:#c7b6ff; font-family:'Bangers', Impact, sans-serif; letter-spacing:1px; font-size:18px; white-space:nowrap; }
+  body.bs .left { flex-basis:100%; font-size:12px; font-weight:800; color:#e4dcff; }
   .tot { margin-left:auto; font-family:'Luckiest Guy', 'Bangers', Impact, sans-serif; font-size:23px; min-width:30px; text-align:right; padding-top:2px; }
 </style></head>
 <body><div class="t" id="t"></div>
@@ -53,6 +56,11 @@
     document.getElementById("t").innerHTML = `<span class="who"><span style="overflow:hidden;text-overflow:ellipsis">${esc(q.get("char") || q.get("who") || "")}${q.get("char") ? `<span class="pn">${esc(q.get("who") || "")}</span>` : ""}</span></span>` +
       `<span class="lbl cop">⚔ COMBAT OPTION!</span>` + (max ? `<span class="left">${esc(q.get("total") || "0")} of ${esc(max)} COP left</span>` : "");
     document.body.classList.add("cp");
+  }
+  if (q.get("bs")) { // Bullet Stop aura switched on: tell the table who's covered
+    document.getElementById("t").innerHTML = `<span class="who"><span style="overflow:hidden;text-overflow:ellipsis">${esc(q.get("char") || q.get("who") || "")}${q.get("char") ? `<span class="pn">${esc(q.get("who") || "")}</span>` : ""}</span></span>` +
+      `<span class="lbl">BULLET STOP ACTIVATED</span><span class="left">Allies within 10 ft gain +2 Armor Bonus</span>`;
+    document.body.classList.add("bs"); fit();
   }
   if (q.get("ks")) document.body.classList.add("ks"); else if (q.get("pw")) document.body.classList.add("pw");
   const faces = [...document.querySelectorAll(".die")];
