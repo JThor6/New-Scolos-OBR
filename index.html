@@ -264,6 +264,8 @@
   .mcard.turn { outline:2px solid var(--accent); box-shadow:0 0 0 3px rgba(187,153,255,.18); background:rgba(187,153,255,.10); }
   .mcard.dead { background:rgba(150,30,40,.45); outline-color:#a33; opacity:.75; }
   .mcard.dead .mtop b { text-decoration:line-through; }
+  #mo .mtop { cursor:grab; touch-action:none; user-select:none; } #mo .mtop button { cursor:pointer; }
+  #mo .mcard.mdrag { opacity:.85; outline:2px dashed var(--accent); cursor:grabbing; }
   .mtop { display:flex; align-items:center; gap:6px; margin-bottom:4px; }
   .mtop b { font-size:15px; } .mtop small { color:var(--dim); font-size:11px; flex:1; }
   .mdead.on { background:var(--minus); color:#000; }
@@ -1793,7 +1795,8 @@ async function heal() {
   if (busy || Date.now() < healWait) return;
   const cols = "BCDEFGH".split(""), was = cols.map(c => !!V(c + "16"));
   const id = sheetId(), stack = healUndo.get(id) || [];
-  if (await setTrack(was.slice(1, 6).concat(false, was[6]))) // the Dead box (H) never moves; it's only cleared by hand { stack.push(was); healUndo.set(id, stack.slice(-5)); drawSheet(); }
+  // the Dead box (H) never moves; it's only cleared by hand
+  if (await setTrack(was.slice(1, 6).concat(false, was[6]))) { stack.push(was); healUndo.set(id, stack.slice(-5)); drawSheet(); }
 }
 async function undoHeal() {
   if (busy || Date.now() < healWait) return;
@@ -2017,6 +2020,45 @@ async function refreshEncList() {
   const box = $("encBox"); if (box) { box.outerHTML = encounterPicker(); bindPicker(); }
   if (campaign && !store.get(ck("ns.encounter")) && !monVals && encList.length) showMonsters(); // first encounter of a new campaign
 }
+// ---- drag monsters into the order the GM wants (grab the name banner) ----
+const monOrderKey = () => "ns.monOrder:" + monId();
+const monOrder = () => { try { return JSON.parse(store.get(monOrderKey()) || "[]"); } catch { return []; } };
+function scrollParent(el) { for (let e = el.parentElement; e; e = e.parentElement) { const o = getComputedStyle(e).overflowY; if ((o === "auto" || o === "scroll") && e.scrollHeight > e.clientHeight) return e; } return document.scrollingElement; }
+function bindMonDrag() {
+  const list = $("mlist"); if (!list) return;
+  list.querySelectorAll(".mtop").forEach(bar => bar.onpointerdown = (e) => {
+    if (e.button || e.target.closest("button")) return;
+    const card = bar.closest(".mcard"), y0 = e.clientY, sp = scrollParent(list);
+    let on = false, lastY = e.clientY, raf = 0;
+    const place = () => {
+      for (const o of list.querySelectorAll(".mcard")) {
+        if (o === card) continue;
+        const r = o.getBoundingClientRect();
+        if (lastY < r.top + r.height / 2) { if (card.nextElementSibling !== o) list.insertBefore(card, o); return; }
+      }
+      if (list.lastElementChild !== card) list.appendChild(card);
+    };
+    const step = () => { // scroll the panel while holding near its top or bottom edge
+      const r = sp === document.scrollingElement ? { top: 0, bottom: innerHeight } : sp.getBoundingClientRect();
+      const d = lastY < r.top + 40 ? -8 : lastY > r.bottom - 40 ? 8 : 0;
+      if (d) { sp.scrollTop += d; place(); }
+      raf = requestAnimationFrame(step);
+    };
+    const move = (ev) => {
+      lastY = ev.clientY;
+      if (!on) { if (Math.abs(ev.clientY - y0) < 6) return; on = true; card.classList.add("mdrag"); raf = requestAnimationFrame(step); }
+      ev.preventDefault(); place();
+    };
+    const up = () => {
+      removeEventListener("pointermove", move); removeEventListener("pointerup", up); removeEventListener("pointercancel", up);
+      cancelAnimationFrame(raf);
+      if (!on) return;
+      card.classList.remove("mdrag");
+      store.set(monOrderKey(), JSON.stringify([...list.querySelectorAll(".mcard")].map(x => +x.dataset.row)));
+    };
+    addEventListener("pointermove", move, { passive: false }); addEventListener("pointerup", up); addEventListener("pointercancel", up);
+  });
+}
 function drawMonsters() {
   const v = monVals || [], c = (row, i) => String(v[row]?.[i] ?? "").trim();
   let html = `<div class="initbox"><div class="sec" style="margin-top:2px;display:flex;align-items:center">INITIATIVE<button class="sref hist" style="margin-left:auto" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></div>
@@ -2026,6 +2068,7 @@ function drawMonsters() {
     <div class="iadd"><input id="iName" placeholder="Add a name"><input id="iNum" placeholder="+0" inputmode="numeric"><button id="iNeg" class="sbtn negbtn" title="Flip to minus / plus">±</button><button id="iAdd" class="sbtn">ADD</button></div>
     <button id="iEnd" class="sbtn" style="width:100%;margin-top:5px">END COMBAT</button></div>
     <button id="monRe" class="sbtn" style="width:100%;margin-top:8px">↻ RELOAD MONSTERS</button>`;
+  const cards = [];
   const hdr = Math.max(0, v.findIndex(r => String(r?.[0] || "").trim().toLowerCase() === "name"));
   for (let row = hdr + 1; row < v.length; row++) {
     const name = c(row, 0); if (!name) continue;
@@ -2038,7 +2081,7 @@ function drawMonsters() {
     // always Adroitness, Raw Strength, Intellect, Charm left to right (the tracker sheet's columns are in a different order)
     const attrs = [["Adroitness", 4, "Adroitness"], ["Raw Str.", 3, "Raw Strength"], ["Intellect", 5, "Intellect"], ["Charm", 6, "Charm"]].map(([n, i, full]) =>
       `<div class="att"><small>${n}</small><b>${esc2(c(row, i) || "-")}</b>${roll(full, c(row, i)).replace('class="rd"', 'class="rd ra"')}</div>`).join("");
-    html += `<div class="mcard ${dead ? "dead" : ""}" data-g="${esc2("m:" + (c(row, 1) || name))}">
+    cards.push([sheetRow, `<div class="mcard ${dead ? "dead" : ""}" data-row="${sheetRow}" data-g="${esc2("m:" + (c(row, 1) || name))}">
       <div class="mtop"><b>${esc2(name)}${dead ? ` <span class="deadtag">(DEAD)</span>` : ""}</b>${pen && !dead ? `<span class="mwnd">wounded ${pen}</span>` : ""}${c(row, 2) ? `<span class="mkind">${esc2(c(row, 2))}</span>` : ""}<span style="flex:1"></span>
         <button class="sbtn mdead ${dead ? "on" : ""}" data-r="${sheetRow}" data-on="${dead ? "" : "1"}">${dead ? "☠ DEAD" : "DEAD?"}</button></div>
       <div class="g4 matt">${attrs}</div>
@@ -2049,9 +2092,14 @@ function drawMonsters() {
       <div class="pvit mv">${WOUNDS.map((w, i) => { const on = !!c(row, 12 + i); return `<i><b class="wd">${WOUND_DMG[i]}</b><small>${w}</small><button class="mw ${on ? "x" : ""}" data-r="${sheetRow}" data-c="${13 + i}" data-on="${on ? "" : "1"}"></button></i>`; }).join("")}</div>
       ${c(row, 11) ? `<div class="mtext"><i>Special:</i> ${esc2(c(row, 11))}</div>` : ""}
       ${c(row, 20) ? `<div class="mtext mnote"><i>Loot / Notes:</i> ${esc2(c(row, 20))}</div>` : ""}
-    </div>`;
+    </div>`]);
   }
+  // the GM's own order (dragged by the name banner), saved per encounter in this browser; new monsters go at the bottom
+  const order = monOrder();
+  cards.sort((a, b) => { const i = order.indexOf(a[0]), j = order.indexOf(b[0]); return (i < 0 ? 1e6 + a[0] : i) - (j < 0 ? 1e6 + b[0] : j); });
+  html += `<div id="mlist">${cards.map(x => x[1]).join("")}</div>`;
   $("mo").innerHTML = pickers() + html + stasisBox();
+  bindMonDrag();
   bindPicker();
   $("monRe").onclick = () => showMonsters();
   $("iPrev").onclick = () => initStep(-1); $("iNext").onclick = () => initStep(1);
