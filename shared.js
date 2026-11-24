@@ -13,6 +13,17 @@ export function allRolls(metadata) {
   return out.sort((a, b) => b.ts - a.ts);
 }
 
+// Table cards for powers that stay on (c: the look, t: card title, s: line under it)
+export const POWER_CARDS = {
+  "bullet stop": { c: "bs", t: "BULLET STOP ACTIVATED", s: "Allies within 10 ft: +2 Armor Bonus for a turn" },
+  "avatar": { c: "av", t: "AVATAR", s: "Becomes living magic: +1 Armor, +1 Spellcasting" },
+  "flash forward": { c: "ff", t: "FLASH FORWARD", s: "Once a round, they or an ally reroll any roll" },
+  "disappear completely": { c: "wr", t: "VANISHED", s: "Gone from sight" },
+  "mind over matter": { c: "mm", t: "MIND OVER MATTER", s: "The world starts to float" },
+  "spirit walk": { c: "rv", t: "SPIRIT WALK", s: "The body falls still. Something cold moves through the walls" },
+  "corpse walk": { c: "rv", t: "CORPSE WALK", s: "The dead get back up" },
+};
+
 export function fmt(n) { return n > 0 ? `+${n}` : `${n}`; }
 
 export function summary(r) {
@@ -57,7 +68,9 @@ export function rollLine(r, histDetail) {
   const wm = label.match(/\s*\((w(?:o(?:u(?:n(?:d(?:e(?:d)?)?)?)?)?)?)\b([^)]*)\)?\s*$/i);
   if (wm && (wm[1].length >= 4 || !wm[2])) { if (pen == null) pen = n((wm[2] || "").match(/-\d+/)?.[0]) ?? -1; label = label.slice(0, wm.index).trim(); }
   const wtag = pen ? `<span class="wtag">wounded ${fmt(pen)}</span>` : "";
-  if (r.bs) return `<div class="hl bs">${head0(r, time, esc)}<div class="hr"><span class="hlbl">⚡ Bullet Stop: allies within 10 ft +2 Armor Bonus</span></div></div>`;
+  if (r.bs) r = { ...r, ap: "bullet stop" }; // the first Bullet Stop cards (Nov 24) used their own flag
+  if (r.ap) { const pc = POWER_CARDS[r.ap] || { c: "bs", t: r.label || "Power", s: "" };
+    return `<div class="hl ap ${pc.c}">${head0(r, time, esc)}<div class="hr"><span class="hlbl">⚡ ${esc(pc.t)}${pc.s ? `: ${esc(pc.s)}` : ""}</span></div></div>`; }
   if (r.cop) return `<div class="hl cop">${head0(r, time, esc)}<div class="hr"><span class="hlbl">⚔ Used a Combat Option Point</span><span class="tot">${r.max != null ? `${r.total}/${r.max}` : ""}</span></div></div>`;
   const dice = `<span class="dice hd">${r.dice.map(d => `<div class="${cls(d)}">${face(d)}</div>`).join("")}</span>`;
   const head = `<div class="hn">${esc(r.char || r.who)}${r.char ? ` <span class="pn">${esc(r.who)}</span>` : ""} <span class="t">${time}</span>${wtag}</div>`;
@@ -88,7 +101,12 @@ export const ROLL_CSS = `
   .hl .hr { display:flex; align-items:center; gap:8px; margin-top:4px; }
   .hl.pw { border-left:3px solid #ffc94d; padding-left:5px; background:rgba(255,201,77,.08); } .hl.pw .hlbl, .hl.pw .tot { color:#ffc94d; }
   .hl.cop { border-left:3px solid #4fc3f7; padding-left:5px; background:rgba(79,195,247,.08); } .hl.cop .hlbl, .hl.cop .tot { color:#7fd4ff; font-weight:800; }
-  .hl.bs { border-left:3px solid #9d86ff; padding-left:5px; background:rgba(157,134,255,.1); } .hl.bs .hlbl { color:#c7b6ff; font-weight:800; }
+  .hl.ap { border-left:3px solid #9d86ff; padding-left:5px; background:rgba(157,134,255,.1); } .hl.ap .hlbl { color:#c7b6ff; font-weight:800; }
+  .hl.ap.av { border-left-color:#e8b5ff; } .hl.ap.av .hlbl { color:#ffd9ff; }
+  .hl.ap.ff { border-left-color:#3ee6ff; background:rgba(62,230,255,.08); } .hl.ap.ff .hlbl { color:#bff7ff; }
+  .hl.ap.wr { border-left:3px dashed rgba(210,210,225,.5); background:rgba(255,255,255,.03); } .hl.ap.wr .hlbl { color:rgba(230,230,240,.6); font-style:italic; }
+  .hl.ap.mm { border-left-color:#5ff0c8; background:rgba(95,240,200,.07); } .hl.ap.mm .hlbl { color:#a8ffe6; }
+  .hl.ap.rv { border-left-color:#8a3fd1; background:rgba(90,20,130,.22); } .hl.ap.rv .hlbl { color:#c6ffd8; text-shadow:0 0 6px rgba(125,255,168,.6); }
   .hl.ks { border-left:3px solid #e04a3f; padding-left:5px; background:rgba(150,25,25,.2); } .hl.ks .hlbl, .hl.ks .tot { color:#ff6b5e; }
   .hl .hd { margin:0; flex:none; } .hl .die { width:20px; height:20px; font-size:14px; border-width:1.5px; }
   .hl .hlbl { flex:1; min-width:0; font-size:12px; font-weight:700; color:var(--accent); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
