@@ -770,7 +770,7 @@ function drawHand() {
     <label>What did you roll?</label>
     ${groups.map(g => `<div class="hgrp">${esc2(g)}</div><div class="hchips">${opts.filter(x => x.g === g).map(x => `<button class="hchip ${x.k === hand.pick ? "on" : ""}" data-k="${esc2(x.k)}" ${x.off ? "disabled" : ""}><span>${esc2(x.k === "other" ? "Something else" : x.n)}${x.off ? `<small>${x.start ? "used today" : "use the power first"}</small>` : ""}</span>${x.m != null ? `<b>${x.m >= 0 ? "+" : ""}${x.m}</b>` : ""}</button>`).join("")}</div>`).join("")}
     ${hand.pick === "other" ? `<label>Modifier</label><input id="hMod" inputmode="numeric" value="${esc2(hand.mod)}" placeholder="0">` : ""}
-    ${sheetVals && !isGM && hand.pick === "other" ? `<label class="hpw"><input type="checkbox" id="hPw" ${hand.pw ? "checked" : ""} ${powerUsed() && !hand.pw ? "disabled" : ""}> Extraordinary Power roll${powerUsed() ? " (already used today)" : " (ticks Used today)"}</label>` : ""}
+    ${sheetVals && !isGM && hand.pick === "other" ? `<label class="hpw"><input type="checkbox" id="hPw" ${hand.pw ? "checked" : ""} ${powerUsed() && !hand.pw ? "disabled" : ""}> Extraordinary Power roll${powerUsed() ? " (already used today)" : " (checks Used Today)"}</label>` : ""}
     ${send}`;
   box.querySelectorAll(".hchip").forEach(b => b.onclick = () => { hand.pick = hand.pick === b.dataset.k ? "" : b.dataset.k; if (hand.pick === "other") hand.mod = "0"; drawHand(); });
   if ($("hMod")) $("hMod").oninput = () => { hand.mod = $("hMod").value; drawHand(); const el = $("hMod"); el.focus(); el.setSelectionRange(el.value.length, el.value.length); };
@@ -960,7 +960,7 @@ function drawSheet() {
   $("shbody").innerHTML = `${store.get("ns.welcomeOff2") ? "" : `<div class="welc"><button id="welx" title="Got it, hide this">✕</button><b>WELCOME TO THE TABLE</b>
       <div><span class="welrd">${ROLL_ICON}</span> Tap the dice button on any attribute or skill to roll it. Everyone sees the roll.</div>
       <div>Tap any <i>underlined</i> word to see what it means.</div>
-      <div><i>Extraordinary Power:</i> tap a power's name for its rules and its button. The button uses the power and marks it Used today. Any rolls you need while the power is running are the buttons under it.</div>
+      <div><i>Extraordinary Power:</i> tap a power's name for its rules and its button. The button uses the power and checks the Used Today box. Any rolls you need while the power is running are the buttons under it.</div>
       <div><i>${esc2((V("C4") || "Type").trim().toUpperCase())} RULES</i> (in the power box) and <i>Skill List</i> (by SKILLS) open your rules beside the map.</div>
       <div><i>Vitality Track:</i> tap a box to mark a wound; HEAL moves them left. A Critical Wound or worse gives -1 to every roll. The sheet automatically calculates that into your rolls, so you don't have to.</div>
       <div><i>Roll History</i> (under Manage Character) shows the table's rolls.</div>
@@ -977,7 +977,7 @@ function drawSheet() {
     <div class="stab">VITALITY TRACK</div><button id="heal" class="healb" title="Heal one: every wound moves one box left; the leftmost Light Wound goes away" ${"BCDEFGH".split("").some(c => V(c + "16")) ? "" : "disabled"}>✚ HEAL</button>${(healUndo.get(sheetId()) || []).length ? `<button id="healUndo" class="healb undo" title="Put the vitality track back the way it was before the last heal">↶ UNDO (${healUndo.get(sheetId()).length})</button>` : ""}
     <div class="vit">${["B", "C", "D", "E", "F", "G", "H"].map((c, i) => { const t = V(c + "15"); const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<button class="box ${V(c + "16") ? "x" : ""}" data-w="${i}"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk ${V(c + "16") ? "x" : ""}">${V(c + "16") ? "✕" : ""}</span></button>`; }).join("")}</div>
     <div class="g2b ${ptInEP() ? "g2p" : ""}"><div class="fld"><div class="epl"><div class="ephd"><small>Extraordinary Power</small>${typeRefBtn()}</div><div id="pwname">${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div></div></div>
-      <div class="fld c"><small>Used today</small><button id="pw" class="chk ${used ? "x" : ""}">${used ? "✕" : ""}</button></div>${ptInEP() ? `
+      <div class="fld c"><small>Used Today</small><button id="pw" class="chk ${used ? "x" : ""}">${used ? "✕" : ""}</button></div>${ptInEP() ? `
       <div class="fld c epp"><small>${esc2(V("E13"))}${ptMaxV() ? ` <span>/ ${esc2(ptMaxV())}</span>` : ""}</small>${ptCtl()}${/^priest$/i.test(V("C4").trim()) ? `<button class="sref epref" data-k="gods" title="Open The Gods beside the map">${REF_SVG}The Gods</button>` : /^mage$/i.test(V("C4").trim()) ? `<button class="sref epref" data-k="schools" title="Open Schools of Magic beside the map">${REF_SVG}Schools</button>` : ""}</div>` : ""}</div>
     <div id="pwd" class="gpow pwd" hidden></div>
     ${V("E13") && !ptInEP() ? `<div class="g2">${ptMaxV() ? F(esc2(/\d/.test(V("G13")) || !V("G13") ? "Max " + V("E13") : V("G13")), ptMaxV()) : ""}<div class="fld"><small>${esc2(V("E13"))}</small>${ptCtl()}</div></div>` : ""}
@@ -1250,7 +1250,7 @@ async function sheetPreview() {
     <div class="shead"><div class="shn"><b>${esc2(cg.name.trim() || "Unnamed")}</b><small>${esc2(cg.type)} · Level 0 · ${(1000 - (+cg.spent || 0)).toLocaleString()} credits${cg.xpOn && cg.xp ? ` · ${cg.xp} XP to spend` : ""}</small></div></div>
     <div class="stab">VITALITY TRACK</div>
     <div class="vit">${wounds.map(t => { const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<div class="box"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk"></span></div>`; }).join("")}</div>
-    <div class="g2b"><div class="fld"><small>Extraordinary Power</small><div>${esc2(cg.power || "—")}</div>${extra ? `<div class="pwl">${esc2(extra)}</div>` : ""}</div><div class="fld c"><small>Used today</small><span class="chk"></span></div></div>
+    <div class="g2b"><div class="fld"><small>Extraordinary Power</small><div>${esc2(cg.power || "—")}</div>${extra ? `<div class="pwl">${esc2(extra)}</div>` : ""}</div><div class="fld c"><small>Used Today</small><span class="chk"></span></div></div>
     <div class="stab">COMBAT</div>
     <div class="gcb">${F("Melee Damage Bonus", sgn(melee))}${F("Ranged Damage Bonus", sgn(ranged))}${F("Armor Bonus", sgn(armor))}</div>
     <div class="stab">ATTRIBUTES</div>
@@ -1726,7 +1726,7 @@ function powerRollBtns(name) {
     return `<button class="pwroll ${cls}" ${dis ? "disabled" : ""} data-m="${tot}" data-l="${esc2(`⚡ ${name} · ${lbl ? lbl + " (" + (r.l || r.k) + ")" : r.l || r.k}${r.x ? ` ${r.x}` : ""}${pm.un ? " untrained" : ""}`)}" data-b="${esc2(r.x ? "" : pm.br)}">${ROLL_ICON}<span>${esc2(r.t)}${pm.un ? " (untrained)" : ""}</span><b>${tot >= 0 ? "+" : ""}${tot}</b></button>`; };
   if (e === "arm") return `<div class="pwrolls">${usedNote}<button class="pwroll ksarm ${ksArmed() ? "on" : ""}" ${on && !ksArmed() ? "disabled" : ""}><span>${ksArmed() ? "Kill Shot is armed. Tap to cancel" : "Arm Kill Shot: your next attack roll is +, +, +, +"}</span></button></div>`;
   const start = e.act ? e.act.map(r => btn(r, "", on)).join("")
-    : `<button class="pwroll pwuse" data-n="${esc2(name)}" ${on ? "disabled" : ""}>⚡<span>${on ? "Used today" : `Use ${esc2(name)}: marks Used today`}</span></button>`;
+    : `<button class="pwroll pwuse" data-n="${esc2(name)}" ${on ? "disabled" : ""}>⚡<span>${on ? "Used Today" : `Use ${esc2(name)}: checks Used Today`}</span></button>`;
   const alt = e.alt ? `<div class="pwtn">${esc2(e.an)}</div>` + e.alt.map(r => btn(r, "", on)).join("") : "";
   const follow = e.follow ? `<div class="pwtn">${esc2(e.fn)} ${on ? "Roll it here:" : "These rolls unlock once you use it."}</div>` + e.follow.map(r => btn(r, "pwtether", !on, e.fl)).join("") : "";
   return `<div class="pwrolls">${usedNote}${start}${alt}${follow}</div>`;
