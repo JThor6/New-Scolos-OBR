@@ -450,6 +450,10 @@
   .actbar.mm { border-color:#5ff0c8; background:rgba(8,50,52,.65); color:#dcfff5; } .actbar.mm b { color:#a8ffe6; text-shadow:0 4px 0 rgba(0,0,0,.45); }
   .actbar.rv { border-color:#8a3fd1; background:radial-gradient(circle at 20% 30%, rgba(70,15,95,.85), rgba(12,0,22,.9)); color:#e3d6f5; box-shadow:0 0 12px rgba(140,60,220,.55), inset 0 0 12px rgba(150,255,190,.12); }
   .actbar.rv b { font-family:'Creepster', 'Bangers', Impact, sans-serif; font-size:19px; color:#c6ffd8; text-shadow:0 0 6px #7dffa8, 0 0 14px #8a3fd1; }
+  .actarm { border-color:#9d86ff !important; box-shadow:0 0 8px rgba(157,134,255,.55); } .actarm.av { border-color:#e8b5ff !important; box-shadow:0 0 8px rgba(199,125,255,.55); }
+  .actarm .actnote { display:block; margin-top:2px; font-size:10px; font-style:normal; font-weight:800; color:#d9cfff; line-height:1.2; }
+  .pact { display:inline-block; margin-top:4px; padding:2px 6px; border-radius:4px; background:#5b46b8; color:#fff; font-size:10px; font-weight:900; letter-spacing:.3px; }
+  .pact.av { background:linear-gradient(135deg, #3a6fd0, #a03ab8); } .pact.ff { background:#0d6f86; } .pact.wr { background:#3a3a44; font-style:italic; } .pact.mm { background:#137a66; } .pact.rv { background:#4a1470; color:#c6ffd8; }
   .actp { margin-left:5px; padding:0 5px; border-radius:5px; background:#5b46b8; color:#fff; font-size:.8em; font-weight:900; vertical-align:middle; }
   .actp.av { background:linear-gradient(135deg, #3a6fd0, #a03ab8); }
   .skc .actb { margin-left:4px; padding:0 4px; border-radius:4px; background:linear-gradient(135deg, #3a6fd0, #a03ab8); color:#fff; font-size:11px; font-style:normal; font-weight:900; }
@@ -1042,7 +1046,7 @@ function drawSheet() {
     <div id="pwd" class="gpow pwd" hidden></div>
     ${V("E13") && !ptInEP() ? `<div class="g2">${ptMaxV() ? F(esc2(/\d/.test(V("G13")) || !V("G13") ? "Max " + V("E13") : V("G13")), ptMaxV()) : ""}<div class="fld"><small>${esc2(V("E13"))}</small>${ptCtl()}</div></div>` : ""}
     <div class="stab">COMBAT</div>
-    <div class="gcb3">${F("Melee Damage Bonus", V("H23"), "c", "cb:Melee Damage Bonus")}${F("Ranged Damage Bonus", V("H24"), "c", "cb:Ranged Damage Bonus")}${actDef()?.armor ? `<div class="fld c"><small class="inft" data-inf="cb:Armor Bonus" data-sec="combat">Armor Bonus</small><div>${esc2(V("H25"))}<span class="actp ${actDef().c}" title="${esc2(actDef().t)}">+${actDef().armor}</span></div></div>` : F("Armor Bonus", V("H25"), "c", "cb:Armor Bonus")}</div>
+    <div class="gcb3">${F("Melee Damage Bonus", V("H23"), "c", "cb:Melee Damage Bonus")}${F("Ranged Damage Bonus", V("H24"), "c", "cb:Ranged Damage Bonus")}${actDef()?.armor ? `<div class="fld c actarm ${actDef().c}"><small class="inft" data-inf="cb:Armor Bonus" data-sec="combat">Armor Bonus</small><div>${esc2(V("H25"))}<span class="actp ${actDef().c}" title="${esc2(actDef().t)}">+${actDef().armor}</span></div><em class="actnote">${esc2(POWER_CARDS[actGet().n]?.n || actDef().t)}: add +${actDef().armor}</em></div>` : F("Armor Bonus", V("H25"), "c", "cb:Armor Bonus")}</div>
     <div class="gcop"><div class="fld"><small>Combat Options</small><div class="cowrap"><div class="copl">${opts.length ? opts.map(o => `<button class="cob" data-inf="co:${esc2(o)}" data-sec="combat">${esc2(tc(o))}</button>`).join("<br>") : `<span class="dimn2">None yet</span>`}</div><div class="codesc" hidden></div></div></div>
       <div class="fld c"><small class="inft" data-inf="cop" data-sec="combat">COP${copMaxT !== "" ? ` <span class="dimn">/ ${esc2(copMaxT)}</span>` : ""}</small><div class="ctl"><button id="copm" title="Use a point">−</button><b id="copv" title="Points left this combat">${esc2((m => isNaN(m) ? (V("H29") || "0") : String(Math.max(0, m - (parseInt(V("H29")) || 0))))(parseInt(copMaxT)))}</b><button id="copp" title="Give a point back">+</button></div></div></div>
     <div class="infp gpow" data-for="combat" hidden></div>
@@ -1056,7 +1060,7 @@ function drawSheet() {
     </div>
     <div id="sherr" class="err" hidden></div>
     ${isGM ? "" : `<div class="discw"><button id="disc" class="discb" title="Pick a different character">⇄ Switch character</button></div>`}`;
-  fillPowers(); bindInfo(); updateKS(); updateActive();
+  fillPowers(); bindInfo(); updateKS(); updateActive(); publishActive();
   document.querySelectorAll("#shbody .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l, "", b.dataset.b); });
   // the whole attribute or skill box rolls, except its underlined name (that opens the info)
   document.querySelectorAll("#shbody .att, #shbody .skc").forEach(box => { const rd = box.querySelector(".rd"); if (!rd) return;
@@ -1763,7 +1767,18 @@ for (const [k, d] of Object.entries(ACTIVE)) d.c = POWER_CARDS[k]?.c || "bs";
 const actKey = () => ck("ns.active." + sheetId());
 const actGet = () => { try { const a = JSON.parse(store.get(actKey()) || "null"); return a && ACTIVE[a.n] ? a : null; } catch { return null; } };
 const actDef = () => { const a = actGet(); return a ? ACTIVE[a.n] : null; };
-function setActive(n, extra = {}) { store.set(actKey(), n ? JSON.stringify({ n, sid: "", ...extra }) : ""); }
+function setActive(n, extra = {}) { store.set(actKey(), n ? JSON.stringify({ n, sid: "", ...extra }) : ""); publishActive(); }
+// Everyone else sees it in the Party view (and the GM while working out damage): the character's name and the power
+const ACT_MD = NS + "/active";
+let actPub = "";
+function publishActive() {
+  if (standalone) return; const a = actGet(), v = a ? { name: myChar(), n: a.n } : null, j = JSON.stringify(v);
+  if (j === actPub) return; actPub = j; OBR.player.setMetadata({ [ACT_MD]: v }).catch(() => {});
+}
+let partyAct = []; // [{name, n}] from the other players
+const actBadge = (name) => { const me2 = actGet(), list = me2 ? [...partyAct, { name: myChar(), n: me2.n }] : partyAct;
+  const f = list.find(x => x.name && x.name.toLowerCase() === String(name).trim().toLowerCase() && ACTIVE[x.n]); if (!f) return "";
+  const d = ACTIVE[f.n]; return `<div><span class="pact ${d.c}">${esc2(d.t)}${d.armor ? ` · +${d.armor} ARMOR BONUS` : ""}</span></div>`; };
 let actMd = null; // the last room metadata seen (the combat and its round)
 function startActive(n) {
   const st = actMd?.[INIT];
@@ -1778,7 +1793,7 @@ function endActive(note) {
 function updateActive() {
   const bar = $("actbar"); if (!bar) return;
   let a = actGet();
-  if (a && !powerUsed()) { setActive(""); a = null; } // New Day: the power is over
+  if (a && !powerUsed() && ACTIVE[a.n].until !== "combat") { setActive(""); a = null; } // New Day ends the scene-long ones; combat ones last until the combat ends
   const d = a && ACTIVE[a.n];
   bar.className = "actbar " + (d ? d.c : ""); bar.hidden = !d;
   document.querySelectorAll("#shbody .skc").forEach(b => { const l = b.querySelector(".rd")?.dataset.l || "";
@@ -2437,7 +2452,9 @@ async function showParty() {
   } catch (e) { if (!saved?.length) body.innerHTML = `<div class="err">Couldn't load the party: ${esc2(e.message || e)}</div>`; }
   finally { sync(-1); }
 }
+let lastParty = null;
 function drawParty(body, chars) {
+  lastParty = chars;
   {
     const cell = (v, a1) => { const m = a1.match(/^([A-L])(\d+)$/); return String(v[+m[2] - 1]?.[m[1].charCodeAt(0) - 65] ?? "").trim(); };
     body.innerHTML = chars.length ? chars.map(v => {
@@ -2447,7 +2464,7 @@ function drawParty(body, chars) {
       const used = cell(v, "F6").toUpperCase() === "TRUE";
       return `<div class="pcard">
         <div class="ptop"><b>${esc2(cell(v, "C3"))}</b><small>${esc2(cell(v, "C4"))}</small><span class="ppw ${used ? "u" : ""}">${used ? "POWER USED" : "POWER READY"}</span></div>
-        <div class="pvit">${marks.map((m, i) => `<i><small>${["LW", "LW", "LW", "MW", "CW", "KO", "D"][i]}</small><span class="${m ? "x" : ""}"></span></i>`).join("")}<em class="${worst >= 4 ? "bad" : ""}">${esc2(status)}</em></div>
+        ${actBadge(cell(v, "C3"))}<div class="pvit">${marks.map((m, i) => `<i><small>${["LW", "LW", "LW", "MW", "CW", "KO", "D"][i]}</small><span class="${m ? "x" : ""}"></span></i>`).join("")}<em class="${worst >= 4 ? "bad" : ""}">${esc2(status)}</em></div>
       </div>`;
     }).join("") : `<div class="empty">No characters found.</div>`;
   }
@@ -2570,6 +2587,8 @@ if (standalone) {
     render(rollLog(OBR.room.id, allRolls(await OBR.room.getMetadata())));
     OBR.room.onMetadataChange((md) => { render(rollLog(OBR.room.id, allRolls(md))); updateInitBanner(md); actSync(md); });
     updateInitBanner(); actSync(await OBR.room.getMetadata());
+    const readAct = (ps) => { partyAct = ps.map(p => p.metadata?.[ACT_MD]).filter(Boolean); if (partyOn && lastParty && $("shbody")) drawParty($("shbody"), lastParty); };
+    readAct(await OBR.party.getPlayers()); OBR.party.onChange(readAct);
   });
 }
 </script>

@@ -15,8 +15,8 @@ export function allRolls(metadata) {
 
 // Table cards for powers that stay on (c: the look, t: card title, s: line under it)
 export const POWER_CARDS = {
-  "bullet stop": { c: "bs", t: "BULLET STOP ACTIVATED", s: "Allies within 10 ft: +2 Armor Bonus for a turn" },
-  "avatar": { c: "av", t: "AVATAR", s: "Becomes living magic: +1 Armor, +1 Spellcasting" },
+  "bullet stop": { c: "bs", n: "Bullet Stop", t: "BULLET STOP ACTIVATED", s: "Allies within 10 ft: +2 Armor Bonus for a turn" },
+  "avatar": { c: "av", n: "Avatar", t: "AVATAR", s: "Becomes living magic: +1 Armor, +1 Spellcasting" },
   "flash forward": { c: "ff", t: "FLASH FORWARD", s: "Once a round, they or an ally reroll any roll" },
   "disappear completely": { c: "wr", t: "VANISHED", s: "Gone from sight" },
   "mind over matter": { c: "mm", t: "MIND OVER MATTER", s: "The world starts to float" },
