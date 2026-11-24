@@ -237,6 +237,7 @@
   .pvit span.x { background:var(--minus); border-color:#000; }
   .pvit em { font-style:normal; font-size:12px; font-weight:700; margin-left:6px; }
   .pvit em.bad { color:var(--minus); }
+  .deadtag { color:var(--minus); }
   .rd { display:inline-flex; align-items:center; justify-content:center; width:20px; height:20px; padding:0; margin-left:4px; border:none; border-radius:5px; background:transparent; color:var(--accent); cursor:pointer; opacity:.8; vertical-align:middle; }
   .rd:hover { opacity:1; background:rgba(187,153,255,.18); }
   .skt .rdc { width:26px; padding:0; text-align:center; border-left:none; }
@@ -965,7 +966,7 @@ function drawSheet() {
       <div><i>Roll History</i> (under Manage Character) shows the table's rolls.</div>
       <div><i>Manage Character</i> is where you spend XP and credits, change gear, write notes and export a PDF.</div>
       <div>Tap ✕ to hide this. It won't come back.</div></div>`}
-    <div class="shead"><div class="shn"><b>${esc2(V("C3") || "Unnamed")}</b><small>${[V("C4"), V("F5") !== "" ? "Level " + V("F5") : ""].filter(Boolean).map(esc2).join(" · ")}${V("F7") !== "" ? `<span class="cred" title="Credits">¤ ${esc2((n => n == null ? V("F7") : n.toLocaleString("en-US"))(num(V("F7"))))} credits</span>` : ""}</small></div>
+    <div class="shead"><div class="shn"><b>${esc2(V("C3") || "Unnamed")}${V("H16") ? ` <span class="deadtag">(DEAD)</span>` : ""}</b><small>${[V("C4"), V("F5") !== "" ? "Level " + V("F5") : ""].filter(Boolean).map(esc2).join(" · ")}${V("F7") !== "" ? `<span class="cred" title="Credits">¤ ${esc2((n => n == null ? V("F7") : n.toLocaleString("en-US"))(num(V("F7"))))} credits</span>` : ""}</small></div>
       <span class="shcol"><span class="shbtns"><button id="reload" class="ibtn" title="Reload from Google Sheet">↻</button><button id="mgr" class="ibtn mgrb" title="Manage character: XP, skills, gear, notes">⚙ Manage Character</button></span><button class="sref hist" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></span></div>
     <div id="ksbar" class="ksbar" hidden></div>
     <div class="stab">ATTRIBUTES</div>
@@ -2038,7 +2039,7 @@ function drawMonsters() {
     const attrs = [["Adroitness", 4, "Adroitness"], ["Raw Str.", 3, "Raw Strength"], ["Intellect", 5, "Intellect"], ["Charm", 6, "Charm"]].map(([n, i, full]) =>
       `<div class="att"><small>${n}</small><b>${esc2(c(row, i) || "-")}</b>${roll(full, c(row, i)).replace('class="rd"', 'class="rd ra"')}</div>`).join("");
     html += `<div class="mcard ${dead ? "dead" : ""}" data-g="${esc2("m:" + (c(row, 1) || name))}">
-      <div class="mtop"><b>${esc2(name)}</b>${pen && !dead ? `<span class="mwnd">wounded ${pen}</span>` : ""}${c(row, 2) ? `<span class="mkind">${esc2(c(row, 2))}</span>` : ""}<span style="flex:1"></span>
+      <div class="mtop"><b>${esc2(name)}${dead ? ` <span class="deadtag">(DEAD)</span>` : ""}</b>${pen && !dead ? `<span class="mwnd">wounded ${pen}</span>` : ""}${c(row, 2) ? `<span class="mkind">${esc2(c(row, 2))}</span>` : ""}<span style="flex:1"></span>
         <button class="sbtn mdead ${dead ? "on" : ""}" data-r="${sheetRow}" data-on="${dead ? "" : "1"}">${dead ? "☠ DEAD" : "DEAD?"}</button></div>
       <div class="g4 matt">${attrs}</div>
       <div class="mrow2"><div class="skc matk"><span><small>ATTACK</small></span><b>${esc2(c(row, 7) || "-")}</b>${roll("Attack", c(row, 7))}</div>
