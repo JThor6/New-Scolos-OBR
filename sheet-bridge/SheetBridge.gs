@@ -250,33 +250,70 @@ function rulesDoc() {
 }
 
 // ---------------- PORTRAITS ----------------
-// The add-on resizes the picture and sends two copies: the full picture (saved as "<Name> - Portrait" in the
+// Each character keeps its own set of pictures (up to PORTRAIT_MAX); one of them is the current portrait.
+// The add-on resizes each picture and sends two copies: the full picture (saved as "<Name> - Portrait" in the
 // Character Portraits folder, Jake's art source for tokens) and a small one the add-on shows at the table
-// (kept in a subfolder). Which files belong to which sheet is kept in Script Properties ("pt:<sheet id>"),
-// so nothing is written on the character sheet and the folder stays private: the bridge hands the picture out.
+// (kept in a subfolder). Which pictures belong to which sheet is kept in Script Properties ("pt:<sheet id>"),
+// so nothing is written on the character sheet and the folder stays private: the bridge hands the pictures out.
+// A picture is known by the Drive id of its full file.
 const PORTRAIT_FOLDER_ID = '15BY1xqDO4VCLbG8-vGO8uiobgunsAa9W';
 const PORTRAIT_SMALL_FOLDER = 'Small copies (used by the extension)';
 const PORTRAIT_EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
-function portraitInfo(id) {
+const PORTRAIT_MAX = 12;
+function portraitInfo(id) { // { pics: [{full, small, t}], cur: full id, t: when the current portrait last changed, n: pictures ever added }
   const s = PropertiesService.getScriptProperties().getProperty('pt:' + id);
-  return s ? JSON.parse(s) : null;
+  if (!s) return null;
+  const i = JSON.parse(s);
+  if (!i.pics) return { pics: [{ full: i.full, small: i.small, t: i.t }], cur: i.full, t: i.t, n: 1 }; // saved before picture sets
+  return i;
 }
-function portraitStamp(id) { const i = portraitInfo(id); return i ? i.t : 0; }
-function trashPortraitFiles(info) {
-  [info.full, info.small].forEach(function (fid) { try { DriveApp.getFileById(fid).setTrashed(true); } catch (e) {} });
+function portraitSaveInfo(id, info) {
+  const props = PropertiesService.getScriptProperties();
+  if (!info.pics.length) props.deleteProperty('pt:' + id);
+  else props.setProperty('pt:' + id, JSON.stringify(info));
 }
-function getPortrait(id, full) {
-  const info = portraitInfo(id);
-  if (!info) return { ok: true, none: true };
-  let f;
-  try { f = DriveApp.getFileById(full ? info.full : info.small); } catch (e) { f = null; }
-  if (!f || f.isTrashed()) { // someone removed it in Drive: forget it
-    if (!full) PropertiesService.getScriptProperties().deleteProperty('pt:' + id);
-    return { ok: true, none: true };
+function curPic(info) { return info.pics.filter(function (p) { return p.full === info.cur; })[0] || info.pics[info.pics.length - 1]; }
+function portraitStamp(id) { const i = portraitInfo(id); return i && i.pics.length ? i.t : 0; }
+function trashPortraitFiles(pic) {
+  [pic.full, pic.small].forEach(function (fid) { try { DriveApp.getFileById(fid).setTrashed(true); } catch (e) {} });
+}
+function liveFile(fid) { try { const f = DriveApp.getFileById(fid); return f.isTrashed() ? null : f; } catch (e) { return null; } }
+// drop pictures someone removed in Drive by hand
+function prunePortraits(id, info) {
+  const keep = info.pics.filter(function (p) { return liveFile(p.full) && liveFile(p.small); });
+  if (keep.length === info.pics.length) return info;
+  info.pics = keep;
+  if (!keep.some(function (p) { return p.full === info.cur; })) { info.cur = keep.length ? keep[keep.length - 1].full : ''; info.t = Date.now(); }
+  portraitSaveInfo(id, info);
+  return info;
+}
+// one picture: the current one, or ?pic=<full id>; small copy unless full
+function getPortrait(id, full, fid) {
+  let info = portraitInfo(id);
+  if (!info || !info.pics.length) return { ok: true, none: true };
+  let pic = fid ? info.pics.filter(function (p) { return p.full === fid; })[0] : curPic(info);
+  let f = pic && liveFile(full ? pic.full : pic.small);
+  if (!f) {
+    info = prunePortraits(id, info);
+    if (fid || !info.pics.length) return { ok: true, none: true };
+    pic = curPic(info); f = liveFile(full ? pic.full : pic.small);
+    if (!f) return { ok: true, none: true };
   }
   const b = f.getBlob();
-  return { ok: true, t: info.t, mime: b.getContentType(), name: f.getName(), data: Utilities.base64Encode(b.getBytes()) };
+  return { ok: true, t: info.t, pic: pic.full, cur: pic.full === info.cur, mime: b.getContentType(), name: f.getName(), data: Utilities.base64Encode(b.getBytes()) };
 }
+// every picture of this character (small copies) for the picker
+function getGallery(id) {
+  let info = portraitInfo(id);
+  if (!info) return { ok: true, cur: '', t: 0, pics: [] };
+  info = prunePortraits(id, info);
+  const pics = info.pics.map(function (p) {
+    const b = DriveApp.getFileById(p.small).getBlob();
+    return { id: p.full, t: p.t, mime: b.getContentType(), data: Utilities.base64Encode(b.getBytes()) };
+  });
+  return { ok: true, cur: info.cur, t: info.pics.length ? info.t : 0, max: PORTRAIT_MAX, pics: pics };
+}
+// add a picture to the character's set and make it the portrait
 function savePortrait(id, pic) {
   const sh = openMain(id); // folder check
   const full = pic && pic.full, small = pic && pic.small;
@@ -285,26 +322,51 @@ function savePortrait(id, pic) {
   if (!fb.length || fb.length > 10 * 1024 * 1024) throw new Error('That picture is too big (10 MB max).');
   if (!sb.length || sb.length > 400 * 1024) throw new Error('The small copy of the picture did not come through. Try again.');
   const name = (String(sh.getRange('C3').getDisplayValue()).trim() || 'Character').replace(/[\\/:*?"<>|]/g, '').slice(0, 60);
-  const root = DriveApp.getFolderById(PORTRAIT_FOLDER_ID);
-  const it = root.getFoldersByName(PORTRAIT_SMALL_FOLDER);
-  const smallFolder = it.hasNext() ? it.next() : root.createFolder(PORTRAIT_SMALL_FOLDER);
   const lock = LockService.getScriptLock(); lock.waitLock(10000);
   try {
-    const old = portraitInfo(id);
-    const ff = root.createFile(Utilities.newBlob(fb, full.mime, name + ' - Portrait.' + PORTRAIT_EXT[full.mime]));
-    const sf = smallFolder.createFile(Utilities.newBlob(sb, small.mime, name + ' - small.' + PORTRAIT_EXT[small.mime]));
+    let info = portraitInfo(id) || { pics: [], cur: '', t: 0, n: 0 };
+    if (info.pics.length >= PORTRAIT_MAX) info = prunePortraits(id, info);
+    if (info.pics.length >= PORTRAIT_MAX) throw new Error('This character already has ' + PORTRAIT_MAX + ' pictures. Remove one first.');
+    const root = DriveApp.getFolderById(PORTRAIT_FOLDER_ID);
+    const it = root.getFoldersByName(PORTRAIT_SMALL_FOLDER);
+    const smallFolder = it.hasNext() ? it.next() : root.createFolder(PORTRAIT_SMALL_FOLDER);
+    const n = (info.n || info.pics.length) + 1, label = name + ' - Portrait' + (n > 1 ? ' ' + n : '');
+    const ff = root.createFile(Utilities.newBlob(fb, full.mime, label + '.' + PORTRAIT_EXT[full.mime]));
+    const sf = smallFolder.createFile(Utilities.newBlob(sb, small.mime, label + ' (small).' + PORTRAIT_EXT[small.mime]));
     try { ff.setDescription('Uploaded from the New Scolos Manager for character sheet ' + id); } catch (e) {}
-    const info = { full: ff.getId(), small: sf.getId(), t: Date.now() };
-    PropertiesService.getScriptProperties().setProperty('pt:' + id, JSON.stringify(info));
-    if (old) trashPortraitFiles(old); // the replaced picture goes to Drive's trash (restorable for 30 days)
+    const t = Date.now();
+    info.pics.push({ full: ff.getId(), small: sf.getId(), t: t });
+    info.cur = ff.getId(); info.t = t; info.n = n;
+    portraitSaveInfo(id, info);
+    return { ok: true, t: t, pic: ff.getId() };
+  } finally { lock.releaseLock(); }
+}
+// make one of the character's pictures the portrait
+function pickPortrait(id, fid) {
+  openMain(id); // folder check
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    const info = portraitInfo(id);
+    if (!info || !info.pics.some(function (p) { return p.full === fid; })) throw new Error('That picture is gone. Reload and try again.');
+    if (info.cur !== fid) { info.cur = fid; info.t = Date.now(); portraitSaveInfo(id, info); }
     return { ok: true, t: info.t };
   } finally { lock.releaseLock(); }
 }
-function removePortrait(id) {
+// remove one picture (Drive trash, restorable for 30 days). If it was the portrait, the newest one left takes over.
+function removePortrait(id, fid) {
   openMain(id); // folder check
-  const info = portraitInfo(id);
-  if (info) { trashPortraitFiles(info); PropertiesService.getScriptProperties().deleteProperty('pt:' + id); }
-  return { ok: true };
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    const info = portraitInfo(id);
+    if (!info) return { ok: true, t: 0 };
+    const pic = typeof fid === 'string' ? info.pics.filter(function (p) { return p.full === fid; })[0] : curPic(info);
+    if (!pic) return { ok: true, t: portraitStamp(id) };
+    trashPortraitFiles(pic);
+    info.pics = info.pics.filter(function (p) { return p !== pic; });
+    if (info.cur === pic.full) { info.cur = info.pics.length ? info.pics[info.pics.length - 1].full : ''; info.t = Date.now(); }
+    portraitSaveInfo(id, info);
+    return { ok: true, t: info.pics.length ? info.t : 0 };
+  } finally { lock.releaseLock(); }
 }
 
 function json(obj) {
@@ -329,7 +391,8 @@ function openMain(id) {
 // GET ?code=...&id=SHEET_ID        -> the Main Sheet (display values, A1:L60)
 // GET ?code=...&id=SHEET_ID&tab=Priest -> that whole tab
 // GET ?code=...&list=1             -> every character sheet in the folder (for the GM)
-// GET ?code=...&portrait=SHEET_ID  -> that character's small portrait (add &full=1 for the full picture)
+// GET ?code=...&portrait=SHEET_ID  -> that character's small portrait (&full=1 for the full picture, &pic=FILE_ID for another of their pictures)
+// GET ?code=...&portraits=SHEET_ID -> all that character's pictures (small copies), for picking a new portrait
 function doGet(e) {
   try {
     const p = e.parameter;
@@ -360,7 +423,8 @@ function doGet(e) {
       return json({ ok: true, sheets: out });
     }
     if (p.doc === 'rules') return json(rulesDoc()); // REFERENCE → New Scolos Rules Work in Progress
-    if (p.portrait) return json(getPortrait(p.portrait, !!p.full));
+    if (p.portrait) return json(getPortrait(p.portrait, !!p.full, p.pic || ''));
+    if (p.portraits) return json(getGallery(p.portraits));
     if (p.tab) { // a whole tab, e.g. Combat Options or Priest (used by the Rules tab)
       openMain(p.id); // folder check
       const t = SpreadsheetApp.openById(p.id).getSheetByName(p.tab);
@@ -383,7 +447,8 @@ function doPost(e) {
     if (b.create) return json(createCharacter(b.create, b.campaign));
     if (b.stasis) return json(moveToStasis(b.id));
     if (b.portrait) return json(savePortrait(b.id, b.portrait));
-    if (b.portraitRemove) return json(removePortrait(b.id));
+    if (b.portraitPick) return json(pickPortrait(b.id, String(b.portraitPick)));
+    if (b.portraitRemove) return json(removePortrait(b.id, b.portraitRemove));
     if (b.exportPdf) { // start building in the background (a web app can't wait on it), the add-on then asks ?pdfjob= for the result
       openMain(b.id); // folder check up front
       const job = Utilities.getUuid(), cache = CacheService.getScriptCache();
