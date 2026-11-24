@@ -535,7 +535,7 @@
 </style>
 </head>
 <body>
-<header><h1>NEW SCOLOS</h1><span class="hctl"><span id="syncdot" class="syncdot" hidden title="Syncing with Google Sheets">⟳</span><button id="solid" class="tab" title="See-through / solid">◐</button><button id="size" class="tab" title="Make the panel narrower"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M2 12h8M7 8l3 4-3 4M22 12h-8M17 8l-3 4 3 4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span><nav><button class="tab on" data-t="sheet">CHARACTER</button><button class="tab" data-t="rules">REFERENCE</button><button class="tab" data-t="dice">DICE</button><button class="tab" data-t="gen">CHARACTER CREATOR</button><button class="tab" data-t="mon" id="monTab" hidden>GM</button></nav></header>
+<header><h1>NEW SCOLOS</h1><span class="hctl"><span id="syncdot" class="syncdot" hidden title="Syncing with Google Sheets">⟳</span><button id="solid" class="tab" title="See-through / solid">◐</button><button id="size" class="tab" title="Make the panel narrower"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M2 12h8M7 8l3 4-3 4M22 12h-8M17 8l-3 4 3 4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span><nav><button class="tab on" data-t="sheet">CHARACTER SHEET</button><button class="tab" data-t="rules">REFERENCE</button><button class="tab" data-t="dice">DICE</button><button class="tab" data-t="gen">CHARACTER CREATOR</button><button class="tab" data-t="mon" id="monTab" hidden>GM</button></nav></header>
 <div id="initban" class="initban" hidden><span>⚔ Initiative! Your next Adroitness roll counts.</span><button id="initgo">ROLL</button><button id="initx" title="Hide">✕</button></div>
 <section id="sheet"><div id="sh"><div class="empty">Loading…</div></div></section>
 <section id="rules" hidden><div id="ru"></div></section>
@@ -1236,7 +1236,7 @@ async function typeInfo(type) { // rundown rows, first Extraordinary Power, gods
   return info;
 }
 
-// Finish step: the new character drawn like the CHARACTER tab, so players see what they're getting
+// Finish step: the new character drawn like the CHARACTER SHEET tab, so players see what they're getting
 async function sheetPreview() {
   const rs = cg.attrs["Raw Strength"], e = cg.equip;
   const melee = Math.max(0, (e.melee ? 2 : 0) + rs), ranged = e.ranged ? 4 : 0, armor = e.armor ? Math.max(1, 2 + rs) : Math.max(0, rs);
@@ -1329,7 +1329,7 @@ let genQ = "", genMove = null, genTarget = null, genInfo = ""; // skills step: s
 
 async function showGen() {
   const box = $("cg");
-  if (!store.get("ns.code")) { box.innerHTML = `<div class="empty">Open the CHARACTER tab and enter the table code first.</div>`; return; }
+  if (!store.get("ns.code")) { box.innerHTML = `<div class="empty">Open the CHARACTER SHEET tab and enter the table code first.</div>`; return; }
   const bar = `<div class="gsteps">${GSTEPS.map((s, i) => `<button class="gstep ${i === cg.step ? "on" : i < cg.step ? "done" : ""}" data-go="${i}" ${i === cg.step || canReach(i) ? "" : "disabled"} title="Step ${i + 1}: ${s}">${s}</button>`).join("")}</div>
     <input id="gNameTop" class="gname" value="${esc2(cg.name)}" maxlength="60" placeholder="Character name (fill in any time)">`;
   const summary = () => `<div class="gsum"><div>${[cg.type ? esc2(cg.type) + (cg.god ? ` (${esc2(cg.god)})` : "") : "No type yet",
@@ -1566,7 +1566,7 @@ async function showGen() {
       return cg.name.trim() ? "" : "Give your character a name (box at the top)."; };
     const xpBtns = [-10, -1, 1, 10].map(d => `<button class="sbtn" data-xp="${d}">${d > 0 ? "+" : ""}${d}</button>`).join("");
     put(bar + firstTime("Last step", `<p>Make sure your character has a name (box at the top). Put in your Google email so the new sheet is shared with you.</p>
-          <p>Leave "Start with XP" off unless your GM tells you to start at a higher level. Check the preview, then tap <b>CREATE CHARACTER</b>. After that, pick your character on the CHARACTER tab.</p>`) + `<div class="sec">FINISH</div>
+          <p>Leave "Start with XP" off unless your GM tells you to start at a higher level. Check the preview, then tap <b>CREATE CHARACTER</b>. After that, pick your character on the CHARACTER SHEET tab.</p>`) + `<div class="sec">FINISH</div>
       <label class="gl">Your Google email <small>(the new sheet is shared with you)</small><input id="gEmail" value="${esc2(cg.email)}" placeholder="you@gmail.com" inputmode="email"></label>
       <label class="gchk"><input type="checkbox" id="gXpOn" ${cg.xpOn ? "checked" : ""}> Start with XP (higher level)</label>
       ${cg.xpOn ? `<div class="mrow"><b class="gxp">${cg.xp} XP</b>${xpBtns}</div><div class="gnote">Goes into Current XP, to spend in Manage Character.</div>` : ""}
@@ -1886,7 +1886,7 @@ let monVals = null;
 const monId = () => store.get(ck("ns.encounter")) || (campaign ? (encList[0]?.id || "") : DEFAULT_ENCOUNTER);
 async function showMonsters() {
   const box = $("mo");
-  if (!store.get("ns.code")) { box.innerHTML = `<div class="empty">Open the CHARACTER tab and enter the table code first.</div>`; return; }
+  if (!store.get("ns.code")) { box.innerHTML = `<div class="empty">Open the CHARACTER SHEET tab and enter the table code first.</div>`; return; }
   const saved = cache.get("mon." + monId());
   refreshEncList();
   refreshCampList();
@@ -2120,7 +2120,7 @@ function drawInitList() {
   const st = initMd[INIT], list = st?.open ? initEntries(initMd) : [];
   box.innerHTML = !st?.open ? `<div class="empty" style="font-size:12px">No combat running. Call for initiative to start.</div>`
     : list.length ? list.map((e, i) => `<div class="irow ${e.id === st.cur ? "cur" : ""}"><span class="n">${i + 1}</span><b>${esc2(e.name)}</b><small>${e.pc ? "player" : ""}</small><span class="t">${big(e.total)}</span><button class="ix" data-id="${esc2(e.id)}" title="Remove">✕</button></div>`).join("")
-    : `<div class="empty" style="font-size:12px">Waiting for rolls… Players roll Adroitness on their CHARACTER tab.</div>`;
+    : `<div class="empty" style="font-size:12px">Waiting for rolls… Players roll Adroitness on their CHARACTER SHEET tab.</div>`;
   if ($("iStep")) { $("iStep").hidden = !list.length; $("iRound").textContent = list.length ? "Round " + (st.round || 1) : ""; }
   box.querySelectorAll(".ix").forEach(b => b.onclick = async () => {
     const s = (await OBR.room.getMetadata())[INIT]; if (!s) return;
@@ -2262,7 +2262,7 @@ async function popOut(k) {
     disableClickAway: true, hidePaper: true }).catch(() => {});
 }
 function showRules() {
-  if (!store.get("ns.code")) { $("ru").innerHTML = `<div class="empty">Open the CHARACTER tab and enter the table code first.</div>`; return; }
+  if (!store.get("ns.code")) { $("ru").innerHTML = `<div class="empty">Open the CHARACTER SHEET tab and enter the table code first.</div>`; return; }
   if ($("ru").dataset.ready) return;
   $("ru").dataset.ready = "1";
   const title = (k) => k === "__rolls" ? "Roll History" : (SECTIONS.find(x => x[1] === k) || [k])[0];
