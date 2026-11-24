@@ -974,7 +974,7 @@ function drawSheet() {
       <!-- Easter egg: the 9+ DEAD box marked turns Dmg Pen. into a skull and crossbones -->
       <div class="att dp ${sheetPen() ? "on" : ""}"><small class="inft" data-inf="dp" data-sec="attr">Dmg Pen.</small>${V("H16") ? `<b class="egg" title="Dead">☠</b>` : `<b>${esc2(V("C12"))}</b>`}${sheetPen() ? `<em>all rolls</em>` : ""}</div></div>
     <div class="infp gpow" data-for="attr" hidden></div>
-    <div class="stab">VITALITY TRACK</div><button id="heal" class="healb" title="Heal one: every wound moves one box left; the leftmost Light Wound goes away" ${"BCDEFGH".split("").some(c => V(c + "16")) ? "" : "disabled"}>✚ HEAL</button>${(healUndo.get(sheetId()) || []).length ? `<button id="healUndo" class="healb undo" title="Put the vitality track back the way it was before the last heal">↶ UNDO (${healUndo.get(sheetId()).length})</button>` : ""}
+    <div class="stab">VITALITY TRACK</div><button id="heal" class="healb" title="Heal one: every wound moves one box left; the leftmost Light Wound goes away. Dead stays until you uncheck it." ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}>✚ HEAL</button>${(healUndo.get(sheetId()) || []).length ? `<button id="healUndo" class="healb undo" title="Put the vitality track back the way it was before the last heal">↶ UNDO (${healUndo.get(sheetId()).length})</button>` : ""}
     <div class="vit">${["B", "C", "D", "E", "F", "G", "H"].map((c, i) => { const t = V(c + "15"); const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<button class="box ${V(c + "16") ? "x" : ""}" data-w="${i}"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk ${V(c + "16") ? "x" : ""}">${V(c + "16") ? "✕" : ""}</span></button>`; }).join("")}</div>
     <div class="g2b ${ptInEP() ? "g2p" : ""}"><div class="fld"><div class="epl"><div class="ephd"><small>Extraordinary Power</small>${typeRefBtn()}</div><div id="pwname">${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div></div></div>
       <div class="fld c"><small>Used Today</small><button id="pw" class="chk ${used ? "x" : ""}">${used ? "✕" : ""}</button></div>${ptInEP() ? `
@@ -1793,7 +1793,7 @@ async function heal() {
   if (busy || Date.now() < healWait) return;
   const cols = "BCDEFGH".split(""), was = cols.map(c => !!V(c + "16"));
   const id = sheetId(), stack = healUndo.get(id) || [];
-  if (await setTrack(was.slice(1).concat(false))) { stack.push(was); healUndo.set(id, stack.slice(-5)); drawSheet(); }
+  if (await setTrack(was.slice(1, 6).concat(false, was[6]))) // the Dead box (H) never moves; it's only cleared by hand { stack.push(was); healUndo.set(id, stack.slice(-5)); drawSheet(); }
 }
 async function undoHeal() {
   if (busy || Date.now() < healWait) return;
