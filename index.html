@@ -2377,10 +2377,11 @@ async function monArtTable(k, name) {
     if (store.get("ns.mpogUp." + k) !== String(a?.t)) {
       const r = await bridgeGet({ monpog: k });
       if (!r.ok || r.none) throw new Error(r.ok ? "no pog saved for it yet" : ptBridgeMsg(r.error));
+      note("Owlbear is opening an upload window. Click UPLOAD in it.");
       await pogToOwlbear(await b64Blob(r.mime, r.data), asset);
       store.set("ns.mpogUp." + k, String(r.t));
     }
-    note(`${asset} is in your Owlbear images (Characters). Drag the first one onto the map; after that, tapping the pog drops more copies.`, "INFO");
+    note(`Uploaded: ${asset} is in your Owlbear images (Characters). Drag the first one onto the map; after that, tapping the pog drops more copies.`, "INFO");
   } catch (e) { note("Couldn't put it on the table: " + (e.message || e), "ERROR"); }
 }
 function bindMonArt() {
@@ -2791,7 +2792,7 @@ async function pogClone(names, itemName) {
   await OBR.scene.items.addItems([buildImage(src.image, src.grid).name(itemName).position(pos).layer(src.layer || "CHARACTER").scale(src.scale || { x: 1, y: 1 }).build()]);
   return true;
 }
-const DRAG_HELP = "Open your images in Owlbear (where you add tokens from), find it under Characters and drag it onto the map.";
+const DRAG_HELP = "Last step: open your images in Owlbear (where you add tokens from), look under Characters, and drag your pog onto the map. After that, this button drops extra copies by itself.";
 
 // ---------- Manage Character → PORTRAIT ----------
 // Every picture this character has (★ = the portrait), + to add one, and the Adjust Circle editor
@@ -2844,7 +2845,7 @@ function ptPanelDraw() {
       : `<div class="ptbtns"><button class="sbtn" data-e="edit">✎ ADJUST CIRCLE</button></div>`}</div>
     ${ptP.edit ? "" : `<div class="ptgh">POG <span>· a token for the map, made from this picture and its circle</span></div>
     <div class="pogrow">${ptP.pog?.pic === p.id ? `<img class="pogpv" src="${ptP.pog.url}" alt="">` : ""}
-      <div class="ptbtns" style="flex-direction:column"><button class="sbtn ${ptP.pog?.pic === p.id ? "" : "on"}" data-g="make">◎ ${ptP.pog?.pic === p.id ? "REMAKE POG" : "MAKE POG"}</button>${ptP.pog?.pic === p.id ? `<button class="sbtn on" data-g="table">⬇ ADD TO OWLBEAR</button><button class="sbtn" data-g="dl">SAVE A COPY</button>` : ""}</div></div>`}`
+      <div class="ptbtns" style="flex-direction:column"><button class="sbtn ${ptP.pog?.pic === p.id ? "" : "on"}" data-g="make">◎ ${ptP.pog?.pic === p.id ? "REMAKE POG" : "MAKE POG"}</button>${ptP.pog?.pic === p.id ? `<button class="sbtn on" data-g="table">⬆ UPLOAD TO OWLBEAR</button><button class="sbtn" data-g="dl">SAVE A COPY</button>` : ""}</div></div>`}`
     : `<div class="mnote" style="text-align:center">Tap + or drop a picture here to add one.</div>`}
     <div id="ptmsg" class="ptmsg ${ptP.msg ? ptP.msg[0] : ""}">${esc2(ptP.msg ? ptP.msg[1] : "")}</div></div>`;
   el.querySelectorAll(".ptg[data-p]").forEach(b => b.onclick = () => { if (b.dataset.p === ptP.sel) return; ptP.sel = b.dataset.p; ptP.f = null; ptP.dirty = false; ptP.edit = false; ptP.msg = null; ptPanelDraw(); });
@@ -2902,24 +2903,24 @@ function bindPtPicButtons(el, p) {
       const url = cv.toDataURL("image/png"), name = (V("C3") || "Character").trim();
       const s2 = await bridgePost({ pog: url.split(",")[1] }).catch(x => ({ ok: false, error: x.message }));
       ptP.pog = { pic: p.id, url, name };
-      ptP.msg = s2.ok ? ["ok", "✓ Pog made and saved to the GM's Pogs folder. Tap ADD TO OWLBEAR to use it on the map."] : ["bad", "Pog made, but it didn't save to Google Drive. " + ptBridgeMsg(s2.error)];
+      ptP.msg = s2.ok ? ["ok", "✓ Pog made and saved to the GM's Pogs folder. Tap UPLOAD TO OWLBEAR to use it on the map."] : ["bad", "Pog made, but it didn't save to Google Drive. " + ptBridgeMsg(s2.error)];
     } catch (e) { ptP.msg = ["bad", "Couldn't make the pog: " + (e.message || e)]; }
     ptPanelDraw();
   };
   const gtb = el.querySelector('[data-g="table"]');
   if (gtb) gtb.onclick = async () => {
     const pg = ptP.pog, upKey = "ns.pogUp." + ptP.id;
-    gtb.disabled = true; gtb.textContent = "ADDING…";
+    gtb.disabled = true; gtb.textContent = "UPLOADING…";
     try {
       if (store.get(upKey) === pg.url.length + ":" + pg.pic && await pogClone([pg.name], pg.name)) { ptSay("ok", "✓ Another copy of your pog is in the middle of the map."); }
       else {
-        ptSay("", "Owlbear will ask you to confirm the upload…");
+        ptSay("", "Owlbear is opening an upload window. Click UPLOAD in it to save your pog into your Owlbear images.");
         await pogToOwlbear(await (await fetch(pg.url)).blob(), pg.name);
         store.set(upKey, pg.url.length + ":" + pg.pic);
-        ptSay("ok", "✓ Your pog is in your Owlbear images, named " + pg.name + ". " + DRAG_HELP);
+        ptSay("ok", "✓ Uploaded! Your pog is in your Owlbear images as \"" + pg.name + "\". " + DRAG_HELP);
       }
     } catch (e) { ptSay("bad", "Couldn't add it to Owlbear: " + (e.message || e) + ". You can SAVE A COPY and add it to Owlbear by hand."); }
-    gtb.disabled = false; gtb.textContent = "⬇ ADD TO OWLBEAR";
+    gtb.disabled = false; gtb.textContent = "⬆ UPLOAD TO OWLBEAR";
   };
   const gdl = el.querySelector('[data-g="dl"]');
   if (gdl) gdl.onclick = () => { const a = document.createElement("a"); a.href = ptP.pog.url; a.download = ptP.pog.name + " - Pog.png"; document.body.append(a); a.click(); a.remove(); };
@@ -3008,8 +3009,9 @@ function drawParty(body, chars) {
         const r = await bridgeGet({ pog: b.dataset.pog });
         if (!r.ok) throw new Error(ptBridgeMsg(r.error));
         if (r.none) { note(`${b.dataset.n} has no pog yet. The player makes one in Manage Character → Portrait.`); return; }
+        note("Owlbear is opening an upload window. Click UPLOAD in it.");
         await pogToOwlbear(await b64Blob(r.mime, r.data), b.dataset.n);
-        note(`${b.dataset.n}'s pog is in your Owlbear characters.`, "SUCCESS");
+        note(`${b.dataset.n}'s pog is in your Owlbear images (Characters).`, "SUCCESS");
       } catch (e) { note("Couldn't add the pog: " + (e.message || e), "ERROR"); }
       finally { b.disabled = false; b.textContent = "◎ POG"; }
     });
