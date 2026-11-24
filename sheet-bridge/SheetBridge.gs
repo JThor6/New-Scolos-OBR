@@ -395,6 +395,67 @@ function getPog(id) {
   if (!f) return { ok: true, none: true };
   return { ok: true, name: f.getName(), mime: 'image/png', data: Utilities.base64Encode(f.getBlob().getBytes()) };
 }
+// ---------------- MONSTER ART (GM) ----------------
+// One picture per monster NAME (the add-on drops trailing numbers, so "Hive Runner 1" and "Hive Runner 3" share it,
+// in every encounter). Saved in Character Portraits → Monster Art: "<Name> - Art", a small copy, and "<Name> - Pog.png"
+// (the add-on draws the red enemy ring). Which files belong to which name: Script Properties "ma:<name key>".
+const MONSTER_ART_FOLDER = 'Monster Art';
+function monKey(k) {
+  k = String(k || '').trim().toLowerCase();
+  if (!k || k.length > 60) throw new Error('Bad monster name.');
+  return k;
+}
+function monInfo(k) { const s = PropertiesService.getScriptProperties().getProperty('ma:' + k); return s ? JSON.parse(s) : null; }
+function subFolder(parent, name) { const it = parent.getFoldersByName(name); return it.hasNext() ? it.next() : parent.createFolder(name); }
+function saveMonArt(a) {
+  const k = monKey(a && a.key);
+  const label = (String(a.name || k).replace(/[\\/:*?"<>|]/g, '').trim() || 'Monster').slice(0, 60);
+  const full = a.full, small = a.small, pog = a.pog;
+  if (!full || !small || !pog || !PORTRAIT_EXT[full.mime] || !PORTRAIT_EXT[small.mime] || pog.mime !== 'image/png') throw new Error('That picture type will not work. Use a JPG, PNG, WebP or GIF.');
+  const fb = Utilities.base64Decode(String(full.data || '')), sb = Utilities.base64Decode(String(small.data || '')), pb = Utilities.base64Decode(String(pog.data || ''));
+  if (!fb.length || fb.length > 10 * 1024 * 1024) throw new Error('That picture is too big (10 MB max).');
+  if (!sb.length || sb.length > 400 * 1024 || !pb.length || pb.length > 5 * 1024 * 1024) throw new Error('The picture did not come through. Try again.');
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    const root = subFolder(DriveApp.getFolderById(PORTRAIT_FOLDER_ID), MONSTER_ART_FOLDER);
+    const ff = root.createFile(Utilities.newBlob(fb, full.mime, label + ' - Art.' + PORTRAIT_EXT[full.mime]));
+    const sf = subFolder(root, PORTRAIT_SMALL_FOLDER).createFile(Utilities.newBlob(sb, small.mime, label + ' (small).' + PORTRAIT_EXT[small.mime]));
+    const pf = subFolder(root, POG_FOLDER).createFile(Utilities.newBlob(pb, 'image/png', label + ' - Pog.png'));
+    const old = monInfo(k);
+    const info = { full: ff.getId(), small: sf.getId(), pog: pf.getId(), t: Date.now(), name: label };
+    PropertiesService.getScriptProperties().setProperty('ma:' + k, JSON.stringify(info));
+    if (old) [old.full, old.small, old.pog].forEach(function (fid) { try { DriveApp.getFileById(fid).setTrashed(true); } catch (e) {} });
+    return { ok: true, t: info.t, name: label };
+  } finally { lock.releaseLock(); }
+}
+// small copies for many monsters at once; "have" = the times the add-on already has (unchanged ones are skipped)
+function getMonArt(keys, have) {
+  keys = String(keys || '').split('|').slice(0, 40); have = String(have || '').split('|');
+  const out = {};
+  keys.forEach(function (raw, i) {
+    let k; try { k = monKey(raw); } catch (e) { return; }
+    const info = monInfo(k);
+    if (!info) { out[k] = null; return; }
+    if (String(info.t) === have[i]) { out[k] = { t: info.t, same: true }; return; }
+    const f = liveFile(info.small);
+    if (!f) { PropertiesService.getScriptProperties().deleteProperty('ma:' + k); out[k] = null; return; }
+    const b = f.getBlob();
+    out[k] = { t: info.t, name: info.name, mime: b.getContentType(), data: Utilities.base64Encode(b.getBytes()) };
+  });
+  return { ok: true, art: out };
+}
+function getMonPog(k) {
+  const info = monInfo(monKey(k)), f = info && liveFile(info.pog);
+  if (!f) return { ok: true, none: true };
+  return { ok: true, t: info.t, name: info.name, mime: 'image/png', data: Utilities.base64Encode(f.getBlob().getBytes()) };
+}
+function removeMonArt(k) {
+  k = monKey(k);
+  const info = monInfo(k);
+  if (info) { [info.full, info.small, info.pog].forEach(function (fid) { try { DriveApp.getFileById(fid).setTrashed(true); } catch (e) {} }); PropertiesService.getScriptProperties().deleteProperty('ma:' + k); }
+  return { ok: true };
+}
+
 // remove one picture (Drive trash, restorable for 30 days). If it was the portrait, the newest one left takes over.
 function removePortrait(id, fid) {
   openMain(id); // folder check
@@ -437,6 +498,7 @@ function openMain(id) {
 // GET ?code=...&portrait=SHEET_ID  -> that character's small portrait (&full=1 for the full picture, &pic=FILE_ID for another of their pictures)
 // GET ?code=...&portraits=SHEET_ID -> all that character's pictures (small copies), for picking a new portrait
 // GET ?code=...&pog=SHEET_ID       -> that character's pog (PNG)
+// GET ?code=...&monart=k1|k2&have=t1|t2 -> monster art (small copies) by monster name; &monpog=key -> that monster's pog
 function doGet(e) {
   try {
     const p = e.parameter;
@@ -470,6 +532,8 @@ function doGet(e) {
     if (p.portrait) return json(getPortrait(p.portrait, !!p.full, p.pic || ''));
     if (p.portraits) return json(getGallery(p.portraits));
     if (p.pog) return json(getPog(p.pog));
+    if (p.monart) return json(getMonArt(p.monart, p.have));
+    if (p.monpog) return json(getMonPog(p.monpog));
     if (p.tab) { // a whole tab, e.g. Combat Options or Priest (used by the Rules tab)
       openMain(p.id); // folder check
       const t = SpreadsheetApp.openById(p.id).getSheetByName(p.tab);
@@ -493,6 +557,8 @@ function doPost(e) {
     if (b.stasis) return json(moveToStasis(b.id));
     if (b.portrait) return json(savePortrait(b.id, b.portrait));
     if (b.pog) return json(savePog(b.id, b.pog));
+    if (b.monArt) return json(saveMonArt(b.monArt));
+    if (b.monArtRemove) return json(removeMonArt(b.monArtRemove));
     if (b.portraitPick) return json(pickPortrait(b.id, String(b.portraitPick)));
     if (b.portraitFrame) return json(framePortrait(b.id, String(b.portraitFrame), b.frame));
     if (b.portraitRemove) return json(removePortrait(b.id, b.portraitRemove));
