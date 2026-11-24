@@ -1063,7 +1063,7 @@ function drawSheet() {
   if ($("healUndo")) $("healUndo").onclick = undoHeal;
   // Clear All: first tap asks, a second tap within 4 seconds wipes the whole track (Dead included). Undo can bring it back.
   if ($("healClr")) { let armT = 0; $("healClr").onclick = async () => { const b = $("healClr");
-    if (!b.classList.contains("arm")) { b.classList.add("arm"); b.textContent = "ARE YOU SURE? TAP AGAIN"; armT = setTimeout(() => { if (b.isConnected) { b.classList.remove("arm"); b.textContent = "✕ CLEAR ALL"; } }, 4000); return; }
+    if (!b.classList.contains("arm")) { b.style.minWidth = b.offsetWidth + "px"; b.classList.add("arm"); b.textContent = "SURE?"; armT = setTimeout(() => { if (b.isConnected) { b.classList.remove("arm"); b.textContent = "✕ CLEAR ALL"; } }, 4000); return; }
     clearTimeout(armT); await clearTrack(); }; }
   $("pw").onclick = () => save({ power: !used }, () => setCell("F6", used ? "FALSE" : "TRUE"));
   const copMax = parseInt(V("H28")); const cop = (d) => { let n = Math.max(0, (parseInt(V("H29")) || 0) + d); if (!isNaN(copMax)) n = Math.min(n, copMax); if (String(n) === (V("H29") || "0")) return; if (d > 0 && !busy) announceCop(isNaN(copMax) ? null : copMax - n, isNaN(copMax) ? null : copMax); save({ copSpent: n }, () => setCell("H29", String(n))); };
