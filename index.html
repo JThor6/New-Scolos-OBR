@@ -1056,7 +1056,7 @@ function drawSheet() {
   $("heal").onclick = () => heal(1);
   $("healN").oninput = () => { healNVal = $("healN").value; };
   // − / + change the number right away (on press, no waiting for the tap to finish); no save, no redraw
-  const stepN = (d) => { const el = $("healN"), n = Math.min(6, Math.max(1, (parseInt(el.value, 10) || 0) + d)); el.value = n; healNVal = String(n); };
+  const stepN = (d) => { const el = $("healN"), n = Math.min(6, (parseInt(el.value, 10) || 0) + d); if (n < 1) { el.value = ""; healNVal = ""; return; } el.value = n; healNVal = String(n); }; // − from 1 clears back to the empty "#" box
   $("healDn").onpointerdown = (e) => { e.preventDefault(); stepN(-1); }; $("healUp").onpointerdown = (e) => { e.preventDefault(); stepN(1); };
   const healMany = () => { const n = parseInt($("healN").value, 10); if (!(n >= 1)) { $("healN").focus(); return; } healNVal = ""; heal(Math.min(n, 6)); };
   $("healGo").onclick = healMany; $("healN").onkeydown = (e) => { if (e.key === "Enter") healMany(); };
