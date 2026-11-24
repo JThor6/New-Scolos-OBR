@@ -265,7 +265,11 @@
   .mcard.dead { background:rgba(150,30,40,.45); outline-color:#a33; opacity:.75; }
   .mcard.dead .mtop b { text-decoration:line-through; }
   #mo .mtop { cursor:grab; touch-action:none; user-select:none; } #mo .mtop button { cursor:pointer; }
-  #mo .mcard.mdrag { opacity:.85; outline:2px dashed var(--accent); cursor:grabbing; }
+  #mo .mgrip { color:var(--dim); font-weight:900; letter-spacing:-2px; margin-right:6px; opacity:.7; }
+  #mlist.mreorder .mcard > :not(.mtop) { display:none; } #mlist.mreorder .mcard { padding-bottom:6px; }
+  #mo .mcard.mdrag { cursor:grabbing; box-shadow:0 10px 24px rgba(0,0,0,.55); outline:2px solid var(--accent); transform:scale(1.02); }
+  #mo .mph { margin-top:10px; border:2px dashed var(--accent); border-radius:8px; background:rgba(187,153,255,.08); }
+  #mo .mcard.mdrop { outline:2px solid var(--accent); transition:outline-color .6s; }
   .mtop { display:flex; align-items:center; gap:6px; margin-bottom:4px; }
   .mtop b { font-size:15px; } .mtop small { color:var(--dim); font-size:11px; flex:1; }
   .mdead.on { background:var(--minus); color:#000; }
@@ -2021,6 +2025,8 @@ async function refreshEncList() {
   if (campaign && !store.get(ck("ns.encounter")) && !monVals && encList.length) showMonsters(); // first encounter of a new campaign
 }
 // ---- drag monsters into the order the GM wants (grab the name banner) ----
+// While dragging, every card folds down to its banner so the list is short, the grabbed card
+// floats under your finger, a gap shows where it will land, and the others slide out of the way.
 const monOrderKey = () => "ns.monOrder:" + monId();
 const monOrder = () => { try { return JSON.parse(store.get(monOrderKey()) || "[]"); } catch { return []; } };
 function scrollParent(el) { for (let e = el.parentElement; e; e = e.parentElement) { const o = getComputedStyle(e).overflowY; if ((o === "auto" || o === "scroll") && e.scrollHeight > e.clientHeight) return e; } return document.scrollingElement; }
@@ -2029,32 +2035,62 @@ function bindMonDrag() {
   list.querySelectorAll(".mtop").forEach(bar => bar.onpointerdown = (e) => {
     if (e.button || e.target.closest("button")) return;
     const card = bar.closest(".mcard"), y0 = e.clientY, sp = scrollParent(list);
-    let on = false, lastY = e.clientY, raf = 0;
+    let on = false, lastY = e.clientY, raf = 0, ph = null, grabDy = 0;
+    const others = () => [...list.children].filter(x => x !== card && x !== ph);
+    const slide = (fn) => { // FLIP: move things in the DOM, then animate them from where they were
+      const els = others(), before = new Map(els.map(x => [x, x.getBoundingClientRect().top]));
+      fn();
+      for (const x of els) { const d = before.get(x) - x.getBoundingClientRect().top; if (!d) continue;
+        x.style.transition = "none"; x.style.transform = `translateY(${d}px)`; x.offsetHeight;
+        x.style.transition = "transform .16s ease"; x.style.transform = ""; }
+    };
     const place = () => {
-      for (const o of list.querySelectorAll(".mcard")) {
-        if (o === card) continue;
-        const r = o.getBoundingClientRect();
-        if (lastY < r.top + r.height / 2) { if (card.nextElementSibling !== o) list.insertBefore(card, o); return; }
-      }
-      if (list.lastElementChild !== card) list.appendChild(card);
+      let target = null;
+      for (const o of others()) { const r = o.getBoundingClientRect(); if (lastY < r.top + r.height / 2) { target = o; break; } }
+      if (target ? ph.nextElementSibling === target : list.lastElementChild === ph) return;
+      slide(() => target ? list.insertBefore(ph, target) : list.appendChild(ph));
     };
     const step = () => { // scroll the panel while holding near its top or bottom edge
       const r = sp === document.scrollingElement ? { top: 0, bottom: innerHeight } : sp.getBoundingClientRect();
-      const d = lastY < r.top + 40 ? -8 : lastY > r.bottom - 40 ? 8 : 0;
+      const d = lastY < r.top + 50 ? -10 : lastY > r.bottom - 50 ? 10 : 0;
       if (d) { sp.scrollTop += d; place(); }
+      raf = requestAnimationFrame(step);
+    };
+    const start = () => {
+      on = true;
+      const t0 = card.getBoundingClientRect().top;
+      list.classList.add("mreorder"); // fold every card to its banner
+      sp.scrollTop += card.getBoundingClientRect().top - t0; // keep the grabbed card under your finger after the fold
+      const lr = list.getBoundingClientRect(), cr = card.getBoundingClientRect();
+      grabDy = Math.min(Math.max(lastY - cr.top, 0), cr.height);
+      ph = document.createElement("div"); ph.className = "mph"; ph.style.height = cr.height + "px";
+      list.insertBefore(ph, card);
+      Object.assign(card.style, { position: "fixed", left: lr.left + "px", width: lr.width + "px", top: (lastY - grabDy) + "px", zIndex: 50, margin: 0 });
+      card.classList.add("mdrag");
       raf = requestAnimationFrame(step);
     };
     const move = (ev) => {
       lastY = ev.clientY;
-      if (!on) { if (Math.abs(ev.clientY - y0) < 6) return; on = true; card.classList.add("mdrag"); raf = requestAnimationFrame(step); }
-      ev.preventDefault(); place();
+      if (!on) { if (Math.abs(ev.clientY - y0) < 5) return; start(); }
+      ev.preventDefault();
+      card.style.top = (lastY - grabDy) + "px";
+      place();
     };
     const up = () => {
       removeEventListener("pointermove", move); removeEventListener("pointerup", up); removeEventListener("pointercancel", up);
       cancelAnimationFrame(raf);
       if (!on) return;
-      card.classList.remove("mdrag");
-      store.set(monOrderKey(), JSON.stringify([...list.querySelectorAll(".mcard")].map(x => +x.dataset.row)));
+      const pr = ph.getBoundingClientRect(); // glide into the gap, then unfold everything
+      card.style.transition = "top .14s ease"; card.style.top = pr.top + "px";
+      setTimeout(() => {
+        list.replaceChild(card, ph);
+        card.removeAttribute("style"); card.classList.remove("mdrag");
+        list.querySelectorAll(".mcard").forEach(x => x.removeAttribute("style"));
+        list.classList.remove("mreorder");
+        store.set(monOrderKey(), JSON.stringify([...list.querySelectorAll(".mcard")].map(x => +x.dataset.row)));
+        card.scrollIntoView({ block: "nearest" });
+        card.classList.add("mdrop"); setTimeout(() => card.classList.remove("mdrop"), 600);
+      }, 150);
     };
     addEventListener("pointermove", move, { passive: false }); addEventListener("pointerup", up); addEventListener("pointercancel", up);
   });
@@ -2082,7 +2118,7 @@ function drawMonsters() {
     const attrs = [["Adroitness", 4, "Adroitness"], ["Raw Str.", 3, "Raw Strength"], ["Intellect", 5, "Intellect"], ["Charm", 6, "Charm"]].map(([n, i, full]) =>
       `<div class="att"><small>${n}</small><b>${esc2(c(row, i) || "-")}</b>${roll(full, c(row, i)).replace('class="rd"', 'class="rd ra"')}</div>`).join("");
     cards.push([sheetRow, `<div class="mcard ${dead ? "dead" : ""}" data-row="${sheetRow}" data-g="${esc2("m:" + (c(row, 1) || name))}">
-      <div class="mtop"><b>${esc2(name)}${dead ? ` <span class="deadtag">(DEAD)</span>` : ""}</b>${pen && !dead ? `<span class="mwnd">wounded ${pen}</span>` : ""}${c(row, 2) ? `<span class="mkind">${esc2(c(row, 2))}</span>` : ""}<span style="flex:1"></span>
+      <div class="mtop" title="Drag to move this monster up or down"><span class="mgrip">⋮⋮</span><b>${esc2(name)}${dead ? ` <span class="deadtag">(DEAD)</span>` : ""}</b>${pen && !dead ? `<span class="mwnd">wounded ${pen}</span>` : ""}${c(row, 2) ? `<span class="mkind">${esc2(c(row, 2))}</span>` : ""}<span style="flex:1"></span>
         <button class="sbtn mdead ${dead ? "on" : ""}" data-r="${sheetRow}" data-on="${dead ? "" : "1"}">${dead ? "☠ DEAD" : "DEAD?"}</button></div>
       <div class="g4 matt">${attrs}</div>
       <div class="mrow2"><div class="skc matk"><span><small>ATTACK</small></span><b>${esc2(c(row, 7) || "-")}</b>${roll("Attack", c(row, 7))}</div>
