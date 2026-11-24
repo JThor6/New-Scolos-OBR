@@ -197,15 +197,15 @@
   .g2 { grid-template-columns:1fr 1fr; } .g3 { grid-template-columns:1fr 1fr auto; } .g4 { grid-template-columns:repeat(4,1fr); }
   .g5 { grid-template-columns:repeat(5,1fr); } .g2b { grid-template-columns:1fr auto; }
   .g3:has(.fld:nth-child(3)) { grid-template-columns:1fr 1fr 1fr; }
-  .healb { margin-left:6px; font-size:10px; font-weight:800; padding:1px 7px; border-radius:6px; border:1px solid #3a3d55; background:var(--paper); color:var(--dim); cursor:pointer; vertical-align:bottom; }
+  .healb { margin-left:4px; font-size:10px; font-weight:800; padding:1px 5px; white-space:nowrap; border-radius:6px; border:1px solid #3a3d55; background:var(--paper); color:var(--dim); cursor:pointer; vertical-align:bottom; }
   .healb.undo { color:#7d8299; }
   /* Clear All looks like the other heal buttons; only its text changes when it asks "are you sure" */
-  .healn { display:inline-flex; align-items:center; margin-left:6px; vertical-align:bottom; }
-  .healn input { width:30px; font-size:11px; font-weight:800; padding:1px 3px; text-align:center; border:1px solid #3a3d55; border-left:none; border-radius:0 6px 6px 0; background:var(--paper); color:var(--ink, #f1f3f9); -moz-appearance:textfield; }
+  .healn { display:inline-flex; align-items:center; margin-left:4px; vertical-align:bottom; }
+  .healn input { width:24px; font-size:11px; font-weight:800; padding:1px 3px; text-align:center; border:1px solid #3a3d55; border-left:none; border-radius:0 6px 6px 0; background:var(--paper); color:var(--ink, #f1f3f9); -moz-appearance:textfield; }
   .healn input::-webkit-outer-spin-button, .healn input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
   .healn .healb { margin-left:0; border-radius:6px 0 0 6px; }
   .healn input:disabled { opacity:.4; }
-  .healn .hstep { margin-left:0; border-radius:0; border-left:none; min-width:22px; padding:1px 6px; font-size:12px; line-height:1; }
+  .healn .hstep { margin-left:0; border-radius:0; border-left:none; min-width:18px; padding:1px 4px; font-size:12px; line-height:1; }
   .healn .hstep:last-child { border-radius:0 6px 6px 0; }
   .healn input { border-radius:0 !important; }
   /* every button reacts at once: no double-tap-zoom wait on tablets/phones */
