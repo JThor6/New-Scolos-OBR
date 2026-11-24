@@ -2558,7 +2558,7 @@ async function ptUpload(file) {
     if (!full) { full = await ptEncode(bmp, 2400, file.type === "image/png" ? "image/png" : "image/jpeg", 0.92); if (full.size > 9e6) full = await ptEncode(bmp, 1600, "image/jpeg", 0.88); }
     const small = await ptEncode(bmp, 400, "image/webp", 0.85);
     const r = await bridgePost({ portrait: { full: { mime: full.mime, data: full.data }, small: { mime: small.mime, data: small.data } } }).catch(e => ({ ok: false, error: e.message }));
-    if (!r.ok) throw new Error(/nothing to change/i.test(r.error || "") ? "the Sheet Bridge needs updating first (ask your GM)." : /failed to fetch/i.test(r.error || "") ? "the Sheet Bridge didn't answer. Try again." : r.error);
+    if (!r.ok) throw new Error(/wrong table code/i.test(r.error || "") ? ptBridgeMsg(r.error) : /nothing to change/i.test(r.error || "") ? "the Sheet Bridge needs updating first (ask your GM)." : /failed to fetch/i.test(r.error || "") ? "the Sheet Bridge didn't answer. Try again." : r.error);
     const v = { t: r.t, url: `data:${small.mime};base64,${small.data}` };
     ptStamp.set(id, r.t); cache.set("ptt." + id, r.t); ptMem.set(id, v); cache.set("pt." + id, v); ptBridge = true;
     if (ptP.id === id) { ptP.pics = null; ptP.sel = ""; ptP.msg = ["ok", "Picture added. It's your portrait now."]; }
@@ -2576,7 +2576,7 @@ function ptChanged(id, t) {
   ptStamp.set(id, t || 0); cache.set("ptt." + id, t || 0); ptMem.delete(id); cache.set("pt." + id, null);
   if (!partyOn && sheetId() === id) drawSheet();
 }
-const ptBridgeMsg = (e) => /nothing to change|portraits/i.test(e || "") ? "The Sheet Bridge hasn't been updated for this yet, so it can't be saved. The GM needs to redeploy the bridge (see the project notes)." : /failed to fetch/i.test(e || "") ? "The Sheet Bridge didn't answer. Try again." : e;
+const ptBridgeMsg = (e) => /wrong table code/i.test(e || "") ? "The Sheet Bridge says Wrong table code: the TABLE_CODE line in the bridge doesn't match the code the table uses. The GM fixes that line in Apps Script and deploys a new version." : /nothing to change|portraits/i.test(e || "") ? "The Sheet Bridge hasn't been updated for this yet, so it can't be saved. The GM needs to redeploy the bridge (see the project notes)." : /failed to fetch/i.test(e || "") ? "The Sheet Bridge didn't answer. Try again." : e;
 // View a portrait full size (sheet and Party view). Changing pictures lives in Manage Character.
 function ptView(id, name) {
   document.querySelector(".ptov")?.remove();
