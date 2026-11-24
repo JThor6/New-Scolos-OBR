@@ -332,7 +332,8 @@
   .ptmi img { width:100%; height:100%; object-fit:cover; display:block; }
   .pted { display:flex; flex-direction:column; align-items:center; gap:7px; width:280px; max-width:100%; }
   .ptedc { position:relative; width:220px; height:220px; max-width:70vw; max-height:70vw; border-radius:50%; overflow:hidden; border:3px solid var(--accent); background:#000; cursor:grab; touch-action:none; user-select:none; }
-  .ptedc:active { cursor:grabbing; } .ptedc img { pointer-events:none; -webkit-user-drag:none; }
+  .ptedc:active { cursor:grabbing; }
+  .ptedc.locked { cursor:default; touch-action:auto; border-color:#444a66; } .ptedc.locked:active { cursor:default; } .ptedc img { pointer-events:none; -webkit-user-drag:none; }
   .ptzoom { display:flex; align-items:center; gap:6px; width:100%; } .ptzoom input { flex:1; accent-color:var(--accent); padding:0; border:none; background:transparent; }
   .ptzoom button { width:30px; height:30px; padding:0; font-size:18px; }
   .ptsw { display:flex; align-items:center; gap:6px; font-size:12px; margin:6px 0 2px; cursor:pointer; } .ptsw input { width:auto; margin:0; }
@@ -2561,7 +2562,7 @@ async function ptUpload(file) {
     if (!r.ok) throw new Error(/wrong table code/i.test(r.error || "") ? ptBridgeMsg(r.error) : /nothing to change/i.test(r.error || "") ? "the Sheet Bridge needs updating first (ask your GM)." : /failed to fetch/i.test(r.error || "") ? "the Sheet Bridge didn't answer. Try again." : r.error);
     const v = { t: r.t, url: `data:${small.mime};base64,${small.data}` };
     ptStamp.set(id, r.t); cache.set("ptt." + id, r.t); ptMem.set(id, v); cache.set("pt." + id, v); ptBridge = true;
-    if (ptP.id === id) { ptP.pics = null; ptP.sel = ""; ptP.msg = ["ok", "Picture added. It's your portrait now."]; }
+    if (ptP.id === id) { ptP.pics = null; ptP.sel = ""; ptP.edit = false; ptP.msg = ["ok", "Picture added. It's your portrait now. Tap ✎ ADJUST CIRCLE to frame it."]; }
     ptBusy = false; if (!partyOn && sheetId() === id) drawSheet();
     return true;
   } catch (e) {
@@ -2619,20 +2620,30 @@ async function ptPanel(reload) {
   const el = $("ptpanel"); if (!el) return;
   const id = sheetId();
   if (ptBridge === false) { el.innerHTML = `<div class="ptmsg bad">${esc2(ptBridgeMsg("portraits"))}</div>`; return; }
-  if (ptP.id !== id) ptP = { id, pics: null, cur: "", sel: "", f: null, dirty: false, msg: null };
+  if (ptP.id !== id) ptP = { id, pics: null, cur: "", sel: "", f: null, dirty: false, msg: null, edit: false, t: -1 };
+  if (ptP.pics && ptP.t !== ptT(id) && !ptBusy) reload = true; // pictures changed elsewhere (another device, the GM)
+  if (ptP.loading && !reload) return ptP.loading.then(() => ptPanelDraw());
   if (!ptP.pics || reload) {
-    if (!ptT(id) && !reload) { ptP.pics = []; ptP.cur = ""; }
+    const done = ptPanelLoad(id, reload); ptP.loading = done;
+    await done; if (ptP.loading === done) ptP.loading = null;
+    if (ptP.id !== id || !$("ptpanel") || ptP.failed) return;
+  }
+  ptPanelDraw();
+}
+async function ptPanelLoad(id, reload) {
+  const el = $("ptpanel"); ptP.failed = false;
+  {
+    if (!ptT(id) && !reload) { ptP.pics = []; ptP.cur = ""; ptP.t = 0; }
     else {
       if (!ptP.pics) el.innerHTML = `<div class="empty" style="padding:4px">Loading pictures…</div>`;
       const r = await bridgeGet({ portraits: id }).catch(e => ({ ok: false, error: e.message }));
-      if (ptP.id !== id || !$("ptpanel")) return;
-      if (!r.ok) { $("ptpanel").innerHTML = `<div class="ptmsg bad">Couldn't load the pictures. ${esc2(ptBridgeMsg(r.error))}</div>`; return; }
-      ptP.pics = r.pics.map(p => ({ id: p.id, url: `data:${p.mime};base64,${p.data}`, f: p.f || null })); ptP.cur = r.cur;
+      if (ptP.id !== id) return;
+      if (!r.ok) { ptP.failed = true; if ($("ptpanel")) $("ptpanel").innerHTML = `<div class="ptmsg bad">Couldn't load the pictures. ${esc2(ptBridgeMsg(r.error))}</div>`; return; }
+      ptP.pics = r.pics.map(p => ({ id: p.id, url: `data:${p.mime};base64,${p.data}`, f: p.f || null })); ptP.cur = r.cur; ptP.t = r.t;
       if (ptT(id) !== r.t) { ptStamp.set(id, r.t); cache.set("ptt." + id, r.t); ptMem.delete(id); cache.set("pt." + id, null); }
     }
-    if (!ptP.pics.some(p => p.id === ptP.sel)) { ptP.sel = ptP.cur; ptP.f = null; ptP.dirty = false; }
+    if (!ptP.pics.some(p => p.id === ptP.sel)) { ptP.sel = ptP.cur; ptP.f = null; ptP.dirty = false; ptP.edit = false; }
   }
-  ptPanelDraw();
 }
 function ptPanelDraw() {
   const el = $("ptpanel"); if (!el) return;
@@ -2644,18 +2655,26 @@ function ptPanelDraw() {
     <div class="ptgh">${ptP.pics.length ? `YOUR PICTURES <span>· ★ = portrait · tap one to pick it</span>` : "NO PICTURES YET"}</div>
     <div class="ptgal">${ptP.pics.map(x => `<button class="ptg ${x.id === ptP.cur ? "cur" : ""} ${x.id === ptP.sel ? "sel" : ""}" data-p="${esc2(x.id)}"><img src="${x.url}" alt=""></button>`).join("")}${ptP.pics.length < 12 ? `<button class="ptg add" title="Upload a picture" ${ptBusy ? "disabled" : ""}>+</button>` : ""}</div>
     ${p ? `<div class="ptbtns"><button class="sbtn ${isCur ? "on" : ""}" data-a="use" ${isCur ? "disabled" : ""}>${isCur ? "★ YOUR PORTRAIT" : "USE AS PORTRAIT"}</button><button class="sbtn" data-a="save">⬇ SAVE A COPY</button><button class="sbtn" data-a="rm">REMOVE</button></div>
-    <div class="ptgh">ADJUST CIRCLE <span>· drag to move · zoom with the slider${matchMedia("(pointer:fine)").matches ? " or mouse wheel" : ""}</span></div>
-    <div class="pted"><div class="ptedc"><img src="${p.url}" alt=""></div>
-      <div class="ptzoom"><button class="sbtn" data-z="-1" title="Zoom out">−</button><input type="range" min="1" max="5" step="0.01" value="${ptP.f.z}" title="Zoom"><button class="sbtn" data-z="1" title="Zoom in">+</button></div>
-      <div class="ptbtns"><button class="sbtn" data-e="reset">RESET</button><button class="sbtn" data-e="save"></button></div></div>`
+    <div class="ptgh">${ptP.edit ? `ADJUST CIRCLE <span>· drag to move · zoom with the slider${matchMedia("(pointer:fine)").matches ? " or mouse wheel" : ""}</span>` : `CIRCLE <span>· how it shows on the sheet</span>`}</div>
+    <div class="pted"><div class="ptedc ${ptP.edit ? "" : "locked"}"><img src="${p.url}" alt=""></div>
+      ${ptP.edit ? `<div class="ptzoom"><button class="sbtn" data-z="-1" title="Zoom out">−</button><input type="range" min="1" max="5" step="0.01" value="${ptP.f.z}" title="Zoom"><button class="sbtn" data-z="1" title="Zoom in">+</button></div>
+      <div class="ptbtns"><button class="sbtn" data-e="reset">RESET</button><button class="sbtn" data-e="cancel">CANCEL</button><button class="sbtn" data-e="save"></button></div>`
+      : `<div class="ptbtns"><button class="sbtn" data-e="edit">✎ ADJUST CIRCLE</button></div>`}</div>`
     : `<div class="mnote" style="text-align:center">Tap + or drop a picture here to add one.</div>`}
     <div id="ptmsg" class="ptmsg ${ptP.msg ? ptP.msg[0] : ""}">${esc2(ptP.msg ? ptP.msg[1] : "")}</div></div>`;
-  el.querySelectorAll(".ptg[data-p]").forEach(b => b.onclick = () => { if (b.dataset.p === ptP.sel) return; ptP.sel = b.dataset.p; ptP.f = null; ptP.dirty = false; ptP.msg = null; ptPanelDraw(); });
+  el.querySelectorAll(".ptg[data-p]").forEach(b => b.onclick = () => { if (b.dataset.p === ptP.sel) return; ptP.sel = b.dataset.p; ptP.f = null; ptP.dirty = false; ptP.edit = false; ptP.msg = null; ptPanelDraw(); });
   const add = el.querySelector(".ptg.add"); if (add) add.onclick = () => ptPick();
   if (!p) return;
-  // Adjust Circle
-  const c = el.querySelector(".ptedc"), im = c.querySelector("img"), rng = el.querySelector(".ptzoom input"), sv = el.querySelector('[data-e="save"]'), f = ptP.f;
-  const btn = () => { sv.disabled = !ptP.dirty; sv.className = "sbtn" + (ptP.dirty ? " on" : ""); sv.textContent = ptP.dirty ? "SAVE CIRCLE" : ptP.saved === p.id ? "✓ SAVED" : "SAVE CIRCLE"; };
+  bindPtPicButtons(el, p);
+  // Adjust Circle: locked until ✎ ADJUST CIRCLE, so scrolling the page over it never zooms or moves it
+  const c = el.querySelector(".ptedc"), im = c.querySelector("img"), f = ptP.f;
+  if (!ptP.edit) {
+    ptPlace(im, f);
+    el.querySelector('[data-e="edit"]').onclick = () => { ptP.edit = true; ptP.saved = ""; if (ptP.msg?.[0] === "ok") ptP.msg = null; ptPanelDraw(); };
+    return;
+  }
+  const rng = el.querySelector(".ptzoom input"), sv = el.querySelector('[data-e="save"]');
+  const btn = () => { sv.disabled = !ptP.dirty; sv.className = "sbtn" + (ptP.dirty ? " on" : ""); sv.textContent = "SAVE CIRCLE"; };
   const changed = () => { if (!ptP.dirty) { ptP.dirty = true; ptP.saved = ""; if (ptP.msg?.[0] === "ok") ptSay("", ""); btn(); } };
   const draw = () => { rng.value = f.z; ptPlace(im, f); };
   const zoom = (z) => { f.z = Math.min(5, Math.max(1, Math.round(z * 100) / 100)); draw(); changed(); };
@@ -2675,21 +2694,25 @@ function ptPanelDraw() {
   };
   c.onpointerup = c.onpointercancel = () => { drag = null; };
   el.querySelector('[data-e="reset"]').onclick = () => { f.z = 1; f.x = 50; f.y = 50; draw(); changed(); };
+  el.querySelector('[data-e="cancel"]').onclick = () => { ptP.f = null; ptP.dirty = false; ptP.edit = false; ptPanelDraw(); };
   sv.onclick = async () => {
     sv.disabled = true; sv.textContent = "SAVING…";
     const r = await bridgePost({ portraitFrame: p.id, frame: { z: f.z, x: f.x, y: f.y } }).catch(x => ({ ok: false, error: x.message }));
     if (!r.ok) { btn(); return ptSay("bad", "Couldn't save the circle. " + ptBridgeMsg(r.error)); }
-    p.f = r.f; ptP.dirty = false; ptP.saved = p.id;
-    if (p.id === ptP.cur) { const v = { t: r.t, url: p.url, f: r.f }; ptStamp.set(ptP.id, r.t); cache.set("ptt." + ptP.id, r.t); ptMem.set(ptP.id, v); cache.set("pt." + ptP.id, v); }
-    btn(); ptSay("ok", p.id === ptP.cur ? "Saved. Your portrait circle is updated for everyone." : "Saved. Tap USE AS PORTRAIT to show this one.");
+    p.f = r.f; ptP.f = null; ptP.dirty = false; ptP.edit = false;
+    if (p.id === ptP.cur) { const v = { t: r.t, url: p.url, f: r.f }; ptStamp.set(ptP.id, r.t); cache.set("ptt." + ptP.id, r.t); ptMem.set(ptP.id, v); cache.set("pt." + ptP.id, v); ptP.t = r.t; }
+    ptP.msg = ["ok", p.id === ptP.cur ? "✓ Circle saved. Your portrait is updated for everyone." : "✓ Circle saved. Tap USE AS PORTRAIT to show this one."];
+    ptPanelDraw();
   };
-  // picture buttons
+}
+// USE AS PORTRAIT / SAVE A COPY / REMOVE for the picked picture
+function bindPtPicButtons(el, p) {
   const use = el.querySelector('[data-a="use"]');
   use.onclick = async () => {
     use.disabled = true; use.textContent = "SWITCHING…";
     const r = await bridgePost({ portraitPick: p.id }).catch(x => ({ ok: false, error: x.message }));
     if (!r.ok) { use.disabled = false; use.textContent = "USE AS PORTRAIT"; return ptSay("bad", "Couldn't switch. " + ptBridgeMsg(r.error)); }
-    ptP.cur = p.id; ptP.msg = ["ok", "That's your portrait now."];
+    ptP.cur = p.id; ptP.msg = ["ok", "That's your portrait now."]; ptP.t = r.t;
     const v = { t: r.t, url: p.url, f: p.f }; ptStamp.set(ptP.id, r.t); cache.set("ptt." + ptP.id, r.t); ptMem.set(ptP.id, v); cache.set("pt." + ptP.id, v);
     ptPanelDraw();
   };
