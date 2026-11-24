@@ -324,6 +324,9 @@
   .ptg.sel { border-color:var(--accent); box-shadow:0 0 0 2px rgba(187,153,255,.35); }
   .ptg.cur::after { content:"★"; position:absolute; top:0; right:2px; font-size:12px; color:#ffd54a; text-shadow:0 0 2px #000, 0 0 2px #000; }
   .ptg.add { border-style:dashed; } .ptg.add:hover { border-color:var(--accent); color:var(--accent); }
+  .ptpan { display:flex; flex-direction:column; align-items:center; gap:7px; margin:4px 0; }
+  .ptmsg { font-size:12px; font-weight:700; text-align:center; min-height:15px; } .ptmsg.ok { color:var(--plus); } .ptmsg.bad { color:var(--minus); }
+  .ptgh span { font-weight:600; letter-spacing:0; }
   .ptgh { font-size:11px; font-weight:800; letter-spacing:1px; color:var(--dim); }
   .ptmi { position:relative; display:block; width:44px; height:44px; border-radius:50%; overflow:hidden; border:2px solid var(--accent); flex:none; }
   .ptmi img { width:100%; height:100%; object-fit:cover; display:block; }
@@ -1207,10 +1210,10 @@ function drawManager() {
     <div class="stab">NOTES</div>
     <textarea id="notes" rows="5" maxlength="2000">${esc2(notes.join("\n"))}</textarea>
     <button id="noteGo" class="sbtn" style="width:100%;margin-top:4px">SAVE NOTES</button>
-    <div class="stab">PORTRAIT</div>
-    ${ptBridge === false ? `<div class="mnote">Portraits need the Sheet Bridge update first (ask your GM).</div>` : `<div class="mrow">${ptT(sheetId()) ? `<span class="ptmi"><img data-pt="${esc2(sheetId())}" alt=""></span>` : ""}${ptBusy ? `<button class="sbtn" disabled>SAVING PICTURE…</button>` : ptT(sheetId()) ? `<button id="ptGal" class="sbtn">PICK A NEW PORTRAIT</button><button id="ptUp" class="sbtn">+ UPLOAD</button>` : `<button id="ptUp" class="sbtn">+ ADD A PICTURE</button>`}</div>`}
+    <div class="stab" id="ptsec">PORTRAIT</div>
+    <div id="ptpanel"></div>
     <label class="ptsw"><input type="checkbox" id="ptHide" ${ptHidden() ? "checked" : ""}> Hide portraits on my screen</label>
-    <div class="mnote">Optional. Your character keeps every picture you upload (up to 12), so you can switch back any time with PICK A NEW PORTRAIT. Drop a picture anywhere on this panel to add it. Pictures are saved to the GM's Character Portraits folder in Google Drive. Hiding only changes your own screen; it doesn't delete anything.</div>
+    <div class="mnote">Optional. Your character keeps every picture you upload (up to 12); tap one to pick it. Drop a picture anywhere on this panel to add it. Pictures are saved to the GM's Character Portraits folder in Google Drive. Hiding only changes your own screen; it doesn't delete anything.</div>
     <div class="stab">PRINT</div>
     <button id="pdfGo" class="sbtn" style="width:100%">⬇ EXPORT TO PDF</button>
     <div id="pdfOut" class="mnote" style="color:var(--dim)">Saves this character as a fillable PDF you can download, print, or keep filling in on screen. It opens in a new browser tab.</div>
@@ -2520,8 +2523,8 @@ function ptHead() { // round picture (or + to add one) at the left of the sheet 
   if (ptHidden()) return "";
   const id = sheetId(), t = ptT(id);
   if (ptBusy) return `<button class="ptc busy" id="ptc" disabled title="Saving the picture…">…</button>`;
-  if (t) return `<button class="ptc" id="ptc" title="Tap to see the full picture"><img data-pt="${esc2(id)}" alt=""></button>`;
-  return ptBridge ? `<button class="ptc ptadd" id="ptc" title="Add a portrait: tap to pick a picture, or drop one on the sheet">+<small>PORTRAIT</small></button>` : "";
+  if (t) return `<button class="ptc" id="ptc" title="Tap to see the full picture (change it in Manage Character)"><img data-pt="${esc2(id)}" alt=""></button>`;
+  return ptBridge ? `<button class="ptc ptadd" id="ptc" title="Add a portrait (opens Manage Character), or drop a picture on the sheet">+<small>PORTRAIT</small></button>` : "";
 }
 function ptIcon(id, name) {
   return !ptHidden() && id && ptT(id) ? `<button class="pti" data-ptv="${esc2(id)}" data-n="${esc2(name)}" title="See ${esc2(name)}'s portrait"><img data-pt="${esc2(id)}" alt=""></button>` : "";
@@ -2558,147 +2561,161 @@ async function ptUpload(file) {
     if (!r.ok) throw new Error(/nothing to change/i.test(r.error || "") ? "the Sheet Bridge needs updating first (ask your GM)." : /failed to fetch/i.test(r.error || "") ? "the Sheet Bridge didn't answer. Try again." : r.error);
     const v = { t: r.t, url: `data:${small.mime};base64,${small.data}` };
     ptStamp.set(id, r.t); cache.set("ptt." + id, r.t); ptMem.set(id, v); cache.set("pt." + id, v); ptBridge = true;
+    if (ptP.id === id) { ptP.pics = null; ptP.sel = ""; ptP.msg = ["ok", "Picture added. It's your portrait now."]; }
     ptBusy = false; if (!partyOn && sheetId() === id) drawSheet();
     return true;
   } catch (e) {
     ptBusy = false; if (!partyOn && sheetId() === id) drawSheet();
     ptErr("Couldn't save the picture: " + (e.message || e));
-    ptNote("Couldn't save the picture: " + (e.message || e));
+    ptSay("bad", "Couldn't save the picture: " + (e.message || e));
     return false;
   } finally { ptBusy = false; sync(-1); }
 }
-function ptNote(m) { const n = document.querySelector(".ptov .ptnote"); if (n) n.textContent = m; }
 // the current portrait changed: new time stamp, drop the old small copy so the new one is fetched
 function ptChanged(id, t) {
   ptStamp.set(id, t || 0); cache.set("ptt." + id, t || 0); ptMem.delete(id); cache.set("pt." + id, null);
   if (!partyOn && sheetId() === id) drawSheet();
 }
-// Picture view. Players on their own sheet (and the GM) get the picker: every picture this character has,
-// the star marks the portrait; tap one to look at it, USE AS PORTRAIT to switch, + to add another.
-// In the Party view it just shows the portrait, with SAVE A COPY.
-function ptView(id, name, own) {
+const ptBridgeMsg = (e) => /nothing to change|portraits/i.test(e || "") ? "The Sheet Bridge hasn't been updated for this yet, so it can't be saved. The GM needs to redeploy the bridge (see the project notes)." : /failed to fetch/i.test(e || "") ? "The Sheet Bridge didn't answer. Try again." : e;
+// View a portrait full size (sheet and Party view). Changing pictures lives in Manage Character.
+function ptView(id, name) {
   document.querySelector(".ptov")?.remove();
   const ov = document.createElement("div"); ov.className = "ptov";
   ov.innerHTML = `<div class="ptbox"><button class="ptx" title="Close">✕</button><img alt=""><b>${esc2(name || "")}</b>
-    ${own ? `<div class="ptgh">YOUR PICTURES <span style="font-weight:600">★ = portrait</span></div><div class="ptgal"><span class="mnote" style="color:var(--dim)">Loading…</span></div>` : ""}
-    <div class="ptbtns">${own ? `<button class="sbtn" data-a="use" disabled>USE AS PORTRAIT</button><button class="sbtn" data-a="adj" disabled>⊙ ADJUST CIRCLE</button>` : ""}<button class="sbtn" data-a="save" disabled>⬇ SAVE A COPY</button>${own ? `<button class="sbtn" data-a="rm" disabled>REMOVE</button>` : ""}</div>
+    <div class="ptbtns"><button class="sbtn" data-a="save" disabled>⬇ SAVE A COPY</button></div>
     <div class="mnote ptnote" style="color:var(--dim);text-align:center">Loading full size…</div></div>`;
   document.body.append(ov);
   const img = ov.querySelector("img"), note = ov.querySelector(".ptnote"), save = ov.querySelector('[data-a="save"]');
-  const use = ov.querySelector('[data-a="use"]'), adj = ov.querySelector('[data-a="adj"]'), rm = ov.querySelector('[data-a="rm"]'), gal = ov.querySelector(".ptgal");
-  let blobUrl = "", fileName = (name || "Character") + " - Portrait", pics = [], cur = "", sel = "", armT = 0, seq = 0;
+  let blobUrl = "", fileName = (name || "Character") + " - Portrait";
   const close = () => { ov.remove(); document.removeEventListener("keydown", esc); if (blobUrl) setTimeout(() => URL.revokeObjectURL(blobUrl), 1000); };
   const esc = (e) => { if (e.key === "Escape") close(); };
   document.addEventListener("keydown", esc);
   ov.onclick = (e) => { if (e.target === ov) close(); };
   ov.querySelector(".ptx").onclick = close;
-  const disarm = () => { clearTimeout(armT); if (rm) { rm.classList.remove("arm"); rm.textContent = "REMOVE"; } };
-  // big picture: small copy right away, then the full picture
-  const show = (pic) => {
-    const my = ++seq; sel = pic || ""; save.disabled = true; disarm();
-    if (blobUrl) { URL.revokeObjectURL(blobUrl); blobUrl = ""; }
-    const p = pics.find(x => x.id === sel);
-    img.src = p ? p.url : ""; if (!p) ptSmall(id).then(u => { if (my === seq && u && !img.src) img.src = u; });
-    if (use) { use.disabled = !sel || sel === cur; use.textContent = sel && sel === cur ? "★ YOUR PORTRAIT" : "USE AS PORTRAIT"; }
-    if (rm) rm.disabled = !sel; if (adj) adj.disabled = !p;
-    gal?.querySelectorAll(".ptg[data-p]").forEach(b => b.classList.toggle("sel", b.dataset.p === sel));
-    note.textContent = "Loading full size…";
-    bridgeGet({ portrait: id, full: 1, ...(sel ? { pic: sel } : {}) }).then(async r => {
-      if (my !== seq || !ov.isConnected) return;
-      if (!r.ok || r.none) { note.textContent = r.ok ? (own ? "No pictures yet. Tap + to add one." : "No picture.") : "Couldn't load the full picture."; return; }
-      blobUrl = URL.createObjectURL(await (await fetch(`data:${r.mime};base64,${r.data}`)).blob());
-      if (my !== seq) return;
-      img.src = blobUrl; fileName = r.name || fileName; save.disabled = false;
-      note.textContent = "You can also right-click the picture and pick Save image as.";
-    }).catch(() => { if (my === seq && ov.isConnected) note.textContent = "Couldn't load the full picture."; });
-  };
-  const drawGal = () => {
-    gal.innerHTML = pics.map(p => `<button class="ptg ${p.id === cur ? "cur" : ""} ${p.id === sel ? "sel" : ""}" data-p="${esc2(p.id)}" title="${p.id === cur ? "Your portrait" : "Look at this one"}"><img src="${p.url}" alt=""></button>`).join("")
-      + (pics.length < 12 ? `<button class="ptg add" title="Upload another picture">+</button>` : "");
-    gal.querySelectorAll(".ptg[data-p]").forEach(b => b.onclick = () => show(b.dataset.p));
-    const add = gal.querySelector(".ptg.add");
-    if (add) add.onclick = () => { if (ptBusy) return; note.textContent = "Saving the picture…"; ptPick(ok => ok ? loadGal(true) : null); };
-  };
-  const loadGal = async (pickNewest) => {
-    const r = await bridgeGet({ portraits: id }).catch(e => ({ ok: false, error: e.message }));
+  ptSmall(id).then(u => { if (u && !img.src) img.src = u; });
+  bridgeGet({ portrait: id, full: 1 }).then(async r => {
     if (!ov.isConnected) return;
-    if (!r.ok) { gal.innerHTML = `<span class="err">Couldn't load the pictures${/nothing|portraits/i.test(r.error || "") ? " (the Sheet Bridge needs updating)" : ""}.</span>`; return; }
-    pics = r.pics.map(p => ({ id: p.id, url: `data:${p.mime};base64,${p.data}`, f: p.f || null })); cur = r.cur;
-    if (ptT(id) !== r.t) ptChanged(id, r.t);
-    drawGal(); show(pickNewest ? cur : (pics.some(p => p.id === sel) ? sel : cur));
-  };
+    if (!r.ok || r.none) { note.textContent = r.ok ? "No picture." : "Couldn't load the full picture."; return; }
+    blobUrl = URL.createObjectURL(await (await fetch(`data:${r.mime};base64,${r.data}`)).blob());
+    img.src = blobUrl; fileName = r.name || fileName; save.disabled = false;
+    note.textContent = sheetId() === id && !partyOn ? "Change or adjust your portrait in ⚙ Manage Character." : "You can also right-click the picture and pick Save image as.";
+  }).catch(() => { if (ov.isConnected) note.textContent = "Couldn't load the full picture."; });
   save.onclick = () => { const a = document.createElement("a"); a.href = blobUrl; a.download = fileName; document.body.append(a); a.click(); a.remove(); };
-  if (!own) return show("");
-  loadGal();
-  use.onclick = async () => {
-    if (!sel || sel === cur) return;
-    use.disabled = true; use.textContent = "SWITCHING…";
-    const r = await bridgePost({ portraitPick: sel }).catch(e => ({ ok: false, error: e.message }));
-    if (!r.ok) { note.textContent = "Couldn't switch: " + r.error; use.disabled = false; use.textContent = "USE AS PORTRAIT"; return; }
-    cur = sel; ptChanged(id, r.t); drawGal(); show(sel);
-  };
-  // Adjust circle: drag to move the picture, slider / mouse wheel / − + to zoom; saved per picture
-  adj.onclick = () => {
-    const p = pics.find(x => x.id === sel); if (!p) return;
-    const box = ov.querySelector(".ptbox"), keep = [...box.children];
-    keep.forEach(el => { if (!el.classList.contains("ptx")) el.style.display = "none"; });
-    const f = { z: p.f?.z || 1, x: p.f?.x ?? 50, y: p.f?.y ?? 50 };
-    const ed = document.createElement("div"); ed.className = "pted";
-    ed.innerHTML = `<b style="font-family:'Bangers',Impact,sans-serif;font-weight:400;font-size:20px;letter-spacing:1px">ADJUST CIRCLE</b>
-      <div class="ptedc"><img src="${p.url}" alt=""></div>
-      <div class="ptzoom"><button class="sbtn" data-z="-1" title="Zoom out">−</button><input type="range" min="1" max="5" step="0.01" value="${f.z}" title="Zoom"><button class="sbtn" data-z="1" title="Zoom in">+</button></div>
-      <div class="ptbtns"><button class="sbtn" data-e="reset">RESET</button><button class="sbtn" data-e="cancel">CANCEL</button><button class="sbtn on" data-e="save">✓ SAVE CIRCLE</button></div>
-      <div class="mnote" style="color:var(--dim);text-align:center">Drag the picture to move it. Zoom with the slider${matchMedia("(pointer:fine)").matches ? " or the mouse wheel" : ""}. This is how it shows on the sheet and in the Party view.</div>`;
-    box.append(ed);
-    const c = ed.querySelector(".ptedc"), im = c.querySelector("img"), rng = ed.querySelector("input"), msg = ed.querySelector(".mnote");
-    const draw = () => { rng.value = f.z; ptPlace(im, f); };
-    const zoom = (z) => { f.z = Math.min(5, Math.max(1, Math.round(z * 100) / 100)); draw(); };
-    draw();
-    rng.oninput = () => zoom(+rng.value);
-    ed.querySelectorAll("[data-z]").forEach(b => b.onclick = () => zoom(f.z * (+b.dataset.z > 0 ? 1.15 : 1 / 1.15)));
-    c.addEventListener("wheel", (e) => { e.preventDefault(); zoom(f.z * (e.deltaY < 0 ? 1.08 : 1 / 1.08)); }, { passive: false });
-    let drag = null;
-    c.onpointerdown = (e) => { drag = { x: e.clientX, y: e.clientY }; c.setPointerCapture(e.pointerId); };
-    c.onpointermove = (e) => {
-      if (!drag) return;
-      const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag = { x: e.clientX, y: e.clientY };
-      const C = c.clientWidth, W = im.offsetWidth, H = im.offsetHeight;
-      if (W > C + 0.5) f.x = Math.min(100, Math.max(0, f.x + dx / (C - W) * 100));
-      if (H > C + 0.5) f.y = Math.min(100, Math.max(0, f.y + dy / (C - H) * 100));
-      draw();
-    };
-    c.onpointerup = c.onpointercancel = () => { drag = null; };
-    const done = () => { ed.remove(); keep.forEach(el => { el.style.display = ""; }); };
-    ed.querySelector('[data-e="reset"]').onclick = () => { f.z = 1; f.x = 50; f.y = 50; draw(); };
-    ed.querySelector('[data-e="cancel"]').onclick = done;
-    ed.querySelector('[data-e="save"]').onclick = async (e) => {
-      const b = e.currentTarget; b.disabled = true; b.textContent = "SAVING…";
-      const r = await bridgePost({ portraitFrame: p.id, frame: f }).catch(x => ({ ok: false, error: x.message }));
-      if (!r.ok) { b.disabled = false; b.textContent = "✓ SAVE CIRCLE"; msg.textContent = "Couldn't save: " + (/nothing to change/i.test(r.error || "") ? "the Sheet Bridge needs updating first." : r.error); return; }
-      p.f = r.f;
-      if (p.id === cur) { const v = { t: r.t, url: p.url, f: r.f }; ptStamp.set(id, r.t); cache.set("ptt." + id, r.t); ptMem.set(id, v); cache.set("pt." + id, v); if (!partyOn && sheetId() === id) drawSheet(); }
-      done();
-    };
-  };
-  rm.onclick = async () => {
-    if (!sel) return;
-    if (!rm.classList.contains("arm")) { rm.classList.add("arm"); rm.textContent = "TAP AGAIN TO REMOVE"; armT = setTimeout(disarm, 4000); return; }
-    clearTimeout(armT); rm.disabled = true; rm.textContent = "REMOVING…";
-    const r = await bridgePost({ portraitRemove: sel }).catch(e => ({ ok: false, error: e.message }));
-    if (!r.ok) { note.textContent = "Couldn't remove it: " + r.error; disarm(); rm.disabled = false; return; }
-    if (r.t !== ptT(id)) ptChanged(id, r.t);
-    sel = ""; loadGal();
-  };
 }
 function bindPt() {
   fillPts($("shbody"));
-  const c = $("ptc"); if (c) c.onclick = () => ptT(sheetId()) ? ptView(sheetId(), V("C3"), true) : ptPick();
+  const c = $("ptc");
+  if (c) c.onclick = () => { if (ptT(sheetId())) return ptView(sheetId(), V("C3"));
+    mgrOn = true; drawSheet(); $("ptsec")?.scrollIntoView({ block: "start", behavior: "smooth" }); };
   ptDrop();
 }
+
+// ---------- Manage Character → PORTRAIT ----------
+// Every picture this character has (★ = the portrait), + to add one, and the Adjust Circle editor
+// for the picked picture right there: drag to move it, slider / mouse wheel / − + to zoom, SAVE CIRCLE.
+let ptP = { id: "" }; // panel state, kept while Manage Character redraws
+function ptSay(kind, text) { ptP.msg = [kind, text]; const m = $("ptmsg"); if (m) { m.className = "ptmsg " + kind; m.textContent = text; } }
+async function ptPanel(reload) {
+  const el = $("ptpanel"); if (!el) return;
+  const id = sheetId();
+  if (ptBridge === false) { el.innerHTML = `<div class="ptmsg bad">${esc2(ptBridgeMsg("portraits"))}</div>`; return; }
+  if (ptP.id !== id) ptP = { id, pics: null, cur: "", sel: "", f: null, dirty: false, msg: null };
+  if (!ptP.pics || reload) {
+    if (!ptT(id) && !reload) { ptP.pics = []; ptP.cur = ""; }
+    else {
+      if (!ptP.pics) el.innerHTML = `<div class="empty" style="padding:4px">Loading pictures…</div>`;
+      const r = await bridgeGet({ portraits: id }).catch(e => ({ ok: false, error: e.message }));
+      if (ptP.id !== id || !$("ptpanel")) return;
+      if (!r.ok) { $("ptpanel").innerHTML = `<div class="ptmsg bad">Couldn't load the pictures. ${esc2(ptBridgeMsg(r.error))}</div>`; return; }
+      ptP.pics = r.pics.map(p => ({ id: p.id, url: `data:${p.mime};base64,${p.data}`, f: p.f || null })); ptP.cur = r.cur;
+      if (ptT(id) !== r.t) { ptStamp.set(id, r.t); cache.set("ptt." + id, r.t); ptMem.delete(id); cache.set("pt." + id, null); }
+    }
+    if (!ptP.pics.some(p => p.id === ptP.sel)) { ptP.sel = ptP.cur; ptP.f = null; ptP.dirty = false; }
+  }
+  ptPanelDraw();
+}
+function ptPanelDraw() {
+  const el = $("ptpanel"); if (!el) return;
+  const id = ptP.id, p = ptP.pics.find(x => x.id === ptP.sel);
+  if (p && !ptP.f) ptP.f = { z: p.f?.z || 1, x: p.f?.x ?? 50, y: p.f?.y ?? 50 };
+  const isCur = p && p.id === ptP.cur;
+  el.innerHTML = `<div class="ptpan">
+    ${ptBusy ? `<div class="ptmsg">Saving the picture…</div>` : ""}
+    <div class="ptgh">${ptP.pics.length ? `YOUR PICTURES <span>· ★ = portrait · tap one to pick it</span>` : "NO PICTURES YET"}</div>
+    <div class="ptgal">${ptP.pics.map(x => `<button class="ptg ${x.id === ptP.cur ? "cur" : ""} ${x.id === ptP.sel ? "sel" : ""}" data-p="${esc2(x.id)}"><img src="${x.url}" alt=""></button>`).join("")}${ptP.pics.length < 12 ? `<button class="ptg add" title="Upload a picture" ${ptBusy ? "disabled" : ""}>+</button>` : ""}</div>
+    ${p ? `<div class="ptbtns"><button class="sbtn ${isCur ? "on" : ""}" data-a="use" ${isCur ? "disabled" : ""}>${isCur ? "★ YOUR PORTRAIT" : "USE AS PORTRAIT"}</button><button class="sbtn" data-a="save">⬇ SAVE A COPY</button><button class="sbtn" data-a="rm">REMOVE</button></div>
+    <div class="ptgh">ADJUST CIRCLE <span>· drag to move · zoom with the slider${matchMedia("(pointer:fine)").matches ? " or mouse wheel" : ""}</span></div>
+    <div class="pted"><div class="ptedc"><img src="${p.url}" alt=""></div>
+      <div class="ptzoom"><button class="sbtn" data-z="-1" title="Zoom out">−</button><input type="range" min="1" max="5" step="0.01" value="${ptP.f.z}" title="Zoom"><button class="sbtn" data-z="1" title="Zoom in">+</button></div>
+      <div class="ptbtns"><button class="sbtn" data-e="reset">RESET</button><button class="sbtn" data-e="save"></button></div></div>`
+    : `<div class="mnote" style="text-align:center">Tap + or drop a picture here to add one.</div>`}
+    <div id="ptmsg" class="ptmsg ${ptP.msg ? ptP.msg[0] : ""}">${esc2(ptP.msg ? ptP.msg[1] : "")}</div></div>`;
+  el.querySelectorAll(".ptg[data-p]").forEach(b => b.onclick = () => { if (b.dataset.p === ptP.sel) return; ptP.sel = b.dataset.p; ptP.f = null; ptP.dirty = false; ptP.msg = null; ptPanelDraw(); });
+  const add = el.querySelector(".ptg.add"); if (add) add.onclick = () => ptPick();
+  if (!p) return;
+  // Adjust Circle
+  const c = el.querySelector(".ptedc"), im = c.querySelector("img"), rng = el.querySelector(".ptzoom input"), sv = el.querySelector('[data-e="save"]'), f = ptP.f;
+  const btn = () => { sv.disabled = !ptP.dirty; sv.className = "sbtn" + (ptP.dirty ? " on" : ""); sv.textContent = ptP.dirty ? "SAVE CIRCLE" : ptP.saved === p.id ? "✓ SAVED" : "SAVE CIRCLE"; };
+  const changed = () => { if (!ptP.dirty) { ptP.dirty = true; ptP.saved = ""; if (ptP.msg?.[0] === "ok") ptSay("", ""); btn(); } };
+  const draw = () => { rng.value = f.z; ptPlace(im, f); };
+  const zoom = (z) => { f.z = Math.min(5, Math.max(1, Math.round(z * 100) / 100)); draw(); changed(); };
+  draw(); btn();
+  rng.oninput = () => zoom(+rng.value);
+  el.querySelectorAll("[data-z]").forEach(b => b.onclick = () => zoom(f.z * (+b.dataset.z > 0 ? 1.15 : 1 / 1.15)));
+  c.addEventListener("wheel", (e) => { e.preventDefault(); zoom(f.z * (e.deltaY < 0 ? 1.08 : 1 / 1.08)); }, { passive: false });
+  let drag = null;
+  c.onpointerdown = (e) => { drag = { x: e.clientX, y: e.clientY }; c.setPointerCapture(e.pointerId); };
+  c.onpointermove = (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag = { x: e.clientX, y: e.clientY };
+    const C = c.clientWidth, W = im.offsetWidth, H = im.offsetHeight; let moved = false;
+    if (W > C + 0.5 && dx) { f.x = Math.min(100, Math.max(0, f.x + dx / (C - W) * 100)); moved = true; }
+    if (H > C + 0.5 && dy) { f.y = Math.min(100, Math.max(0, f.y + dy / (C - H) * 100)); moved = true; }
+    if (moved) { draw(); changed(); }
+  };
+  c.onpointerup = c.onpointercancel = () => { drag = null; };
+  el.querySelector('[data-e="reset"]').onclick = () => { f.z = 1; f.x = 50; f.y = 50; draw(); changed(); };
+  sv.onclick = async () => {
+    sv.disabled = true; sv.textContent = "SAVING…";
+    const r = await bridgePost({ portraitFrame: p.id, frame: { z: f.z, x: f.x, y: f.y } }).catch(x => ({ ok: false, error: x.message }));
+    if (!r.ok) { btn(); return ptSay("bad", "Couldn't save the circle. " + ptBridgeMsg(r.error)); }
+    p.f = r.f; ptP.dirty = false; ptP.saved = p.id;
+    if (p.id === ptP.cur) { const v = { t: r.t, url: p.url, f: r.f }; ptStamp.set(ptP.id, r.t); cache.set("ptt." + ptP.id, r.t); ptMem.set(ptP.id, v); cache.set("pt." + ptP.id, v); }
+    btn(); ptSay("ok", p.id === ptP.cur ? "Saved. Your portrait circle is updated for everyone." : "Saved. Tap USE AS PORTRAIT to show this one.");
+  };
+  // picture buttons
+  const use = el.querySelector('[data-a="use"]');
+  use.onclick = async () => {
+    use.disabled = true; use.textContent = "SWITCHING…";
+    const r = await bridgePost({ portraitPick: p.id }).catch(x => ({ ok: false, error: x.message }));
+    if (!r.ok) { use.disabled = false; use.textContent = "USE AS PORTRAIT"; return ptSay("bad", "Couldn't switch. " + ptBridgeMsg(r.error)); }
+    ptP.cur = p.id; ptP.msg = ["ok", "That's your portrait now."];
+    const v = { t: r.t, url: p.url, f: p.f }; ptStamp.set(ptP.id, r.t); cache.set("ptt." + ptP.id, r.t); ptMem.set(ptP.id, v); cache.set("pt." + ptP.id, v);
+    ptPanelDraw();
+  };
+  const dl = el.querySelector('[data-a="save"]');
+  dl.onclick = async () => {
+    dl.disabled = true; dl.textContent = "LOADING…";
+    const r = await bridgeGet({ portrait: ptP.id, pic: p.id, full: 1 }).catch(x => ({ ok: false, error: x.message }));
+    dl.disabled = false; dl.textContent = "⬇ SAVE A COPY";
+    if (!r.ok || r.none) return ptSay("bad", "Couldn't load the picture. " + ptBridgeMsg(r.error || ""));
+    const url = URL.createObjectURL(await (await fetch(`data:${r.mime};base64,${r.data}`)).blob());
+    const a = document.createElement("a"); a.href = url; a.download = r.name || "Portrait"; document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+  };
+  const rm = el.querySelector('[data-a="rm"]'); let armT = 0;
+  rm.onclick = async () => {
+    if (!rm.classList.contains("arm")) { rm.classList.add("arm"); rm.textContent = "TAP AGAIN TO REMOVE"; armT = setTimeout(() => { if (rm.isConnected) { rm.classList.remove("arm"); rm.textContent = "REMOVE"; } }, 4000); return; }
+    clearTimeout(armT); rm.disabled = true; rm.textContent = "REMOVING…";
+    const r = await bridgePost({ portraitRemove: p.id }).catch(x => ({ ok: false, error: x.message }));
+    if (!r.ok) { rm.disabled = false; rm.classList.remove("arm"); rm.textContent = "REMOVE"; return ptSay("bad", "Couldn't remove it. " + ptBridgeMsg(r.error)); }
+    ptP.sel = ""; ptP.msg = ["ok", "Picture removed."];
+    if (r.t !== ptT(ptP.id)) { ptStamp.set(ptP.id, r.t || 0); cache.set("ptt." + ptP.id, r.t || 0); ptMem.delete(ptP.id); cache.set("pt." + ptP.id, null); }
+    ptPanel(true);
+  };
+}
 function bindPtMgr() {
-  fillPts($("shbody"));
-  if ($("ptUp")) $("ptUp").onclick = ptPick;
-  if ($("ptGal")) $("ptGal").onclick = () => ptView(sheetId(), V("C3"), true);
+  ptPanel();
   $("ptHide").onchange = () => store.set("ns.ptHide", $("ptHide").checked ? "1" : "");
   ptDrop();
 }
