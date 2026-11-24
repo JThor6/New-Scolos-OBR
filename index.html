@@ -304,6 +304,22 @@
   .iadd input { padding:4px 6px; }
   .help { font-size:11px; color:var(--dim); line-height:1.35; margin:3px 0 2px; }
   .shead { display:flex; flex-wrap:wrap; align-items:center; gap:4px; margin:2px 0 2px; }
+  /* portraits: round picture beside the name (tap for full size), small icon in Party view */
+  .ptc { flex:none; width:54px; height:54px; border-radius:50%; border:2px solid var(--accent); background:var(--paper); padding:0; overflow:hidden; cursor:pointer; color:var(--dim); font-size:20px; font-weight:800; line-height:1; display:flex; flex-direction:column; align-items:center; justify-content:center; margin-right:3px; }
+  .ptc img, .pti img { width:100%; height:100%; object-fit:cover; display:block; }
+  .ptc.ptadd { border:2px dashed #444a66; } .ptc.ptadd small { font-size:7px; letter-spacing:.5px; font-weight:800; margin-top:2px; }
+  .ptc.ptadd:hover, .ptdrag .ptc { border-color:var(--accent); color:var(--accent); }
+  .ptc.busy { opacity:.55; animation:ptpulse .8s infinite alternate; } @keyframes ptpulse { to { opacity:.25; } }
+  .ptdrag { outline:2px dashed var(--accent); outline-offset:-2px; border-radius:8px; }
+  .pti { flex:none; width:26px; height:26px; border-radius:50%; border:1.5px solid #444a66; padding:0; overflow:hidden; background:var(--paper); cursor:pointer; align-self:center; }
+  .ptov { position:fixed; inset:0; background:rgba(0,0,0,.8); z-index:9999; display:flex; align-items:center; justify-content:center; padding:10px; }
+  .ptbox { position:relative; background:#151826; border:2px solid var(--accent); border-radius:12px; padding:12px 10px 10px; max-width:100%; max-height:100%; box-sizing:border-box; display:flex; flex-direction:column; align-items:center; gap:6px; overflow:auto; }
+  .ptbox img { max-width:100%; max-height:62vh; border-radius:8px; display:block; }
+  .ptbox > b { font-family:'Bangers', Impact, sans-serif; font-weight:400; font-size:21px; letter-spacing:1px; }
+  .ptx { position:absolute; top:4px; right:6px; background:transparent; border:none; color:var(--dim); font-size:18px; font-weight:900; cursor:pointer; }
+  .ptbtns { display:flex; flex-wrap:wrap; gap:4px; justify-content:center; }
+  .ptmi { width:44px; height:44px; border-radius:50%; object-fit:cover; border:2px solid var(--accent); flex:none; }
+  .ptsw { display:flex; align-items:center; gap:6px; font-size:12px; margin:6px 0 2px; cursor:pointer; } .ptsw input { width:auto; margin:0; }
   .shn { flex:1 1 170px; min-width:0; }
   .shbtns { display:flex; gap:4px; margin-left:auto; }
   .shcol { display:flex; flex-direction:column; align-items:flex-end; gap:2px; margin-left:auto; }
@@ -977,7 +993,8 @@ async function loadSheet(quiet) {
     return connectForm(r.error);
   }
   cache.set("sheet." + id, r.values);
-  if (JSON.stringify(r.values) === JSON.stringify(sheetVals) && $("shbody")?.querySelector(".fld")) return; // nothing changed
+  const ptWas = ptT(id), ptKnown = ptBridge; notePt(id, r);
+  if (JSON.stringify(r.values) === JSON.stringify(sheetVals) && $("shbody")?.querySelector(".fld") && ptWas === ptT(id) && ptKnown === ptBridge) return; // nothing changed
   sheetVals = r.values; drawSheet();
 }
 
@@ -1024,13 +1041,14 @@ function drawSheet() {
   $("shbody").innerHTML = `${store.get("ns.welcomeOff2") ? "" : `<div class="welc"><button id="welx" title="Got it, hide this">✕</button><b>WELCOME TO THE TABLE</b>
       <div><span class="welrd">${ROLL_ICON}</span> Tap the dice button on any attribute or skill to roll it. Everyone sees the roll.</div>
       <div>Tap any <i>underlined</i> word to see what it means.</div>
+      <div><i>Portrait</i> (optional): tap the round + beside your name, or drop a picture on your sheet.</div>
       <div><i>Extraordinary Power:</i> tap a power's name for its rules and its button. The button uses the power and checks the Used Today box. Any rolls you need while the power is running are the buttons under it.</div>
       <div><i>${esc2((V("C4") || "Type").trim().toUpperCase())} RULES</i> (in the power box) and <i>Skill List</i> (by SKILLS) open your rules beside the map.</div>
       <div><i>Vitality Track:</i> tap a box to mark a wound; HEAL moves them left. A Critical Wound or worse gives -1 to every roll. The sheet automatically calculates that into your rolls, so you don't have to.</div>
       <div><i>Roll History</i> (under Manage Character) shows the table's rolls.</div>
       <div><i>Manage Character</i> is where you spend XP and credits, change gear, write notes and export a PDF.</div>
       <div>Tap ✕ to hide this. It won't come back.</div></div>`}
-    ${V("H16") ? "" : (deadSeen.set(sheetId(), false), "")}<div class="shead"><div class="shn"><b>${esc2(V("C3") || "Unnamed")}${V("H16") ? ` <span class="deadtag">(DEAD)</span>` : ""}</b><small>${[V("C4"), V("F5") !== "" ? "Level " + V("F5") : ""].filter(Boolean).map(esc2).join(" · ")}${V("F7") !== "" ? `<span class="cred" title="Credits">¤ ${esc2((n => n == null ? V("F7") : n.toLocaleString("en-US"))(num(V("F7"))))} credits</span>` : ""}</small></div>
+    ${V("H16") ? "" : (deadSeen.set(sheetId(), false), "")}<div class="shead">${ptHead()}<div class="shn"><b>${esc2(V("C3") || "Unnamed")}${V("H16") ? ` <span class="deadtag">(DEAD)</span>` : ""}</b><small>${[V("C4"), V("F5") !== "" ? "Level " + V("F5") : ""].filter(Boolean).map(esc2).join(" · ")}${V("F7") !== "" ? `<span class="cred" title="Credits">¤ ${esc2((n => n == null ? V("F7") : n.toLocaleString("en-US"))(num(V("F7"))))} credits</span>` : ""}</small></div>
       <span class="shcol"><span class="shbtns"><button id="reload" class="ibtn" title="Reload from Google Sheet">↻</button><button id="mgr" class="ibtn mgrb" title="Manage character: XP, skills, gear, notes">⚙ Manage Character</button></span><button class="sref hist" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></span></div>
     <div id="ksbar" class="ksbar" hidden></div><div id="actbar" class="actbar" hidden></div>
     <div class="stab">ATTRIBUTES</div>
@@ -1060,7 +1078,7 @@ function drawSheet() {
     </div>
     <div id="sherr" class="err" hidden></div>
     ${isGM ? "" : `<div class="discw"><button id="disc" class="discb" title="Pick a different character">⇄ Switch character</button></div>`}`;
-  fillPowers(); bindInfo(); updateKS(); updateActive(); publishActive();
+  fillPowers(); bindInfo(); updateKS(); updateActive(); publishActive(); bindPt();
   document.querySelectorAll("#shbody .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l, "", b.dataset.b); });
   // the whole attribute or skill box rolls, except its underlined name (that opens the info)
   document.querySelectorAll("#shbody .att, #shbody .skc").forEach(box => { const rd = box.querySelector(".rd"); if (!rd) return;
@@ -1176,6 +1194,10 @@ function drawManager() {
     <div class="stab">NOTES</div>
     <textarea id="notes" rows="5" maxlength="2000">${esc2(notes.join("\n"))}</textarea>
     <button id="noteGo" class="sbtn" style="width:100%;margin-top:4px">SAVE NOTES</button>
+    <div class="stab">PORTRAIT</div>
+    ${ptBridge === false ? `<div class="mnote">Portraits need the Sheet Bridge update first (ask your GM).</div>` : `<div class="mrow">${ptT(sheetId()) ? `<img class="ptmi" data-pt="${esc2(sheetId())}" alt="">` : ""}<button id="ptUp" class="sbtn" ${ptBusy ? "disabled" : ""}>${ptBusy ? "SAVING PICTURE…" : ptT(sheetId()) ? "CHANGE PICTURE" : "+ ADD A PICTURE"}</button>${ptT(sheetId()) ? `<button id="ptRm" class="sbtn">REMOVE</button>` : ""}</div>`}
+    <label class="ptsw"><input type="checkbox" id="ptHide" ${ptHidden() ? "checked" : ""}> Hide portraits on my screen</label>
+    <div class="mnote">Optional. Tap the button or drop a picture anywhere on this panel. It's saved to the GM's Character Portraits folder in Google Drive. Hiding only changes your own screen; it doesn't delete anything.</div>
     <div class="stab">PRINT</div>
     <button id="pdfGo" class="sbtn" style="width:100%">⬇ EXPORT TO PDF</button>
     <div id="pdfOut" class="mnote" style="color:var(--dim)">Saves this character as a fillable PDF you can download, print, or keep filling in on screen. It opens in a new browser tab.</div>
@@ -1242,6 +1264,7 @@ function drawManager() {
   document.querySelectorAll("[data-eq]").forEach(b => b.onclick = () => mgrSave({ ["E" + b.dataset.eq]: "" }));
   document.querySelectorAll("[data-inv]").forEach(b => b.onclick = () => { const i = b.dataset.inv; mgrSave({ ["B" + i]: "", ["C" + i]: "", ["D" + i]: "" }); });
   drawMgrCombat(err);
+  bindPtMgr();
   $("pdfGo").onclick = async () => {
     const b = $("pdfGo"), out = $("pdfOut"); b.disabled = true; b.textContent = "BUILDING PDF…"; out.textContent = "This takes about 10–20 seconds."; sync(1);
     let r = await bridgePost({ exportPdf: 1 }).catch(e => ({ ok: false, error: e.message }));
@@ -2023,6 +2046,7 @@ async function characterSheets() {
   const all = await Promise.all(list.sheets.filter(f => !/master/i.test(f.name)).map(async f => {
     const r = await bridgeGet({ id: f.id }).catch(() => null);
     if (!r || !r.ok) return null;
+    notePt(f.id, r);
     const v = r.values, title = String(v[1]?.[1] || "").trim(), name = String(v[2]?.[2] || "").trim();
     return /character sheet/i.test(title) && name ? { id: f.id, name, values: v } : null;
   }));
@@ -2438,15 +2462,159 @@ async function addInitEntry() {
 // ---------------- PARTY OVERVIEW ----------------
 // Everyone's name, type, power used today and vitality track, read-only. For healers and the GM.
 let partyOn = false;
+// ---------------- PORTRAITS ----------------
+// Optional picture per character. The add-on resizes it, the Sheet Bridge saves the full picture in the GM's
+// Character Portraits folder and a small copy for the table. The bridge says each sheet's portrait time
+// ("portrait" on every sheet read; 0 = none), so the small copy is only fetched again when it changes.
+const ptStamp = new Map();          // sheet id -> upload time (0 = none)
+let ptBridge = null;                // true: the bridge knows portraits; false: it needs redeploying; null: not known yet
+let ptBusy = false;
+const ptMem = new Map(), ptLoading = new Map();
+const PT_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+const ptHidden = () => store.get("ns.ptHide") === "1";
+const ptT = (id) => ptStamp.has(id) ? ptStamp.get(id) : (cache.get("ptt." + id) || 0);
+function notePt(id, r) {
+  if (!r || !r.ok) return;
+  if ("portrait" in r) { ptBridge = true; ptStamp.set(id, r.portrait || 0); cache.set("ptt." + id, r.portrait || 0); }
+  else if (ptBridge === null) ptBridge = false;
+}
+function ptSmall(id) { // data URL of the small copy ("" if none)
+  const t = ptT(id); if (!t) return Promise.resolve("");
+  const m = ptMem.get(id); if (m && m.t === t) return Promise.resolve(m.url);
+  const c = cache.get("pt." + id); if (c && c.t === t) { ptMem.set(id, c); return Promise.resolve(c.url); }
+  if (ptLoading.has(id)) return ptLoading.get(id);
+  const p = bridgeGet({ portrait: id }).then(r => {
+    if (!r.ok || r.none) { if (r.ok) { ptStamp.set(id, 0); cache.set("ptt." + id, 0); } return ""; }
+    const v = { t: r.t, url: `data:${r.mime};base64,${r.data}` };
+    ptStamp.set(id, r.t); ptMem.set(id, v); cache.set("pt." + id, v); return v.url;
+  }).catch(() => "").finally(() => ptLoading.delete(id));
+  ptLoading.set(id, p); return p;
+}
+function fillPts(root) {
+  root?.querySelectorAll("img[data-pt]").forEach(im => ptSmall(im.dataset.pt).then(u => { if (u && im.isConnected) im.src = u; }));
+}
+function ptHead() { // round picture (or + to add one) at the left of the sheet header
+  if (ptHidden()) return "";
+  const id = sheetId(), t = ptT(id);
+  if (ptBusy) return `<button class="ptc busy" id="ptc" disabled title="Saving the picture…">…</button>`;
+  if (t) return `<button class="ptc" id="ptc" title="Tap to see the full picture"><img data-pt="${esc2(id)}" alt=""></button>`;
+  return ptBridge ? `<button class="ptc ptadd" id="ptc" title="Add a portrait: tap to pick a picture, or drop one on the sheet">+<small>PORTRAIT</small></button>` : "";
+}
+function ptIcon(id, name) {
+  return !ptHidden() && id && ptT(id) ? `<button class="pti" data-ptv="${esc2(id)}" data-n="${esc2(name)}" title="See ${esc2(name)}'s portrait"><img data-pt="${esc2(id)}" alt=""></button>` : "";
+}
+function ptErr(m) { const e = $("sherr"); if (e) { e.hidden = false; e.textContent = m; } }
+function ptPick() {
+  let inp = $("ptfile");
+  if (!inp) { inp = document.createElement("input"); inp.type = "file"; inp.accept = "image/*"; inp.id = "ptfile"; inp.hidden = true; document.body.append(inp); }
+  inp.value = ""; inp.onchange = () => inp.files[0] && ptUpload(inp.files[0]); inp.click();
+}
+const blobB64 = (blob) => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1]); fr.onerror = () => rej(new Error("couldn't read the picture")); fr.readAsDataURL(blob); });
+async function ptEncode(bmp, max, mime, q) { // shrink to fit max×max and encode
+  const k = Math.min(1, max / Math.max(bmp.width, bmp.height)), w = Math.max(1, Math.round(bmp.width * k)), h = Math.max(1, Math.round(bmp.height * k));
+  const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+  cv.getContext("2d").drawImage(bmp, 0, 0, w, h);
+  const blob = await new Promise(res => cv.toBlob(res, mime, q));
+  if (!blob) throw new Error("couldn't shrink the picture");
+  return { mime: PT_TYPES.includes(blob.type) ? blob.type : "image/png", data: await blobB64(blob), size: blob.size };
+}
+async function ptUpload(file) {
+  const id = sheetId();
+  if (!id || id === "__party" || ptBusy) return;
+  if (!file || !/^image\//.test(file.type)) return ptErr("That isn't a picture. Use a JPG or PNG.");
+  if (ptBridge === false) return ptErr("Portraits need the Sheet Bridge update first (ask your GM).");
+  ptBusy = true; if (!partyOn) drawSheet(); sync(1);
+  try {
+    let bmp;
+    try { bmp = await createImageBitmap(file); } catch { throw new Error("Chrome can't open that picture. Save it as a JPG or PNG and try again."); }
+    // full picture: the original file when it's a normal type and not huge, otherwise a big resized copy
+    let full = PT_TYPES.includes(file.type) && file.size <= 8e6 ? { mime: file.type, data: await blobB64(file) } : null;
+    if (!full) { full = await ptEncode(bmp, 2400, file.type === "image/png" ? "image/png" : "image/jpeg", 0.92); if (full.size > 9e6) full = await ptEncode(bmp, 1600, "image/jpeg", 0.88); }
+    const small = await ptEncode(bmp, 400, "image/webp", 0.85);
+    const r = await bridgePost({ portrait: { full: { mime: full.mime, data: full.data }, small: { mime: small.mime, data: small.data } } }).catch(e => ({ ok: false, error: e.message }));
+    if (!r.ok) throw new Error(/nothing to change/i.test(r.error || "") ? "the Sheet Bridge needs updating first (ask your GM)." : /failed to fetch/i.test(r.error || "") ? "the Sheet Bridge didn't answer. Try again." : r.error);
+    const v = { t: r.t, url: `data:${small.mime};base64,${small.data}` };
+    ptStamp.set(id, r.t); cache.set("ptt." + id, r.t); ptMem.set(id, v); cache.set("pt." + id, v); ptBridge = true;
+    ptBusy = false; if (!partyOn && sheetId() === id) drawSheet();
+  } catch (e) {
+    ptBusy = false; if (!partyOn && sheetId() === id) drawSheet();
+    ptErr("Couldn't save the picture: " + (e.message || e));
+  } finally { ptBusy = false; sync(-1); }
+}
+async function ptRemove(id) {
+  const r = await bridgePost({ portraitRemove: 1 }).catch(e => ({ ok: false, error: e.message }));
+  if (!r.ok) return ptErr("Couldn't remove the picture: " + r.error);
+  ptStamp.set(id, 0); cache.set("ptt." + id, 0); ptMem.delete(id); cache.set("pt." + id, null);
+  if (!partyOn && sheetId() === id) drawSheet();
+}
+// Full-size view. own = it's the sheet you're on (you can change or remove it); anyone can save a copy.
+function ptView(id, name, own) {
+  document.querySelector(".ptov")?.remove();
+  const ov = document.createElement("div"); ov.className = "ptov";
+  ov.innerHTML = `<div class="ptbox"><button class="ptx" title="Close">✕</button><img alt=""><b>${esc2(name || "")}</b>
+    <div class="ptbtns">${own ? `<button class="sbtn" data-a="chg">CHANGE PICTURE</button>` : ""}<button class="sbtn" data-a="save" disabled>⬇ SAVE A COPY</button>${own ? `<button class="sbtn" data-a="rm">REMOVE</button>` : ""}</div>
+    <div class="mnote" style="color:var(--dim);text-align:center">Loading full size…</div></div>`;
+  document.body.append(ov);
+  const img = ov.querySelector("img"), note = ov.querySelector(".mnote"), save = ov.querySelector('[data-a="save"]');
+  let blobUrl = "", fileName = (name || "Character") + " - Portrait";
+  const close = () => { ov.remove(); document.removeEventListener("keydown", esc); if (blobUrl) setTimeout(() => URL.revokeObjectURL(blobUrl), 1000); };
+  const esc = (e) => { if (e.key === "Escape") close(); };
+  document.addEventListener("keydown", esc);
+  ov.onclick = (e) => { if (e.target === ov) close(); };
+  ov.querySelector(".ptx").onclick = close;
+  ptSmall(id).then(u => { if (u && !img.src) img.src = u; });
+  bridgeGet({ portrait: id, full: 1 }).then(async r => {
+    if (!ov.isConnected) return;
+    if (!r.ok || r.none) { note.textContent = r.ok ? "No picture." : "Couldn't load the full picture."; return; }
+    blobUrl = URL.createObjectURL(await (await fetch(`data:${r.mime};base64,${r.data}`)).blob());
+    img.src = blobUrl; fileName = r.name || fileName; save.disabled = false;
+    note.textContent = "You can also right-click the picture and pick Save image as.";
+  }).catch(() => { if (ov.isConnected) note.textContent = "Couldn't load the full picture."; });
+  save.onclick = () => { const a = document.createElement("a"); a.href = blobUrl; a.download = fileName; document.body.append(a); a.click(); a.remove(); };
+  if (own) {
+    ov.querySelector('[data-a="chg"]').onclick = () => { close(); ptPick(); };
+    const rm = ov.querySelector('[data-a="rm"]'); let armT = 0;
+    rm.onclick = async () => {
+      if (!rm.classList.contains("arm")) { rm.classList.add("arm"); rm.textContent = "TAP AGAIN TO REMOVE"; armT = setTimeout(() => { if (rm.isConnected) { rm.classList.remove("arm"); rm.textContent = "REMOVE"; } }, 4000); return; }
+      clearTimeout(armT); rm.disabled = true; rm.textContent = "REMOVING…"; await ptRemove(id); close();
+    };
+  }
+}
+function bindPt() {
+  fillPts($("shbody"));
+  const c = $("ptc"); if (c) c.onclick = () => ptT(sheetId()) ? ptView(sheetId(), V("C3"), true) : ptPick();
+  ptDrop();
+}
+function bindPtMgr() {
+  fillPts($("shbody"));
+  if ($("ptUp")) $("ptUp").onclick = ptPick;
+  if ($("ptRm")) { let armT = 0; $("ptRm").onclick = () => { const b = $("ptRm");
+    if (!b.classList.contains("arm")) { b.classList.add("arm"); b.textContent = "TAP AGAIN"; armT = setTimeout(() => { if (b.isConnected) { b.classList.remove("arm"); b.textContent = "REMOVE"; } }, 4000); return; }
+    clearTimeout(armT); b.disabled = true; ptRemove(sheetId()); }; }
+  $("ptHide").onchange = () => store.set("ns.ptHide", $("ptHide").checked ? "1" : "");
+  ptDrop();
+}
+// Drop a picture anywhere on your sheet (or in Manage Character) to make it the portrait
+function ptDrop() {
+  const z = $("shbody"); if (!z) return;
+  const ok = (e) => !partyOn && sheetId() && sheetId() !== "__party" && ptBridge !== false && (mgrOn || !ptHidden()) && [...(e.dataTransfer?.types || [])].includes("Files");
+  z.ondragover = (e) => { if (!ok(e)) return; e.preventDefault(); z.classList.add("ptdrag"); };
+  z.ondragleave = (e) => { if (!z.contains(e.relatedTarget)) z.classList.remove("ptdrag"); };
+  z.ondrop = (e) => { z.classList.remove("ptdrag"); if (!ok(e)) return; e.preventDefault(); const f = [...(e.dataTransfer.files || [])].find(f => /^image\//.test(f.type)); f ? ptUpload(f) : ptErr("That isn't a picture. Use a JPG or PNG."); };
+}
+// a file dropped anywhere else must not open in the panel (that would replace the whole extension)
+document.addEventListener("dragover", (e) => { if ([...(e.dataTransfer?.types || [])].includes("Files")) e.preventDefault(); });
+document.addEventListener("drop", (e) => { if ([...(e.dataTransfer?.types || [])].includes("Files")) e.preventDefault(); });
+
 async function showParty() {
   partyOn = true;
   const body = $("shbody") || ($("sh").insertAdjacentHTML("beforeend", `<div id="shbody"></div>`), $("shbody"));
   const saved = cache.get(ck("chars"));
-  if (saved?.length) drawParty(body, saved.map(c => c.values));
+  if (saved?.length) drawParty(body, saved);
   else body.innerHTML = `<div class="empty">Loading party…</div>`;
   sync(1);
   try {
-    const chars = (await characterSheets()).map(c => c.values);
+    const chars = await characterSheets();
     if (!partyOn) return;
     drawParty(body, chars);
   } catch (e) { if (!saved?.length) body.innerHTML = `<div class="err">Couldn't load the party: ${esc2(e.message || e)}</div>`; }
@@ -2457,16 +2625,18 @@ function drawParty(body, chars) {
   lastParty = chars;
   {
     const cell = (v, a1) => { const m = a1.match(/^([A-L])(\d+)$/); return String(v[+m[2] - 1]?.[m[1].charCodeAt(0) - 65] ?? "").trim(); };
-    body.innerHTML = chars.length ? chars.map(v => {
+    body.innerHTML = chars.length ? chars.map(c => { const v = c.values;
       const marks = "BCDEFGH".split("").map(c => !!cell(v, c + "16"));
       const worst = marks.lastIndexOf(true);
       const status = worst < 0 ? "Unhurt" : cell(v, "BCDEFGH"[worst] + "15").replace(/^\S+\s+/, "");
       const used = cell(v, "F6").toUpperCase() === "TRUE";
       return `<div class="pcard">
-        <div class="ptop"><b>${esc2(cell(v, "C3"))}</b><small>${esc2(cell(v, "C4"))}</small><span class="ppw ${used ? "u" : ""}">${used ? "POWER USED" : "POWER READY"}</span></div>
+        <div class="ptop">${ptIcon(c.id, cell(v, "C3"))}<b>${esc2(cell(v, "C3"))}</b><small>${esc2(cell(v, "C4"))}</small><span class="ppw ${used ? "u" : ""}">${used ? "POWER USED" : "POWER READY"}</span></div>
         ${actBadge(cell(v, "C3"))}<div class="pvit">${marks.map((m, i) => `<i><small>${["LW", "LW", "LW", "MW", "CW", "KO", "D"][i]}</small><span class="${m ? "x" : ""}"></span></i>`).join("")}<em class="${worst >= 4 ? "bad" : ""}">${esc2(status)}</em></div>
       </div>`;
     }).join("") : `<div class="empty">No characters found.</div>`;
+    fillPts(body);
+    body.querySelectorAll(".pti").forEach(b => b.onclick = () => ptView(b.dataset.ptv, b.dataset.n, false));
   }
 }
 

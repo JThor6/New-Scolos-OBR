@@ -4,6 +4,7 @@
  *
  * Owned and deployed by Jake as a web app ("Execute as: Me", "Who has access: Anyone").
  * Only works on sheets inside the New Scolos character folder, and only with the table code.
+ * Also saves character portraits into Jake's private Character Portraits folder (see PORTRAITS below).
  */
 
 const TABLE_CODE = 'CHANGE-ME';                          // pick a code; players type it once in Owlbear
@@ -248,6 +249,64 @@ function rulesDoc() {
   return { ok: true, title: DriveApp.getFileById(RULES_DOC_ID).getName(), md: md };
 }
 
+// ---------------- PORTRAITS ----------------
+// The add-on resizes the picture and sends two copies: the full picture (saved as "<Name> - Portrait" in the
+// Character Portraits folder, Jake's art source for tokens) and a small one the add-on shows at the table
+// (kept in a subfolder). Which files belong to which sheet is kept in Script Properties ("pt:<sheet id>"),
+// so nothing is written on the character sheet and the folder stays private: the bridge hands the picture out.
+const PORTRAIT_FOLDER_ID = '15BY1xqDO4VCLbG8-vGO8uiobgunsAa9W';
+const PORTRAIT_SMALL_FOLDER = 'Small copies (used by the extension)';
+const PORTRAIT_EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif' };
+function portraitInfo(id) {
+  const s = PropertiesService.getScriptProperties().getProperty('pt:' + id);
+  return s ? JSON.parse(s) : null;
+}
+function portraitStamp(id) { const i = portraitInfo(id); return i ? i.t : 0; }
+function trashPortraitFiles(info) {
+  [info.full, info.small].forEach(function (fid) { try { DriveApp.getFileById(fid).setTrashed(true); } catch (e) {} });
+}
+function getPortrait(id, full) {
+  const info = portraitInfo(id);
+  if (!info) return { ok: true, none: true };
+  let f;
+  try { f = DriveApp.getFileById(full ? info.full : info.small); } catch (e) { f = null; }
+  if (!f || f.isTrashed()) { // someone removed it in Drive: forget it
+    if (!full) PropertiesService.getScriptProperties().deleteProperty('pt:' + id);
+    return { ok: true, none: true };
+  }
+  const b = f.getBlob();
+  return { ok: true, t: info.t, mime: b.getContentType(), name: f.getName(), data: Utilities.base64Encode(b.getBytes()) };
+}
+function savePortrait(id, pic) {
+  const sh = openMain(id); // folder check
+  const full = pic && pic.full, small = pic && pic.small;
+  if (!full || !small || !PORTRAIT_EXT[full.mime] || !PORTRAIT_EXT[small.mime]) throw new Error('That picture type will not work. Use a JPG, PNG, WebP or GIF.');
+  const fb = Utilities.base64Decode(String(full.data || '')), sb = Utilities.base64Decode(String(small.data || ''));
+  if (!fb.length || fb.length > 10 * 1024 * 1024) throw new Error('That picture is too big (10 MB max).');
+  if (!sb.length || sb.length > 400 * 1024) throw new Error('The small copy of the picture did not come through. Try again.');
+  const name = (String(sh.getRange('C3').getDisplayValue()).trim() || 'Character').replace(/[\\/:*?"<>|]/g, '').slice(0, 60);
+  const root = DriveApp.getFolderById(PORTRAIT_FOLDER_ID);
+  const it = root.getFoldersByName(PORTRAIT_SMALL_FOLDER);
+  const smallFolder = it.hasNext() ? it.next() : root.createFolder(PORTRAIT_SMALL_FOLDER);
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    const old = portraitInfo(id);
+    const ff = root.createFile(Utilities.newBlob(fb, full.mime, name + ' - Portrait.' + PORTRAIT_EXT[full.mime]));
+    const sf = smallFolder.createFile(Utilities.newBlob(sb, small.mime, name + ' - small.' + PORTRAIT_EXT[small.mime]));
+    try { ff.setDescription('Uploaded from the New Scolos Manager for character sheet ' + id); } catch (e) {}
+    const info = { full: ff.getId(), small: sf.getId(), t: Date.now() };
+    PropertiesService.getScriptProperties().setProperty('pt:' + id, JSON.stringify(info));
+    if (old) trashPortraitFiles(old); // the replaced picture goes to Drive's trash (restorable for 30 days)
+    return { ok: true, t: info.t };
+  } finally { lock.releaseLock(); }
+}
+function removePortrait(id) {
+  openMain(id); // folder check
+  const info = portraitInfo(id);
+  if (info) { trashPortraitFiles(info); PropertiesService.getScriptProperties().deleteProperty('pt:' + id); }
+  return { ok: true };
+}
+
 function json(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
 }
@@ -270,6 +329,7 @@ function openMain(id) {
 // GET ?code=...&id=SHEET_ID        -> the Main Sheet (display values, A1:L60)
 // GET ?code=...&id=SHEET_ID&tab=Priest -> that whole tab
 // GET ?code=...&list=1             -> every character sheet in the folder (for the GM)
+// GET ?code=...&portrait=SHEET_ID  -> that character's small portrait (add &full=1 for the full picture)
 function doGet(e) {
   try {
     const p = e.parameter;
@@ -300,6 +360,7 @@ function doGet(e) {
       return json({ ok: true, sheets: out });
     }
     if (p.doc === 'rules') return json(rulesDoc()); // REFERENCE → New Scolos Rules Work in Progress
+    if (p.portrait) return json(getPortrait(p.portrait, !!p.full));
     if (p.tab) { // a whole tab, e.g. Combat Options or Priest (used by the Rules tab)
       openMain(p.id); // folder check
       const t = SpreadsheetApp.openById(p.id).getSheetByName(p.tab);
@@ -308,7 +369,7 @@ function doGet(e) {
       return json({ ok: true, values: last ? t.getRange(1, 1, last, cols).getDisplayValues() : [] });
     }
     const sh = openMain(p.id);
-    return json({ ok: true, values: sh.getRange('A1:L300').getDisplayValues() });
+    return json({ ok: true, values: sh.getRange('A1:L300').getDisplayValues(), portrait: portraitStamp(p.id) });
   } catch (err) {
     return json({ ok: false, error: String(err.message || err) });
   }
@@ -321,6 +382,8 @@ function doPost(e) {
     if (b.code !== TABLE_CODE) return json({ ok: false, error: 'Wrong table code.' });
     if (b.create) return json(createCharacter(b.create, b.campaign));
     if (b.stasis) return json(moveToStasis(b.id));
+    if (b.portrait) return json(savePortrait(b.id, b.portrait));
+    if (b.portraitRemove) return json(removePortrait(b.id));
     if (b.exportPdf) { // start building in the background (a web app can't wait on it), the add-on then asks ?pdfjob= for the result
       openMain(b.id); // folder check up front
       const job = Utilities.getUuid(), cache = CacheService.getScriptCache();
