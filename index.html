@@ -958,10 +958,10 @@ function drawSheet() {
   const copMaxT = V("H28");
   $("shbody").innerHTML = `${store.get("ns.welcomeOff2") ? "" : `<div class="welc"><button id="welx" title="Got it, hide this">✕</button><b>WELCOME TO THE TABLE</b>
       <div><span class="welrd">${ROLL_ICON}</span> Tap the dice button on any attribute or skill to roll it. Everyone sees the roll.</div>
-      <div><i>Underlined</i> words explain themselves: tap one to see what it does.</div>
-      <div><i>Extraordinary Power:</i> tap a power's name for its rules and its button. The button uses the power and ticks Used today. Rolls that come up while it's running sit under it.</div>
+      <div>Tap any <i>underlined</i> word to see what it means.</div>
+      <div><i>Extraordinary Power:</i> tap a power's name for its rules and its button. The button uses the power and marks it Used today. Any rolls you need while the power is running are the buttons under it.</div>
       <div><i>${esc2((V("C4") || "Type").trim().toUpperCase())} RULES</i> (in the power box) and <i>Skill List</i> (by SKILLS) open your rules beside the map.</div>
-      <div><i>Vitality Track:</i> tap a box to mark a wound; HEAL moves them left. A Critical Wound or worse gives -1 to every roll (the sheet adds it for you).</div>
+      <div><i>Vitality Track:</i> tap a box to mark a wound; HEAL moves them left. A Critical Wound or worse gives -1 to every roll. The sheet automatically calculates that into your rolls, so you don't have to.</div>
       <div><i>Roll History</i> (under Manage Character) shows the table's rolls.</div>
       <div><i>Manage Character</i> is where you spend XP and credits, change gear, write notes and export a PDF.</div>
       <div>Tap ✕ to hide this. It won't come back.</div></div>`}
