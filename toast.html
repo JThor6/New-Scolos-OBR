@@ -19,6 +19,9 @@
   body.ks { background:rgba(120,15,15,.72); border:2px solid #ff4d3d; box-shadow:0 0 14px rgba(255,60,40,.6); }
   body.ks .lbl { color:#ff6b5e; font-family:'Bangers', Impact, sans-serif; letter-spacing:1px; }
   body.ks .tot { color:#ff6b5e; }
+  body.cp { background:rgba(10,55,80,.75); border:2px solid #4fc3f7; box-shadow:0 0 14px rgba(79,195,247,.55); }
+  body.cp .lbl { flex-basis:auto; color:#7fd4ff; font-family:'Bangers', Impact, sans-serif; letter-spacing:1px; font-size:18px; white-space:nowrap; }
+  body.cp .left { flex-basis:100%; font-size:12px; font-weight:800; color:#c9e9ff; }
   .tot { margin-left:auto; font-family:'Luckiest Guy', 'Bangers', Impact, sans-serif; font-size:23px; min-width:30px; text-align:right; padding-top:2px; }
 </style></head>
 <body><div class="t" id="t"></div>
@@ -45,6 +48,12 @@
     let s = parseFloat(l.style.fontSize) || 12;
     while (b.scrollHeight > b.clientHeight + 1 && s > 6) { s -= 0.5; l.style.fontSize = s + "px"; } };
   fit(); if (document.fonts) document.fonts.ready.then(fit);
+  if (q.get("cop")) { // Combat Option Point used: who, and how many they have left
+    const max = q.get("max");
+    document.getElementById("t").innerHTML = `<span class="who"><span style="overflow:hidden;text-overflow:ellipsis">${esc(q.get("char") || q.get("who") || "")}${q.get("char") ? `<span class="pn">${esc(q.get("who") || "")}</span>` : ""}</span></span>` +
+      `<span class="lbl cop">⚔ COMBAT OPTION!</span>` + (max ? `<span class="left">${esc(q.get("total") || "0")} of ${esc(max)} COP left</span>` : "");
+    document.body.classList.add("cp");
+  }
   if (q.get("ks")) document.body.classList.add("ks"); else if (q.get("pw")) document.body.classList.add("pw");
   const faces = [...document.querySelectorAll(".die")];
   let showFor = 5000;

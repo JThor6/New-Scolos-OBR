@@ -44,6 +44,7 @@ export const MARK_ITEM = "com.newscolos.mark"; // metadata key on the label item
 export const DEFAULT_MARKS = ["Dead ☠️", "Unconscious 💤"];
 export const markList = (md) => Array.isArray(md?.[MARKS]) ? md[MARKS] : DEFAULT_MARKS;
 
+const head0 = (r, time, esc) => `<div class="hn">${esc(r.char || r.who)}${r.char ? ` <span class="pn">${esc(r.who)}</span>` : ""} <span class="t">${time}</span></div>`;
 // One roll in the roll history (DICE tab and its pop-out window). histDetail = the DETAILED view.
 export function rollLine(r, histDetail) {
   const face = (d) => d > 0 ? "+" : d < 0 ? "−" : "", cls = (d) => `die ${d > 0 ? "p" : d < 0 ? "m" : ""}`;
@@ -56,6 +57,7 @@ export function rollLine(r, histDetail) {
   const wm = label.match(/\s*\((w(?:o(?:u(?:n(?:d(?:e(?:d)?)?)?)?)?)?)\b([^)]*)\)?\s*$/i);
   if (wm && (wm[1].length >= 4 || !wm[2])) { if (pen == null) pen = n((wm[2] || "").match(/-\d+/)?.[0]) ?? -1; label = label.slice(0, wm.index).trim(); }
   const wtag = pen ? `<span class="wtag">wounded ${fmt(pen)}</span>` : "";
+  if (r.cop) return `<div class="hl cop">${head0(r, time, esc)}<div class="hr"><span class="hlbl">⚔ Used a Combat Option Point</span><span class="tot">${r.max != null ? `${r.total}/${r.max}` : ""}</span></div></div>`;
   const dice = `<span class="dice hd">${r.dice.map(d => `<div class="${cls(d)}">${face(d)}</div>`).join("")}</span>`;
   const head = `<div class="hn">${esc(r.char || r.who)}${r.char ? ` <span class="pn">${esc(r.who)}</span>` : ""} <span class="t">${time}</span>${wtag}</div>`;
   const xc = r.ks ? " ks" : r.pw || /^⚡/.test(label) ? " pw" : "";
@@ -84,6 +86,7 @@ export const ROLL_CSS = `
   .hl .wtag { margin-left:6px; color:#ff8f8f; font-size:11px; font-weight:900; }
   .hl .hr { display:flex; align-items:center; gap:8px; margin-top:4px; }
   .hl.pw { border-left:3px solid #ffc94d; padding-left:5px; background:rgba(255,201,77,.08); } .hl.pw .hlbl, .hl.pw .tot { color:#ffc94d; }
+  .hl.cop { border-left:3px solid #4fc3f7; padding-left:5px; background:rgba(79,195,247,.08); } .hl.cop .hlbl, .hl.cop .tot { color:#7fd4ff; font-weight:800; }
   .hl.ks { border-left:3px solid #e04a3f; padding-left:5px; background:rgba(150,25,25,.2); } .hl.ks .hlbl, .hl.ks .tot { color:#ff6b5e; }
   .hl .hd { margin:0; flex:none; } .hl .die { width:20px; height:20px; font-size:14px; border-width:1.5px; }
   .hl .hlbl { flex:1; min-width:0; font-size:12px; font-weight:700; color:var(--accent); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
