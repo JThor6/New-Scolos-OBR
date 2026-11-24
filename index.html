@@ -199,6 +199,7 @@
   .g3:has(.fld:nth-child(3)) { grid-template-columns:1fr 1fr 1fr; }
   .healb { margin-left:6px; font-size:10px; font-weight:800; padding:1px 7px; border-radius:6px; border:1px solid #3a3d55; background:var(--paper); color:var(--dim); cursor:pointer; vertical-align:bottom; }
   .healb.undo { color:#7d8299; }
+  .healb.clr { color:#c98a8a; } .healb.clr.arm { background:var(--minus); color:#000; border-color:var(--minus); }
   .healn { display:inline-flex; align-items:center; margin-left:6px; vertical-align:bottom; }
   .healn input { width:30px; font-size:11px; font-weight:800; padding:1px 3px; text-align:center; border:1px solid #3a3d55; border-left:none; border-radius:0 6px 6px 0; background:var(--paper); color:var(--ink, #f1f3f9); -moz-appearance:textfield; }
   .healn input::-webkit-outer-spin-button, .healn input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
@@ -1007,7 +1008,7 @@ function drawSheet() {
       <!-- Easter egg: the 9+ DEAD box marked turns Dmg Pen. into a skull and crossbones -->
       <div class="att dp ${sheetPen() ? "on" : ""}"><small class="inft" data-inf="dp" data-sec="attr">Dmg Pen.</small>${V("H16") ? `<b class="egg ${skullPop()}" title="Dead"><svg class="skull" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M32 4C17 4 7 14.5 7 28.5c0 8 3.8 13.6 9 16.8V52c0 3 2 5 5 5h22c3 0 5-2 5-5v-6.7c5.2-3.2 9-8.8 9-16.8C57 14.5 47 4 32 4Z M14.5 30.5c0-4.6 3.6-7.5 8-7.5s7.5 3.3 7 7.5c-.4 3.9-3.6 6.5-7.5 6.5s-7.5-2.4-7.5-6.5Z M34.5 30.5c-.5-4.2 2.6-7.5 7-7.5s8 2.9 8 7.5c0 4.1-3.6 6.5-7.5 6.5s-7.1-2.6-7.5-6.5Z M32 38.5l-4 7h8Z M24.5 50h2.6v7h-2.6Z M30.7 50h2.6v7h-2.6Z M36.9 50h2.6v7h-2.6Z"/></svg></b>` : `<b>${esc2(V("C12"))}</b>`}${sheetPen() ? `<em>all rolls</em>` : ""}</div></div>
     <div class="infp gpow" data-for="attr" hidden></div>
-    <div class="stab">VITALITY TRACK</div><button id="heal" class="healb" title="Heal one step: every wound moves one box left; the leftmost Light Wound goes away. Dead stays until you uncheck it." ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}>✚ HEAL 1 STEP</button><span class="healn"><button id="healGo" class="healb" title="Heal that many steps: every wound moves that many boxes left. Dead stays until you uncheck it." ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}>✚ HEAL STEPS</button><input id="healN" type="number" min="1" max="6" inputmode="numeric" placeholder="#" value="${esc2(healNVal)}" title="How many steps to heal" ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}></span>${(healUndo.get(sheetId()) || []).length ? `<button id="healUndo" class="healb undo" title="Put the vitality track back the way it was before the last heal">↶ UNDO (${healUndo.get(sheetId()).length})</button>` : ""}
+    <div class="stab">VITALITY TRACK</div><button id="heal" class="healb" title="Heal one step: every wound moves one box left; the leftmost Light Wound goes away. Dead stays until you uncheck it." ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}>✚ HEAL 1 STEP</button><span class="healn"><button id="healGo" class="healb" title="Heal that many steps: every wound moves that many boxes left. Dead stays until you uncheck it." ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}>✚ HEAL STEPS</button><input id="healN" type="number" min="1" max="6" inputmode="numeric" placeholder="#" value="${esc2(healNVal)}" title="How many steps to heal" ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}></span>${(healUndo.get(sheetId()) || []).length ? `<button id="healUndo" class="healb undo" title="Put the vitality track back the way it was before the last heal">↶ UNDO (${healUndo.get(sheetId()).length})</button>` : ""}${"BCDEFGH".split("").some(c => V(c + "16")) ? `<button id="healClr" class="healb clr" title="Clear every box on the vitality track, Dead too. Tap twice to confirm.">✕ CLEAR ALL</button>` : ""}
     <div class="vit">${["B", "C", "D", "E", "F", "G", "H"].map((c, i) => { const t = V(c + "15"); const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<button class="box ${V(c + "16") ? "x" : ""}" data-w="${i}"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk ${V(c + "16") ? "x" : ""}">${V(c + "16") ? "✕" : ""}</span></button>`; }).join("")}</div>
     <div class="g2b ${ptInEP() ? "g2p" : ""}"><div class="fld"><div class="epl"><div class="ephd"><small>Extraordinary Power</small>${typeRefBtn()}</div><div id="pwname">${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div></div></div>
       <div class="fld c"><small>Used Today</small><button id="pw" class="chk ${used ? "x" : ""}">${used ? "✕" : ""}</button></div>${ptInEP() ? `
@@ -1052,6 +1053,10 @@ function drawSheet() {
   const healMany = () => { const n = parseInt($("healN").value, 10); if (!(n >= 1)) { $("healN").focus(); return; } healNVal = ""; heal(Math.min(n, 6)); };
   $("healGo").onclick = healMany; $("healN").onkeydown = (e) => { if (e.key === "Enter") healMany(); };
   if ($("healUndo")) $("healUndo").onclick = undoHeal;
+  // Clear All: first tap asks, a second tap within 4 seconds wipes the whole track (Dead included). Undo can bring it back.
+  if ($("healClr")) { let armT = 0; $("healClr").onclick = async () => { const b = $("healClr");
+    if (!b.classList.contains("arm")) { b.classList.add("arm"); b.textContent = "ARE YOU SURE? TAP AGAIN"; armT = setTimeout(() => { if (b.isConnected) { b.classList.remove("arm"); b.textContent = "✕ CLEAR ALL"; } }, 4000); return; }
+    clearTimeout(armT); await clearTrack(); }; }
   $("pw").onclick = () => save({ power: !used }, () => setCell("F6", used ? "FALSE" : "TRUE"));
   const copMax = parseInt(V("H28")); const cop = (d) => { let n = Math.max(0, (parseInt(V("H29")) || 0) + d); if (!isNaN(copMax)) n = Math.min(n, copMax); if (String(n) === (V("H29") || "0")) return; if (d > 0 && !busy) announceCop(isNaN(copMax) ? null : copMax - n, isNaN(copMax) ? null : copMax); save({ copSpent: n }, () => setCell("H29", String(n))); };
   // the sheet keeps COP *spent* (H29); the counter shows points LEFT, so − uses a point and + gives one back
@@ -1833,6 +1838,11 @@ async function heal(n = 1) { // n steps at once is one save and one undo
   // the Dead box (H) never moves; it's only cleared by hand
   const six = was.slice(0, 6), moved = six.slice(n).concat(Array(Math.min(n, 6)).fill(false));
   if (await setTrack(moved.concat(was[6]))) { stack.push(was); healUndo.set(id, stack.slice(-5)); drawSheet(); }
+}
+async function clearTrack() { // every box off, Dead too; counts as one Undo
+  if (busy || Date.now() < healWait) return;
+  const was = "BCDEFGH".split("").map(c => !!V(c + "16")), id = sheetId(), stack = healUndo.get(id) || [];
+  if (await setTrack(Array(7).fill(false))) { stack.push(was); healUndo.set(id, stack.slice(-5)); drawSheet(); }
 }
 async function undoHeal() {
   if (busy || Date.now() < healWait) return;
