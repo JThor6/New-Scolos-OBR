@@ -2748,6 +2748,17 @@ async function monSet(row, col, on) {
   else cache.set("mon." + monId(), monVals);
   if (col === 20) syncDeadGroups();
 }
+// A character (or anything else on the bar by that name) died: take them out of the initiative order.
+// To put someone back, add them by hand on the GM tab's initiative list (name + number).
+async function initDrop(name) {
+  try { const md = await OBR.room.getMetadata(), st = md[INIT]; if (!st?.open || !name) return;
+    const ids = initEntries(md).filter(e => nm(String(e.name || "").replace(/\s*×\d+$/, "")) === nm(name)).map(e => e.id);
+    if (!ids.length) return;
+    let cur = st.cur, sub = st.sub || 0;
+    if (ids.includes(cur)) { const nx = initMove(md, 1); if (nx && !ids.includes(nx.cur)) { cur = nx.cur; sub = nx.sub; } else cur = ""; }
+    await OBR.room.setMetadata({ [INIT]: { ...st, cur, sub, removed: [...new Set([...(st.removed || []), ...ids])] } });
+  } catch {}
+}
 // When every monster in a group is dead, take that group off the initiative bar (and back on if one is revived)
 async function syncDeadGroups() {
   const v = monVals || [], c = (row, i) => String(v[row]?.[i] ?? "").trim();
@@ -2762,6 +2773,12 @@ async function syncDeadGroups() {
   const md = await OBR.room.getMetadata(), st = md[INIT]; if (!st?.open) return;
   const removed = new Set(st.removed || []);
   for (const [g, n] of alive) { const id = "m:" + g; if (n === 0) removed.add(id); else removed.delete(id); }
+  // anything else on the bar that's only dead monsters (hand-added by name, or a group whose members all died)
+  const deadN = new Set(), liveN = new Set();
+  for (let row = hdr + 1; row < v.length; row++) { const n = c(row, 0); if (n) (/^(true|x|yes|dead)$/i.test(c(row, 19)) ? deadN : liveN).add(nm(n)); }
+  for (const e of (md[INIT + "/m"] || [])) { if (e?.sid !== st.sid) continue;
+    const mem = Array.isArray(e.mem) && e.mem.length ? e.mem.map(nm) : [nm(String(e.name || "").replace(/\s*×\d+$/, ""))];
+    if (mem.every(x => deadN.has(x) && !liveN.has(x))) removed.add(e.id); }
   // keep the "×3" count on the bar in step with how many are still alive
   const mlist = (md[INIT + "/m"] || []).map(e => {
     if (e.sid !== st.sid || !e.id.startsWith("m:")) return e;
@@ -2771,7 +2788,10 @@ async function syncDeadGroups() {
   // if it's this group's turn, stay on the same member (or the next one along if they just died)
   let sub = st.sub || 0; const ce = (md[INIT + "/m"] || []).find(e => e.id === st.cur), ne = mlist.find(e => e.id === st.cur);
   if (ce && ne && Array.isArray(ne.mem)) { const who = (ce.mem || [])[sub], k = ne.mem.indexOf(who); sub = k >= 0 ? k : Math.min(sub, Math.max(0, ne.mem.length - 1)); }
-  await OBR.room.setMetadata({ [INIT]: { ...st, removed: [...removed], sub }, [INIT + "/m"]: mlist });
+  // the one whose turn it was just died out completely: the turn moves on to the next one still standing
+  let cur = st.cur;
+  if (cur && removed.has(cur) && !(st.removed || []).includes(cur)) { const nx = initMove(md, 1); if (nx && !removed.has(nx.cur)) { cur = nx.cur; sub = nx.sub; } else { cur = ""; sub = 0; } }
+  await OBR.room.setMetadata({ [INIT]: { ...st, cur, removed: [...removed], sub }, [INIT + "/m"]: mlist });
 }
 
 // ---------------- INITIATIVE (GM controls) ----------------
@@ -3447,10 +3467,11 @@ function defReq() {
   if (standalone || isGM || rollBusy) return;
   let q = null; try { q = JSON.parse(localStorage.getItem("ns.defReq") || "null"); } catch {}
   if (!q?.ts || Date.now() - q.ts > 20e3 || store.get("ns.defReqDone") === String(q.ts)) return;
-  const w = sdWait(), adr = sheetVals?.[6]?.[2];
-  if (!w || !sheetVals || adr == null || String(adr).trim() === "") return; // not ready yet: tried again when the sheet loads
+  const adr = sheetVals?.[6]?.[2];
+  if (!sheetVals || adr == null || String(adr).trim() === "") return; // not ready yet: tried again when the sheet loads
+  // the pop-up only shows to a target, so just roll: the background page pairs it with the waiting attack (Success Delta)
   store.set("ns.defReqDone", String(q.ts));
-  if (canDefend(w, myChar())) quickRoll(adr, "Adroitness · Defense");
+  quickRoll(adr, "Adroitness · Defense");
 }
 window.addEventListener("storage", (e) => { if (e.key === "ns.defReq") defReq(); });
 setInterval(() => { if (!standalone) updateDefBanner(); }, 5000);
@@ -3533,14 +3554,14 @@ function adMeta(md, first) {
   if ($("adLast")) $("adLast").textContent = adLast();
   // GM: someone changed their track by hand: put their token's conditions in step
   for (const [k, v] of Object.entries(md)) if (k.startsWith(CONDREQ) && v?.ts && condSeen[k] !== v.ts) {
-    condSeen[k] = v.ts; if (!first && adOn() && Date.now() - v.ts < 60e3) applyCond(v.name, v.ko, v.dead); }
+    condSeen[k] = v.ts; if (!first && Date.now() - v.ts < 60e3) { if (v.dead) initDrop(v.name); if (adOn()) applyCond(v.name, v.ko, v.dead); } }
   if (first) autoDamage();
 }
 // Players (and the GM looking at a sheet): after a hand change on the vitality track, tell the GM's screen the KO / Dead state
 function condReport() {
-  if (standalone || !adOn() || !sheetVals) return;
+  if (standalone || !sheetVals) return;
   const name = String(V("C3") || "").trim(); if (!name) return;
-  if (isGM && !PARTYPOP && !UPLINK) return applyCond(name, !!V("G16"), !!V("H16"));
+  if (isGM && !PARTYPOP && !UPLINK) { if (V("H16")) initDrop(name); return adOn() ? applyCond(name, !!V("G16"), !!V("H16")) : undefined; }
   OBR.room.setMetadata({ [CONDREQ + me]: { name, ko: !!V("G16"), dead: !!V("H16"), ts: Date.now() } }).catch(() => {});
 }
 // Unconscious 💤 / Dead ☠️ on every token with that name (the same labels as the right-click Mark menu)
@@ -3641,6 +3662,7 @@ async function applyWound(name, w) {
     if (sheetId() === c.id && !mgrOn) loadSheet(true);
   }
   applyCond(name, marks[5], marks[6]);
+  if (marks[6]) initDrop(name);
   return said(i);
 }
 // Party pop-out (GM only): this same page opened beside the map, showing only the Party overview with the GM strip.

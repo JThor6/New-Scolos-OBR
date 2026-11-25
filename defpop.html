@@ -26,10 +26,15 @@
   document.getElementById("s").innerHTML = `<b>${esc(q.get("att"))}</b> ${q.get("sp") ? "casts at" : "attacks"} you (${at > 0 ? "+" + at : at})`;
   const close = () => { if (OBR.isAvailable) OBR.popover.close(ID).catch(() => {}); };
   document.getElementById("p").onclick = close;
-  // Roll right here: the New Scolos panel rolls Adroitness from the sheet (it's opened if it was closed)
-  document.getElementById("r").onclick = async (e) => { e.stopPropagation(); const b = e.currentTarget; b.disabled = true; b.textContent = "Rolling…";
-    try { localStorage.setItem("ns.defReq", JSON.stringify({ ts: Date.now() })); } catch {}
-    if (OBR.isAvailable) { try { if (!(await OBR.action.isOpen())) await OBR.action.open(); } catch {} }
-    setTimeout(close, 900); };
-  if (OBR.isAvailable) OBR.onReady(() => setTimeout(close, 7000));
+  // Roll right here: the New Scolos panel rolls Adroitness from the sheet and answers in "ns.defReqDone".
+  // If it doesn't answer quickly (panel closed), the panel gets opened and rolls once the sheet has loaded.
+  let asked = 0, done = false;
+  const btn = document.getElementById("r");
+  window.addEventListener("storage", (e) => { if (e.key === "ns.defReqDone" && asked && e.newValue === String(asked)) { done = true; btn.textContent = "✓ Rolled"; setTimeout(close, 900); } });
+  btn.onclick = async (e) => { e.stopPropagation(); if (asked) return; btn.disabled = true; btn.textContent = "Rolling…";
+    asked = Date.now(); try { localStorage.setItem("ns.defReq", JSON.stringify({ ts: asked })); } catch {}
+    setTimeout(async () => { if (done || !OBR.isAvailable) return;
+      btn.textContent = "Opening panel…"; try { await OBR.action.open(); } catch {} }, 1200);
+    setTimeout(() => { if (!done) { btn.textContent = "Roll from your sheet"; btn.disabled = false; asked = 0; } }, 20000); };
+  if (OBR.isAvailable) OBR.onReady(() => setTimeout(() => { if (!asked) close(); }, 7000));
 </script></body></html>
