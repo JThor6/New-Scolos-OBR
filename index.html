@@ -375,6 +375,7 @@
   .ptbox > b { font-family:'Bangers', Impact, sans-serif; font-weight:400; font-size:21px; letter-spacing:1px; }
   .ptx { position:absolute; top:4px; right:6px; background:transparent; border:none; color:var(--dim); font-size:18px; font-weight:900; cursor:pointer; }
   .ptbtns { display:flex; flex-wrap:wrap; gap:4px; justify-content:center; }
+  .ptvmsg { text-align:center; margin-top:6px; } .ptnote .ptmgr { color:var(--accent); font-weight:800; text-decoration:underline; cursor:pointer; }
   .ptgal { display:flex; flex-wrap:wrap; gap:5px; justify-content:center; max-width:330px; }
   .ptg { position:relative; width:50px; height:50px; border-radius:8px; overflow:hidden; border:2px solid #444a66; padding:0; background:var(--paper); cursor:pointer; color:var(--dim); font-size:22px; font-weight:800; }
   .ptg img { width:100%; height:100%; object-fit:cover; display:block; }
@@ -3033,29 +3034,56 @@ function ptChanged(id, t) {
 }
 const ptBridgeMsg = (e) => /wrong table code/i.test(e || "") ? "The Sheet Bridge says Wrong table code: the TABLE_CODE line in the bridge doesn't match the code the table uses. The GM fixes that line in Apps Script and deploys a new version." : /nothing to change|portraits/i.test(e || "") ? "The Sheet Bridge hasn't been updated for this yet, so it can't be saved. The GM needs to redeploy the bridge (see the project notes)." : /failed to fetch/i.test(e || "") ? "The Sheet Bridge didn't answer. Try again." : e;
 // View a portrait full size (sheet and Party view). Changing pictures lives in Manage Character.
+// On your own sheet it also has the pog buttons (Jake, Nov 25): PLACE POG ON THE TABLE once a pog exists, and
+// MAKE / REMAKE POG (from this ★ portrait and its circle), plus a link straight to Manage Character → Portrait.
 function ptView(id, name) {
   document.querySelector(".ptov")?.remove();
+  const mine = sheetId() === id && !partyOn;
   const ov = document.createElement("div"); ov.className = "ptov";
   ov.innerHTML = `<div class="ptbox"><button class="ptx" title="Close">✕</button><img alt=""><b>${esc2(name || "")}</b>
-    <div class="ptbtns"><button class="sbtn" data-a="save" disabled>⬇ SAVE A COPY</button></div>
+    <div class="ptbtns"><button class="sbtn" data-a="save" disabled>⬇ SAVE A COPY</button>${mine ? `<button class="sbtn" data-a="make" disabled>◎ MAKE POG</button><button class="sbtn on" data-a="place" hidden>⬇ PLACE POG ON THE TABLE</button>` : ""}</div>
+    ${mine ? `<div class="ptmsg ptvmsg" hidden></div>` : ""}
     <div class="mnote ptnote" style="color:var(--dim);text-align:center">Loading full size…</div></div>`;
   document.body.append(ov);
   const img = ov.querySelector("img"), note = ov.querySelector(".ptnote"), save = ov.querySelector('[data-a="save"]');
-  let blobUrl = "", fileName = (name || "Character") + " - Portrait";
+  const make = ov.querySelector('[data-a="make"]'), place = ov.querySelector('[data-a="place"]'), msg = ov.querySelector(".ptvmsg");
+  const say = (kind, t) => { if (!msg) return; msg.hidden = !t; msg.className = "ptmsg ptvmsg " + kind; msg.textContent = t; };
+  let blobUrl = "", fileName = (name || "Character") + " - Portrait", full = null, pogId = mine && ptP.id === id ? ptP.pogId : undefined;
   const close = () => { ov.remove(); document.removeEventListener("keydown", esc); if (blobUrl) setTimeout(() => URL.revokeObjectURL(blobUrl), 1000); };
   const esc = (e) => { if (e.key === "Escape") close(); };
   document.addEventListener("keydown", esc);
   ov.onclick = (e) => { if (e.target === ov) close(); };
   ov.querySelector(".ptx").onclick = close;
+  const pogBtns = () => { if (!mine) return; place.hidden = !pogId; make.textContent = pogId ? "◎ REMAKE POG" : "◎ MAKE POG";
+    make.classList.toggle("on", !pogId); make.disabled = !full; };
   ptSmall(id).then(u => { if (u && !img.src) img.src = u; });
+  if (mine && pogId === undefined) bridgeGet({ portraits: id }).then(r => { if (r.ok && ov.isConnected) { pogId = r.pog || ""; if (ptP.id === id) ptP.pogId = pogId; pogBtns(); } }).catch(() => {});
+  pogBtns();
   bridgeGet({ portrait: id, full: 1 }).then(async r => {
     if (!ov.isConnected) return;
     if (!r.ok || r.none) { note.textContent = r.ok ? "No picture." : "Couldn't load the full picture."; return; }
+    full = r;
     blobUrl = URL.createObjectURL(await (await fetch(`data:${r.mime};base64,${r.data}`)).blob());
-    img.src = blobUrl; fileName = r.name || fileName; save.disabled = false;
-    note.textContent = sheetId() === id && !partyOn ? "Change or adjust your portrait in ⚙ Manage Character." : "You can also right-click the picture and pick Save image as.";
+    img.src = blobUrl; fileName = r.name || fileName; save.disabled = false; pogBtns();
+    if (mine) { note.innerHTML = `Change or adjust your portrait in <a href="#" class="ptmgr">⚙ Manage Character</a>.`;
+      note.querySelector(".ptmgr").onclick = (e) => { e.preventDefault(); close(); mgrOn = true; drawSheet(); setTimeout(() => $("ptsec")?.scrollIntoView({ block: "start", behavior: "smooth" }), 50); }; }
+    else note.textContent = "You can also right-click the picture and pick Save image as.";
   }).catch(() => { if (ov.isConnected) note.textContent = "Couldn't load the full picture."; });
   save.onclick = () => { const a = document.createElement("a"); a.href = blobUrl; a.download = fileName; document.body.append(a); a.click(); a.remove(); };
+  if (!mine) return;
+  place.onclick = async () => { place.disabled = true;
+    try { await pogDrop(pogId, (name || V("C3") || "Character").trim()); say("ok", "✓ Your pog is on the table, in the middle of your screen. Drag it where you want it."); }
+    catch (e) { say("bad", "Couldn't put it on the table: " + (e.message || e)); }
+    place.disabled = false; };
+  make.onclick = async () => { if (!full) return; make.disabled = true; make.textContent = "MAKING POG…"; say("", "Drawing the pog and saving it to Google Drive…");
+    try {
+      const cv = drawPog(await loadImg(`data:${full.mime};base64,${full.data}`), full.frame, POG_STYLE, 512), url = cv.toDataURL("image/png");
+      const s2 = await bridgePost({ pog: url.split(",")[1] }).catch(x => ({ ok: false, error: x.message }));
+      if (!s2.ok || !s2.pogId) throw new Error(ptBridgeMsg(s2.error || "it didn't save"));
+      pogId = s2.pogId; if (ptP.id === id) { ptP.pogId = pogId; ptP.pogUrl = url; }
+      say("ok", "✓ Pog made. Tap PLACE POG ON THE TABLE to drop it on the map.");
+    } catch (e) { say("bad", "Couldn't make the pog: " + (e.message || e)); }
+    pogBtns(); };
 }
 function bindPt() {
   fillPts($("shbody"));
