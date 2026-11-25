@@ -3648,11 +3648,12 @@ function condReport() {
   OBR.room.setMetadata({ [CONDREQ + me]: { name, ko: !!V("G16"), dead: !!V("H16"), ts: Date.now() } }).catch(() => {});
 }
 // Condition labels shrink with the map when zoomed out instead of staying full size over the tokens (Jake, Nov 25).
-// Labels made before this get the same setting when the GM's panel opens a scene.
-const MARK_MIN_VIEW = 0.1;
+// Owlbear grows labels as you zoom out so they stay readable; maxViewScale 1 stops that, so they shrink with the map.
+// (minViewScale 0.1 was tried first and did nothing.) Labels made before this get fixed when the GM's panel opens a scene.
+const MARK_MAX_VIEW = 1;
 async function fixMarkScale() { try { if (!isGM || !(await OBR.scene.isReady())) return;
-  const old = await OBR.scene.items.getItems(i => !!i.metadata?.[MARK_ITEM] && i.style?.minViewScale !== MARK_MIN_VIEW);
-  if (old.length) await OBR.scene.items.updateItems(old.map(i => i.id), (ds) => ds.forEach(d => { d.style.minViewScale = MARK_MIN_VIEW; })); } catch {} }
+  const old = await OBR.scene.items.getItems(i => !!i.metadata?.[MARK_ITEM] && (i.style?.maxViewScale !== MARK_MAX_VIEW || i.style?.minViewScale != null));
+  if (old.length) await OBR.scene.items.updateItems(old.map(i => i.id), (ds) => ds.forEach(d => { d.style.maxViewScale = MARK_MAX_VIEW; delete d.style.minViewScale; })); } catch {} }
 // Unconscious 💤 / Dead ☠️ on every token with that name (the same labels as the right-click Mark menu)
 async function applyCond(name, ko, dead) {
   try {
@@ -3671,7 +3672,7 @@ async function applyCond(name, ko, dead) {
         .backgroundColor("#1b1e2e").backgroundOpacity(0.85).cornerRadius(9 * k)
         .strokeColor("#bb99ff").strokeWidth(2 * k).strokeOpacity(1)
         .pointerDirection("DOWN").pointerHeight(9 * k).pointerWidth(12 * k)
-        .minViewScale(MARK_MIN_VIEW).attachedTo(t.id).disableAttachmentBehavior(["ROTATION", "SCALE"])
+        .maxViewScale(MARK_MAX_VIEW).attachedTo(t.id).disableAttachmentBehavior(["ROTATION", "SCALE"])
         .layer("TEXT").locked(true).disableHit(true)
         .metadata({ [MARK_ITEM]: { on: t.id, text, n: Date.now() } }).build()));
       if (drop.length || add.length) { // re-stack the labels above the head, oldest closest
