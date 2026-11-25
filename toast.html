@@ -31,6 +31,20 @@
   body.ap.mm { background:rgba(8,50,52,.82); border-color:#5ff0c8; box-shadow:0 0 14px rgba(95,240,200,.5); } body.ap.mm .lbl { color:#a8ffe6; text-shadow:0 5px 0 rgba(0,0,0,.45); }
   body.ap.rv { background:radial-gradient(circle at 25% 30%, rgba(75,15,100,.92), rgba(12,0,22,.95)); border-color:#8a3fd1; box-shadow:0 0 18px rgba(140,60,220,.75), inset 0 0 14px rgba(150,255,190,.15); }
   body.ap.rv .lbl { font-family:'Creepster', 'Bangers', Impact, sans-serif; font-size:21px; color:#c6ffd8; text-shadow:0 0 6px #7dffa8, 0 0 16px #8a3fd1; } body.ap.rv .left { color:#d9c8f0; font-style:italic; }
+  /* Success Delta: neutral slate card, left of the roll cards */
+  body.sd { background:rgba(46,50,62,.86); border:1px solid rgba(200,206,222,.45); box-shadow:0 2px 10px rgba(0,0,0,.45); }
+  body.sd .t { flex-direction:column; align-items:stretch; flex-wrap:nowrap; gap:2px; padding:6px 10px; }
+  .sdh { display:flex; align-items:center; justify-content:space-between; font-size:10px; font-weight:900; letter-spacing:1.5px; color:#aeb4c8; }
+  .sdn { font-family:'Luckiest Guy', 'Bangers', Impact, sans-serif; font-size:24px; letter-spacing:0; color:#f1f3f9; line-height:1; padding-top:2px; }
+  .sdn.miss { color:#9aa0b8; }
+  .sdv { font-size:12px; font-weight:800; color:#d5d9e8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sdv small { color:#9aa0b8; font-weight:700; }
+  .sdm { font-size:11px; font-weight:700; color:#b9bfd2; }
+  .sdw { font-family:'Bangers', Impact, sans-serif; letter-spacing:1px; font-size:17px; line-height:1.05; color:#f1f3f9; }
+  .sdw.w1 { color:#ffe08a; } .sdw.w2 { color:#ffb36b; } .sdw.w3 { color:#ff7a6b; } .sdw.w4 { color:#ff5470; } .sdw.w5 { color:#ff3b3b; text-shadow:0 0 8px rgba(255,40,40,.6); }
+  .sdw.w0 { color:#9aa0b8; }
+  /* resting the mouse on a card keeps it up */
+  body.hold { border-color:rgba(255,255,255,.55) !important; }
   .tot { margin-left:auto; font-family:'Luckiest Guy', 'Bangers', Impact, sans-serif; font-size:23px; min-width:30px; text-align:right; padding-top:2px; }
 </style></head>
 <body><div class="t" id="t"></div>
@@ -70,6 +84,20 @@
       `<span class="lbl">${esc(pc.t)}</span>` + (pc.s ? `<span class="left">${esc(pc.s)}</span>` : "");
     document.body.classList.add("ap"); if (pc.c) document.body.classList.add(pc.c); fit();
   }
+  if (q.get("sd")) { // Success Delta: attacker vs defender, then the damage and the wound it lands on
+    const delta = Number(q.get("delta")), hit = delta >= 0, g = (k) => q.get(k);
+    const plus = (n) => n < 0 ? `− ${-n}` : `+ ${n}`, minus = (n) => n < 0 ? `+ ${-n}` : `− ${n}`;
+    const wl = g("wound") || "", wc = { "LIGHT WOUND": 1, "MEDIUM WOUND": 2, "CRITICAL WOUND": 3, "DOWN & KO'ED": 4, "DEAD": 5 }[wl] || 0;
+    let foot;
+    if (!hit) foot = `<span class="sdw w0">MISS</span>`;
+    else if (g("dmg") != null) foot = `<span class="sdm">${delta} delta ${plus(Number(g("db")))} bonus ${minus(Number(g("ab") ?? 0))} armor = ${esc(g("dmg"))}</span>` +
+      `<span class="sdw w${wc}">${wc ? esc(wl) : "HIT · ARMOR STOPS IT"}</span>`;
+    else foot = `<span class="sdm">${delta} delta + ${g("sp") ? "spell" : "damage"} bonus ${g("ab") != null ? minus(Number(g("ab"))) : "−"} armor</span><span class="sdw">HIT · ADD THE BONUS</span>`;
+    document.getElementById("t").innerHTML =
+      `<div class="sdh"><span>SUCCESS DELTA</span><span class="sdn ${hit ? "" : "miss"}">${esc(String(delta))}</span></div>` +
+      `<div class="sdv">${esc(g("att") || "")} <small>${fmt(Number(g("at")))}</small> ▸ ${esc(g("def") || "")} <small>${fmt(Number(g("dt")))}</small></div>` + foot;
+    document.body.classList.add("sd");
+  }
   if (q.get("ks")) document.body.classList.add("ks"); else if (q.get("pw")) document.body.classList.add("pw");
   const faces = [...document.querySelectorAll(".die")];
   let showFor = 5000;
@@ -82,10 +110,21 @@
     const lock = () => { set(faces[locked], dice[locked]); locked++; if (locked < faces.length) return setTimeout(lock, 300); clearInterval(tick); tot.style.visibility = "visible"; };
     setTimeout(lock, 700);
   }
-  // fade out, then close this card on its own (works even if the panel that opened it is closed)
+  // fade out, then close this card on its own (works even if the panel that opened it is closed).
+  // Resting the mouse on the card keeps it up; after the mouse leaves it stays 3 more seconds, then fades.
   const myId = q.get("id") || "com.newscolos.dice/toast";
-  const ms = Number(q.get("ms")) || showFor;
+  const ms = Number(q.get("ms")) || showFor, AFTER = 3000, FADE = 700;
+  const holdKey = "ns.hold:" + myId, hold = (until) => { try { until ? localStorage.setItem(holdKey, String(until)) : localStorage.removeItem(holdKey); } catch {} };
   document.body.style.transition = "opacity .6s";
-  setTimeout(() => { document.body.style.opacity = "0"; }, Math.max(0, ms - 700));
-  if (OBR.isAvailable) OBR.onReady(() => setTimeout(() => OBR.popover.close(myId).catch(() => {}), ms));
+  let fadeT = 0, closeT = 0, over = false, keep = 0;
+  const close = () => { hold(0); if (OBR.isAvailable) OBR.popover.close(myId).catch(() => {}); };
+  const schedule = (wait) => { clearTimeout(fadeT); clearTimeout(closeT);
+    fadeT = setTimeout(() => { document.body.style.opacity = "0"; }, Math.max(0, wait - FADE));
+    closeT = setTimeout(close, wait); };
+  document.body.addEventListener("mouseenter", () => { over = true; clearTimeout(fadeT); clearTimeout(closeT);
+    document.body.style.opacity = "1"; document.body.classList.add("hold");
+    hold(Date.now() + 2000); clearInterval(keep); keep = setInterval(() => over && hold(Date.now() + 2000), 1000); });
+  document.body.addEventListener("mouseleave", () => { over = false; clearInterval(keep); document.body.classList.remove("hold");
+    hold(Date.now() + AFTER); schedule(AFTER); });
+  if (OBR.isAvailable) OBR.onReady(() => schedule(ms)); else schedule(ms);
 </script></body></html>

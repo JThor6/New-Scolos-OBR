@@ -8,11 +8,17 @@ import { allRolls, INIT, initEntries, markList, rollLog } from "./shared.js";
 const TOAST = "com.newscolos.dice/toast";
 const W = 210, H = 74, GAP = 6, SLOTS = 8, PER_ROW = 4, SHOW_MS = 9000;
 const busyUntil = new Array(SLOTS).fill(0);
+// A card the mouse is resting on says so in localStorage ("held until" time), so a new roll never lands on top of it
+const held = (id) => { try { return Number(localStorage.getItem("ns.hold:" + id) || 0) > Date.now(); } catch { return false; } };
+// Where the bottom row of roll cards starts (the Success Delta card sits just left of it)
+let rowLeft = 0;
 
 async function showRoll(r, spin) {
   const now = Date.now();
-  let slot = busyUntil.findIndex(t => t < now);
-  if (slot < 0) slot = busyUntil.indexOf(Math.min(...busyUntil)); // all full: replace the oldest
+  let slot = busyUntil.findIndex((t, i) => t < now && !held(TOAST + "/" + i));
+  if (slot < 0) { // all full: replace the oldest one nobody is hovering
+    const free = busyUntil.map((t, i) => [t, i]).filter(([, i]) => !held(TOAST + "/" + i)).sort((a, b) => a[0] - b[0]);
+    slot = free.length ? free[0][1] : busyUntil.indexOf(Math.min(...busyUntil)); }
   const show = SHOW_MS + (spin ? 2000 : 0);
   busyUntil[slot] = now + show + 400;
   const id = TOAST + "/" + slot;
@@ -40,6 +46,7 @@ async function showRoll(r, spin) {
   const order = [1, 2, 0, 3].filter(i => i < per).concat([...Array(per).keys()].filter(i => i > 3)); // middle cards first
   const idx = slot % per, row = Math.floor(slot / per), col = per === 1 ? 0 : (order[idx] ?? idx);
   const rowW = per * W + (per - 1) * GAP, x0 = left + (vw - left - rowW) / 2;
+  rowLeft = x0;
   await OBR.popover.open({ // every card the same size: room for the longest skill name (3 lines)
     id, url: url.href, width: W, height: H + 32,
     anchorReference: "POSITION",
@@ -48,6 +55,48 @@ async function showRoll(r, spin) {
     transformOrigin: { horizontal: "LEFT", vertical: "BOTTOM" },
     disableClickAway: true, hidePaper: true,
   });
+}
+
+// ---------------- Success Delta ----------------
+// In combat, an attack roll (Ranged Weapons, Melee Weapon Fighting, Martial Arts, Unconventional Weapons, Spellcasting,
+// a monster's Attack) waits for the next Adroitness roll by someone else: that's the defender. Every screen works it out
+// from the same shared rolls, so everyone sees the same card. Nothing gets marked on a sheet.
+// Success Delta = attack total - defense total (ties go to the attacker). Damage = Delta + Damage Bonus - defender's Armor Bonus.
+// Wounds (Main Sheet row 15): 1-2 Light, 3-4 Medium, 5-6 Critical, 7-8 Down & KO'ed, 9+ Dead.
+const SD = "com.newscolos.dice/delta", SD_W = 236, SD_H = 112, SD_MS = 14000, ATTACK_WAIT = 3 * 60e3;
+let openAttack = null, combatOn = false;
+const nameOf = (r) => r.char || r.who;
+const isAdr = (r) => /^(?:⚡\s*)?adroitness\b/i.test(String(r.label || "")) && !/initiative/i.test(String(r.label || ""));
+const wound = (d) => d >= 9 ? "DEAD" : d >= 7 ? "DOWN & KO'ED" : d >= 5 ? "CRITICAL WOUND" : d >= 3 ? "MEDIUM WOUND" : d >= 1 ? "LIGHT WOUND" : "";
+function combatCheck(r) {
+  if (!combatOn || r.cop || r.ap || !Array.isArray(r.dice) || !r.dice.length) return;
+  if (r.atk) { openAttack = { ...r, at0: Date.now() }; return; }
+  if (!openAttack || !isAdr(r) || nameOf(r) === nameOf(openAttack)) return;
+  if (Date.now() - openAttack.at0 > ATTACK_WAIT) { openAttack = null; return; }
+  const a = openAttack; openAttack = null;
+  showDelta(a, r).catch(() => {});
+}
+async function showDelta(a, d) {
+  const delta = a.total - d.total;
+  const url = new URL("go.html", location.href); url.searchParams.set("p", "toast");
+  const ref = new URLSearchParams(location.search).get("obrref"); if (ref) url.searchParams.set("obrref", ref);
+  const set = (k, v) => { if (v != null && v !== "") url.searchParams.set(k, v); };
+  set("id", SD); set("ms", SD_MS); set("sd", "1");
+  set("att", nameOf(a)); set("def", nameOf(d)); set("at", a.total); set("dt", d.total); set("delta", delta);
+  if (delta >= 0) {
+    if (a.db != null) set("db", a.db); else if (a.sp) set("sp", "1");
+    if (d.ab != null) set("ab", d.ab);
+    if (a.db != null) { const dmg = delta + a.db - (d.ab ?? 0); set("dmg", dmg); set("wound", wound(dmg) || "NO WOUND"); }
+  }
+  // just left of the roll cards, on the bottom row; if there's no room it goes at the left edge beside the panel
+  const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
+  let left = 0; try { if (await OBR.action.isOpen()) left = ((await OBR.action.getWidth()) || 520) + 40; } catch {}
+  const x0 = rowLeft || left + (vw - left) / 2, x = Math.max(left + 8, Math.round(x0 - SD_W - GAP));
+  await OBR.popover.close(SD).catch(() => {});
+  await OBR.popover.open({ id: SD, url: url.href, width: SD_W, height: SD_H,
+    anchorReference: "POSITION", anchorPosition: { left: x, top: vh - 80 },
+    anchorOrigin: { horizontal: "LEFT", vertical: "BOTTOM" }, transformOrigin: { horizontal: "LEFT", vertical: "BOTTOM" },
+    disableClickAway: true, hidePaper: true });
 }
 
 // Announcements show for 5 seconds, then close themselves
@@ -83,6 +132,7 @@ OBR.onReady(async () => {
   let lastCur = "";
   async function initUpdate(md) {
     const st = md[INIT];
+    combatOn = !!st?.open; if (!combatOn) openAttack = null;
     if (!st?.open || !st.cur) lastCur = ""; // new combat starts fresh, so its first turn always pings
     // "Your turn" ping for the player whose turn it is
     if (st?.open && st.cur && st.cur !== lastCur && !isGM) { // players only: the GM never gets these
@@ -123,13 +173,13 @@ OBR.onReady(async () => {
     for (const r of allRolls(md).reverse()) { // oldest first
       if (seen.has(r.id)) continue;
       seen.add(r.id);
-      if (r.pid !== me) showRoll(r, false).catch(() => {});
+      if (r.pid !== me) { showRoll(r, false).catch(() => {}); combatCheck(r); }
     }
   });
   // your own rolls from the sheet's roll buttons (sent from the panel; spins as it lands)
   window.addEventListener("storage", (e) => {
     if (e.key !== "ns.toastReq" || !e.newValue) return;
-    try { const r = JSON.parse(e.newValue); if (!seen.has(r.id)) { seen.add(r.id); showRoll(r, true).catch(() => {}); } } catch {}
+    try { const r = JSON.parse(e.newValue); if (!seen.has(r.id)) { seen.add(r.id); showRoll(r, true).catch(() => {}); combatCheck(r); } } catch {}
   });
 });
 </script></body></html>

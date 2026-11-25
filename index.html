@@ -778,14 +778,14 @@ const SKULL = `<svg class="skull" viewBox="0 0 64 64" aria-hidden="true"><path f
 // The open sheet's character name (shown on rolls)
 const myChar = () => String(sheetVals?.[2]?.[2] || "").trim().slice(0, 30);
 const sheetPen = () => num(sheetVals?.[11]?.[2]) || 0;
-async function quickRoll(modText, label, whoName, br = "", monPen = 0) {
+async function quickRoll(modText, label, whoName, br = "", monPen = 0, cs = null) {
   if (rollBusy) return;
   setRollBusy(true);
   const t0 = Date.now();
-  try { await doQuickRoll(modText, label, whoName, whoName ? monPen : sheetPen(), br); }
+  try { await doQuickRoll(modText, label, whoName, whoName ? monPen : sheetPen(), br, null, cs); }
   finally { setTimeout(() => setRollBusy(false), Math.max(0, 1500 - (Date.now() - t0))); }
 }
-async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = null) {
+async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = null, cs = null) {
   let m = (parseInt(String(modText).replace("−", "-"), 10) || 0) + pen;
   // If the GM called for initiative, a player's next Adroitness roll is their initiative
   let initSid = "";
@@ -806,6 +806,17 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
   if (ks) r.ks = 1; else if (!whoName && /^⚡/.test(r.label)) r.pw = 1; // Kill Shot shows red, other daily power rolls gold
   if (pen) r.wnd = pen;
   if (!whoName && myChar()) r.char = myChar(); // the character's name, with the player's name small beside it
+  // Combat numbers for the Success Delta card (background.html pairs an attack with the defender's next Adroitness roll)
+  // atk: this was an attack roll. db: its damage bonus (melee or ranged). ab: this roller's Armor Bonus (with any armor power on)
+  if (!whoName) {
+    const ab = num(V("H25")); if (ab != null) r.ab = ab + (actDef()?.armor || 0);
+    if (KS_ATTACK.test(r.label) || /spellcast/i.test(r.label)) { r.atk = 1;
+      const db = /melee|martial/i.test(r.label) ? num(V("H23")) : /ranged|unconventional/i.test(r.label) ? num(V("H24")) : null;
+      if (db != null) r.db = db; else if (/spellcast/i.test(r.label)) r.sp = 1; }
+  } else if (cs) { // a monster card: Attack uses its Offense, and its Armor counts when it defends
+    const ab = num(cs.ab), db = num(cs.db); if (ab != null) r.ab = ab;
+    if (/^attack$/i.test(label)) { r.atk = 1; if (db != null) r.db = db; }
+  }
   if (br) { const [at, av, sr] = String(br).split("|"); r.at = String(at || "").trim().slice(0, 14); r.av = String(av || "").trim(); if (sr !== undefined) r.sr = String(sr).trim(); }
   // the always-running background page shows it in the bottom-right roll cards
   try { localStorage.setItem("ns.toastReq", JSON.stringify(r)); } catch {}
@@ -2552,7 +2563,7 @@ function drawMonsters() {
     // wound penalty: -1 once Critical Wound or Down & KO'ed is marked (they don't stack); mooks/minions never take it
     const mook = /\b(mook|minion)s?\b/i.test(c(row, 0) + " " + c(row, 2));
     const pen = !mook && [16, 17].some(i => c(row, i)) ? -1 : 0;
-    const roll = (label, val) => /^[+\-−]?\d+$/.test(val) ? `<button class="rd" data-m="${esc2(val)}" data-l="${esc2(label)}" data-w="${esc2(name)}" data-p="${pen}" title="Roll ${esc2(label)}">${ROLL_ICON}</button>` : "";
+    const roll = (label, val) => /^[+\-−]?\d+$/.test(val) ? `<button class="rd" data-m="${esc2(val)}" data-l="${esc2(label)}" data-w="${esc2(name)}" data-p="${pen}" data-o="${esc2(c(row, 8))}" data-a="${esc2(c(row, 10))}" title="Roll ${esc2(label)}">${ROLL_ICON}</button>` : "";
     // always Adroitness, Raw Strength, Intellect, Charm left to right (the tracker sheet's columns are in a different order)
     const attrs = [["Adroitness", 4, "Adroitness"], ["Raw Str.", 3, "Raw Strength"], ["Intellect", 5, "Intellect"], ["Charm", 6, "Charm"]].map(([n, i, full]) =>
       `<div class="att"><small>${n}</small><b>${esc2(c(row, i) || "-")}</b>${roll(full, c(row, i)).replace('class="rd"', 'class="rd ra"')}</div>`).join("");
@@ -2595,7 +2606,7 @@ function drawMonsters() {
   $("iAdd").onclick = addInitEntry; $("iNeg").onclick = () => flipSign($("iNum")); $("iNum").onkeydown = (e) => { if (e.key === "Enter") addInitEntry(); };
   drawInitList();
   markTurn();
-  document.querySelectorAll("#mo .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l, b.dataset.w, "", parseInt(b.dataset.p) || 0); });
+  document.querySelectorAll("#mo .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l, b.dataset.w, "", parseInt(b.dataset.p) || 0, { db: b.dataset.o, ab: b.dataset.a }); });
   // the whole Attack box rolls, not just the dice button
   document.querySelectorAll("#mo .matk, #mo .matt .att").forEach(box => { if (box.querySelector(".rd")) box.onclick = () => box.querySelector(".rd").click(); });
   document.querySelectorAll("#mo .mw, #mo .mdead").forEach(b => b.onclick = async () => {
