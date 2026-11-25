@@ -78,6 +78,11 @@
   import { POWER_CARDS, powerCard, sdResult, WOUND_STEPS, BONUS_NAME } from "./shared.js";
   // Shows one roll passed in the address: ?who=Zak&dice=1,0,-1,1&mod=3&total=4 (&spin=1 for a slot-machine reveal)
   const q = new URLSearchParams(location.search);
+  // A stale background page (GitHub still serving an old copy for a few minutes) once sent a Success Delta "waiting" card here,
+  // which showed as an empty card with 0. The Success Delta card has its own page now (sdcard.html), so close anything like that.
+  if (q.get("sdw") || (!q.get("dice") && !q.get("sd") && !q.get("cop") && !q.get("ap") && !q.get("bs"))) {
+    document.body.style.display = "none"; if (OBR.isAvailable) OBR.onReady(() => OBR.popover.close(q.get("id") || "com.newscolos.dice/toast").catch(() => {}));
+  }
   const fmt = (n) => (n > 0 ? "+" : "") + n;
   const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const dice = (q.get("dice") || "").split(",").map(Number);
