@@ -71,6 +71,7 @@ const SD = "com.newscolos.dice/delta", SD_W = 280, ATTACK_WAIT = 3 * 60e3, SD_KE
 const SDCANCEL = "com.newscolos.dice/sdcancel"; // room metadata: { id } of an attack someone dropped with ✕
 const SDN = "com.newscolos.dice/sdn";           // room metadata: { id, n, ts } how many defenders an attack has
 const MULTI = /spellcast|unconventional|meltdown|shockwave|^attack\b/i;
+let amGM = false;
 let openAttack = null, myId = "", lastCancel = "", lastSdn = 0, sd = { list: [], wait: null };
 const nameOf = (r) => r.char || r.who;
 const isAdr = (r) => /^(?:⚡\s*)?adroitness\b/i.test(String(r.label || "")) && !/initiative/i.test(String(r.label || ""));
@@ -91,7 +92,7 @@ function combatCheck(r, mine) {
     // 🎯 Targets on and tokens selected: exactly those defend (one each); otherwise the next Adroitness roll(s)
     const tg = Array.isArray(r.tg) && r.tg.length ? r.tg.slice(0, 12) : null;
     openAttack = { ...r, at0: Date.now(), n: tg ? tg.length : 1, defs: [], tg, multi: tg || MULTI.test(String(r.label || "")) ? 1 : 0 };
-    syncWait(); openCard().catch(() => {}); return;
+    syncWait(); openCard().catch(() => {}); defPop(openAttack).catch(() => {}); return;
   }
   const a = openAttack, who = nameOf(r);
   if (!a || !isAdr(r) || who === nameOf(a) || a.defs.includes(who) || a.defs.length >= a.n || Date.now() - a.at0 > ATTACK_WAIT) return;
@@ -142,6 +143,22 @@ async function openCard() {
     anchorOrigin: { horizontal: mini ? "RIGHT" : "LEFT", vertical: "BOTTOM" }, transformOrigin: { horizontal: mini ? "RIGHT" : "LEFT", vertical: "BOTTOM" },
     disableClickAway: true, hidePaper: true });
 }
+// "DEFEND!" pop-up at the top of the map for a player that Target Lock picked (players only; the GM's monster cards light up)
+async function defPop(a) {
+  if (amGM || !a.tg?.length) return;
+  let mine = ""; try { mine = localStorage.getItem("ns.myChar:" + OBR.room.id) || ""; } catch {}
+  if (!mine || sameName(mine, nameOf(a)) || !a.tg.some(t => sameName(t, mine))) return;
+  const url = new URL("go.html", location.href); url.searchParams.set("p", "defpop");
+  const ref = new URLSearchParams(location.search).get("obrref"); if (ref) url.searchParams.set("obrref", ref);
+  url.searchParams.set("att", nameOf(a)); url.searchParams.set("at", a.total); url.searchParams.set("l", String(a.label || "").slice(0, 40));
+  if (/spellcast|smite/i.test(a.label || "")) url.searchParams.set("sp", "1");
+  const vw = await OBR.viewport.getWidth(), w = Math.min(420, vw - 40);
+  await OBR.popover.close("com.newscolos.defpop").catch(() => {});
+  await OBR.popover.open({ id: "com.newscolos.defpop", url: url.href, width: w, height: 70,
+    anchorReference: "POSITION", anchorPosition: { left: Math.round(vw / 2), top: 76 }, // just under the initiative bar
+    anchorOrigin: { horizontal: "CENTER", vertical: "TOP" }, transformOrigin: { horizontal: "CENTER", vertical: "TOP" },
+    disableClickAway: true, hidePaper: true });
+}
 // ✕ on a waiting attack, and − / + defenders, come in through room metadata so every screen follows
 // What the GM's AUTO DAMAGE marked ("Medium Wound marked on Hive Runner 2"): shown on the matching result card
 const APPLIED = "com.newscolos.dice/applied";
@@ -185,7 +202,7 @@ OBR.onReady(async () => {
   try { const old = JSON.parse(localStorage.getItem(sdKey()) || "{}"); sd = { list: Array.isArray(old.list) ? old.list.slice(-SD_KEEP) : [], wait: null }; } catch {}
   sdSave();
   window.addEventListener("storage", (e) => { if (e.key === "ns.sdShow" && e.newValue) openCard().catch(() => {}); }); // Δ on the DICE tab
-  const isGM = (await OBR.player.getRole()) === "GM";
+  const isGM = (await OBR.player.getRole()) === "GM"; amGM = isGM;
   // Initiative: tell players to roll, and show the bar across the top while combat is on
   const BAR = "com.newscolos.initbar", LEFT = 545; // starts just past the New Scolos panel at L size, so it never overlaps (S or L)
   let barOpenedAt = 0, barCount = "", lastSid = (await OBR.room.getMetadata())[INIT]?.sid || "";

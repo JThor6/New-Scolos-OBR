@@ -1133,6 +1133,8 @@ const SMALL_WORDS = new Set(["of", "and", "the", "a", "an", "to", "in", "on", "f
 const tc = (s) => String(s ?? "").replace(/[A-Za-z][A-Za-z']*/g, (w, i) => (i > 0 && SMALL_WORDS.has(w.toLowerCase()) && w === w.toLowerCase()) ? w : w[0].toUpperCase() + w.slice(1));
 const drawOpen = {}; // which fold-out drawers are open, so the 30-second refresh doesn't snap them shut
 function drawSheet() {
+  // the background page needs to know who you're playing, for the "DEFEND!" pop-up when Target Lock picks you
+  if (!standalone && !isGM && sheetVals) try { store.set("ns.myChar:" + OBR.room.id, myChar()); } catch {}
   if (mgrOn) return drawManager();
   const F = (label, val, cls = "", inf = "") => `<div class="fld ${cls}"><small ${inf ? `class="inft" data-inf="${inf}" data-sec="combat"` : ""}>${label}</small><div>${esc2(val)}</div></div>`;
   const chips = (from, to, sec) => { let h = "", n = 0; for (let i = from; i <= to; i++) if (V("B" + i)) { n++;

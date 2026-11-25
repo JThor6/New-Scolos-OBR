@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
+<style>
+  /* "You're being attacked": shown at the top of the map for the targeted player, like "Your turn!" but in a tense
+     dark purple with a red edge (not the happy green). Tap it (or wait 7 s) to close it. */
+  html, body { margin:0; background:transparent; overflow:hidden; font-family:system-ui, sans-serif; }
+  .p { box-sizing:border-box; height:100vh; display:flex; align-items:center; gap:12px; padding:8px 14px; cursor:pointer;
+    background:linear-gradient(135deg, rgba(48,16,72,.96), rgba(28,8,40,.96)); border:2px solid #ff4d6a; border-radius:14px;
+    box-shadow:0 0 18px rgba(255,77,106,.55), inset 0 0 14px rgba(187,153,255,.18); color:#f1e9ff; animation:in .25s ease-out, pulse 1.4s ease-in-out .3s infinite; }
+  .ic { font-size:28px; filter:drop-shadow(0 0 6px rgba(255,77,106,.8)); }
+  .h { font-family:'Bangers', Impact, sans-serif; font-size:24px; letter-spacing:1.5px; line-height:1; color:#ff8aa0; text-shadow:0 0 8px rgba(255,77,106,.6); }
+  .s { margin-top:3px; font-size:12.5px; font-weight:700; color:#e4d9ff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .s b { color:#fff; }
+  .t { min-width:0; flex:1; }
+  @keyframes in { from { transform:translateY(-12px); opacity:0; } }
+  @keyframes pulse { 50% { box-shadow:0 0 26px rgba(255,77,106,.8), inset 0 0 14px rgba(187,153,255,.25); } }
+</style></head>
+<body><div class="p" id="p"><span class="ic">🛡</span><div class="t"><div class="h">DEFEND!</div><div class="s" id="s"></div></div></div>
+<script type="module">
+  import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
+  const q = new URLSearchParams(location.search), ID = "com.newscolos.defpop";
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const at = Number(q.get("at")) || 0;
+  document.getElementById("s").innerHTML = `<b>${esc(q.get("att"))}</b> ${q.get("sp") ? "casts at" : "attacks"} you (${at > 0 ? "+" + at : at}). Roll Adroitness.`;
+  const close = () => { if (OBR.isAvailable) OBR.popover.close(ID).catch(() => {}); };
+  document.getElementById("p").onclick = close;
+  if (OBR.isAvailable) OBR.onReady(() => setTimeout(close, 7000));
+</script></body></html>
