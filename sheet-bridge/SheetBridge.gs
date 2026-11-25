@@ -323,18 +323,19 @@ function savePortrait(id, pic) {
   if (!fb.length || fb.length > 10 * 1024 * 1024) throw new Error('That picture is too big (10 MB max).');
   if (!sb.length || sb.length > 400 * 1024) throw new Error('The small copy of the picture did not come through. Try again.');
   const name = (String(sh.getRange('C3').getDisplayValue()).trim() || 'Character').replace(/[\\/:*?"<>|]/g, '').slice(0, 60);
-  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  let pre = portraitInfo(id);
+  if (pre && pre.pics.length >= PORTRAIT_MAX) pre = prunePortraits(id, pre);
+  if (pre && pre.pics.length >= PORTRAIT_MAX) throw new Error('This character already has ' + PORTRAIT_MAX + ' pictures. Remove one first.');
+  const root = DriveApp.getFolderById(PORTRAIT_FOLDER_ID), smallFolder = subFolder(root, PORTRAIT_SMALL_FOLDER);
+  const n0 = pre ? (pre.n || pre.pics.length) + 1 : 1, label = name + ' - Portrait' + (n0 > 1 ? ' ' + n0 : '');
+  const ff = root.createFile(Utilities.newBlob(fb, full.mime, label + '.' + PORTRAIT_EXT[full.mime]));
+  const sf = smallFolder.createFile(Utilities.newBlob(sb, small.mime, label + ' (small).' + PORTRAIT_EXT[small.mime]));
+  try { ff.setDescription('Uploaded from the New Scolos Manager for character sheet ' + id); } catch (e) {}
+  const lock = LockService.getScriptLock(); lock.waitLock(15000);
   try {
-    let info = portraitInfo(id) || { pics: [], cur: '', t: 0, n: 0 };
-    if (info.pics.length >= PORTRAIT_MAX) info = prunePortraits(id, info);
-    if (info.pics.length >= PORTRAIT_MAX) throw new Error('This character already has ' + PORTRAIT_MAX + ' pictures. Remove one first.');
-    const root = DriveApp.getFolderById(PORTRAIT_FOLDER_ID);
-    const it = root.getFoldersByName(PORTRAIT_SMALL_FOLDER);
-    const smallFolder = it.hasNext() ? it.next() : root.createFolder(PORTRAIT_SMALL_FOLDER);
-    const n = (info.n || info.pics.length) + 1, label = name + ' - Portrait' + (n > 1 ? ' ' + n : '');
-    const ff = root.createFile(Utilities.newBlob(fb, full.mime, label + '.' + PORTRAIT_EXT[full.mime]));
-    const sf = smallFolder.createFile(Utilities.newBlob(sb, small.mime, label + ' (small).' + PORTRAIT_EXT[small.mime]));
-    try { ff.setDescription('Uploaded from the New Scolos Manager for character sheet ' + id); } catch (e) {}
+    const info = portraitInfo(id) || { pics: [], cur: '', t: 0, n: 0 };
+    if (info.pics.length >= PORTRAIT_MAX) { ff.setTrashed(true); sf.setTrashed(true); throw new Error('This character already has ' + PORTRAIT_MAX + ' pictures. Remove one first.'); }
+    const n = Math.max(n0, (info.n || info.pics.length) + 1);
     const t = Date.now();
     info.pics.push({ full: ff.getId(), small: sf.getId(), t: t });
     info.cur = ff.getId(); info.t = t; info.n = n;
@@ -374,6 +375,17 @@ function framePortrait(id, fid, f) {
 // Pog files (only those) are "anyone with the link can view", so Owlbear can load them straight onto the map from
 // https://lh3.googleusercontent.com/d/<file id> (tested Nov 24 2026: that address works in Owlbear).
 function sharePog(f) { try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {} }
+// A replaced pog is NEVER trashed: tokens already on a map still load it from its address. It moves to
+// Character Portraits -> Pogs -> Old pogs (same file, same address, still shared). Jake can empty that folder by
+// hand when he's sure no map still uses those tokens.
+function retirePog(id) {
+  if (!id) return;
+  try {
+    const f = DriveApp.getFileById(id);
+    if (f.isTrashed()) return;
+    f.moveTo(subFolder(subFolder(DriveApp.getFolderById(PORTRAIT_FOLDER_ID), POG_FOLDER), 'Old pogs'));
+  } catch (e) {}
+}
 const POG_FOLDER = 'Pogs';
 function savePog(id, data) {
   const sh = openMain(id); // folder check
@@ -389,7 +401,7 @@ function savePog(id, data) {
     const folder = it.hasNext() ? it.next() : root.createFolder(POG_FOLDER);
     const f = folder.createFile(Utilities.newBlob(bytes, 'image/png', name + ' - Pog.png'));
     sharePog(f);
-    if (info.pog) { try { DriveApp.getFileById(info.pog).setTrashed(true); } catch (e) {} }
+    if (info.pog) retirePog(info.pog);
     info.pog = f.getId();
     portraitSaveInfo(id, info);
     return { ok: true, name: f.getName(), pogId: f.getId() };
@@ -418,9 +430,10 @@ function monFilesInUse() {
   Object.keys(all).forEach(function (key) { if (key.indexOf('ma:') !== 0) return; try { const i = JSON.parse(all[key]); [i.full, i.small, i.pog].forEach(function (id) { used[id] = 1; }); } catch (e) {} });
   return used;
 }
-function trashUnused(ids) {
-  const used = monFilesInUse();
-  ids.forEach(function (id) { if (id && !used[id]) { try { DriveApp.getFileById(id).setTrashed(true); } catch (e) {} } });
+function trashUnused(ids, pogs) { // pogs: ids that are pogs (moved to Old pogs, never trashed)
+  const used = monFilesInUse(), isPog = {};
+  (pogs || []).forEach(function (id) { isPog[id] = 1; });
+  ids.forEach(function (id) { if (!id || used[id]) return; if (isPog[id]) retirePog(id); else { try { DriveApp.getFileById(id).setTrashed(true); } catch (e) {} } });
 }
 function monSet(k, info) { PropertiesService.getScriptProperties().setProperty('ma:' + k, JSON.stringify(info)); }
 function monOut(info, withData) {
@@ -436,17 +449,18 @@ function saveMonArt(a) {
   const fb = Utilities.base64Decode(String(full.data || '')), sb = Utilities.base64Decode(String(small.data || '')), pb = Utilities.base64Decode(String(pog.data || ''));
   if (!fb.length || fb.length > 10 * 1024 * 1024) throw new Error('That picture is too big (10 MB max).');
   if (!sb.length || sb.length > 400 * 1024 || !pb.length || pb.length > 5 * 1024 * 1024) throw new Error('The picture did not come through. Try again.');
-  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  // big files first, outside the lock, so other saves at the table never wait on an upload
+  const root = subFolder(DriveApp.getFolderById(PORTRAIT_FOLDER_ID), MONSTER_ART_FOLDER);
+  const ff = root.createFile(Utilities.newBlob(fb, full.mime, label + ' - Art.' + PORTRAIT_EXT[full.mime]));
+  const sf = subFolder(root, PORTRAIT_SMALL_FOLDER).createFile(Utilities.newBlob(sb, small.mime, label + ' (small).' + PORTRAIT_EXT[small.mime]));
+  const pf = subFolder(root, POG_FOLDER).createFile(Utilities.newBlob(pb, 'image/png', label + ' - Pog.png'));
+  sharePog(pf);
+  const lock = LockService.getScriptLock(); lock.waitLock(15000);
   try {
-    const root = subFolder(DriveApp.getFolderById(PORTRAIT_FOLDER_ID), MONSTER_ART_FOLDER);
-    const ff = root.createFile(Utilities.newBlob(fb, full.mime, label + ' - Art.' + PORTRAIT_EXT[full.mime]));
-    const sf = subFolder(root, PORTRAIT_SMALL_FOLDER).createFile(Utilities.newBlob(sb, small.mime, label + ' (small).' + PORTRAIT_EXT[small.mime]));
-    const pf = subFolder(root, POG_FOLDER).createFile(Utilities.newBlob(pb, 'image/png', label + ' - Pog.png'));
-    sharePog(pf);
     const old = monInfo(k);
     const info = { full: ff.getId(), small: sf.getId(), pog: pf.getId(), t: Date.now(), name: label, shared: true, f: null };
     monSet(k, info);
-    if (old) trashUnused([old.full, old.small, old.pog]);
+    if (old) trashUnused([old.full, old.small, old.pog], [old.pog]);
     return { ok: true, t: info.t, name: label, pogId: info.pog };
   } finally { lock.releaseLock(); }
 }
@@ -457,19 +471,21 @@ function saveMonPog(a) {
   if (!(z >= 1 && z <= 5 && x >= 0 && x <= 100 && y >= 0 && y <= 100)) throw new Error('Bad pog framing.');
   const pb = Utilities.base64Decode(String(a.data || ''));
   if (!pb.length || pb.length > 5 * 1024 * 1024) throw new Error('The pog did not come through. Try again.');
-  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  const pre = monInfo(k);
+  if (!pre) throw new Error('That monster has no art any more. Reload monsters.');
+  const pf = subFolder(subFolder(DriveApp.getFolderById(PORTRAIT_FOLDER_ID), MONSTER_ART_FOLDER), POG_FOLDER).createFile(Utilities.newBlob(pb, 'image/png', pre.name + ' - Pog.png'));
+  sharePog(pf);
+  const lock = LockService.getScriptLock(); lock.waitLock(15000);
   try {
     const info = monInfo(k);
-    if (!info) throw new Error('That monster has no art any more. Reload monsters.');
-    const pf = subFolder(subFolder(DriveApp.getFolderById(PORTRAIT_FOLDER_ID), MONSTER_ART_FOLDER), POG_FOLDER).createFile(Utilities.newBlob(pb, 'image/png', info.name + ' - Pog.png'));
-    sharePog(pf);
+    if (!info) { pf.setTrashed(true); throw new Error('That monster has no art any more. Reload monsters.'); }
     const old = [info.pog], fr = { z: Math.round(z * 100) / 100, x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 }, t = Date.now();
     info.pog = pf.getId(); info.shared = true; info.t = t; info.f = fr;
     monSet(k, info);
     // other names sharing this art ("Hive Runner Boss") can take the same new pog
     const also = (a.also || []).slice(0, 30).map(monKey).filter(function (x) { return x !== k; }), done = [];
     also.forEach(function (x) { const o = monInfo(x); if (!o) return; old.push(o.pog); o.pog = info.pog; o.shared = true; o.t = t; o.f = fr; monSet(x, o); done.push(x); });
-    trashUnused(old);
+    trashUnused(old, old);
     return { ok: true, t: t, pogId: info.pog, f: fr, also: done };
   } finally { lock.releaseLock(); }
 }
@@ -480,9 +496,9 @@ function copyMonArt(a) {
   const to = (a.to || []).slice(0, 30).map(monKey).filter(function (k) { return k !== from; });
   const lock = LockService.getScriptLock(); lock.waitLock(10000);
   try {
-    const old = [];
-    to.forEach(function (k) { const o = monInfo(k); if (o) old.push(o.full, o.small, o.pog); monSet(k, info); });
-    trashUnused(old);
+    const old = [], oldPogs = [];
+    to.forEach(function (k) { const o = monInfo(k); if (o) { old.push(o.full, o.small, o.pog); oldPogs.push(o.pog); } monSet(k, info); });
+    trashUnused(old, oldPogs);
     return { ok: true, art: monOut(info, false), to: to };
   } finally { lock.releaseLock(); }
 }
@@ -516,7 +532,7 @@ function getMonPog(k) {
 function removeMonArt(k) {
   k = monKey(k);
   const info = monInfo(k);
-  if (info) { PropertiesService.getScriptProperties().deleteProperty('ma:' + k); trashUnused([info.full, info.small, info.pog]); }
+  if (info) { PropertiesService.getScriptProperties().deleteProperty('ma:' + k); trashUnused([info.full, info.small, info.pog], [info.pog]); }
   return { ok: true };
 }
 

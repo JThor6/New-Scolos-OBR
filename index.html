@@ -487,6 +487,7 @@
   .actbar.rv { border-color:#8a3fd1; background:radial-gradient(circle at 20% 30%, rgba(70,15,95,.85), rgba(12,0,22,.9)); color:#e3d6f5; box-shadow:0 0 12px rgba(140,60,220,.55), inset 0 0 12px rgba(150,255,190,.12); }
   .actbar.rv b { font-family:'Creepster', 'Bangers', Impact, sans-serif; font-size:19px; color:#c6ffd8; text-shadow:0 0 6px #7dffa8, 0 0 14px #8a3fd1; }
   .actarm { border-color:#9d86ff !important; box-shadow:0 0 8px rgba(157,134,255,.55); } .actarm.av { border-color:#e8b5ff !important; box-shadow:0 0 8px rgba(199,125,255,.55); }
+  .actarmx { margin-left:5px; background:transparent; border:1.5px solid #9d86ff; border-radius:5px; color:#d9cfff; font-size:11px; font-weight:900; line-height:1; padding:2px 5px; cursor:pointer; vertical-align:middle; } .actarmx:hover { background:#5b46b8; color:#fff; }
   .actarm .actnote { display:block; margin-top:2px; font-size:10px; font-style:normal; font-weight:800; color:#d9cfff; line-height:1.2; }
   .pact { display:inline-block; margin-top:4px; padding:2px 6px; border-radius:4px; background:#5b46b8; color:#fff; font-size:10px; font-weight:900; letter-spacing:.3px; }
   .pact.av { background:linear-gradient(135deg, #3a6fd0, #a03ab8); } .pact.ff { background:#0d6f86; } .pact.wr { background:#3a3a44; font-style:italic; } .pact.mm { background:#137a66; } .pact.rv { background:#4a1470; color:#c6ffd8; }
@@ -907,7 +908,11 @@ $("handbtn").onclick = () => { const h = $("hand"); h.hidden = !h.hidden; $("han
 
 // ---------------- CHARACTER TAB (internal id "sheet") ----------------
 const BRIDGE = "https://script.google.com/macros/s/AKfycbx5cjtXVGyFeoQx0EzJ-47gk4uXT6mXdgs90zaBmUB-zctUFm6OxD8fyWZWWuUQT0ua/exec";
-const store = { get: (k) => { try { return localStorage.getItem(k) || ""; } catch { return ""; } }, set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+// Browser storage is ~5 MB per site. Saved pictures (ns.cache.pt.*, ns.cache.ma.*) are only copies of what's in Drive,
+// so when storage is full they're dropped to make room: settings like the table code must always save.
+function lsFree() { try { for (let i = localStorage.length - 1; i >= 0; i--) { const k = localStorage.key(i); if (/^ns\.cache\.(pt|ma)\./.test(k)) localStorage.removeItem(k); } } catch {} }
+function lsSet(k, v) { try { localStorage.setItem(k, v); return true; } catch { lsFree(); try { localStorage.setItem(k, v); return true; } catch { return false; } } }
+const store = { get: (k) => { try { return localStorage.getItem(k) || ""; } catch { return ""; } }, set: (k, v) => { lsSet(k, v); } };
 let isGM = false, sheetVals = null, busy = false;
 // Campaigns: the GM sets this room's campaign (a subfolder name in Drive) on the GM tab. "" = main campaign.
 // Everything per-character or per-encounter is remembered per campaign, so one player can be in two games.
@@ -967,7 +972,11 @@ async function bridgePost(body) {
 // Saved copies so the last thing you saw shows instantly, while a fresh copy loads in the background
 const cache = {
   get: (k) => { try { return JSON.parse(localStorage.getItem("ns.cache." + k) || "null"); } catch { return null; } },
-  set: (k, v) => { try { localStorage.setItem("ns.cache." + k, JSON.stringify(v)); } catch {} },
+  set: (k, v) => {
+    if (/^ma\./.test(k) && v && v.pogUrl) { const { pogUrl, ...rest } = v; v = rest; } // the ring preview is redrawn, not stored
+    if (v == null && /^(ma|pt)\./.test(k)) { try { localStorage.removeItem("ns.cache." + k); } catch {} return; }
+    lsSet("ns.cache." + k, JSON.stringify(v));
+  },
 };
 let syncing = 0;
 function sync(d) { syncing = Math.max(0, syncing + d); const el = $("syncdot"); if (el) el.hidden = !syncing; }
@@ -1092,7 +1101,7 @@ function drawSheet() {
     <div id="pwd" class="gpow pwd" hidden></div>
     ${V("E13") && !ptInEP() ? `<div class="g2">${ptMaxV() ? F(esc2(/\d/.test(V("G13")) || !V("G13") ? "Max " + V("E13") : V("G13")), ptMaxV()) : ""}<div class="fld"><small>${esc2(V("E13"))}</small>${ptCtl()}</div></div>` : ""}
     <div class="stab">COMBAT</div>
-    <div class="gcb3">${F("Melee Damage Bonus", V("H23"), "c", "cb:Melee Damage Bonus")}${F("Ranged Damage Bonus", V("H24"), "c", "cb:Ranged Damage Bonus")}${actDef()?.armor ? `<div class="fld c actarm ${actDef().c}"><small class="inft" data-inf="cb:Armor Bonus" data-sec="combat">Armor Bonus</small><div>${esc2(V("H25"))}<span class="actp ${actDef().c}" title="${esc2(actDef().t)}">+${actDef().armor}</span></div><em class="actnote">${esc2(POWER_CARDS[actGet().n]?.n || actDef().t)}: add +${actDef().armor}</em></div>` : F("Armor Bonus", V("H25"), "c", "cb:Armor Bonus")}</div>
+    <div class="gcb3">${F("Melee Damage Bonus", V("H23"), "c", "cb:Melee Damage Bonus")}${F("Ranged Damage Bonus", V("H24"), "c", "cb:Ranged Damage Bonus")}${actDef()?.armor ? `<div class="fld c actarm ${actDef().c}"><small class="inft" data-inf="cb:Armor Bonus" data-sec="combat">Armor Bonus</small><div>${esc2(V("H25"))}<span class="actp ${actDef().c}" title="${esc2(actDef().t)}">+${actDef().armor}</span><button class="actarmx" title="Turn the +${actDef().armor} off (combat's over)">✕</button></div><em class="actnote">${esc2(POWER_CARDS[actGet().n]?.n || actDef().t)}: add +${actDef().armor}</em></div>` : F("Armor Bonus", V("H25"), "c", "cb:Armor Bonus")}</div>
     <div class="gcop"><div class="fld"><small>Combat Options</small><div class="cowrap"><div class="copl">${opts.length ? opts.map(o => `<button class="cob" data-inf="co:${esc2(o)}" data-sec="combat">${esc2(tc(o))}</button>`).join("<br>") : `<span class="dimn2">None yet</span>`}</div><div class="codesc" hidden></div></div></div>
       <div class="fld c"><small class="inft" data-inf="cop" data-sec="combat">COP${copMaxT !== "" ? ` <span class="dimn">/ ${esc2(copMaxT)}</span>` : ""}</small><div class="ctl"><button id="copm" title="Use a point">−</button><b id="copv" title="Points left this combat">${esc2((m => isNaN(m) ? (V("H29") || "0") : String(Math.max(0, m - (parseInt(V("H29")) || 0))))(parseInt(copMaxT)))}</b><button id="copp" title="Give a point back">+</button></div></div></div>
     <div class="infp gpow" data-for="combat" hidden></div>
@@ -1107,6 +1116,7 @@ function drawSheet() {
     <div id="sherr" class="err" hidden></div>
     ${isGM ? "" : `<div class="discw"><button id="disc" class="discb" title="Pick a different character">⇄ Switch character</button></div>`}`;
   fillPowers(); bindInfo(); updateKS(); updateActive(); publishActive(); bindPt();
+  document.querySelectorAll("#shbody .actarmx").forEach(b => b.onclick = (e) => { e.stopPropagation(); endActive(); });
   document.querySelectorAll("#shbody .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l, "", b.dataset.b); });
   // the whole attribute or skill box rolls, except its underlined name (that opens the info)
   document.querySelectorAll("#shbody .att, #shbody .skc").forEach(box => { const rd = box.querySelector(".rd"); if (!rd) return;
@@ -1880,7 +1890,7 @@ async function announcePower(n) {
 // Plain skill rolls the power only mentions in passing (Sneak to stay quiet, Acting when someone tests you) stay on the skill list.
 const POWER_ROLLS = {
   "tapping the quietwire": { act: [{ k: "Streetwise", t: "Roll Streetwise" }] },
-  "bullet stop": "aura", // freeze shots or the aura (+2 Armor Bonus for the combat); neither takes up your action
+  "bullet stop": "aura", // one button: +2 Armor Bonus until the combat ends (✕ or the GM's END COMBAT ends it); doesn't take your action
   "kill shot": "arm", // arms Kill Shot: the next attack roll from the sheet comes up +, +, +, +
   "ghost in the machine": { act: [{ k: "Hacking", t: "Get in: roll Hacking" }], fn: "Inside, doing something the system would fight?", fl: "Once inside", follow: [{ k: "Hacking", t: "Roll Hacking (same difficulty)" }] },
   "last rites": { fn: "Rebooting something huge, like a warship or war mech?", fl: "Big reboot", follow: [{ k: "Hacking", t: "Roll Hacking" }] },
@@ -1925,10 +1935,9 @@ function powerRollBtns(name) {
     const tot = pm.m + (r.x || 0);
     return `<button class="pwroll ${cls}" ${dis ? "disabled" : ""} data-m="${tot}" data-l="${esc2(`⚡ ${name} · ${lbl ? lbl + " (" + (r.l || r.k) + ")" : r.l || r.k}${r.x ? ` ${r.x}` : ""}${pm.un ? " untrained" : ""}`)}" data-b="${esc2(r.x ? "" : pm.br)}">${ROLL_ICON}<span>${esc2(r.t)}${pm.un ? " (untrained)" : ""}</span><b>${tot >= 0 ? "+" : ""}${tot}</b></button>`; };
   if (e === "arm") return `<div class="pwrolls">${usedNote}<button class="pwroll ksarm ${ksArmed() ? "on" : ""}" ${on && !ksArmed() ? "disabled" : ""}><span>${ksArmed() ? "Kill Shot is armed. Tap to cancel" : "Arm Kill Shot: your next attack roll is +, +, +, +"}</span></button></div>`;
-  if (e === "aura") { const a = actGet()?.n === "bullet stop";
-    return `<div class="pwrolls">${usedNote}<button class="pwroll pwuse" data-n="${esc2(name)}" ${on ? "disabled" : ""}>⚡<span>${on ? "Used Today" : "Freeze shots: doesn't take up your action, checks Used Today"}</span></button>` +
-      `<div class="pwtn">Either way: use it on your turn. It doesn't take your action, so you can still fight.</div>` +
-      `<button class="pwroll bsaura ${a ? "on" : ""}" ${on && !a ? "disabled" : ""}>⚡<span>${a ? "Aura is on: +2 Armor Bonus. Tap to end it" : "Aura: +2 Armor Bonus this combat, allies within 10 ft +2 for a turn"}</span></button></div>`; }
+  if (e === "aura") { const a = actGet()?.n === "bullet stop"; // Jake, Nov 24: using Bullet Stop always gives the +2 Armor Bonus
+    return `<div class="pwrolls">${usedNote}<button class="pwroll bsaura ${a ? "on" : ""}" ${on && !a ? "disabled" : ""}>⚡<span>${a ? "Bullet Stop is on: +2 Armor Bonus. Tap to end it" : on ? "Used Today" : "Use Bullet Stop: +2 Armor Bonus until the combat ends (checks Used Today)"}</span></button>` +
+      `<div class="pwtn">Use it on your turn. It doesn't take your action, so you can still fight. The +2 ends when the GM ends the combat, or with ✕.</div></div>`; }
   const start = e.act ? e.act.map(r => btn(r, "", on)).join("")
     : `<button class="pwroll pwuse" data-act="${ACTIVE[key] ? esc2(key) : ""}" ${on ? "disabled" : ""}>⚡<span>${on ? (actGet()?.n === key ? "On now. End it with ✕ on the bar" : "Used Today") : `Use ${esc2(name)}: checks Used Today`}</span></button>`;
   const alt = e.alt ? `<div class="pwtn">${esc2(e.an)}</div>` + e.alt.map(r => btn(r, "", on)).join("") : "";
@@ -2314,10 +2323,12 @@ function bindMonDrag() {
 // One picture per monster name, trailing numbers dropped ("Hive Runner 2" → "hive runner"), so mooks share it and it
 // carries into every encounter. Drop or pick a picture on the card's art slot: the small copy shows by the name and the
 // red enemy pog is made right away and saved to Drive (Character Portraits → Monster Art). Tap the pog to put it on the table.
-const monKey = (name) => String(name).toLowerCase().replace(/\s*[#(]?\d+\)?\s*$/, "").replace(/\s+/g, " ").trim().slice(0, 60);
+const monKey = (name) => String(name).replace(/\|/g, " ").toLowerCase().replace(/\s*[#(]?\d+\)?\s*$/, "").replace(/\s+/g, " ").trim().slice(0, 60);
 const monLabel = (name) => String(name).replace(/\s*[#(]?\d+\)?\s*$/, "").trim() || String(name).trim();
 const monArt = new Map(), monArtChecked = new Set(), monArtBusy = new Set();
-(() => { try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith("ns.cache.ma.")) { const v = cache.get(k.slice(9)); if (v) monArt.set(k.slice(12), v); } } } catch {} })();
+(() => { const load = []; try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith("ns.cache.ma.")) { const v = cache.get(k.slice(9)); if (v) { monArt.set(k.slice(12), v); load.push(v); } } } } catch {}
+  // redraw the red-ring previews once the page has finished starting up
+  setTimeout(() => Promise.all(load.map(monArtPog)).then(() => { if (load.length && $("mo") && !$("mon").hidden) drawMonsters(); }), 0); })();
 function monThumb(name) { const a = monArt.get(monKey(name)); return a ? `<img class="mthumb" src="${a.pogUrl || a.url}" alt="">` : ""; }
 function monArtCell(name) {
   const k = monKey(name), a = monArt.get(k), busy = monArtBusy.has(k);
