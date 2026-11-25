@@ -88,7 +88,8 @@ function createCharacter(c, campaign) {
   else sh.getRange('E13:H13').clearContent();
   // keep only this character's type tab
   ss.getSheets().forEach(function (s) { const t = s.getName().trim(); if (TYPE_TABS.indexOf(t) >= 0 && t !== type) ss.deleteSheet(s); });
-  if (email) { try { file.addEditor(email); } catch (e) { return { ok: true, id: file.getId(), name: name, warn: 'Sheet made, but sharing with ' + email + ' failed: ' + e.message }; } }
+  // view only (Jake, Nov 24 2026): new characters are changed only through the extension, never straight in Drive
+  if (email) { try { file.addViewer(email); } catch (e) { return { ok: true, id: file.getId(), name: name, warn: 'Sheet made, but sharing with ' + email + ' failed: ' + e.message }; } }
   return { ok: true, id: file.getId(), name: name };
 }
 // GM clean-up: move a character sheet (and its PDF export) into the "Stasis" folder in New Scolos Characters.

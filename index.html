@@ -1702,9 +1702,9 @@ async function showGen() {
       if (cg.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cg.email)) return "That email doesn't look right.";
       return cg.name.trim() ? "" : "Give your character a name (box at the top)."; };
     const xpBtns = [-10, -1, 1, 10].map(d => `<button class="sbtn" data-xp="${d}">${d > 0 ? "+" : ""}${d}</button>`).join("");
-    put(bar + firstTime("Last step", `<p>Make sure your character has a name (box at the top). Put in your Google email so the new sheet is shared with you.</p>
+    put(bar + firstTime("Last step", `<p>Make sure your character has a name (box at the top). Optional: put in your Google email if you'd like to see your sheet in Google Drive too (view only; all changes happen here in the extension).</p>
           <p>Leave "Start with XP" off unless your GM tells you to start at a higher level. Check the preview, then tap <b>CREATE CHARACTER</b>. After that, pick your character on the CHARACTER SHEET tab.</p>`) + `<div class="sec">FINISH</div>
-      <label class="gl">Your Google email <small>(the new sheet is shared with you)</small><input id="gEmail" value="${esc2(cg.email)}" placeholder="you@gmail.com" inputmode="email"></label>
+      <label class="gl">Your Google email <small>(optional: lets you view the sheet in Google Drive)</small><input id="gEmail" value="${esc2(cg.email)}" placeholder="you@gmail.com" inputmode="email"></label>
       <label class="gchk"><input type="checkbox" id="gXpOn" ${cg.xpOn ? "checked" : ""}> Start with XP (higher level)</label>
       ${cg.xpOn ? `<div class="mrow"><b class="gxp">${cg.xp} XP</b>${xpBtns}</div><div class="gnote">Goes into Current XP, to spend in Manage Character.</div>` : ""}
       <div class="sec">YOUR CHARACTER</div>
@@ -1728,7 +1728,7 @@ async function showGen() {
       if (body.create.email) store.set("ns.email", body.create.email);
       cache.set(ck("chars"), null); cg = cgNew(); cgSave(); genQ = ""; genInfo = "";
       setSheetId(r.id);
-      $("cg").innerHTML = `<div class="sec">DONE!</div><div class="grun"><div><b>${esc2(r.name)}</b> is in the New Scolos Characters folder${body.create.email ? ` and shared with ${esc2(body.create.email)}` : ""}.</div>${r.warn ? `<div class="err">${esc2(r.warn)}</div>` : ""}</div>
+      $("cg").innerHTML = `<div class="sec">DONE!</div><div class="grun"><div><b>${esc2(r.name)}</b> is in the New Scolos Characters folder${body.create.email ? ` and ${esc2(body.create.email)} can view it in Google Drive` : ""}.</div>${r.warn ? `<div class="err">${esc2(r.warn)}</div>` : ""}</div>
         <button id="gOpen" class="sbtn on" style="width:100%;margin-top:8px">OPEN MY NEW CHARACTER</button>`;
       $("gOpen").onclick = () => document.querySelector('.tab[data-t="sheet"]').click();
     };
