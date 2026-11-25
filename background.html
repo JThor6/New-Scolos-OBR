@@ -273,9 +273,22 @@ OBR.onReady(async () => {
   // Initiative: tell players to roll, and show the bar across the top while combat is on
   const BAR = "com.newscolos.initbar", LEFT = 545; // starts just past the New Scolos panel at L size, so it never overlaps (S or L)
   let barOpenedAt = 0, barCount = "", lastSid = (await OBR.room.getMetadata())[INIT]?.sid || "";
-  let lastCur = "";
+  let lastCur = "", turnUp = false;
+  // Big END TURN at the bottom middle of the map while it's this player's turn (players only)
+  async function turnPop(on) {
+    if (on === turnUp) return; turnUp = on;
+    if (!on) return OBR.popover.close("com.newscolos.turnpop").catch(() => {});
+    const url = new URL("go.html", location.href); url.searchParams.set("p", "turnpop");
+    const ref = new URLSearchParams(location.search).get("obrref"); if (ref) url.searchParams.set("obrref", ref);
+    let vw = 1200, vh = 800; try { vw = await OBR.viewport.getWidth(); vh = await OBR.viewport.getHeight(); } catch {}
+    OBR.popover.open({ id: "com.newscolos.turnpop", url: url.href, width: 260, height: 64, hidePaper: true,
+      anchorReference: "POSITION", anchorPosition: { left: Math.round(vw / 2), top: vh - 24 },
+      anchorOrigin: { horizontal: "CENTER", vertical: "BOTTOM" }, transformOrigin: { horizontal: "CENTER", vertical: "BOTTOM" },
+      disableClickAway: true }).catch(() => { turnUp = false; });
+  }
   async function initUpdate(md) {
     const st = md[INIT];
+    if (!isGM) turnPop(!!(st?.open && st.cur && st.cur === me));
     if (!st?.open || !st.cur) lastCur = ""; // new combat starts fresh, so its first turn always pings
     // "Your turn" ping for the player whose turn it is
     if (st?.open && st.cur && st.cur !== lastCur && !isGM) { // players only: the GM never gets these

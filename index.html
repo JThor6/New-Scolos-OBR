@@ -303,12 +303,16 @@
   .defban .defbtns button { background:#dfe4f2; }
   #defx { background:transparent !important; color:#f1f3f9 !important; padding:4px 6px !important; }
   /* a monster Target Lock picked: deep purple, calm (Jake, Nov 25: no red) */
-  #mo .mcard.sdtgt { outline:2px solid #6a4fa0; outline-offset:1px; }
+  #mo .mcard.sdtgt { outline:4px solid #8a6ad0; outline-offset:1px; box-shadow:0 0 0 7px rgba(138,106,208,.25), 0 0 20px rgba(138,106,208,.5); background:rgba(138,106,208,.16); }
   #mo .mcard.sdtgt .mtop { background:linear-gradient(90deg, #2a1a45, #3b2563) !important; border-bottom-color:#5a4488 !important; }
   #mo .mcard.sdtgt .mtop b { color:#e6dcff !important; }
   #mo .sddefb { margin-right:6px; padding:5px 11px; background:#3b2563 !important; color:#e6dcff !important; border:1px solid #6a4fa0 !important; font-weight:800; font-size:13px; letter-spacing:.5px; box-shadow:none; }
   #mo .rd.ra.sddef { animation:sddef 1.6s ease-in-out infinite; } @keyframes sddef { 50% { box-shadow:0 0 0 3px rgba(223,228,242,.55); } }
   .initban span { flex:1; }
+  /* players: big END TURN at the top of the panel while it's their turn (any tab) */
+  .turnban { display:block; width:calc(100% - 20px); margin:8px 10px 0; padding:14px 0; border-radius:10px; border:2px solid #000; background:var(--accent); color:#000; font:900 19px system-ui; letter-spacing:1px; cursor:pointer; box-shadow:0 0 14px rgba(187,153,255,.45); }
+  .turnban[hidden] { display:none; } .turnban:active { transform:scale(.98); } .turnban:disabled { opacity:.6; }
+  body.upl #turnban, body.pty #turnban { display:none !important; }
   #initx { background:transparent !important; color:#f1f3f9 !important; padding:4px 6px !important; }
   .initban button { background:#bb99ff; color:#000; border:0; border-radius:8px; font:800 13px system-ui; padding:6px 10px; cursor:pointer; }
   @keyframes spin { to { transform:rotate(360deg); } }
@@ -316,7 +320,11 @@
   .mcard { border:2px solid #000; outline:1px solid #444a66; border-radius:8px; background:var(--paper); padding:6px 8px 8px; margin-top:8px; }
   .mnext { display:block; width:calc(100% - 16px); margin:8px 8px 2px; padding:14px 0; border-radius:10px; border:2px solid #000; background:var(--accent); color:#000; font:900 20px system-ui; letter-spacing:1px; cursor:pointer; box-shadow:0 0 14px rgba(187,153,255,.45); }
   .mnext:active { transform:scale(.98); }
-  .mcard.turn { outline:2px solid var(--accent); box-shadow:0 0 0 3px rgba(187,153,255,.18); background:rgba(187,153,255,.10); }
+  /* the monster whose turn it is: loud enough to spot while scrolling (Jake, Nov 25) */
+  .mcard.turn { outline:4px solid var(--accent); outline-offset:1px; box-shadow:0 0 0 7px rgba(187,153,255,.28), 0 0 22px rgba(187,153,255,.55); background:rgba(187,153,255,.22); }
+  #mo .mcard.turn .mtop { background:linear-gradient(90deg, #6b4fb0, #9a7be0) !important; border-bottom-color:#bb99ff !important; }
+  #mo .mcard.turn .mtop b { color:#fff !important; }
+  #mo .mcard.turn .mtop b::before { content:"▶ "; }
   .mcard.dead { background:rgba(150,30,40,.45); outline-color:#a33; opacity:.75; }
   .mcard.dead .mtop b { text-decoration:line-through; }
   #mo .mtop { cursor:grab; touch-action:none; user-select:none; } #mo .mtop button { cursor:pointer; }
@@ -675,6 +683,7 @@
 <body>
 <header><h1>NEW SCOLOS</h1><span class="hctl"><span id="syncdot" class="syncdot" hidden title="Syncing with Google Sheets">⟳</span><button id="solid" class="tab" title="See-through / solid">◐</button><button id="size" class="tab" title="Make the panel narrower"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M2 12h8M7 8l3 4-3 4M22 12h-8M17 8l-3 4 3 4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span><nav><button class="tab on" data-t="sheet">CHARACTER SHEET</button><button class="tab" data-t="rules">REFERENCE</button><button class="tab" data-t="dice">DICE</button><button class="tab" data-t="gen">CHARACTER CREATOR</button><button class="tab" data-t="mon" id="monTab" hidden>GM</button></nav></header>
 <div id="defban" class="initban defban" hidden><span id="deft"></span><span id="defbtns" class="defbtns"></span><button id="defx" title="Hide">✕</button></div>
+<button id="turnban" class="turnban" hidden title="Done with your turn: pass to the next in order">⚔ YOUR TURN · END TURN ▶</button>
 <div id="initban" class="initban" hidden><span>⚔ Initiative! Your next Adroitness roll counts.</span><button id="initgo">ROLL</button><button id="initx" title="Hide">✕</button></div>
 <section id="sheet"><div id="ptyhead" class="uplhead"><b>PARTY OVERVIEW</b><button id="ptyx" title="Close">✕</button></div><div id="sh"><div class="empty">Loading…</div></div></section>
 <section id="rules" hidden><div id="ru"></div></section>
@@ -3418,8 +3427,11 @@ async function updateInitBanner(md) {
     && store.get("ns.initDone") !== st.sid && lastMd[`${INIT}/p/${me}`]?.sid !== st.sid // not rolled yet
     && store.get("ns.initHide") !== st.sid;                         // not closed with ✕
   $("initban").hidden = !owed;
+  { const tb = $("turnban"); if (tb) { tb.hidden = !(st?.open && st.cur && me && st.cur === me); tb.disabled = false; } }
   clearTimeout(updateInitBanner.t); if (owed) updateInitBanner.t = setTimeout(() => updateInitBanner(), 30e3);
 }
+$("turnban").onclick = async () => { const b = $("turnban"); b.disabled = true;
+  try { const m = await OBR.room.getMetadata(); if (m[INIT]?.cur === me) await initStep(1); } finally { setTimeout(() => { b.disabled = false; }, 800); } };
 $("initx").onclick = () => { const s = lastMd?.[INIT]; if (s) store.set("ns.initHide", s.sid); $("initban").hidden = true; };
 $("initgo").onclick = () => {
   const adr = sheetVals?.[6]?.[2];

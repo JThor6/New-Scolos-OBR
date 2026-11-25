@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
+<style>
+  /* Big END TURN at the bottom middle of the map, only for the player whose turn it is (Jake, Nov 25:
+     reaching up to the initiative bar took too long). Goes away when the turn moves on. */
+  html, body { margin:0; background:transparent; overflow:hidden; font-family:system-ui, sans-serif; }
+  button { box-sizing:border-box; width:100%; height:100vh; display:flex; align-items:center; justify-content:center; gap:10px;
+    border-radius:14px; border:2px solid #000; background:#bb99ff; color:#000; cursor:pointer;
+    box-shadow:0 2px 14px rgba(187,153,255,.5); animation:in .25s ease-out; }
+  button:hover { background:#cbb0ff; } button:active { transform:scale(.98); } button:disabled { opacity:.6; cursor:default; }
+  .h { font-family:'Bangers', Impact, sans-serif; font-size:30px; letter-spacing:2px; line-height:1; }
+  .s { font:800 12px system-ui; letter-spacing:.5px; opacity:.75; }
+  @keyframes in { from { transform:translateY(12px); opacity:0; } }
+</style></head>
+<body><button id="b" title="Done with your turn: pass to the next in order"><span class="h">END TURN ▶</span><span class="s">YOUR TURN</span></button>
+<script type="module">
+  import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
+  import { INIT, initMove } from "./shared.js";
+  const b = document.getElementById("b");
+  OBR.onReady(async () => {
+    const me = await OBR.player.getId();
+    b.onclick = async () => { b.disabled = true;
+      try { const m = await OBR.room.getMetadata(); if (m[INIT]?.cur === me) { const nx = initMove(m, 1); if (nx) await OBR.room.setMetadata({ [INIT]: nx }); } }
+      finally { setTimeout(() => { b.disabled = false; }, 1500); } };
+  });
+</script></body></html>
