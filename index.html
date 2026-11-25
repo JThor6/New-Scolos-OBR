@@ -592,13 +592,14 @@
   #mo .att { display:grid; grid-template-columns:1fr auto; align-items:center; padding:4px 4px 5px; column-gap:2px; border-width:2px; }
   #mo .att small { grid-column:1 / -1; } #mo .att b { padding:0; text-align:center; font-size:19px; }
   #mo .rd.ra { position:static; width:34px; height:34px; margin:2px 0 0; border-radius:7px; background:rgba(187,153,255,.2); } #mo .rd.ra svg { width:22px; height:22px; }
-  #mo .mrow2 { display:grid; grid-template-columns:1fr 1fr 1fr 78px; gap:4px; margin-top:4px; } #mo .matk { grid-column:1 / 4; grid-row:1; }
+  #mo .mrow2 { display:grid; grid-template-columns:1fr 1fr 1fr 104px; gap:4px; margin-top:4px; } #mo .matk { grid-column:1 / 4; grid-row:1; }
   #mo .mart { grid-column:4; grid-row:1 / 3; position:relative; border:2px dashed #444a66; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; cursor:pointer; color:var(--dim); font-size:20px; font-weight:800; line-height:1; min-height:78px; padding:2px; }
   #mo .mart small { font-size:8px; letter-spacing:.5px; } #mo .mart:hover, #mo .mart.drag { border-color:#ff2b3d; color:#ff6b6b; }
   #mo .mart.has { border:none; cursor:default; } #mo .mart.busy { opacity:.55; animation:ptpulse .8s infinite alternate; }
-  #mo .mpog { width:62px; height:62px; display:block; cursor:pointer; } #mo .mpog:hover { filter:brightness(1.15); }
-  #mo .martb { display:flex; gap:2px; } #mo .martb button { background:transparent; border:1px solid #444a66; border-radius:5px; color:var(--dim); font-size:10px; font-weight:800; padding:0 4px; cursor:pointer; line-height:15px; }
-  #mo .martb button:hover { color:var(--ink); border-color:var(--ink); } #mo .martb button.arm { color:#fff; background:#a3132a; border-color:#ff2b3d; }
+  #mo .mpog { width:72px; height:72px; display:block; cursor:pointer; } #mo .mpog:hover { filter:brightness(1.15); }
+  #mo .martb { display:flex; gap:3px; width:100%; } #mo .martb button { flex:1; background:var(--paper); border:1.5px solid #444a66; border-radius:6px; color:var(--ink); font-size:14px; font-weight:800; padding:2px 0; cursor:pointer; line-height:18px; }
+  #mo .martb.big button { font-size:11px; letter-spacing:.3px; padding:4px 0; } #mo .martb.big button.go { background:#a3132a; border-color:#ff2b3d; color:#fff; } #mo .martb.big button.go:hover { background:#c21733; }
+  #mo .martb button:hover { color:var(--ink); border-color:var(--ink); } #mo .martb button.arm { color:#fff; background:#a3132a; border-color:#ff2b3d; font-size:10px; }
   #mo .mthumb { width:20px; height:20px; border-radius:50%; object-fit:cover; border:1.5px solid #ff2b3d; flex:none; }
   #mo .matk { min-height:44px; } #mo .matk span { display:flex; align-items:center; } #mo .matk span small { font-size:11px; font-weight:800; color:var(--dim); letter-spacing:.5px; } #mo .matk b { font-size:18px; }
   #mo .mrow2 .fld > div { font-size:15px; font-weight:800; }
@@ -2323,6 +2324,8 @@ function monArtCell(name) {
   if (busy) return `<div class="mart busy" data-mk="${esc2(k)}" data-n="${esc2(name)}">…<small>SAVING</small></div>`;
   if (!a) return `<div class="mart" data-mk="${esc2(k)}" data-n="${esc2(name)}" title="Drop a picture here (or tap) to make this monster's pog">+<small>ART</small></div>`;
   return `<div class="mart has" data-mk="${esc2(k)}" data-n="${esc2(name)}"><img class="mpog" src="${a.pogUrl || a.url}" alt="" title="Tap: put ${esc2(name)} on the table">
+    <div class="martb big"><button class="go" data-ma="table" title="Put ${esc2(name)} on the table (middle of your screen)">⬇ TABLE</button></div>
+    <div class="martb big"><button data-ma="lib" title="Save this pog in your Owlbear Characters (Owlbear opens an upload window)">⬆ OWLBEAR</button></div>
     <div class="martb"><button data-ma="adj" title="Adjust the pog: zoom and move the art in the ring">✎</button><button data-ma="chg" title="Change the picture (or drop a new one here)">↻</button><button data-ma="rm" title="Remove the picture">✕</button></div></div>`;
 }
 async function monArtPog(a) { // red pog preview drawn from the small copy
@@ -2459,6 +2462,18 @@ function bindMonArt() {
     el.querySelector(".mpog").onclick = () => monArtTable(k, name);
     el.querySelector('[data-ma="chg"]').onclick = pick;
     el.querySelector('[data-ma="adj"]').onclick = () => monPogAdjust(k, name);
+    el.querySelector('[data-ma="table"]').onclick = () => monArtTable(k, name);
+    el.querySelector('[data-ma="lib"]').onclick = async (e) => {
+      const b = e.currentTarget; b.disabled = true;
+      try {
+        const r = await bridgeGet({ monpog: k });
+        if (!r.ok || r.none) throw new Error(r.ok ? "no pog saved for it yet" : ptBridgeMsg(r.error));
+        obrNote("Owlbear is opening an upload window. Click UPLOAD in it.");
+        await pogToOwlbear(await b64Blob(r.mime, r.data), r.name || monLabel(name));
+        obrNote(`✓ ${r.name || monLabel(name)} is saved in your Owlbear Characters.`, "SUCCESS");
+      } catch (err) { obrNote("Couldn't save it to Owlbear: " + (err.message || err), "ERROR"); }
+      b.disabled = false;
+    };
     const rm = el.querySelector('[data-ma="rm"]');
     rm.onclick = async () => {
       if (!rm.classList.contains("arm")) { rm.classList.add("arm"); rm.textContent = "SURE?"; setTimeout(() => { if (rm.isConnected) { rm.classList.remove("arm"); rm.textContent = "✕"; } }, 4000); return; }
