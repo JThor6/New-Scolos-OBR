@@ -449,6 +449,15 @@ function getMonPog(k) {
   if (!f) return { ok: true, none: true };
   return { ok: true, t: info.t, name: info.name, mime: 'image/png', data: Utilities.base64Encode(f.getBlob().getBytes()) };
 }
+// EXPERIMENT: make one monster's pog viewable by anyone with the link and hand back three Google addresses for it,
+// to see which one Owlbear can load straight onto the map (only the pog file is shared; art and folders stay private)
+function monPogUrls(k) {
+  const info = monInfo(monKey(k)), f = info && liveFile(info.pog);
+  if (!f) return { ok: true, none: true };
+  f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+  const id = f.getId();
+  return { ok: true, name: info.name, urls: ['https://lh3.googleusercontent.com/d/' + id, 'https://drive.google.com/thumbnail?id=' + id + '&sz=w512', 'https://drive.google.com/uc?export=view&id=' + id] };
+}
 function removeMonArt(k) {
   k = monKey(k);
   const info = monInfo(k);
@@ -534,6 +543,7 @@ function doGet(e) {
     if (p.pog) return json(getPog(p.pog));
     if (p.monart) return json(getMonArt(p.monart, p.have));
     if (p.monpog) return json(getMonPog(p.monpog));
+    if (p.monpogurl) return json(monPogUrls(p.monpogurl));
     if (p.tab) { // a whole tab, e.g. Combat Options or Priest (used by the Rules tab)
       openMain(p.id); // folder check
       const t = SpreadsheetApp.openById(p.id).getSheetByName(p.tab);

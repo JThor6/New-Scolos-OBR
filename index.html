@@ -2323,7 +2323,7 @@ function monArtCell(name) {
   if (busy) return `<div class="mart busy" data-mk="${esc2(k)}" data-n="${esc2(name)}">…<small>SAVING</small></div>`;
   if (!a) return `<div class="mart" data-mk="${esc2(k)}" data-n="${esc2(name)}" title="Drop a picture here (or tap) to make this monster's pog">+<small>ART</small></div>`;
   return `<div class="mart has" data-mk="${esc2(k)}" data-n="${esc2(name)}"><img class="mpog" src="${a.pogUrl || a.url}" alt="" title="Tap: put ${esc2(name)} on the table (the first time it goes into your Owlbear images to drag in; after that each tap drops a copy)">
-    <div class="martb"><button data-ma="chg" title="Change the picture (or drop a new one here)">↻</button><button data-ma="rm" title="Remove the picture">✕</button></div></div>`;
+    <div class="martb"><button data-ma="test" title="Experiment: try dropping this pog straight onto the map, no upload">⚡</button><button data-ma="chg" title="Change the picture (or drop a new one here)">↻</button><button data-ma="rm" title="Remove the picture">✕</button></div></div>`;
 }
 async function monArtPog(a) { // red pog preview drawn from the small copy
   try { a.pogUrl = drawPog(await loadImg(a.url), null, "enemy", 160).toDataURL("image/png"); } catch {}
@@ -2384,6 +2384,21 @@ async function monArtTable(k, name) {
     note(`Uploaded: ${asset} is in your Owlbear images (Characters). Drag the first one onto the map; after that, tapping the pog drops more copies.`, "INFO");
   } catch (e) { note("Couldn't put it on the table: " + (e.message || e), "ERROR"); }
 }
+// EXPERIMENT (GM): drop 3 test tokens of this pog, each loading it from a different Google Drive address.
+// Whichever ones show the picture tell us Owlbear can place pogs straight onto the map. Delete them afterwards.
+async function monPogTest(k) {
+  const note = (t, kind = "INFO") => OBR.notification.show(t, kind).catch(() => {});
+  try {
+    const r = await bridgeGet({ monpogurl: k });
+    if (!r.ok || r.none) throw new Error(r.ok ? "no pog saved for it yet" : ptBridgeMsg(r.error));
+    const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight(), dpi = await OBR.scene.grid.getDpi();
+    const c = await OBR.viewport.inverseTransformPoint({ x: vw / 2, y: vh / 2 });
+    const items = r.urls.map((url, i) => buildImage({ url, mime: "image/png", width: 512, height: 512 }, { dpi: 512, offset: { x: 256, y: 256 } })
+      .name("Pog test " + "ABC"[i]).position({ x: c.x + (i - 1) * dpi * 1.5, y: c.y }).layer("CHARACTER").plainText("TEST " + "ABC"[i]).build());
+    await OBR.scene.items.addItems(items);
+    note("Dropped TEST A, B and C in the middle of the map. Tell Claude which ones show the picture, then delete them.", "SUCCESS");
+  } catch (e) { note("Test didn't run: " + (e.message || e), "ERROR"); }
+}
 function bindMonArt() {
   document.querySelectorAll("#mo .mart").forEach(el => {
     const k = el.dataset.mk, name = el.dataset.n;
@@ -2395,6 +2410,7 @@ function bindMonArt() {
     if (!el.classList.contains("has")) { if (!el.classList.contains("busy")) el.onclick = pick; return; }
     el.querySelector(".mpog").onclick = () => monArtTable(k, name);
     el.querySelector('[data-ma="chg"]').onclick = pick;
+    el.querySelector('[data-ma="test"]').onclick = () => monPogTest(k);
     const rm = el.querySelector('[data-ma="rm"]');
     rm.onclick = async () => {
       if (!rm.classList.contains("arm")) { rm.classList.add("arm"); rm.textContent = "SURE?"; setTimeout(() => { if (rm.isConnected) { rm.classList.remove("arm"); rm.textContent = "✕"; } }, 4000); return; }
