@@ -85,14 +85,9 @@ async function makeDelta(a, d) {
   if (d.ab != null) e.ab = d.ab;
   seenIds.add(e.id);
   showDelta(e).catch(() => {});
-  // save it beside the defense roll: wait until the panel's own save of that roll has landed, so neither write loses the other
-  const key = rollKey(myId);
-  for (let i = 0; i < 12; i++) {
-    const md = await OBR.room.getMetadata(), mine = Array.isArray(md[key]) ? md[key] : [];
-    if (mine.some(x => x.id === e.id)) return;
-    if (mine.some(x => x.id === d.id) || i === 11) { await OBR.room.setMetadata({ [key]: [e, ...mine].slice(0, KEEP) }); return; }
-    await new Promise(res => setTimeout(res, 300));
-  }
+  // saved under its own key (…/rolls/<player>~sd), so it can never collide with the panel saving that player's next roll
+  const key = rollKey(myId) + "~sd", md = await OBR.room.getMetadata(), list = Array.isArray(md[key]) ? md[key] : [];
+  if (!list.some(x => x.id === e.id)) await OBR.room.setMetadata({ [key]: [e, ...list].slice(0, KEEP) });
 }
 let seenIds = new Set();
 async function showDelta(e) {
