@@ -220,6 +220,7 @@
   .nbw .nb.on { background:#5fd38d; border-color:#5fd38d; color:#0c1a12; box-shadow:0 0 8px rgba(95,211,141,.5); }
   .nbw.armed > span { color:#5fd38d; }
   .nbw.nbc { margin:0 6px 0 0; } .nbw.nbc .nb { padding:3px 8px; font-size:12px; }
+  #gmAuto.on { color:#5fd38d; } #gmAuto:not(.on) { color:var(--dim); }
   .stabrow { display:flex; align-items:flex-end; justify-content:space-between; gap:6px; }
   .tgtme { margin-bottom:3px; padding:2px 8px; border-radius:6px; border:1px solid #4a4466; background:transparent; color:var(--dim); font:800 10.5px system-ui; letter-spacing:.8px; cursor:pointer; }
   .tgtme.on { background:#343948; border-color:#aab3cc; color:#f1f3f9; }
@@ -2084,6 +2085,7 @@ function typeRefBtn() {
 }
 document.addEventListener("click", (e) => { const b = e.target.closest(".tref, .sref"); if (!b) return; e.preventDefault(); e.stopPropagation();
   if (b.id === "gmPty") return popParty(); // GM tab: pop out the Party view
+  if (b.id === "gmAuto") { store.set("ns.autoMon", autoMon() ? "0" : "1"); b.textContent = "Auto-roll monsters: " + (autoMon() ? "ON" : "OFF"); b.classList.toggle("on", autoMon()); return; }
   if (b.id === "gmClr") return clearConds(b); // GM tab: sweep every condition off the map (asks first)
   popOut(b.dataset.k); }, true);
 function ptCtl() { return `<div class="ctl"><button id="ptm">−</button><b>${esc2(V("F13") || "0")}</b><button id="ptp">+</button></div>`; }
@@ -2643,7 +2645,7 @@ function bindMonArt() {
 }
 function drawMonsters() {
   const v = monVals || [], c = (row, i) => String(v[row]?.[i] ?? "").trim();
-  let html = `<div class="initbox"><div class="sec" style="margin-top:2px;display:flex;align-items:center">INITIATIVE<button id="gmClr" class="sref hist" style="margin-left:auto" title="Take every condition (Dead, Unconscious, your own) off every token on this map">✕ Clear conditions</button><button id="gmPty" class="sref hist" style="margin-left:10px" title="Pop the Party view out beside the map (tap again to close it)">${REF_SVG}Party</button><button class="sref hist" style="margin-left:10px" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></div>
+  let html = `<div class="initbox"><div class="sec" style="margin-top:2px;display:flex;align-items:center;flex-wrap:wrap;row-gap:2px">INITIATIVE<button id="gmAuto" class="sref hist ${autoMon() ? "on" : ""}" style="margin-left:12px" title="On: CALL FOR INITIATIVE also rolls the monsters. Off: tap ROLL MONSTERS yourself">Auto-roll monsters: ${autoMon() ? "ON" : "OFF"}</button><button id="gmClr" class="sref hist" style="margin-left:auto" title="Take every condition (Dead, Unconscious, your own) off every token on this map">✕ Clear conditions</button><button id="gmPty" class="sref hist" style="margin-left:10px" title="Pop the Party view out beside the map (tap again to close it)">${REF_SVG}Party</button><button class="sref hist" style="margin-left:10px" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></div>
     <div class="g2"><button id="iCall" class="sbtn">⚔ CALL FOR INITIATIVE</button><button id="iMon" class="sbtn">🎲 ROLL MONSTERS</button></div>
     <div id="iList"></div>
     <div id="iStep" class="istep" hidden><button id="iPrev" class="sbtn" title="Previous turn">◀</button><span id="iRound"></span><button id="iNext" class="sbtn">NEXT TURN ▶</button></div>
@@ -2692,7 +2694,7 @@ function drawMonsters() {
   $("monAll").onclick = monDropAll;
   $("iPrev").onclick = () => initStep(-1); $("iNext").onclick = () => initStep(1);
   $("iCall").onclick = async () => { const b = $("iCall"); b.disabled = true; b.textContent = "⚔ CALLING…";
-    try { await callInitiative(); b.textContent = "✓ INITIATIVE CALLED"; OBR.notification.show("⚔ Initiative called. Players' next Adroitness roll counts.", "SUCCESS").then(id => setTimeout(() => OBR.notification.close(id).catch(() => {}), 4000)).catch(() => {}); }
+    try { await callInitiative(); if (autoMon()) await rollMonsterInit(); b.textContent = "✓ INITIATIVE CALLED"; OBR.notification.show("⚔ Initiative called. Players' next Adroitness roll counts.", "SUCCESS").then(id => setTimeout(() => OBR.notification.close(id).catch(() => {}), 4000)).catch(() => {}); }
     catch { b.textContent = "Didn't go through, tap again"; }
     setTimeout(() => { if ($("iCall")) { $("iCall").disabled = false; $("iCall").textContent = "⚔ CALL FOR INITIATIVE"; } }, 2500); }; $("iMon").onclick = rollMonsterInit; $("iEnd").onclick = () => { // two taps: the first asks, the second (within 4 s) ends combat
     const b = $("iEnd");
@@ -3409,6 +3411,8 @@ function updateDefBanner() {
 $("defx").onclick = () => { const w = sdWait(); if (w) store.set("ns.defHide", w.id); $("defban").hidden = true; };
 window.addEventListener("storage", (e) => { if (!standalone && e.key === "ns.sd:" + OBR.room.id) updateDefBanner(); });
 setInterval(() => { if (!standalone) updateDefBanner(); }, 5000);
+// CALL FOR INITIATIVE also rolls the monsters (ON unless the GM switched it off; saved in this browser)
+const autoMon = () => store.get("ns.autoMon") !== "0";
 // GM tab: "✕ Clear conditions": first tap asks, second tap (within 4 s) removes every condition label on this map
 async function clearConds(b) {
   if (b.dataset.armed !== "1") { b.dataset.armed = "1"; b.textContent = "Sure? Tap again to clear all"; b.style.color = "#ff8f8f";
