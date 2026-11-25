@@ -918,9 +918,18 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
   const err = await saveRoll(r);
   if (err && $("sherr")) { $("sherr").hidden = false; $("sherr").textContent = err; }
   if (initSid) {
-    const name = String(sheetVals?.[2]?.[2] || "").trim() || who;
-    await OBR.room.setMetadata({ [`${INIT}/p/${me}`]: { id: me, sid: initSid, name, total: r.total, adr: m, pc: true, r: Math.random() } }).catch(() => {});
-    store.set("ns.initDone", initSid);
+    // Write it, read it back, and try up to 3 times (Jake, Nov 25: once in a while a player's roll didn't make the bar).
+    // Only marked done once it's really in the room, so the banner / pop-up stay up to roll again if it never lands.
+    const name = String(sheetVals?.[2]?.[2] || "").trim() || who, k = `${INIT}/p/${me}`;
+    const entry = { id: me, sid: initSid, name, total: r.total, adr: m, pc: true, r: Math.random() };
+    let landed = false;
+    for (let t = 0; t < 3 && !landed; t++) {
+      if (t) await new Promise(x => setTimeout(x, 700 * t));
+      try { await OBR.room.setMetadata({ [k]: entry }); const md = await OBR.room.getMetadata(); landed = md[k]?.sid === initSid && md[k]?.total === r.total;
+        if (md[INIT]?.sid !== initSid) break; } catch {} // the GM called a new initiative in the meantime: this roll is for the old one
+    }
+    if (landed) store.set("ns.initDone", initSid);
+    else OBR.notification.show("⚔ Your initiative didn't reach the bar. Roll Adroitness again.", "WARNING").catch(() => {});
     updateInitBanner();
   }
 }
@@ -2923,6 +2932,10 @@ async function initStep(d) {
   if (nx) await OBR.room.setMetadata({ [INIT]: nx });
 }
 async function callInitiative() {
+  // A second tap within a minute, before turns start, keeps the same initiative instead of wiping everyone's rolls
+  // (a double tap or "tap again" used to start a new one, and rolls already made for the first one were lost)
+  const old = (await OBR.room.getMetadata())[INIT];
+  if (old?.open && !old.cur && Date.now() - (old.at || 0) < 60e3) return;
   const sid = crypto.randomUUID().slice(0, 8);
   await OBR.room.setMetadata({ [INIT]: { sid, open: true, cur: "", round: 1, removed: [], at: Date.now() }, [INIT + "/m"]: [] });
 }
@@ -3547,6 +3560,7 @@ $("turnban").onclick = async () => { const b = $("turnban"); b.disabled = true;
   try { const m = await OBR.room.getMetadata(); if (m[INIT]?.cur === me) await initStep(1); } finally { setTimeout(() => { b.disabled = false; }, 800); } };
 $("initx").onclick = () => { const s = lastMd?.[INIT]; if (s) store.set("ns.initHide", s.sid); $("initban").hidden = true; };
 $("initgo").onclick = () => {
+  if (rollBusy) return setTimeout(() => $("initgo").click(), 800); // don't drop the tap while the last roll is landing
   const adr = sheetVals?.[6]?.[2];
   if (adr != null && String(adr).trim() !== "") return quickRoll(adr, "Adroitness");
   document.querySelector('.tab[data-t="sheet"]').click(); // sheet not loaded yet: open it so they can roll from there
@@ -3600,7 +3614,8 @@ window.addEventListener("storage", (e) => { if (!standalone && e.key === "ns.sd:
 // 🛡 ROLL ADROITNESS on the DEFEND! pop-up over the map (defpop.html) asks this panel to roll the defense from the sheet.
 // The pop-up also opens this panel if it was closed, so the request waits up to 20 s for the sheet to load.
 function defReq() {
-  if (standalone || isGM || rollBusy) return;
+  if (standalone || isGM) return;
+  if (rollBusy) { setTimeout(defReq, 800); return; }
   let q = null; try { q = JSON.parse(localStorage.getItem("ns.defReq") || "null"); } catch {}
   if (!q?.ts || Date.now() - q.ts > 20e3 || store.get("ns.defReqDone") === String(q.ts)) return;
   const adr = sheetVals?.[6]?.[2];
@@ -3613,7 +3628,8 @@ window.addEventListener("storage", (e) => { if (e.key === "ns.defReq") defReq();
 // ⚔ ROLL INITIATIVE on the "Roll for initiative!" pop-up over the map (initpop.html): same idea as DEFEND!.
 // The roll goes through quickRoll, which counts a player's next Adroitness roll as their initiative.
 function initReq() {
-  if (standalone || isGM || rollBusy) return;
+  if (standalone || isGM) return;
+  if (rollBusy) { setTimeout(initReq, 800); return; } // another roll is still landing: try again in a moment instead of dropping it
   let q = null; try { q = JSON.parse(localStorage.getItem("ns.initReq") || "null"); } catch {}
   if (!q?.ts || Date.now() - q.ts > 20e3 || store.get("ns.initReqDone") === String(q.ts)) return;
   const adr = sheetVals?.[6]?.[2];
