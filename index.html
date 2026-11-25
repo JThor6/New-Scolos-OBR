@@ -600,7 +600,7 @@
   #mo .martb { display:flex; gap:3px; width:100%; } #mo .martb button { flex:1; background:var(--paper); border:1.5px solid #444a66; border-radius:6px; color:var(--ink); font-size:14px; font-weight:800; padding:2px 0; cursor:pointer; line-height:18px; }
   #mo .martb.big button { font-size:11px; letter-spacing:.3px; padding:4px 0; } #mo .martb.big button { background:rgba(255,255,255,.06); } #mo .martb.big button:hover { background:rgba(255,255,255,.12); border-color:var(--ink); }
   #mo .martb button:hover { color:var(--ink); border-color:var(--ink); } #mo .martb button.arm { color:#fff; background:#a3132a; border-color:#ff2b3d; font-size:10px; }
-  #mo .mthumb { width:20px; height:20px; border-radius:50%; object-fit:cover; border:1.5px solid #ff2b3d; flex:none; }
+  #mo .mthumb { width:40px; height:40px; border-radius:50%; object-fit:cover; flex:none; margin:-4px 0; }
   #mo .matk { min-height:44px; } #mo .matk span { display:flex; align-items:center; } #mo .matk span small { font-size:11px; font-weight:800; color:var(--dim); letter-spacing:.5px; } #mo .matk b { font-size:18px; }
   #mo .mrow2 .fld > div { font-size:15px; font-weight:800; }
   #mo .pvit.mv { gap:6px; margin-top:8px; flex-wrap:wrap; } #mo .pvit i small { font-size:10px; }
@@ -2318,7 +2318,7 @@ const monKey = (name) => String(name).toLowerCase().replace(/\s*[#(]?\d+\)?\s*$/
 const monLabel = (name) => String(name).replace(/\s*[#(]?\d+\)?\s*$/, "").trim() || String(name).trim();
 const monArt = new Map(), monArtChecked = new Set(), monArtBusy = new Set();
 (() => { try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k.startsWith("ns.cache.ma.")) { const v = cache.get(k.slice(9)); if (v) monArt.set(k.slice(12), v); } } } catch {} })();
-function monThumb(name) { const a = monArt.get(monKey(name)); return a ? `<img class="mthumb" src="${a.url}" alt="">` : ""; }
+function monThumb(name) { const a = monArt.get(monKey(name)); return a ? `<img class="mthumb" src="${a.pogUrl || a.url}" alt="">` : ""; }
 function monArtCell(name) {
   const k = monKey(name), a = monArt.get(k), busy = monArtBusy.has(k);
   if (busy) return `<div class="mart busy" data-mk="${esc2(k)}" data-n="${esc2(name)}">…<small>SAVING</small></div>`;
