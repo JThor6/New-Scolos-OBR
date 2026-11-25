@@ -42,10 +42,9 @@ async function showRoll(r, spin) {
   // REFERENCE pop-out (upper right). If the New Scolos panel is open on the left, they center in the space beside it.
   let left = 0;
   try { if (await OBR.action.isOpen()) left = ((await OBR.action.getWidth()) || 520) + 40; } catch {}
-  const space = vw - left - 20, per = Math.max(1, Math.min(PER_ROW, Math.floor((space + GAP) / (W + GAP))));
+  const { per, x0 } = rowLayout(vw, left);
   const order = [1, 2, 0, 3].filter(i => i < per).concat([...Array(per).keys()].filter(i => i > 3)); // middle cards first
   const idx = slot % per, row = Math.floor(slot / per), col = per === 1 ? 0 : (order[idx] ?? idx);
-  const rowW = per * W + (per - 1) * GAP, x0 = left + (vw - left - rowW) / 2;
   rowLeft = x0;
   await OBR.popover.open({ // every card the same size: room for the longest skill name (3 lines)
     id, url: url.href, width: W, height: H + 32,
@@ -57,6 +56,14 @@ async function showRoll(r, spin) {
   });
 }
 
+// Where the roll-card row goes. Room is always kept on its left for the Success Delta card, so cards never land on it
+// (Jake, Nov 25). On a small screen the Success Delta card is the compact one at the right edge, so nothing is kept.
+function rowLayout(vw, left) {
+  const keep = vw - left - 16 >= SD_W + 10 ? SD_W + GAP + 8 : 0, lo = left + keep;
+  const space = vw - lo - 20, per = Math.max(1, Math.min(PER_ROW, Math.floor((space + GAP) / (W + GAP))));
+  const rowW = per * W + (per - 1) * GAP;
+  return { per, x0: Math.max(lo, lo + (vw - lo - rowW) / 2) };
+}
 // ---------------- Success Delta ----------------
 // In or out of combat, an attack roll (Ranged Weapons, Melee Weapon Fighting, Martial Arts, Unconventional Weapons,
 // Spellcasting, Meltdown, a monster's Attack) waits for Adroitness rolls by other people: the defenders.
@@ -147,7 +154,7 @@ async function openCard() {
   const ref = new URLSearchParams(location.search).get("obrref"); if (ref) url.searchParams.set("obrref", ref);
   const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
   let left = 0; try { if (await OBR.action.isOpen()) left = ((await OBR.action.getWidth()) || 520) + 40; } catch {}
-  const x0 = rowLeft || left + (vw - left) / 2, x = Math.max(left + 8, Math.round(x0 - SD_W - GAP));
+  const x0 = rowLayout(vw, left).x0, x = Math.max(left + 8, Math.round(x0 - SD_W - GAP)); // just left of where the roll cards go
   // Small screen: not enough map beside the panel for the full card, so a compact one sits at the right edge, just above
   // the roll cards. Tapping it opens the full card (growing leftward over the panel for a moment); tap again to shrink.
   const room = vw - left - 16, mini = room < SD_W + 10;
@@ -286,9 +293,15 @@ OBR.onReady(async () => {
       anchorOrigin: { horizontal: "CENTER", vertical: "BOTTOM" }, transformOrigin: { horizontal: "CENTER", vertical: "BOTTOM" },
       disableClickAway: true }).catch(() => { turnUp = false; });
   }
+  // END TURN only shows once the player has made a roll during their turn (Jake, Nov 25), not the moment it starts
+  const turnKey = (st) => st?.open && st.cur && st.cur === me ? `${st.sid}|${st.round || 1}|${st.cur}|${st.sub || 0}` : "";
+  const rolledNow = (k) => { try { return !!k && localStorage.getItem("ns.turnRolled") === k; } catch { return false; } };
+  async function markRolled(r) { if (isGM || !r || /initiative/i.test(String(r.label || ""))) return;
+    const k = turnKey((await OBR.room.getMetadata())[INIT]); if (!k || rolledNow(k)) return;
+    try { localStorage.setItem("ns.turnRolled", k); } catch {} turnPop(true); }
   async function initUpdate(md) {
     const st = md[INIT];
-    if (!isGM) turnPop(!!(st?.open && st.cur && st.cur === me));
+    if (!isGM) { const k = turnKey(st); turnPop(rolledNow(k)); }
     if (!st?.open || !st.cur) lastCur = ""; // new combat starts fresh, so its first turn always pings
     // "Your turn" ping for the player whose turn it is
     if (st?.open && st.cur && st.cur !== lastCur && !isGM) { // players only: the GM never gets these
@@ -351,12 +364,13 @@ OBR.onReady(async () => {
       seen.add(r.id);
       if (r.sd) { if (r.pid !== me) addResult({ ...r }); continue; } // a Success Delta another screen worked out
       if (r.pid !== me) { showRoll(r, false).catch(() => {}); combatCheck(r, false); }
+      else markRolled(r);
     }
   });
   // your own rolls from the sheet's roll buttons (sent from the panel; spins as it lands)
   window.addEventListener("storage", (e) => {
     if (e.key !== "ns.toastReq" || !e.newValue) return;
-    try { const r = JSON.parse(e.newValue); if (!seen.has(r.id)) { seen.add(r.id); showRoll(r, true).catch(() => {}); combatCheck(r, true); } } catch {}
+    try { const r = JSON.parse(e.newValue); markRolled(r); if (!seen.has(r.id)) { seen.add(r.id); showRoll(r, true).catch(() => {}); combatCheck(r, true); } } catch {}
   });
 });
 </script></body></html>
