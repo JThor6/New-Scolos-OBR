@@ -35,9 +35,12 @@
   body.upl > header, body.upl nav, body.upl #initban, body.upl section { display:none !important; }
   body.upl #dice { display:block !important; padding-top:0; }
   body.upl #dice > *:not(#hand):not(#uplhead) { display:none !important; }
-  body.upl .uplhead { display:flex; align-items:center; gap:6px; position:sticky; top:0; z-index:2; padding:7px 10px; margin:0 -10px; background:rgba(0,0,0,.55); border-radius:12px 12px 0 0; }
-  body.upl .uplhead b { flex:1; font-family:'Bangers', Impact, sans-serif; font-weight:400; font-size:20px; letter-spacing:1px; color:#bb99ff; }
-  body.upl .uplhead button { background:transparent; border:2px solid #444a66; color:#f1f3f9; border-radius:6px; width:26px; height:26px; cursor:pointer; font-weight:800; padding:0; }
+  body.pty > header, body.pty nav, body.pty #initban, body.pty section:not(#sheet) { display:none !important; }
+  body.pty #sheet { display:block !important; padding-top:0; }
+  body.pty .ptpop { display:none; }
+  body.pty .uplhead, body.upl .uplhead { display:flex; align-items:center; gap:6px; position:sticky; top:0; z-index:2; padding:7px 10px; margin:0 -10px; background:rgba(0,0,0,.55); border-radius:12px 12px 0 0; }
+  body.pty .uplhead b, body.upl .uplhead b { flex:1; font-family:'Bangers', Impact, sans-serif; font-weight:400; font-size:20px; letter-spacing:1px; color:#bb99ff; }
+  body.pty .uplhead button, body.upl .uplhead button { background:transparent; border:2px solid #444a66; color:#f1f3f9; border-radius:6px; width:26px; height:26px; cursor:pointer; font-weight:800; padding:0; }
   body.upl #hand { margin-top:6px; }
   body.upl { background:rgba(24,27,42,.85); border:1px solid rgba(255,255,255,.12); border-radius:12px; min-height:100vh; box-sizing:border-box; padding:0 10px 10px; overflow:hidden auto; }
   .hand { margin-top:8px; padding:8px 10px 10px; border:1px solid #444a66; border-radius:8px; background:var(--paper); }
@@ -241,6 +244,9 @@
   .ptop b { font-size:15px; } .ptop small { color:var(--dim); font-size:11px; flex:1; }
   .ppw { font-size:9px; font-weight:800; padding:2px 5px; border-radius:4px; background:var(--plus); color:#000; }
   .ppw.u { background:#555b75; color:var(--ink); }
+  .ptpop { display:flex; justify-content:flex-end; margin-top:4px; }
+  .ptpop button { display:flex; align-items:center; gap:5px; padding:4px 9px; font-size:11px; font-weight:800; letter-spacing:.5px; color:var(--dim); background:transparent; border:1px solid #3a3f58; border-radius:6px; cursor:pointer; }
+  .ptpop button:hover { color:#f1f3f9; border-color:#6b7394; }
   /* GM strip on Party cards: small labelled numbers, defense first */
   .gmstrip { display:flex; flex-wrap:wrap; gap:4px; margin-top:5px; }
   .gmc { display:inline-flex; align-items:baseline; gap:4px; padding:2px 7px; border-radius:6px; background:rgba(255,255,255,.06); border:1px solid #3a3f58; font-size:12px; line-height:1.4; white-space:nowrap; }
@@ -641,7 +647,7 @@
 <body>
 <header><h1>NEW SCOLOS</h1><span class="hctl"><span id="syncdot" class="syncdot" hidden title="Syncing with Google Sheets">⟳</span><button id="solid" class="tab" title="See-through / solid">◐</button><button id="size" class="tab" title="Make the panel narrower"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M2 12h8M7 8l3 4-3 4M22 12h-8M17 8l-3 4 3 4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span><nav><button class="tab on" data-t="sheet">CHARACTER SHEET</button><button class="tab" data-t="rules">REFERENCE</button><button class="tab" data-t="dice">DICE</button><button class="tab" data-t="gen">CHARACTER CREATOR</button><button class="tab" data-t="mon" id="monTab" hidden>GM</button></nav></header>
 <div id="initban" class="initban" hidden><span>⚔ Initiative! Your next Adroitness roll counts.</span><button id="initgo">ROLL</button><button id="initx" title="Hide">✕</button></div>
-<section id="sheet"><div id="sh"><div class="empty">Loading…</div></div></section>
+<section id="sheet"><div id="ptyhead" class="uplhead"><b>PARTY OVERVIEW</b><button id="ptyx" title="Close">✕</button></div><div id="sh"><div class="empty">Loading…</div></div></section>
 <section id="rules" hidden><div id="ru"></div></section>
 <section id="gen" hidden><div id="cg"></div></section>
 <section id="mon" hidden><div id="mo"></div></section>
@@ -3177,7 +3183,8 @@ function drawParty(body, chars) {
   lastParty = chars;
   {
     const cell = (v, a1) => { const m = a1.match(/^([A-L])(\d+)$/); return String(v[+m[2] - 1]?.[m[1].charCodeAt(0) - 65] ?? "").trim(); };
-    body.innerHTML = chars.length ? chars.map(c => { const v = c.values;
+    const popBtn = isGM && !PARTYPOP ? `<div class="ptpop"><button id="ptyPop" title="Pop the Party overview out beside the map (only you see it)">${PTY_POP_ICON} POP OUT</button></div>` : "";
+    body.innerHTML = popBtn + (chars.length ? chars.map(c => { const v = c.values;
       const marks = "BCDEFGH".split("").map(c => !!cell(v, c + "16"));
       const worst = marks.lastIndexOf(true);
       const status = worst < 0 ? "Unhurt" : cell(v, "BCDEFGH"[worst] + "15").replace(/^\S+\s+/, "");
@@ -3186,7 +3193,8 @@ function drawParty(body, chars) {
         <div class="ptop">${ptIcon(c.id, cell(v, "C3"))}<b>${esc2(cell(v, "C3"))}</b>${isGM && ptT(c.id) ? `<button class="pogb" data-pog="${esc2(c.id)}" data-n="${esc2(cell(v, "C3"))}" title="Add this character's pog to your Owlbear characters">◎ POG</button>` : ""}<small>${esc2(cell(v, "C4"))}</small><span class="ppw ${used ? "u" : ""}">${used ? "POWER USED" : "POWER READY"}</span></div>
         ${isGM ? gmStrip(v, cell) : ""}${actBadge(cell(v, "C3"))}<div class="pvit">${marks.map((m, i) => `<i><small>${["LW", "LW", "LW", "MW", "CW", "KO", "D"][i]}</small><span class="${m ? "x" : ""}"></span></i>`).join("")}<em class="${worst >= 4 ? "bad" : ""}">${esc2(status)}</em></div>
       </div>`;
-    }).join("") : `<div class="empty">No characters found.</div>`;
+    }).join("") : `<div class="empty">No characters found.</div>`);
+    if ($("ptyPop")) $("ptyPop").onclick = popParty;
     fillPts(body);
     body.querySelectorAll(".pti").forEach(b => b.onclick = () => ptView(b.dataset.ptv, b.dataset.n, false));
     body.querySelectorAll(".pogb").forEach(b => b.onclick = async () => {
@@ -3289,6 +3297,27 @@ $("initgo").onclick = () => {
   if (adr != null && String(adr).trim() !== "") return quickRoll(adr, "Adroitness");
   document.querySelector('.tab[data-t="sheet"]').click(); // sheet not loaded yet: open it so they can roll from there
 };
+// Party pop-out (GM only): this same page opened beside the map, showing only the Party overview with the GM strip.
+const PTY_POP_ICON = `<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const PARTY_POP = "com.newscolos.party";
+async function popParty() {
+  if (standalone) return window.open("index.html?party=1");
+  if (store.get("ns.partyPop") === "1") { store.set("ns.partyPop", ""); return OBR.popover.close(PARTY_POP).catch(() => {}); } // same button again: close it
+  const u = new URL("go.html", location.href); u.searchParams.set("p", "index"); u.searchParams.set("party", "1");
+  const ref = new URLSearchParams(location.search).get("obrref"); if (ref) u.searchParams.set("obrref", ref);
+  const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
+  store.set("ns.partyPop", "1");
+  OBR.popover.open({ id: PARTY_POP, url: u.href, width: 380, height: Math.max(360, Math.round(vh * 0.75)),
+    anchorReference: "POSITION", anchorPosition: { left: vw - 70, top: 70 },
+    anchorOrigin: { horizontal: "RIGHT", vertical: "TOP" }, transformOrigin: { horizontal: "RIGHT", vertical: "TOP" },
+    disableClickAway: true, hidePaper: true }).catch(() => {});
+}
+const PARTYPOP = new URLSearchParams(location.search).get("party") === "1";
+if (PARTYPOP) {
+  document.body.classList.add("pty");
+  window.addEventListener("pagehide", () => store.set("ns.partyPop", ""));
+  $("ptyx").onclick = () => { store.set("ns.partyPop", ""); standalone ? window.close() : OBR.popover.close(PARTY_POP).catch(() => {}); };
+}
 // Uplink mode: this page opened as the pop-out beside the map, showing only the Analog Dice Uplink.
 // The character sheet still loads (hidden) so modifiers, wounds and powers stay right.
 const UPLINK = new URLSearchParams(location.search).get("uplink") === "1";
@@ -3316,9 +3345,10 @@ if (standalone) {
       document.querySelector(".tab.on")?.click();
     });
     $("monTab").hidden = !isGM;
-    document.querySelector('.tab[data-t="sheet"]').click(); // Character is the first tab: open it once the GM/player role is known
+    if (PARTYPOP) { $("sh").innerHTML = ""; if (isGM) showParty(); else $("sh").innerHTML = `<div class="empty">The Party pop-out is for the GM.</div>`; }
+    else document.querySelector('.tab[data-t="sheet"]').click(); // Character is the first tab: open it once the GM/player role is known
     if (isGM) { initMd = await OBR.room.getMetadata(); OBR.room.onMetadataChange((m) => { initMd = m; drawInitList(); markTurn(); }); }
-    if (!UPLINK) applySize();
+    if (!UPLINK && !PARTYPOP) applySize();
     render(rollLog(OBR.room.id, allRolls(await OBR.room.getMetadata())));
     OBR.room.onMetadataChange((md) => { render(rollLog(OBR.room.id, allRolls(md))); updateInitBanner(md); actSync(md); });
     updateInitBanner(); actSync(await OBR.room.getMetadata());
