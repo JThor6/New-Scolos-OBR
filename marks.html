@@ -52,7 +52,7 @@ async function toggle(text) {
       .backgroundColor("#1b1e2e").backgroundOpacity(0.85).cornerRadius(9 * k)
       .strokeColor("#bb99ff").strokeWidth(2 * k).strokeOpacity(1)
       .pointerDirection("DOWN").pointerHeight(9 * k).pointerWidth(12 * k)
-      .maxViewScale(1).attachedTo(id).disableAttachmentBehavior(["ROTATION", "SCALE"]) // shrinks when zoomed out
+      .maxViewScale(1.6).attachedTo(id).disableAttachmentBehavior(["ROTATION", "SCALE"]) // shrinks when zoomed out
       .layer("TEXT").locked(true).disableHit(true)
       .metadata({ [MARK_ITEM]: { on: id, text, n: Date.now() } }).build()]);
     await restack(id);
