@@ -2155,7 +2155,7 @@ let stList = cache.get(ck("stList")) || [];
 function stasisBox() {
   // the campaign dropdown sits down here, between the monsters and Clean Up, since it's rarely changed
   return `<div style="margin-top:18px">${campaignPicker()}</div><div id="stBox"><div class="sec">CLEAN UP CHARACTERS</div>
-    <div class="help">Moves a character sheet (and its PDF) into the Stasis folder in New Scolos Characters. Players stop seeing it. To bring one back, drag it out of Stasis in Google Drive. Empty Stasis by hand in Drive when you're ready.</div>
+    <div class="help">Moves a character sheet (and its PDF) into "New Scolos Stasis", a private folder in your own My Drive. Only you can see it: players lose all access and the extension can't change it. To bring one back, drag it into New Scolos Characters in Google Drive. Empty it by hand when you're ready.</div>
     <div class="encpick"><small>CHARACTER</small><select id="stSel"><option value="">Pick a character…</option>${
       stList.map(c => `<option value="${esc2(c.id)}">${esc2(c.name)}</option>`).join("")}</select></div>
     <button id="stGo" class="sbtn" style="width:100%">MOVE TO STASIS</button>
@@ -2181,7 +2181,7 @@ function bindStasis() {
     const id = $("stSel").value, c = stList.find(x => x.id === id);
     if (!c) return say("Pick a character first.");
     msg.hidden = true; ask.hidden = false;
-    ask.innerHTML = `<div><b>Are you sure?</b> Move <b>${esc2(c.name)}</b> to Stasis? Players won't see this character anymore.</div>
+    ask.innerHTML = `<div><b>Are you sure?</b> Move <b>${esc2(c.name)}</b> to Stasis? It goes into your private folder: players lose all access, and only you can bring it back.</div>
       <div class="g2" style="margin-top:6px"><button id="stNo" class="sbtn">CANCEL</button><button id="stYes" class="sbtn stbad">YES, MOVE IT</button></div>`;
     $("stNo").onclick = () => { ask.hidden = true; };
     $("stYes").onclick = async () => {

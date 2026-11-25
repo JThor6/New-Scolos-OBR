@@ -93,13 +93,35 @@ function createCharacter(c, campaign) {
 }
 // GM clean-up: move a character sheet (and its PDF export) into the "Stasis" folder in New Scolos Characters.
 // Nothing is deleted. The GM empties Stasis by hand in Drive, or drags a sheet back out to restore it.
-const STASIS_NAME = 'Stasis';
+// Stasis is PRIVATE (Jake, Nov 24 2026): a folder called "New Scolos Stasis" at the top of Jake's own My Drive, outside
+// the shared New Scolos Characters folder, so players can't see or open what's in it, and the extension can't write
+// to it (the bridge only works inside the character folders). Anything moved there also loses any sharing it had
+// (the old list is kept in the file's description). Nothing is deleted. To bring a character back, Jake drags it
+// back into New Scolos Characters (or its campaign folder) in Drive.
+const STASIS_NAME = 'Stasis';                       // the old shared folder name (inside New Scolos Characters)
+const STASIS_PRIVATE = 'New Scolos Stasis';
+function stasisFolder() {
+  const top = DriveApp.getRootFolder(), it = top.getFoldersByName(STASIS_PRIVATE);
+  if (it.hasNext()) return it.next();
+  // first time: move the old shared Stasis folder out of New Scolos Characters (keeps what's already in it)
+  const old = DriveApp.getFolderById(CHARACTER_FOLDER_ID).getFoldersByName(STASIS_NAME);
+  if (old.hasNext()) { const f = old.next(); f.moveTo(top); f.setName(STASIS_PRIVATE); unshare(f); return f; }
+  return top.createFolder(STASIS_PRIVATE);
+}
+// take away every editor and viewer except the owner (Jake); returns who had access
+function unshare(item) {
+  const gone = [];
+  try { item.getEditors().forEach(function (u) { try { item.removeEditor(u); gone.push(u.getEmail() + ' (editor)'); } catch (e) {} }); } catch (e) {}
+  try { item.getViewers().forEach(function (u) { try { item.removeViewer(u); gone.push(u.getEmail() + ' (viewer)'); } catch (e) {} }); } catch (e) {}
+  try { item.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE); } catch (e) {}
+  return gone;
+}
 function moveToStasis(id) {
   id = String(id || '');
   if (!id) throw new Error('Pick a character first.');
   if (id === MASTER_ID) throw new Error('That is the Master file. It stays where it is.');
   const file = DriveApp.getFileById(id);
-  // only sheets directly in New Scolos Characters or in one of its campaign folders (not already in Stasis)
+  // only sheets directly in New Scolos Characters or in one of its campaign folders
   let from = null;
   const ps = file.getParents();
   while (ps.hasNext()) {
@@ -110,17 +132,16 @@ function moveToStasis(id) {
     while (up.hasNext()) if (up.next().getId() === CHARACTER_FOLDER_ID) from = f;
   }
   if (!from) throw new Error('That sheet is not in the New Scolos Characters folder (or it is already in Stasis).');
-  const root = DriveApp.getFolderById(CHARACTER_FOLDER_ID);
-  const it = root.getFoldersByName(STASIS_NAME);
-  const stasis = it.hasNext() ? it.next() : root.createFolder(STASIS_NAME);
+  let owner = ''; try { owner = file.getOwner().getEmail(); } catch (x) {}
+  if (owner && owner !== Session.getEffectiveUser().getEmail()) throw new Error('That sheet is owned by ' + owner + ', so only they can move it. Ask them to move it, or to make you the owner first.');
+  const stasis = stasisFolder();
   let name = '';
   try { name = String(SpreadsheetApp.openById(id).getSheetByName('Main Sheet').getRange('C3').getDisplayValue()).trim(); } catch (e) {}
-  try { file.moveTo(stasis); } catch (e) {
-    let owner = ''; try { owner = file.getOwner().getEmail(); } catch (x) {}
-    throw new Error('Google Drive would not move it' + (owner ? ' (it is owned by ' + owner + ')' : '') + '. Drag it into the Stasis folder by hand in Drive.');
-  }
+  try { file.moveTo(stasis); } catch (e) { throw new Error('Google Drive would not move it. Drag it into "' + STASIS_PRIVATE + '" (in your My Drive) by hand.'); }
+  const keep = function (f) { const gone = unshare(f); if (gone.length) { try { f.setDescription(('In Stasis since ' + new Date().toDateString() + '. Was shared with: ' + gone.join(', ')).slice(0, 4000)); } catch (e) {} } };
+  keep(file);
   let pdfs = 0; // the character's exported PDF goes along with it
-  if (name) { const old = from.getFilesByName(name + ' - New Scolos Sheet.pdf'); while (old.hasNext()) { try { old.next().moveTo(stasis); pdfs++; } catch (e) {} } }
+  if (name) { const old = from.getFilesByName(name + ' - New Scolos Sheet.pdf'); while (old.hasNext()) { try { const pdf = old.next(); pdf.moveTo(stasis); keep(pdf); pdfs++; } catch (e) {} } }
   return { ok: true, name: name || file.getName(), pdfs: pdfs };
 }
 
