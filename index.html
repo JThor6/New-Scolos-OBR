@@ -375,7 +375,10 @@
   .ptbox > b { font-family:'Bangers', Impact, sans-serif; font-weight:400; font-size:21px; letter-spacing:1px; }
   .ptx { position:absolute; top:4px; right:6px; background:transparent; border:none; color:var(--dim); font-size:18px; font-weight:900; cursor:pointer; }
   .ptbtns { display:flex; flex-wrap:wrap; gap:4px; justify-content:center; }
-  .ptvmsg { text-align:center; margin-top:6px; } .ptnote .ptmgr { color:var(--accent); font-weight:800; text-decoration:underline; cursor:pointer; }
+  .ptvmsg { text-align:center; margin-top:6px; }
+  /* Priest / Mage refill: quiet, greyed out, under The Gods / Schools */
+  .ptfill { display:block; margin:4px auto 0; padding:1px 7px; border:1px solid #33364a; border-radius:6px; background:transparent; color:#5d6380; font:700 10px system-ui; letter-spacing:.4px; cursor:pointer; }
+  .ptfill:hover { color:#9aa0b8; border-color:#4a4f6a; } .ptfill[data-armed] { color:#c9b8f5; border-color:#4a4466; } .ptnote .ptmgr { color:var(--accent); font-weight:800; text-decoration:underline; cursor:pointer; }
   .ptgal { display:flex; flex-wrap:wrap; gap:5px; justify-content:center; max-width:330px; }
   .ptg { position:relative; width:50px; height:50px; border-radius:8px; overflow:hidden; border:2px solid #444a66; padding:0; background:var(--paper); cursor:pointer; color:var(--dim); font-size:22px; font-weight:800; }
   .ptg img { width:100%; height:100%; object-fit:cover; display:block; }
@@ -1202,7 +1205,7 @@ function drawSheet() {
     <div class="vit">${["B", "C", "D", "E", "F", "G", "H"].map((c, i) => { const t = V(c + "15"); const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<button class="box ${V(c + "16") ? "x" : ""}" data-w="${i}"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk ${V(c + "16") ? "x" : ""}">${V(c + "16") ? "✕" : ""}</span></button>`; }).join("")}</div>
     <div class="g2b ${ptInEP() ? "g2p" : ""}"><div class="fld"><div class="epl"><div class="ephd"><small>Extraordinary Power</small>${typeRefBtn()}</div><div id="pwname">${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div>${/^priest$/i.test(V("C4").trim()) ? `<button id="smite" class="pwroll" ${(parseInt(V("F13")) || 0) < 2 ? "disabled" : ""} title="${(parseInt(V("F13")) || 0) < 2 ? "Smite costs 2 invocations: not enough left" : "Prayer against the target's Adroitness. Damage = Success Delta + 4. Takes 2 invocations off by itself"}">⚔<span>Smite: roll Prayer (2 inv.)</span></button>` : ""}</div></div>
       <div class="fld c"><small>Used Today</small><button id="pw" class="chk ${used ? "x" : ""}">${used ? "✕" : ""}</button></div>${ptInEP() ? `
-      <div class="fld c epp"><small>${esc2(V("E13"))}${ptMaxV() ? ` <span>/ ${esc2(ptMaxV())}</span>` : ""}</small>${ptCtl()}${/^priest$/i.test(V("C4").trim()) ? `<button class="sref epref" data-k="gods" title="Open The Gods beside the map">${REF_SVG}The Gods</button>` : /^mage$/i.test(V("C4").trim()) ? `<button class="sref epref" data-k="schools" title="Open Schools of Magic beside the map">${REF_SVG}Schools</button>` : ""}</div>` : ""}</div>
+      <div class="fld c epp"><small>${esc2(V("E13"))}${ptMaxV() ? ` <span>/ ${esc2(ptMaxV())}</span>` : ""}</small>${ptCtl()}${/^priest$/i.test(V("C4").trim()) ? `<button class="sref epref" data-k="gods" title="Open The Gods beside the map">${REF_SVG}The Gods</button>` : /^mage$/i.test(V("C4").trim()) ? `<button class="sref epref" data-k="schools" title="Open Schools of Magic beside the map">${REF_SVG}Schools</button>` : ""}${ptMaxV() ? `<button id="ptfill" class="ptfill" title="Fill back up to ${esc2(ptMaxV())} (after a long rest). Asks first">↻ refill</button>` : ""}</div>` : ""}</div>
     <div id="pwd" class="gpow pwd" hidden></div>
     ${V("E13") && !ptInEP() ? `<div class="g2">${ptMaxV() ? F(esc2(/\d/.test(V("G13")) || !V("G13") ? "Max " + V("E13") : V("G13")), ptMaxV()) : ""}<div class="fld"><small>${esc2(V("E13"))}</small>${ptCtl()}</div></div>` : ""}
     <div class="stabrow"><div class="stab">COMBAT</div>${tgtBtn()}</div>
@@ -1266,6 +1269,12 @@ function drawSheet() {
   $("copm").onclick = () => cop(1); $("copp").onclick = () => cop(-1);
   if ($("ptm")) { const pts = (d) => { let n = Math.max(0, (parseInt(V("F13")) || 0) + d); const ptMax = parseInt(ptMaxV()); if (!isNaN(ptMax)) n = Math.min(n, ptMax); if (String(n) === (V("F13") || "0")) return; save({ points: n }, () => setCell("F13", String(n))); };
     $("ptm").onclick = () => pts(-1); $("ptp").onclick = () => pts(1); }
+  // ↻ refill (Priest / Mage, under The Gods / Schools): tap, then "Sure? tap again" within 4 s fills to max
+  if ($("ptfill")) $("ptfill").onclick = (e) => { e.stopPropagation(); const b = $("ptfill"), max = parseInt(ptMaxV());
+    if (isNaN(max)) return;
+    if (!b.dataset.armed) { b.dataset.armed = "1"; b.textContent = "Sure? tap again"; setTimeout(() => { if (b.isConnected && b.dataset.armed) { delete b.dataset.armed; b.textContent = "↻ refill"; } }, 4000); return; }
+    delete b.dataset.armed; if (String(max) === (V("F13") || "0")) { b.textContent = "Already full"; return; }
+    save({ points: max }, () => setCell("F13", String(max))); };
   if (!isNaN(copMax) && (parseInt(V("H29")) || 0) >= copMax) $("copm").disabled = true; // none left
   if ((parseInt(V("H29")) || 0) <= 0) $("copp").disabled = true; // already full
 }
@@ -2127,6 +2136,8 @@ document.addEventListener("click", (e) => { const b = e.target.closest(".tref, .
   if (!b.dataset.k) return;
   popOut(b.dataset.k); }, true);
 function ptCtl() { return `<div class="ctl"><button id="ptm">−</button><b>${esc2(V("F13") || "0")}</b><button id="ptp">+</button></div>`; }
+// the same max from a whole sheet's values (GM tools): H13, or G13 on the older layout
+function ptMaxOf(v) { const h = String(v[12]?.[7] ?? "").trim(), g = String(v[12]?.[6] ?? "").trim(); return /^\d+$/.test(h) ? +h : /^\d+$/.test(g) ? +g : null; }
 function ptMaxV() { return /^\d+$/.test(V("H13")) ? V("H13") : /^\d+$/.test(V("G13")) ? V("G13") : ""; }
 // Healing: every mark on the vitality track shifts one box left; the leftmost (Light Wound) drops off.
 // The last 5 heals per character can be undone (cleared if someone taps a wound box by hand).
@@ -2358,7 +2369,14 @@ function bindGmTools() {
     b.dataset.armed = "1"; b.textContent = "TAP AGAIN TO CONFIRM";
     setTimeout(() => { if (b.dataset.armed) { delete b.dataset.armed; b.textContent = label; } }, 4000);
   }; };
-  arm($("gmDay"), "☀ NEW DAY", () => gmAll("New day", (v) => /^true$/i.test(String(v[5]?.[5] ?? "").trim()) ? { power: false } : null, (v) => { v[5][5] = "FALSE"; }));
+  // New Day: daily power back, and Priests / Mages get their invocations / spell points refilled to max (Jake, Nov 25)
+  arm($("gmDay"), "☀ NEW DAY", () => gmAll("New day", (v) => {
+    const out = [];
+    if (/^true$/i.test(String(v[5]?.[5] ?? "").trim())) out.push({ power: false });
+    const max = ptMaxOf(v), now = parseInt(String(v[12]?.[5] ?? "")) || 0;
+    if (/^(priest|mage)$/i.test(String(v[3]?.[2] ?? "").trim()) && max != null && now !== max) out.push({ points: max });
+    return out.length ? out : null;
+  }, (v, b) => { for (const one of b) { if (one.power === false) v[5][5] = "FALSE"; if (one.points != null) { v[12] = v[12] || []; v[12][5] = String(one.points); } } }));
   arm($("gmCop"), "⚡ REFILL COP", () => gmAll("Refill COP", (v) => {
     const now = parseInt(String(v[28]?.[7] ?? "")) || 0; // H29 is COP spent: refilling sets it back to 0
     return now === 0 ? null : { copSpent: 0 };
@@ -2376,8 +2394,13 @@ async function gmAll(label, change, local) {
     const res = [];
     for (const [k, { c, b }] of todo.entries()) {
       say(`${label}: saving ${k + 1} of ${todo.length} (${c.name})…`);
-      let r = await bridgePost({ id: c.id, ...b }).catch(e => ({ ok: false, error: e.message }));
-      if (!r.ok && !/table code|permission|access|denied/i.test(r.error || "")) { await new Promise(x => setTimeout(x, 1200)); r = await bridgePost({ id: c.id, ...b }).catch(e => ({ ok: false, error: e.message })); }
+      // the bridge changes one thing per save, so a change can be a list (New Day: power + invocations / spell points)
+      let r = { ok: true };
+      for (const one of (Array.isArray(b) ? b : [b])) {
+        r = await bridgePost({ id: c.id, ...one }).catch(e => ({ ok: false, error: e.message }));
+        if (!r.ok && !/table code|permission|access|denied/i.test(r.error || "")) { await new Promise(x => setTimeout(x, 1200)); r = await bridgePost({ id: c.id, ...one }).catch(e => ({ ok: false, error: e.message })); }
+        if (!r.ok) break;
+      }
       res.push({ c, b, r });
     }
     const ok = res.filter(x => x.r.ok), bad = res.filter(x => !x.r.ok);
