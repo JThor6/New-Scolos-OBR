@@ -2908,7 +2908,7 @@ function ptPanelDraw() {
       : `<div class="ptbtns"><button class="sbtn" data-e="edit">✎ ADJUST CIRCLE</button></div>`}</div>
     ${ptP.edit ? "" : `<div class="ptgh">POG <span>· your token for the map, made from your ★ portrait and its circle</span></div>
     <div class="pogrow">${ptP.pogId ? `<img class="pogpv" src="${ptP.pogUrl || pogSrc(ptP.pogId)}" alt="">` : ""}
-      <div class="ptbtns" style="flex-direction:column">${ptP.pogId ? `<button class="sbtn on" data-g="table">⬇ PUT ON THE TABLE</button>` : ""}<button class="sbtn ${ptP.pogId ? "" : "on"}" data-g="make">◎ ${ptP.pogId ? "REMAKE POG FROM PORTRAIT" : "MAKE POG FROM PORTRAIT"}</button>${ptP.pogId ? `<button class="sbtn" data-g="dl">SAVE A COPY</button>` : ""}</div></div>`}`
+      <div class="ptbtns" style="flex-direction:column">${ptP.pogId ? `<button class="sbtn on" data-g="table">⬇ PUT ON THE TABLE</button><button class="sbtn" data-g="lib" title="Also keep it in your Owlbear Characters">⬆ SAVE TO MY OWLBEAR CHARACTERS</button>` : ""}<button class="sbtn ${ptP.pogId ? "" : "on"}" data-g="make">◎ ${ptP.pogId ? "REMAKE POG FROM PORTRAIT" : "MAKE POG FROM PORTRAIT"}</button>${ptP.pogId ? `<button class="sbtn" data-g="dl">SAVE A COPY</button>` : ""}</div></div>`}`
     : `<div class="mnote" style="text-align:center">Tap + or drop a picture here to add one.</div>`}
     <div id="ptmsg" class="ptmsg ${ptP.msg ? ptP.msg[0] : ""}">${esc2(ptP.msg ? ptP.msg[1] : "")}</div></div>`;
   el.querySelectorAll(".ptg[data-p]").forEach(b => b.onclick = () => { if (b.dataset.p === ptP.sel) return; ptP.sel = b.dataset.p; ptP.f = null; ptP.dirty = false; ptP.edit = false; ptP.msg = null; ptPanelDraw(); });
@@ -2978,6 +2978,18 @@ function bindPtPicButtons(el, p0) {
     try { await pogDrop(ptP.pogId, (V("C3") || "Character").trim()); ptSay("ok", "✓ Your pog is on the table, in the middle of your screen. Drag it where you want it."); }
     catch (e) { ptSay("bad", "Couldn't put it on the table: " + (e.message || e)); }
     gtb.disabled = false;
+  };
+  const glib = el.querySelector('[data-g="lib"]');
+  if (glib) glib.onclick = async () => {
+    glib.disabled = true;
+    try {
+      const r = await bridgeGet({ pog: ptP.id });
+      if (!r.ok || r.none) throw new Error(r.ok ? "no pog saved yet" : ptBridgeMsg(r.error));
+      ptSay("", "Owlbear is opening an upload window. Click UPLOAD in it.");
+      await pogToOwlbear(await b64Blob(r.mime, r.data), (V("C3") || "Character").trim());
+      ptSay("ok", "✓ Saved in your Owlbear Characters too. You can drag it in from there any time.");
+    } catch (e) { ptSay("bad", "Couldn't save it to Owlbear: " + (e.message || e)); }
+    glib.disabled = false;
   };
   const gdl = el.querySelector('[data-g="dl"]');
   if (gdl) gdl.onclick = async () => {
