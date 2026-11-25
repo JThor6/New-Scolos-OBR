@@ -49,6 +49,9 @@ function confirmEnd() {
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const fmt = (n) => (n > 0 ? "+" : "") + n;
 let md = {}, gm = false, me = "";
+// Heartbeat: the background page checks this to know the bar really is on screen, and reopens it if not
+const beat = () => { try { localStorage.setItem("ns.barAlive", String(Date.now())); } catch {} };
+beat(); setInterval(beat, 1500);
 const small = () => { try { return localStorage.getItem("ns.barMin") === "1"; } catch { return false; } };
 function draw() {
   document.body.classList.toggle("min", small());

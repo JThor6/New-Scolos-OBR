@@ -135,7 +135,7 @@ OBR.onReady(async () => {
   const isGM = (await OBR.player.getRole()) === "GM";
   // Initiative: tell players to roll, and show the bar across the top while combat is on
   const BAR = "com.newscolos.initbar", LEFT = 545; // starts just past the New Scolos panel at L size, so it never overlaps (S or L)
-  let barCount = "", lastSid = (await OBR.room.getMetadata())[INIT]?.sid || "";
+  let barOpenedAt = 0, barCount = "", lastSid = (await OBR.room.getMetadata())[INIT]?.sid || "";
   let lastCur = "";
   async function initUpdate(md) {
     const st = md[INIT];
@@ -160,16 +160,30 @@ OBR.onReady(async () => {
     if (key === barCount) return;
     barCount = key;
     if (!n) { OBR.popover.close(BAR).catch(() => {}); OBR.popover.close("com.newscolos.initlist").catch(() => {}); try { localStorage.setItem("ns.initList", ""); } catch {} return; }
-    const vw = await OBR.viewport.getWidth();
+    let vw = 1200; try { vw = await OBR.viewport.getWidth(); } catch {}
     const url = new URL("go.html", location.href); url.searchParams.set("p", "initbar");
     const ref = new URLSearchParams(location.search).get("obrref"); if (ref) url.searchParams.set("obrref", ref);
+    barOpenedAt = Date.now();
     OBR.popover.open({ id: BAR, url: url.href, width: small ? 54 : Math.max(300, vw - LEFT - 110), height: 54, hidePaper: true,
       // full bar starts right of Owlbear's top-left toolbar; minimized it's a small ⚔ box at the top right
       anchorReference: "POSITION", anchorPosition: { left: small ? vw - 90 : LEFT, top: 12 },
       anchorOrigin: { horizontal: small ? "RIGHT" : "LEFT", vertical: "TOP" }, transformOrigin: { horizontal: small ? "RIGHT" : "LEFT", vertical: "TOP" },
-      disableClickAway: true }).catch(() => {});
+      disableClickAway: true }).catch(() => { barCount = ""; }); // didn't open: the watchdog below tries again
   }
   initUpdate(await OBR.room.getMetadata());
+  // Watchdog: while combat is on, make sure the bar is really on this screen (late joiners, a reload, a failed open).
+  // The bar writes a heartbeat every 1.5 s; no heartbeat for 6 s means it isn't showing, so open it again.
+  setInterval(async () => {
+    try {
+      const md = await OBR.room.getMetadata();
+      if (!md[INIT]?.open || !initEntries(md).length) return;
+      const alive = Number(localStorage.getItem("ns.barAlive") || 0);
+      if (Date.now() - alive > 6000 && Date.now() - barOpenedAt > 10000) { barCount = ""; initUpdate(md); } // 10 s grace while it loads
+    } catch {}
+  }, 3000);
+  // Joined while combat is already on and haven't rolled initiative yet: ask now
+  { const md = await OBR.room.getMetadata(), st = md[INIT];
+    if (!isGM && st?.open && st.sid && md[`${INIT}/p/${me}`]?.sid !== st.sid) note("⚔ Combat is on! Roll for initiative: your next Adroitness roll (on your CHARACTER SHEET tab) counts.", "INFO", 8000); }
   window.addEventListener("storage", async (e) => { if (e.key === "ns.barMin") initUpdate(await OBR.room.getMetadata()); });
   // other players' rolls
   // keep this browser's 100-roll log growing even while the panel is closed
