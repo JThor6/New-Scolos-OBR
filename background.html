@@ -79,7 +79,7 @@ const sdSave = () => { try { localStorage.setItem(sdKey(), JSON.stringify(sd)); 
 function syncWait() {
   const a = openAttack;
   sd.wait = a ? { id: a.id, att: nameOf(a), who: a.char ? a.who : "", at: a.total, l: String(a.label || "").slice(0, 46),
-    sp: /spellcast|smite/i.test(a.label || "") ? 1 : 0, multi: a.multi, tg: a.tg || null, n: a.n, defs: a.defs, at0: a.at0 } : null;
+    sp: /spellcast|smite/i.test(a.label || "") ? 1 : 0, multi: a.multi, tg: a.tg || null, notg: a.notg ? 1 : 0, n: a.n, defs: a.defs, at0: a.at0 } : null;
   sdSave();
 }
 // One screen works out each result: the one whose roll is the defense (the defender's player, or the GM for monsters).
@@ -98,6 +98,9 @@ function combatCheck(r, mine) {
   if (a.tg && !a.tg.some(t => sameName(t, who) || sameName(t, r.who))) return; // not one of the targets
   a.defs.push(who); syncWait();
   if (mine) makeDelta(a, r).catch(() => {});
+  // Backup: if the defender's screen missed the attack (joined or reloaded after it was rolled), it can't work it out.
+  // The attacker's screen always saw it, so it does it after 4 seconds if nobody else has.
+  else if (a.pid === myId) { const id = "sd-" + a.id + "-" + r.id; setTimeout(() => { if (!seenIds.has(id) && !sd.list.some(x => x.id === id)) makeDelta(a, r).catch(() => {}); }, 4000); }
 }
 async function makeDelta(a, d) {
   const e = { id: "sd-" + a.id + "-" + d.id, aid: a.id, sd: 1, pid: myId, ts: (d.ts || Date.now()) + 1, who: nameOf(a), dice: [], total: a.total - d.total,
@@ -108,7 +111,8 @@ async function makeDelta(a, d) {
   addResult(e);
   // saved under its own key (…/rolls/<player>~sd), so it can never collide with the panel saving that player's next roll
   const key = rollKey(myId) + "~sd", md = await OBR.room.getMetadata(), list = Array.isArray(md[key]) ? md[key] : [];
-  if (!list.some(x => x.id === e.id)) await OBR.room.setMetadata({ [key]: [e, ...list].slice(0, KEEP) });
+  // only the last 3 per player go in the room (it holds ~16 kB for everyone); each screen keeps its own 30 for ‹ ›
+  if (!list.some(x => x.id === e.id)) await OBR.room.setMetadata({ [key]: [e, ...list].slice(0, 3) });
 }
 let seenIds = new Set();
 function addResult(e) {
@@ -120,6 +124,7 @@ function addResult(e) {
 // Opens (or reopens) the card: just left of the roll cards, on the bottom row; if there's no room, at the left edge beside the panel.
 // It sizes itself to what it shows, growing upward.
 async function openCard() {
+  try { if (Date.now() - Number(localStorage.getItem("ns.sdAlive:" + OBR.room.id) || 0) < 3500) return; } catch {} // already showing
   const url = new URL("go.html", location.href); url.searchParams.set("p", "sdcard"); url.searchParams.set("room", OBR.room.id);
   const ref = new URLSearchParams(location.search).get("obrref"); if (ref) url.searchParams.set("obrref", ref);
   const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
