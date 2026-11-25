@@ -3547,7 +3547,7 @@ async function popParty() {
   const ref = new URLSearchParams(location.search).get("obrref"); if (ref) u.searchParams.set("obrref", ref);
   const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
   store.set("ns.partyPop", "1");
-  OBR.popover.open({ id: PARTY_POP, url: u.href, width: 380, height: Math.max(360, Math.round(vh * 0.75)),
+  OBR.popover.open({ id: PARTY_POP, url: u.href, width: 340, /* same box as the REFERENCE / Roll History pop-out, so neither peeks out behind the other */ height: Math.max(360, Math.round(vh * 0.75)),
     anchorReference: "POSITION", anchorPosition: { left: vw - 70, top: 70 },
     anchorOrigin: { horizontal: "RIGHT", vertical: "TOP" }, transformOrigin: { horizontal: "RIGHT", vertical: "TOP" },
     disableClickAway: true, hidePaper: true }).catch(() => {});
