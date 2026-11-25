@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
+<style>
+  /* "Roll for initiative!": shown at the top of the map for each player when the GM calls initiative, same look as
+     DEFEND! (Jake, Nov 25). The button rolls Adroitness from the sheet. Closes once they've rolled (from here or the
+     sheet), when tapped, or after 60 s. */
+  html, body { margin:0; background:transparent; overflow:hidden; font-family:system-ui, sans-serif; }
+  .p { box-sizing:border-box; height:100vh; display:flex; align-items:center; gap:12px; padding:8px 14px; cursor:pointer;
+    background:linear-gradient(135deg, rgba(48,16,72,.96), rgba(28,8,40,.96)); border:1px solid #5a4488; border-radius:14px;
+    box-shadow:0 2px 10px rgba(0,0,0,.4); color:#e6dcff; animation:in .25s ease-out; }
+  .ic { font-size:24px; opacity:.85; }
+  .h { font-family:'Bangers', Impact, sans-serif; font-size:24px; letter-spacing:1.5px; line-height:1; color:#cbb8ff; }
+  .s { margin-top:3px; font-size:12.5px; font-weight:700; color:#e4d9ff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .s b { color:#fff; }
+  .t { min-width:0; flex:1; }
+  .r { flex:none; padding:8px 12px; border-radius:9px; border:1px solid #7a62b8; background:#3b2563; color:#f1e9ff; font:800 13px system-ui; letter-spacing:.5px; cursor:pointer; white-space:nowrap; }
+  .r:hover { background:#4a2f7a; } .r:disabled { opacity:.6; cursor:default; }
+  @keyframes in { from { transform:translateY(-12px); opacity:0; } }
+</style></head>
+<body><div class="p" id="p"><span class="ic">⚔</span><div class="t"><div class="h">ROLL FOR INITIATIVE!</div><div class="s">Your next Adroitness roll counts</div></div><button class="r" id="r" title="Roll Adroitness from your character sheet for initiative">⚔ ROLL INITIATIVE</button></div>
+<script type="module">
+  import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
+  const q = new URLSearchParams(location.search), ID = "com.newscolos.initpop", sid = q.get("sid") || "";
+  const close = () => { if (OBR.isAvailable) OBR.popover.close(ID).catch(() => {}); };
+  document.getElementById("p").onclick = close;
+  // Roll right here: the New Scolos panel rolls Adroitness from the sheet (it counts as initiative) and answers in
+  // "ns.initReqDone". If it doesn't answer quickly (panel closed), the panel gets opened and rolls once the sheet loads.
+  let asked = 0;
+  const btn = document.getElementById("r");
+  const rolled = () => { btn.disabled = true; btn.textContent = "✓ Rolled"; setTimeout(close, 900); };
+  window.addEventListener("storage", (e) => {
+    if (e.key === "ns.initReqDone" && asked && e.newValue === String(asked)) rolled();
+    if (e.key === "ns.initDone" && sid && e.newValue === sid) rolled(); // rolled from the sheet instead: close too
+  });
+  try { if (sid && localStorage.getItem("ns.initDone") === sid) close(); } catch {}
+  btn.onclick = async (e) => { e.stopPropagation(); if (asked) return; btn.disabled = true; btn.textContent = "Rolling…";
+    asked = Date.now(); try { localStorage.setItem("ns.initReq", JSON.stringify({ ts: asked })); } catch {}
+    setTimeout(async () => { if (btn.textContent.startsWith("✓") || !OBR.isAvailable) return;
+      btn.textContent = "Opening panel…"; try { await OBR.action.open(); } catch {} }, 1200);
+    setTimeout(() => { if (!btn.textContent.startsWith("✓")) { btn.textContent = "Roll from your sheet"; btn.disabled = false; asked = 0; } }, 20000); };
+  if (OBR.isAvailable) OBR.onReady(() => setTimeout(() => { if (!asked) close(); }, 60000));
+</script></body></html>

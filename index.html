@@ -1111,7 +1111,7 @@ async function loadSheet(quiet) {
   cache.set("sheet." + id, r.values);
   const ptWas = ptT(id), ptKnown = ptBridge; notePt(id, r);
   if (JSON.stringify(r.values) === JSON.stringify(sheetVals) && $("shbody")?.querySelector(".fld") && ptWas === ptT(id) && ptKnown === ptBridge) return; // nothing changed
-  sheetVals = r.values; drawSheet(); defReq();
+  sheetVals = r.values; drawSheet(); defReq(); initReq();
 }
 
 function list(cells) { return cells.map(V).filter(Boolean); }
@@ -3474,6 +3474,18 @@ function defReq() {
   quickRoll(adr, "Adroitness · Defense");
 }
 window.addEventListener("storage", (e) => { if (e.key === "ns.defReq") defReq(); });
+// ⚔ ROLL INITIATIVE on the "Roll for initiative!" pop-up over the map (initpop.html): same idea as DEFEND!.
+// The roll goes through quickRoll, which counts a player's next Adroitness roll as their initiative.
+function initReq() {
+  if (standalone || isGM || rollBusy) return;
+  let q = null; try { q = JSON.parse(localStorage.getItem("ns.initReq") || "null"); } catch {}
+  if (!q?.ts || Date.now() - q.ts > 20e3 || store.get("ns.initReqDone") === String(q.ts)) return;
+  const adr = sheetVals?.[6]?.[2];
+  if (!sheetVals || adr == null || String(adr).trim() === "") return; // not ready yet: tried again when the sheet loads
+  store.set("ns.initReqDone", String(q.ts));
+  quickRoll(adr, "Adroitness");
+}
+window.addEventListener("storage", (e) => { if (e.key === "ns.initReq") initReq(); });
 setInterval(() => { if (!standalone) updateDefBanner(); }, 5000);
 // CALL FOR INITIATIVE also rolls the monsters (ON unless the GM switched it off; saved in this browser)
 const autoMon = () => store.get("ns.autoMon") !== "0";

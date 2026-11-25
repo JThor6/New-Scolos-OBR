@@ -176,6 +176,19 @@ async function defPop(a) {
     anchorOrigin: { horizontal: "CENTER", vertical: "TOP" }, transformOrigin: { horizontal: "CENTER", vertical: "TOP" },
     disableClickAway: true, hidePaper: true });
 }
+// "ROLL FOR INITIATIVE!" pop-up at the top of the map for players, with a button that rolls it (like DEFEND!)
+async function initPop(sid) {
+  if (amGM || !sid) return;
+  try { if (localStorage.getItem("ns.initDone") === sid) return; } catch {}
+  const url = new URL("go.html", location.href); url.searchParams.set("p", "initpop"); url.searchParams.set("sid", sid);
+  const ref = new URLSearchParams(location.search).get("obrref"); if (ref) url.searchParams.set("obrref", ref);
+  const vw = await OBR.viewport.getWidth(), w = Math.min(440, vw - 40);
+  await OBR.popover.close("com.newscolos.initpop").catch(() => {});
+  await OBR.popover.open({ id: "com.newscolos.initpop", url: url.href, width: w, height: 70,
+    anchorReference: "POSITION", anchorPosition: { left: Math.round(vw / 2), top: 76 }, // just under the initiative bar
+    anchorOrigin: { horizontal: "CENTER", vertical: "TOP" }, transformOrigin: { horizontal: "CENTER", vertical: "TOP" },
+    disableClickAway: true, hidePaper: true });
+}
 // ✕ on a waiting attack, and − / + defenders, come in through room metadata so every screen follows
 // What the GM's AUTO DAMAGE marked ("Medium Wound marked on Hive Runner 2"): shown on the matching result card
 const APPLIED = "com.newscolos.dice/applied";
@@ -275,7 +288,7 @@ OBR.onReady(async () => {
     }
     if (st?.open && st.sid !== lastSid) {
       lastSid = st.sid;
-      if (!isGM) note("⚔ Roll for initiative! Your next Adroitness roll (on your CHARACTER SHEET tab) counts.", "INFO");
+      if (!isGM) initPop(st.sid).catch(() => note("⚔ Roll for initiative! Your next Adroitness roll (on your CHARACTER SHEET tab) counts.", "INFO"));
     }
     const n = st?.open ? initEntries(md).length : 0;
     let small = false; try { small = localStorage.getItem("ns.barMin") === "1"; } catch {}
@@ -309,6 +322,7 @@ OBR.onReady(async () => {
   }, 3000);
   // Joined while combat is already on and haven't rolled initiative yet: ask now
   { const md = await OBR.room.getMetadata(), st = md[INIT];
+    if (!isGM && st?.open && st.sid && !st.cur && md[`${INIT}/p/${me}`]?.sid !== st.sid) initPop(st.sid).catch(() => {});
     if (!isGM && st?.open && st.sid && md[`${INIT}/p/${me}`]?.sid !== st.sid) note("⚔ Combat is on! Roll for initiative: your next Adroitness roll (on your CHARACTER SHEET tab) counts.", "INFO", 8000); }
   window.addEventListener("storage", async (e) => { if (e.key === "ns.barMin") initUpdate(await OBR.room.getMetadata()); });
   // other players' rolls
