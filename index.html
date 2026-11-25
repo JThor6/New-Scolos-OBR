@@ -2305,13 +2305,14 @@ function nbDraw() { document.querySelectorAll(".nbw").forEach(w => { const v = n
 document.addEventListener("click", (e) => { const b = e.target.closest(".nbw .nb"); if (!b) return; e.preventDefault(); e.stopPropagation();
   const k = b.closest(".nbw").dataset.k, v = +b.dataset.v; store.set("ns.nb." + k, nbGet(k) === v ? "" : String(v)); nbDraw(); }, true);
 // Per person (this browser): each player and the GM turns it on for their own attacks if they want it.
-const tgtOn = () => store.get("ns.targets") === "1";
+// ON by default (Jake, Nov 25). New key, so everyone starts on even if they'd switched the old one off.
+const tgtOn = () => store.get("ns.tgt") !== "0";
 const tgtBtn = () => standalone ? "" : `<button id="tgtme" class="tgtme ${tgtOn() ? "on" : ""}" title="Off: whoever rolls Adroitness next defends (fast). On: select the target token(s) on the map before you roll an attack, and only they defend.">TARGET LOCK: ${tgtOn() ? "ON" : "OFF"}</button>`;
 function drawTgt() {
   const g = $("gmTgt"); if (g) { g.textContent = tgtOn() ? "TARGET LOCK: ON (select targets, then roll the attack)" : "TARGET LOCK: OFF"; g.classList.toggle("on", tgtOn()); }
   const p = $("tgtme"); if (p) { p.textContent = "TARGET LOCK: " + (tgtOn() ? "ON" : "OFF"); p.classList.toggle("on", tgtOn()); }
 }
-const flipTgt = () => { store.set("ns.targets", tgtOn() ? "" : "1"); drawTgt(); };
+const flipTgt = () => { store.set("ns.tgt", tgtOn() ? "0" : "1"); drawTgt(); };
 function bindGmTools() {
   if ($("gmTgt")) { drawTgt(); $("gmTgt").onclick = flipTgt; }
   const arm = (b, label, run) => { if (!b) return; b.onclick = () => {
