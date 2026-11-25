@@ -130,11 +130,16 @@ async function openCard() {
   const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
   let left = 0; try { if (await OBR.action.isOpen()) left = ((await OBR.action.getWidth()) || 520) + 40; } catch {}
   const x0 = rowLeft || left + (vw - left) / 2, x = Math.max(left + 8, Math.round(x0 - SD_W - GAP));
-  const h = sd.list.length ? (sd.wait ? 270 : 196) : 112; // first guess; the card fixes it
+  // Small screen: not enough map beside the panel for the full card, so a compact one sits at the right edge, just above
+  // the roll cards. Tapping it opens the full card (growing leftward over the panel for a moment); tap again to shrink.
+  const room = vw - left - 16, mini = room < SD_W + 10;
+  if (mini) { url.searchParams.set("mini", "1"); url.searchParams.set("mw", String(Math.max(190, Math.min(250, room)))); }
+  const w = mini ? Math.max(190, Math.min(250, room)) : SD_W;
+  const h = mini ? 84 : sd.list.length ? (sd.wait ? 270 : 196) : 112; // first guess; the card fixes it
   await OBR.popover.close(SD).catch(() => {});
-  await OBR.popover.open({ id: SD, url: url.href, width: SD_W, height: h,
-    anchorReference: "POSITION", anchorPosition: { left: x, top: vh - 80 },
-    anchorOrigin: { horizontal: "LEFT", vertical: "BOTTOM" }, transformOrigin: { horizontal: "LEFT", vertical: "BOTTOM" },
+  await OBR.popover.open({ id: SD, url: url.href, width: w, height: h,
+    anchorReference: "POSITION", anchorPosition: mini ? { left: vw - 8, top: vh - 80 - 112 } : { left: x, top: vh - 80 },
+    anchorOrigin: { horizontal: mini ? "RIGHT" : "LEFT", vertical: "BOTTOM" }, transformOrigin: { horizontal: mini ? "RIGHT" : "LEFT", vertical: "BOTTOM" },
     disableClickAway: true, hidePaper: true });
 }
 // ✕ on a waiting attack, and − / + defenders, come in through room metadata so every screen follows
