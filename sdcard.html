@@ -183,10 +183,19 @@
   }
   document.body.addEventListener("mouseenter", () => { over = true; document.body.classList.add("hold"); clearTimeout(timer); timer = 0; });
   document.body.addEventListener("mouseleave", () => { over = false; document.body.classList.remove("hold"); arm(true); });
-  window.addEventListener("storage", (ev) => { if (ev.key === KEY || ev.key === PIN) render(); });
-  setInterval(render, 5000);
+  // A new result waits until the defender's dice have landed on their roll card (background.html sets revealAt),
+  // so the card shows up with the dice, not before them (Jake, Nov 25: a little drama). Until then the card stays as it was.
+  let revealT = 0;
+  function show() {
+    const ra = Number(state().revealAt) || 0;
+    if (Date.now() < ra) { if (!$("t").innerHTML) document.body.style.visibility = "hidden";
+      clearTimeout(revealT); revealT = setTimeout(show, ra - Date.now() + 30); return; }
+    document.body.style.visibility = ""; render();
+  }
+  window.addEventListener("storage", (ev) => { if (ev.key === KEY) show(); else if (ev.key === PIN) render(); });
+  setInterval(show, 5000);
   // tells the background page this card is up, so a new result updates it in place instead of reopening it
   const alive = () => set("ns.sdAlive:" + room, String(Date.now())); alive(); setInterval(alive, 1500);
   window.addEventListener("pagehide", () => set("ns.sdAlive:" + room, "0")); // a waiting attack runs out after 3 minutes even if nothing else happens
-  render();
+  show();
 </script></body></html>

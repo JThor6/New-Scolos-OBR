@@ -74,6 +74,8 @@ function rowLayout(vw, left) {
 // Wounds (Main Sheet row 15): 1-2 Light, 3-4 Medium, 5-6 Critical, 7-8 Down & KO'ed, 9+ Dead.
 // The card itself is sdcard.html, just left of the roll cards. It reads this screen's results and the waiting attack from
 // localStorage ("ns.sd:<room>"), so it updates in place; ‹ › pages through results; 📌 picks "stays up" or "fades after 30 s".
+// The defender's roll card spins about 2 seconds before its dice land; the Success Delta card shows up then, not before
+const REVEAL_MS = 2100;
 const SD = "com.newscolos.dice/delta", SD_W = 280, ATTACK_WAIT = 3 * 60e3, SD_KEEP = 30;
 const SDCANCEL = "com.newscolos.dice/sdcancel"; // room metadata: { id } of an attack someone dropped with ✕
 const SDN = "com.newscolos.dice/sdn";           // room metadata: { id, n, ts } how many defenders an attack has
@@ -104,6 +106,7 @@ function combatCheck(r, mine) {
   const a = openAttack, who = nameOf(r);
   if (!a || !isAdr(r) || who === nameOf(a) || a.defs.includes(who) || a.defs.length >= a.n || Date.now() - a.at0 > ATTACK_WAIT) return;
   if (a.tg && !a.tg.some(t => sameName(t, who) || sameName(t, r.who))) return; // not one of the targets
+  sd.revealAt = Date.now() + REVEAL_MS; // the card waits for the defender's dice to land
   a.defs.push(who); syncWait();
   if (mine) makeDelta(a, r).catch(() => {});
   // Backup: if the defender's screen missed the attack (joined or reloaded after it was rolled), it can't work it out.
@@ -130,7 +133,8 @@ function addResult(e) {
   // (otherwise "roll Adroitness" stays up under a hit that's already worked out)
   if (openAttack && e.aid === openAttack.id && e.def && !openAttack.defs.some(d => sameName(d, e.def))) { openAttack.defs.push(e.def); syncWait(); }
   const fresh = !sd.list.some(x => x.id === e.id);
-  if (fresh) { sd.list.push(e); sd.list = sd.list.slice(-SD_KEEP); }
+  if (fresh) { sd.list.push(e); sd.list = sd.list.slice(-SD_KEEP);
+    if (Date.now() - (e.ts || 0) < 4000) sd.revealAt = Math.max(Number(sd.revealAt) || 0, (e.ts || Date.now()) + REVEAL_MS); }
   sdSave(); openCard().catch(() => {});
   if (fresh && amGM) adWatch(e).catch(() => {});
 }
