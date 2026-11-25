@@ -690,7 +690,7 @@
 </main>
 <script type="module">
 import OBR, { buildImage, buildImageUpload, buildLabel } from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
-import { NS, KEEP, rollKey, allRolls, fmt, INIT, initEntries, rollLine, ROLL_CSS, rollLog, LOG_MAX, POWER_CARDS, sameName, sdResult, MARK_ITEM, DEFAULT_MARKS } from "./shared.js";
+import { NS, KEEP, rollKey, allRolls, fmt, INIT, initEntries, rollLine, ROLL_CSS, rollLog, LOG_MAX, POWER_CARDS, sameName, sdResult, MARK_ITEM, DEFAULT_MARKS, initMove } from "./shared.js";
 document.head.insertAdjacentHTML("beforeend", `<style>${ROLL_CSS}</style>`);
 import { TYPES, SECTIONS, REF_GROUPS, getTab, sectionHtml } from "./rules.js";
 
@@ -2730,11 +2730,12 @@ async function monSet(row, col, on) {
 async function syncDeadGroups() {
   const v = monVals || [], c = (row, i) => String(v[row]?.[i] ?? "").trim();
   const hdr = Math.max(0, v.findIndex(r => String(r?.[0] || "").trim().toLowerCase() === "name"));
-  const alive = new Map();
+  const alive = new Map(), liveMem = new Map(); // liveMem: the group's living members, for stepping turns one by one
   for (let row = hdr + 1; row < v.length; row++) {
     const name = c(row, 0); if (!name) continue;
     const g = c(row, 1) || name, dead = /^(true|x|yes|dead)$/i.test(c(row, 19));
     alive.set(g, (alive.get(g) || 0) + (dead ? 0 : 1));
+    if (!dead) liveMem.set(g, [...(liveMem.get(g) || []), name]);
   }
   const md = await OBR.room.getMetadata(), st = md[INIT]; if (!st?.open) return;
   const removed = new Set(st.removed || []);
@@ -2743,9 +2744,12 @@ async function syncDeadGroups() {
   const mlist = (md[INIT + "/m"] || []).map(e => {
     if (e.sid !== st.sid || !e.id.startsWith("m:")) return e;
     const g = e.id.slice(2), n = alive.get(g);
-    return n ? { ...e, name: n > 1 ? `${g} ×${n}` : g } : e;
+    return n ? { ...e, name: n > 1 ? `${g} ×${n}` : g, mem: (liveMem.get(g) || []).slice(0, 20) } : e;
   });
-  await OBR.room.setMetadata({ [INIT]: { ...st, removed: [...removed] }, [INIT + "/m"]: mlist });
+  // if it's this group's turn, stay on the same member (or the next one along if they just died)
+  let sub = st.sub || 0; const ce = (md[INIT + "/m"] || []).find(e => e.id === st.cur), ne = mlist.find(e => e.id === st.cur);
+  if (ce && ne && Array.isArray(ne.mem)) { const who = (ce.mem || [])[sub], k = ne.mem.indexOf(who); sub = k >= 0 ? k : Math.min(sub, Math.max(0, ne.mem.length - 1)); }
+  await OBR.room.setMetadata({ [INIT]: { ...st, removed: [...removed], sub }, [INIT + "/m"]: mlist });
 }
 
 // ---------------- INITIATIVE (GM controls) ----------------
@@ -2769,12 +2773,8 @@ function drawInitList() {
 }
 // Same as the ◀ / ▶ arrows on the initiative bar at the top: move the turn, and wrap to a new round after the last
 async function initStep(d) {
-  const m = await OBR.room.getMetadata(), st = m[INIT] || {}, list = initEntries(m);
-  if (!st.open || !list.length) return;
-  let i = list.findIndex(e => e.id === st.cur), round = st.round || 1;
-  if (i < 0) i = d > 0 ? 0 : list.length - 1;
-  else { i += d; if (i >= list.length) { i = 0; round++; } if (i < 0) { i = list.length - 1; round = Math.max(1, round - 1); } }
-  await OBR.room.setMetadata({ [INIT]: { ...st, cur: list[i].id, round } });
+  const m = await OBR.room.getMetadata(); if (!m[INIT]?.open) return;
+  const nx = initMove(m, d); if (nx) await OBR.room.setMetadata({ [INIT]: nx }); // monster groups: one member at a time
 }
 async function callInitiative() {
   const sid = crypto.randomUUID().slice(0, 8);
@@ -2795,15 +2795,15 @@ async function rollMonsterInit() {
   for (let row = hdr + 1; row < v.length; row++) {
     const name = c(row, 0); if (!name || /^(true|x|yes|dead)$/i.test(c(row, 19))) continue;
     const g = c(row, 1) || name;
-    if (!groups.has(g)) groups.set(g, { adr: parseInt(c(row, 4)) || 0, n: 0 });
-    groups.get(g).n++;
+    if (!groups.has(g)) groups.set(g, { adr: parseInt(c(row, 4)) || 0, n: 0, mem: [] });
+    groups.get(g).n++; groups.get(g).mem.push(name);
   }
   const add = [];
   for (const [g, info] of groups) {
     const id = "m:" + g; if (have.has(id)) continue;
     const dice = [rollDie(), rollDie(), rollDie(), rollDie()], total = dice.reduce((a, b) => a + b, 0) + info.adr;
     const label = info.n > 1 ? `${g} ×${info.n}` : g;
-    add.push({ id, sid, name: label, total, adr: info.adr, pc: false, r: Math.random() });
+    add.push({ id, sid, name: label, total, adr: info.adr, pc: false, r: Math.random(), mem: info.mem.slice(0, 20) });
     const roll = { id: crypto.randomUUID().slice(0, 8), pid: me || "local", who: label, label: "Adroitness · Initiative", dice, mod: info.adr, total, ts: Date.now() };
     try { localStorage.setItem("ns.toastReq", JSON.stringify(roll)); } catch {}
     await saveRoll(roll);

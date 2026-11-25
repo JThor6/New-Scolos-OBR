@@ -1,7 +1,7 @@
 <!doctype html><html><head><meta charset="utf-8"></head><body>
 <script type="module">
-import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
-import { allRolls, INIT, initEntries, markList, rollLog, rollKey, KEEP, sameName, sdResult } from "./shared.js";
+import OBR, { buildShape } from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
+import { allRolls, INIT, initEntries, markList, rollLog, rollKey, KEEP, sameName, sdResult, turnNames } from "./shared.js";
 // Runs all session, even when the dice panel is closed.
 // Shows rolls as small cards at the bottom middle of the map. Up to 8 at once (two rows of 4, middle cards first),
 // so when everyone rolls together (initiative) the whole table's results are visible.
@@ -188,6 +188,43 @@ function sdMeta(md) {
     if (openAttack?.id === n.id && openAttack.n !== n.n) { openAttack.n = Math.max(1, Math.min(12, Number(n.n) || 1)); syncWait(); } }
 }
 
+// ---------------- Turn rings ----------------
+// A glowing purple ring around the token whose turn it is, and a faint one around whoever's on deck.
+// Drawn locally on each screen (not saved in the scene), so the glow can pulse without sending anything to the room.
+// Tokens are found by name (character name, or "Hive Runner 2" for a monster group stepping one member at a time).
+const RING = "com.newscolos.turnring";
+let ringKey = "", ringMd = null, ringTimer = 0, pulseT = 0;
+const rnm = (x) => String(x || "").toLowerCase().replace(/\s+/g, " ").trim();
+async function drawRings(md) {
+  if (md) ringMd = md;
+  try {
+    if (!ringMd || !(await OBR.scene.isReady())) return;
+    const { cur, deck } = turnNames(ringMd);
+    const toks = cur || deck ? await OBR.scene.items.getItems(i => i.type === "IMAGE" && (i.layer === "CHARACTER" || i.layer === "MOUNT") && (amGM || i.visible !== false)) : [];
+    const want = [...toks.filter(t => cur && rnm(t.name) === rnm(cur)).map(t => [t, "cur"]), ...toks.filter(t => deck && rnm(t.name) === rnm(deck)).map(t => [t, "deck"])];
+    const key = want.map(([t, k]) => t.id + k + Math.round(t.scale?.x * 100)).join("|");
+    if (key === ringKey) return; ringKey = key;
+    const old = await OBR.scene.local.getItems(i => !!i.metadata?.[RING]);
+    if (old.length) await OBR.scene.local.deleteItems(old.map(i => i.id));
+    clearInterval(pulseT); pulseT = 0;
+    if (!want.length) return;
+    const items = [];
+    for (const [t, k] of want) {
+      const b = await OBR.scene.items.getItemBounds([t.id]), d = Math.max(b.width, b.height);
+      const mk = (dia, w, color, op, tag) => buildShape().shapeType("CIRCLE").width(dia).height(dia).position(b.center)
+        .fillOpacity(0).strokeColor(color).strokeWidth(w).strokeOpacity(op).attachedTo(t.id).disableAttachmentBehavior(["ROTATION"])
+        .layer("ATTACHMENT").locked(true).disableHit(true).metadata({ [RING]: { k: tag } }).build();
+      if (k === "cur") items.push(mk(d * 1.2, d * 0.1, "#bb99ff", 0.45, "glow"), mk(d * 1.1, d * 0.035, "#f3ecff", 0.95, "core"));
+      else items.push(mk(d * 1.1, d * 0.03, "#bb99ff", 0.35, "deck"));
+    }
+    await OBR.scene.local.addItems(items);
+    // slow pulse on the current turn's outer glow
+    if (want.some(([, k]) => k === "cur")) { let ph = 0; pulseT = setInterval(() => { ph += 0.35;
+      OBR.scene.local.updateItems(i => i.metadata?.[RING]?.k === "glow", (ds) => ds.forEach(dd => { dd.style.strokeOpacity = 0.3 + 0.3 * (1 + Math.sin(ph)) / 2; })).catch(() => {}); }, 160); }
+  } catch {}
+}
+const ringsSoon = () => { clearTimeout(ringTimer); ringTimer = setTimeout(() => drawRings(), 400); };
+
 // Announcements show for 5 seconds, then close themselves
 // One message at a time: a new one first clears the old one and its timer. Before, the 5-second close timer
 // of "Roll for initiative!" could fire after a quick NEXT and take the leader's "Your turn!" down with it.
@@ -257,6 +294,9 @@ OBR.onReady(async () => {
       disableClickAway: true }).catch(() => { barCount = ""; }); // didn't open: the watchdog below tries again
   }
   initUpdate(await OBR.room.getMetadata());
+  drawRings(await OBR.room.getMetadata());
+  OBR.scene.items.onChange(ringsSoon); // a token added, renamed or resized
+  OBR.scene.onReadyChange((r) => { ringKey = ""; if (r) drawRings(); });
   // Watchdog: while combat is on, make sure the bar is really on this screen (late joiners, a reload, a failed open).
   // The bar writes a heartbeat every 1.5 s; no heartbeat for 6 s means it isn't showing, so open it again.
   setInterval(async () => {
@@ -277,6 +317,7 @@ OBR.onReady(async () => {
   OBR.room.onMetadataChange((md) => {
     rollLog(OBR.room.id, allRolls(md));
     initUpdate(md);
+    drawRings(md);
     sdMeta(md);
     for (const r of allRolls(md).reverse()) { // oldest first
       if (seen.has(r.id)) continue;

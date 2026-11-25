@@ -39,7 +39,7 @@
   <button id="prev" title="Previous turn">|◀</button><button id="next" title="Next turn">▶|</button><button class="sm" id="end" title="End combat">END</button></span><button id="endturn" hidden title="Pass to the next in order">END TURN</button><button class="sm" id="lst" title="Show the order as a list">☰</button><button class="sm" id="min" title="Minimize">–</button></div>
 <script type="module">
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
-import { INIT, initEntries } from "./shared.js";
+import { INIT, initEntries, initMove } from "./shared.js";
 let endArmed = 0; // two taps to end combat (window.confirm doesn't work inside Owlbear)
 function confirmEnd() {
   const b = document.getElementById("end");
@@ -85,12 +85,8 @@ document.getElementById("lst").onclick = async () => {
 };
 // Next/previous turn (GM arrows, and the player's END TURN)
 const step = async (d) => {
-  const m = await OBR.room.getMetadata(), st = m[INIT] || {}, list = initEntries(m);
-  if (!list.length) return;
-  let i = list.findIndex(e => e.id === st.cur), round = st.round || 1;
-  if (i < 0) i = d > 0 ? 0 : list.length - 1;
-  else { i += d; if (i >= list.length) { i = 0; round++; } if (i < 0) { i = list.length - 1; round = Math.max(1, round - 1); } }
-  await OBR.room.setMetadata({ [INIT]: { ...st, cur: list[i].id, round } });
+  const m = await OBR.room.getMetadata(), nx = initMove(m, d); // steps through a monster group one member at a time
+  if (nx) await OBR.room.setMetadata({ [INIT]: nx });
 };
 document.getElementById("endturn").onclick = async () => {
   if ((await OBR.room.getMetadata())[INIT]?.cur === me) step(1); // only if it's still your turn
@@ -107,7 +103,7 @@ OBR.onReady(async () => {
       const x = ev.target.closest("[data-x]"), chip = ev.target.closest(".chip");
       const m = await OBR.room.getMetadata(), st = m[INIT]; if (!st) return;
       if (x) return OBR.room.setMetadata({ [INIT]: { ...st, removed: [...(st.removed || []), x.dataset.x] } });
-      if (chip) return OBR.room.setMetadata({ [INIT]: { ...st, cur: chip.dataset.id } });
+      if (chip) return OBR.room.setMetadata({ [INIT]: { ...st, cur: chip.dataset.id, sub: 0 } });
     };
     document.getElementById("next").onclick = () => step(1);
     document.getElementById("prev").onclick = () => step(-1);

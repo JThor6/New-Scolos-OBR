@@ -92,6 +92,26 @@ export function initEntries(md) {
   return out.sort(initCompare);
 }
 
+// Moving the turn (▶| / |◀ / END TURN). A monster group (e.g. Hive Runners ×3) keeps its members' names in `mem`
+// (living ones, in card order): ▶| steps through them one at a time (st.sub) before moving on to the next spot.
+const memOf = (e) => Array.isArray(e?.mem) ? e.mem : [];
+export function initMove(md, d) {
+  const st = md?.[INIT] || {}, list = initEntries(md); if (!list.length) return null;
+  let i = list.findIndex(e => e.id === st.cur), round = st.round || 1, sub = st.sub || 0;
+  if (i < 0) { i = d > 0 ? 0 : list.length - 1; sub = d > 0 ? 0 : Math.max(0, memOf(list[i]).length - 1); }
+  else if (d > 0) { if (sub < memOf(list[i]).length - 1) sub++; else { i++; sub = 0; if (i >= list.length) { i = 0; round++; } } }
+  else { if (sub > 0) sub--; else { i--; if (i < 0) { i = list.length - 1; round = Math.max(1, round - 1); } sub = Math.max(0, memOf(list[i]).length - 1); } }
+  return { ...st, cur: list[i].id, sub, round };
+}
+// Whose token it is now, and who's on deck (token names): a player's character, or the group member whose turn it is
+export function turnNames(md) {
+  const st = md?.[INIT]; if (!st?.open || !st.cur) return { cur: "", deck: "" };
+  const list = initEntries(md), name = (s) => { const e = list.find(x => x.id === s?.cur); if (!e) return "";
+    return e.pc ? e.name : memOf(e)[Math.min(s.sub || 0, memOf(e).length - 1)] || e.name; };
+  const nx = initMove(md, 1), cur = name(st), deck = nx ? name(nx) : "";
+  return { cur, deck: deck === cur ? "" : deck };
+}
+
 // Token conditions ("marks"): the list everyone can pick from, kept in room metadata
 export const MARKS = "com.newscolos.marks";
 export const MARK_ITEM = "com.newscolos.mark"; // metadata key on the label items stuck to tokens
