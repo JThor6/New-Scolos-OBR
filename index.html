@@ -501,6 +501,8 @@
   .actbar.av { border-color:#e8b5ff; background:linear-gradient(135deg, rgba(25,60,120,.7), rgba(110,30,120,.7)); color:#fbeaff; } .actbar.av b { color:#ffd9ff; text-shadow:0 0 8px #c77dff; }
   .actbar.ff { border-color:#3ee6ff; background:rgba(5,45,60,.65); color:#dffbff; } .actbar.ff b { color:#bff7ff; text-shadow:-3px 0 rgba(62,230,255,.55), -6px 0 rgba(62,230,255,.25); }
   .actbar.wr { border:1px dashed rgba(210,210,225,.45); background:rgba(12,12,16,.55); color:rgba(225,225,235,.7); font-style:italic; } .actbar.wr b { color:rgba(235,235,245,.55); letter-spacing:5px; text-shadow:0 0 6px rgba(255,255,255,.35); font-style:normal; }
+  .actbar.hv { border-color:#ff7ad9; background:linear-gradient(135deg, rgba(70,20,90,.75), rgba(20,40,100,.75)); color:#ffe6f7; box-shadow:0 0 10px rgba(255,122,217,.35); } .actbar.hv b { color:#ffb3ec; text-shadow:0 0 8px #ff7ad9; letter-spacing:1px; }
+  .actbar.dm { border-color:#b3122e; background:rgba(40,4,10,.8); color:#f3d6db; box-shadow:inset 0 0 12px rgba(179,18,46,.45); } .actbar.dm b { color:#ff4d6a; letter-spacing:2px; }
   .actbar.mm { border-color:#5ff0c8; background:rgba(8,50,52,.65); color:#dcfff5; } .actbar.mm b { color:#a8ffe6; text-shadow:0 4px 0 rgba(0,0,0,.45); }
   .actbar.rv { border-color:#8a3fd1; background:radial-gradient(circle at 20% 30%, rgba(70,15,95,.85), rgba(12,0,22,.9)); color:#e3d6f5; box-shadow:0 0 12px rgba(140,60,220,.55), inset 0 0 12px rgba(150,255,190,.12); }
   .actbar.rv b { font-family:'Creepster', 'Bangers', Impact, sans-serif; font-size:19px; color:#c6ffd8; text-shadow:0 0 6px #7dffa8, 0 0 14px #8a3fd1; }
@@ -1854,6 +1856,8 @@ const ACTIVE = {
   "disappear completely": { t: "VANISHED", x: "Gone from eyes and cameras. Sound, smell and touch still give you away. Your next attack from the sheet gets +1 (unseen) and brings you back. Taking damage brings you back too.", until: "combat", strike: 1, hurt: true },
   "mind over matter": { t: "MIND OVER MATTER", x: "Holding it: you can't attack or use skills. Big feats need an Intellect roll (in the power box).", until: "manual", hold: true },
   "spirit walk": { t: "SPIRIT WALK", x: "Your spirit is out for about ten minutes. Your body lies limp and helpless, so the crew has to guard it. Any damage to it snaps you back.", until: "manual", hurt: true },
+  "hive link": { t: "HIVE LINK", x: "The crew is linked mind to mind for the scene: talk silently at any distance. In combat, the linked crew can all act on the best initiative in the group. If one of you is knocked out, everyone feels it.", until: "manual" },
+  "death mark": { t: "DEATH MARK", x: "You sense your target's direction and rough distance until your next night's sleep. Your first attack on them ignores armour (only the first). They feel watched.", until: "manual" },
   "corpse walk": { t: "CORPSE WALK", x: "Your body is wisps. You're in the corpse for the scene: your skills and attributes, its body. Dead eyes, so it's no disguise.", until: "manual" },
 };
 for (const [k, d] of Object.entries(ACTIVE)) d.c = POWER_CARDS[k]?.c || "bs";

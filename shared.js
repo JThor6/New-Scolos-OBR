@@ -24,6 +24,8 @@ export const POWER_CARDS = {
   "corpse walk": { c: "rv", t: "CORPSE WALK", s: "The dead get back up" },
   // daily powers with no roll and nothing that stays on: a card so the table knows it was used
   "kill shot": { c: "ksa", t: "KILL SHOT ARMED", s: "Next attack: +, +, +, +" },
+  "hive link": { c: "hv", t: "HIVE LINK", s: "The crew is linked mind to mind" },
+  "death mark": { c: "dm", t: "DEATH MARK", s: "Someone has been marked" },
   "echo of the dead": { c: "rv", t: "ECHO OF THE DEAD", s: "A ghost answers the call" },
   "appraiser's eye": { c: "dp", t: "APPRAISER'S EYE", s: "Sizing up what it's worth, and who'd pay" },
   "last rites": { c: "dp", t: "LAST RITES", s: "Jacked into a dead machine" },
@@ -158,6 +160,8 @@ export const ROLL_CSS = `
   .hl.cop { border-left:3px solid #4fc3f7; padding-left:5px; background:rgba(79,195,247,.08); } .hl.cop .hlbl, .hl.cop .tot { color:#7fd4ff; font-weight:800; }
   .hl.ap { border-left:3px solid #9d86ff; padding-left:5px; background:rgba(157,134,255,.1); } .hl.ap .hlbl { color:#c7b6ff; font-weight:800; }
   .hl.ap.ksa { border-left-color:#e04a3f; background:rgba(150,25,25,.2); } .hl.ap.ksa .hlbl { color:#ff6b5e; }
+  .hl.ap.hv { border-left-color:#ff7ad9; background:rgba(255,122,217,.08); } .hl.ap.hv .hlbl { color:#ffb3ec; }
+  .hl.ap.dm { border-left-color:#b3122e; background:rgba(179,18,46,.14); } .hl.ap.dm .hlbl { color:#ff4d6a; }
   .hl.ap.dp { border-left-color:#ffc94d; background:rgba(255,201,77,.08); } .hl.ap.dp .hlbl { color:#ffc94d; }
   .hl.ap.av { border-left-color:#e8b5ff; } .hl.ap.av .hlbl { color:#ffd9ff; }
   .hl.ap.ff { border-left-color:#3ee6ff; background:rgba(62,230,255,.08); } .hl.ap.ff .hlbl { color:#bff7ff; }
