@@ -2084,6 +2084,7 @@ function typeRefBtn() {
 }
 document.addEventListener("click", (e) => { const b = e.target.closest(".tref, .sref"); if (!b) return; e.preventDefault(); e.stopPropagation();
   if (b.id === "gmPty") return popParty(); // GM tab: pop out the Party view
+  if (b.id === "gmClr") return clearConds(b); // GM tab: sweep every condition off the map (asks first)
   popOut(b.dataset.k); }, true);
 function ptCtl() { return `<div class="ctl"><button id="ptm">−</button><b>${esc2(V("F13") || "0")}</b><button id="ptp">+</button></div>`; }
 function ptMaxV() { return /^\d+$/.test(V("H13")) ? V("H13") : /^\d+$/.test(V("G13")) ? V("G13") : ""; }
@@ -2642,7 +2643,7 @@ function bindMonArt() {
 }
 function drawMonsters() {
   const v = monVals || [], c = (row, i) => String(v[row]?.[i] ?? "").trim();
-  let html = `<div class="initbox"><div class="sec" style="margin-top:2px;display:flex;align-items:center">INITIATIVE<button id="gmPty" class="sref hist" style="margin-left:auto" title="Pop the Party view out beside the map (tap again to close it)">${REF_SVG}Party</button><button class="sref hist" style="margin-left:10px" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></div>
+  let html = `<div class="initbox"><div class="sec" style="margin-top:2px;display:flex;align-items:center">INITIATIVE<button id="gmClr" class="sref hist" style="margin-left:auto" title="Take every condition (Dead, Unconscious, your own) off every token on this map">✕ Clear conditions</button><button id="gmPty" class="sref hist" style="margin-left:10px" title="Pop the Party view out beside the map (tap again to close it)">${REF_SVG}Party</button><button class="sref hist" style="margin-left:10px" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></div>
     <div class="g2"><button id="iCall" class="sbtn">⚔ CALL FOR INITIATIVE</button><button id="iMon" class="sbtn">🎲 ROLL MONSTERS</button></div>
     <div id="iList"></div>
     <div id="iStep" class="istep" hidden><button id="iPrev" class="sbtn" title="Previous turn">◀</button><span id="iRound"></span><button id="iNext" class="sbtn">NEXT TURN ▶</button></div>
@@ -3408,6 +3409,17 @@ function updateDefBanner() {
 $("defx").onclick = () => { const w = sdWait(); if (w) store.set("ns.defHide", w.id); $("defban").hidden = true; };
 window.addEventListener("storage", (e) => { if (!standalone && e.key === "ns.sd:" + OBR.room.id) updateDefBanner(); });
 setInterval(() => { if (!standalone) updateDefBanner(); }, 5000);
+// GM tab: "✕ Clear conditions": first tap asks, second tap (within 4 s) removes every condition label on this map
+async function clearConds(b) {
+  if (b.dataset.armed !== "1") { b.dataset.armed = "1"; b.textContent = "Sure? Tap again to clear all"; b.style.color = "#ff8f8f";
+    setTimeout(() => { if (b.isConnected && b.dataset.armed === "1") { b.dataset.armed = ""; b.textContent = "✕ Clear conditions"; b.style.color = ""; } }, 4000); return; }
+  b.dataset.armed = ""; b.style.color = "";
+  try { const marks = await OBR.scene.items.getItems(i => !!i.metadata?.[MARK_ITEM]);
+    if (marks.length) await OBR.scene.items.deleteItems(marks.map(i => i.id));
+    b.textContent = marks.length ? `✓ Cleared ${marks.length}` : "No conditions on the map"; }
+  catch { b.textContent = "Couldn't clear (is a map open?)"; }
+  setTimeout(() => { if (b.isConnected) b.textContent = "✕ Clear conditions"; }, 2500);
+}
 // ---------------- AUTO DAMAGE (GM switch, bottom of the GM tab) ----------------
 // When it's on, every Success Delta that lands a wound marks it on the defender's character sheet or monster card,
 // and Down & KO'ed / Dead put the Unconscious 💤 / Dead ☠️ condition on their token (Dead replaces Unconscious).
