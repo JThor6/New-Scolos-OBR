@@ -1,7 +1,7 @@
 <!doctype html><html><head><meta charset="utf-8"></head><body>
 <script type="module">
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
-import { allRolls, INIT, initEntries, markList, rollLog } from "./shared.js";
+import { allRolls, INIT, initEntries, markList, rollLog, rollKey, KEEP } from "./shared.js";
 // Runs all session, even when the dice panel is closed.
 // Shows rolls as small cards at the bottom middle of the map. Up to 8 at once (two rows of 4, middle cards first),
 // so when everyone rolls together (initiative) the whole table's results are visible.
@@ -64,23 +64,38 @@ async function showRoll(r, spin) {
 // Success Delta = attack total - defense total (ties go to the attacker). Damage = Delta + Damage Bonus - defender's Armor Bonus.
 // Wounds (Main Sheet row 15): 1-2 Light, 3-4 Medium, 5-6 Critical, 7-8 Down & KO'ed, 9+ Dead.
 const SD = "com.newscolos.dice/delta", SD_W = 280, SD_H = 192, SD_MS = 5000, ATTACK_WAIT = 3 * 60e3;
-let openAttack = null, combatOn = false;
+let openAttack = null, combatOn = false, myId = "";
 const nameOf = (r) => r.char || r.who;
 const isAdr = (r) => /^(?:⚡\s*)?adroitness\b/i.test(String(r.label || "")) && !/initiative/i.test(String(r.label || ""));
-function combatCheck(r) {
-  if (!combatOn || r.cop || r.ap || !Array.isArray(r.dice) || !r.dice.length) return;
+// One screen works it out: the one whose roll is the defense (the defender's player, or the GM for monsters).
+// It saves the result into the room like a roll, so every screen shows the same card and Roll History line,
+// including anyone who joins later. Other screens only keep track of the open attack.
+function combatCheck(r, mine) {
+  if (!combatOn || r.cop || r.ap || r.sd || !Array.isArray(r.dice) || !r.dice.length) return;
   if (r.atk) { openAttack = { ...r, at0: Date.now() }; return; }
   if (!openAttack || !isAdr(r) || nameOf(r) === nameOf(openAttack)) return;
-  if (Date.now() - openAttack.at0 > ATTACK_WAIT) { openAttack = null; return; }
   const a = openAttack; openAttack = null;
-  showDelta(a, r).catch(() => {});
+  if (Date.now() - a.at0 > ATTACK_WAIT || !mine) return;
+  makeDelta(a, r).catch(() => {});
 }
-async function showDelta(a, d) {
-  // one entry for the card and for Roll History; every screen makes the same id, so nothing doubles up
-  const e = { id: "sd-" + a.id + "-" + d.id, sd: 1, ts: (d.ts || Date.now()) + 1, who: nameOf(a), dice: [], total: a.total - d.total,
+async function makeDelta(a, d) {
+  const e = { id: "sd-" + a.id + "-" + d.id, sd: 1, pid: myId, ts: (d.ts || Date.now()) + 1, who: nameOf(a), dice: [], total: a.total - d.total,
     att: nameOf(a), def: nameOf(d), at: a.total, dt: d.total, delta: a.total - d.total };
   if (a.db != null) { e.db = a.db; if (a.dbk) e.dbk = a.dbk; } else if (a.sp) { e.sp = 1; e.dbk = "spell"; }
   if (d.ab != null) e.ab = d.ab;
+  seenIds.add(e.id);
+  showDelta(e).catch(() => {});
+  // save it beside the defense roll: wait until the panel's own save of that roll has landed, so neither write loses the other
+  const key = rollKey(myId);
+  for (let i = 0; i < 12; i++) {
+    const md = await OBR.room.getMetadata(), mine = Array.isArray(md[key]) ? md[key] : [];
+    if (mine.some(x => x.id === e.id)) return;
+    if (mine.some(x => x.id === d.id) || i === 11) { await OBR.room.setMetadata({ [key]: [e, ...mine].slice(0, KEEP) }); return; }
+    await new Promise(res => setTimeout(res, 300));
+  }
+}
+let seenIds = new Set();
+async function showDelta(e) {
   try { rollLog(OBR.room.id, [e]); } catch {}
   const url = new URL("go.html", location.href); url.searchParams.set("p", "toast");
   const ref = new URLSearchParams(location.search).get("obrref"); if (ref) url.searchParams.set("obrref", ref);
@@ -121,7 +136,7 @@ OBR.onReady(async () => {
   markMenu(markCount);
   OBR.room.onMetadataChange((md) => { const n = markList(md).length; if (n !== markCount) { markCount = n; markMenu(n); } });
   const me = await OBR.player.getId();
-  const seen = new Set(allRolls(await OBR.room.getMetadata()).map(r => r.id));
+  const seen = new Set(allRolls(await OBR.room.getMetadata()).map(r => r.id)); seenIds = seen; myId = me;
   const isGM = (await OBR.player.getRole()) === "GM";
   // Initiative: tell players to roll, and show the bar across the top while combat is on
   const BAR = "com.newscolos.initbar", LEFT = 545; // starts just past the New Scolos panel at L size, so it never overlaps (S or L)
@@ -170,13 +185,14 @@ OBR.onReady(async () => {
     for (const r of allRolls(md).reverse()) { // oldest first
       if (seen.has(r.id)) continue;
       seen.add(r.id);
-      if (r.pid !== me) { showRoll(r, false).catch(() => {}); combatCheck(r); }
+      if (r.sd) { if (r.pid !== me) showDelta(r).catch(() => {}); continue; } // a Success Delta another screen worked out
+      if (r.pid !== me) { showRoll(r, false).catch(() => {}); combatCheck(r, false); }
     }
   });
   // your own rolls from the sheet's roll buttons (sent from the panel; spins as it lands)
   window.addEventListener("storage", (e) => {
     if (e.key !== "ns.toastReq" || !e.newValue) return;
-    try { const r = JSON.parse(e.newValue); if (!seen.has(r.id)) { seen.add(r.id); showRoll(r, true).catch(() => {}); combatCheck(r); } } catch {}
+    try { const r = JSON.parse(e.newValue); if (!seen.has(r.id)) { seen.add(r.id); showRoll(r, true).catch(() => {}); combatCheck(r, true); } } catch {}
   });
 });
 </script></body></html>
