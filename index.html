@@ -406,6 +406,7 @@
   .initbox .sec .sref.hist:hover { color:#dfe4f2; border-color:#5a5f7a; } .initbox .sec .sref.hist.on { color:var(--accent); border-color:#4a4466; }
   .initbox .initsec { margin-top:2px; display:flex; align-items:flex-start; gap:10px; }
   .initbox .inittools { flex:1; display:flex; flex-wrap:wrap; gap:6px; }
+  .initbox .hstat { font:800 12.5px system-ui; color:#a7acc4; padding:6px 4px; cursor:default; }
   .shn b { display:block; font-family:'Bangers', Impact, sans-serif; font-weight:400; font-size:22px; letter-spacing:1px; line-height:1.05; overflow-wrap:anywhere; }
   .shn small { display:block; color:var(--dim); font-size:12px; font-weight:700; }
   .ibtn { background:var(--paper); color:var(--ink); border:2px solid #444a66; border-radius:7px; width:30px; height:30px; font-size:16px; cursor:pointer; padding:0; flex:none; }
@@ -2121,6 +2122,9 @@ document.addEventListener("click", (e) => { const b = e.target.closest(".tref, .
   if (b.id === "gmHealY") return healAllMon();
   if (b.id === "gmHealN") return healResetMon();
   if (b.id === "gmClr") return clearConds(b); // GM tab: sweep every condition off the map (asks first)
+  // only buttons that name a section open the REFERENCE pop-out. Before (Nov 25), a quick second tap on Clear monster
+  // wounds landed on its "Clear all monster wounds?" / "Clearing…" text, which opened REFERENCE with nothing picked.
+  if (!b.dataset.k) return;
   popOut(b.dataset.k); }, true);
 function ptCtl() { return `<div class="ctl"><button id="ptm">−</button><b>${esc2(V("F13") || "0")}</b><button id="ptp">+</button></div>`; }
 function ptMaxV() { return /^\d+$/.test(V("H13")) ? V("H13") : /^\d+$/.test(V("G13")) ? V("G13") : ""; }
@@ -3611,7 +3615,7 @@ setInterval(() => { if (!standalone) updateDefBanner(); }, 5000);
 const autoMon = () => store.get("ns.autoMon") !== "0";
 // GM tab: "✕ Clear conditions": first tap asks, second tap (within 4 s) removes every condition label on this map
 async function clearConds(b) {
-  if (b.dataset.armed !== "1") { b.dataset.armed = "1"; b.textContent = "Sure? Tap again to clear all"; b.style.color = "#ff8f8f";
+  if (b.dataset.armed !== "1") { b.dataset.armed = "1"; b.textContent = "Sure? Tap again to clear all"; b.style.color = "#c9b8f5";
     setTimeout(() => { if (b.isConnected && b.dataset.armed === "1") { b.dataset.armed = ""; b.textContent = "✕ Clear conditions"; b.style.color = ""; } }, 4000); return; }
   b.dataset.armed = ""; b.style.color = "";
   try { const marks = await OBR.scene.items.getItems(i => !!i.metadata?.[MARK_ITEM]);
@@ -3623,12 +3627,12 @@ async function clearConds(b) {
 // GM tab: clear every wound box and Dead on every monster in this encounter (asks Yes / No first).
 // Their Dead / Unconscious labels come off the tokens too; mooks get their pre-marked boxes back.
 const HEAL_BTN = `<button id="gmHeal" class="sref hist" title="Clear every wound and Dead on every monster in this encounter (asks first)">✚ Clear monster wounds</button>`;
-function healResetMon(msg) { const w = $("gmHealW"); if (!w) return; w.innerHTML = msg ? `<span class="sref hist" style="cursor:default">${esc2(msg)}</span>` : HEAL_BTN;
+function healResetMon(msg) { const w = $("gmHealW"); if (!w) return; w.innerHTML = msg ? `<span class="hstat">${esc2(msg)}</span>` : HEAL_BTN;
   if (msg) setTimeout(() => { const x = $("gmHealW"); if (x) x.innerHTML = HEAL_BTN; }, 2500); }
 function healAskMon() { const w = $("gmHealW"); if (!w) return;
-  w.innerHTML = `<span class="sref hist" style="cursor:default;color:#ff8f8f">Clear all monster wounds?</span><button id="gmHealY" class="sref hist" style="color:#ff8f8f;font-weight:800">YES</button><button id="gmHealN" class="sref hist" style="font-weight:800">NO</button>`; }
+  w.innerHTML = `<span class="hstat" style="color:#c9b8f5">Clear all monster wounds?</span><button id="gmHealY" class="sref hist" style="color:#c9b8f5;font-weight:800">YES</button><button id="gmHealN" class="sref hist" style="font-weight:800">NO</button>`; }
 async function healAllMon() {
-  const w = $("gmHealW"); if (w) w.innerHTML = `<span class="sref hist" style="cursor:default">Clearing…</span>`;
+  const w = $("gmHealW"); if (w) w.innerHTML = `<span class="hstat">Clearing…</span>`;
   try {
     if (!monVals) { healResetMon("No encounter open"); return; }
     const v = monVals, hdr = Math.max(0, v.findIndex(r => String(r?.[0] || "").trim().toLowerCase() === "name"));
