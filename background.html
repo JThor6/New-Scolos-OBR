@@ -6,7 +6,7 @@ import { allRolls, INIT, initEntries, markList, rollLog } from "./shared.js";
 // Shows rolls as small cards at the bottom middle of the map. Up to 8 at once (two rows of 4, middle cards first),
 // so when everyone rolls together (initiative) the whole table's results are visible.
 const TOAST = "com.newscolos.dice/toast";
-const W = 210, H = 74, GAP = 6, SLOTS = 8, PER_ROW = 4, SHOW_MS = 5000; // 5 s on screen (hover keeps a card up)
+const W = 210, H = 74, GAP = 6, SLOTS = 8, PER_ROW = 4, SHOW_MS = 9000; // 9 s on screen (hover keeps a card up)
 const busyUntil = new Array(SLOTS).fill(0);
 // A card the mouse is resting on says so in localStorage ("held until" time), so a new roll never lands on top of it
 const held = (id) => { try { return Number(localStorage.getItem("ns.hold:" + id) || 0) > Date.now(); } catch { return false; } };
