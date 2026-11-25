@@ -220,7 +220,6 @@
   .nbw .nb.on { background:#5fd38d; border-color:#5fd38d; color:#0c1a12; box-shadow:0 0 8px rgba(95,211,141,.5); }
   .nbw.armed > span { color:#5fd38d; }
   .nbw.nbc { margin:0 6px 0 0; } .nbw.nbc .nb { padding:3px 8px; font-size:12px; }
-  #gmAuto, #gmAuto.on { color:#6f7590; } #gmAuto:hover { color:#9aa0b8; }
   #gmTgt { background:transparent; border:1px solid #3a3d55; color:#6f7590; font-size:11px; font-weight:700; padding:3px 8px; }
   #gmTgt.on { background:#1e1830; border-color:#4a4466; color:#8a82a8; } /* deep purple, quiet (Jake, Nov 25) */
   .stabrow { display:flex; align-items:flex-end; justify-content:space-between; gap:6px; }
@@ -404,7 +403,8 @@
   /* GM tab initiative row: Clear conditions / Clear monster wounds / Party / Roll History as real buttons (Jake, Nov 25) */
   .initbox .sec .sref.hist { font-size:12.5px; font-weight:800; color:#a7acc4; padding:6px 10px; border:1px solid #3a3d55; border-radius:7px; background:#1d2030; }
   .initbox .sec .sref.hist:hover { color:#dfe4f2; border-color:#5a5f7a; } .initbox .sec .sref.hist.on { color:var(--accent); border-color:#4a4466; }
-  .initbox .sec { row-gap:6px !important; }
+  .initbox .initsec { margin-top:2px; display:flex; align-items:flex-start; gap:10px; }
+  .initbox .inittools { flex:1; display:flex; flex-wrap:wrap; gap:6px; }
   .shn b { display:block; font-family:'Bangers', Impact, sans-serif; font-weight:400; font-size:22px; letter-spacing:1px; line-height:1.05; overflow-wrap:anywhere; }
   .shn small { display:block; color:var(--dim); font-size:12px; font-weight:700; }
   .ibtn { background:var(--paper); color:var(--ink); border:2px solid #444a66; border-radius:7px; width:30px; height:30px; font-size:16px; cursor:pointer; padding:0; flex:none; }
@@ -2111,7 +2111,6 @@ function typeRefBtn() {
 }
 document.addEventListener("click", (e) => { const b = e.target.closest(".tref, .sref"); if (!b) return; e.preventDefault(); e.stopPropagation();
   if (b.id === "gmPty") return popParty(); // GM tab: pop out the Party view
-  if (b.id === "gmAuto") { store.set("ns.autoMon", autoMon() ? "0" : "1"); b.textContent = "Auto-roll monsters: " + (autoMon() ? "ON" : "OFF"); b.classList.toggle("on", autoMon()); return; }
   if (b.id === "gmHeal") return healAskMon();
   if (b.id === "gmHealY") return healAllMon();
   if (b.id === "gmHealN") return healResetMon();
@@ -2685,7 +2684,8 @@ function bindMonArt() {
 }
 function drawMonsters() {
   const v = monVals || [], c = (row, i) => String(v[row]?.[i] ?? "").trim();
-  let html = `<div class="initbox"><div class="sec" style="margin-top:2px;display:flex;align-items:center;flex-wrap:wrap;row-gap:2px">INITIATIVE<button id="gmAuto" class="sref hist ${autoMon() ? "on" : ""}" style="margin-left:12px" title="On: CALL FOR INITIATIVE also rolls the monsters. Off: tap ROLL MONSTERS yourself">Auto-roll monsters: ${autoMon() ? "ON" : "OFF"}</button><button id="gmClr" class="sref hist" style="margin-left:auto" title="Take every condition (Dead, Unconscious, your own) off every token on this map">✕ Clear conditions</button><span id="gmHealW" style="margin-left:10px;display:inline-flex;align-items:center;gap:6px"><button id="gmHeal" class="sref hist" title="Clear every wound and Dead on every monster in this encounter (asks first)">✚ Clear monster wounds</button></span><button id="gmPty" class="sref hist" style="margin-left:10px" title="Pop the Party view out beside the map (tap again to close it)">${REF_SVG}Party</button><button class="sref hist" style="margin-left:10px" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></div>
+  // INITIATIVE, then the tools in order of use (Jake, Nov 25). Auto-roll monsters moved to the bottom, under AUTO DAMAGE.
+  let html = `<div class="initbox"><div class="sec initsec">INITIATIVE<span class="inittools"><span id="gmHealW" style="display:inline-flex;align-items:center;gap:6px"><button id="gmHeal" class="sref hist" title="Clear every wound and Dead on every monster in this encounter (asks first)">✚ Clear monster wounds</button></span><button id="gmClr" class="sref hist" title="Take every condition (Dead, Unconscious, your own) off every token on this map">✕ Clear conditions</button><button id="gmPty" class="sref hist" title="Pop the Party view out beside the map (tap again to close it)">${REF_SVG}Party</button><button class="sref hist" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></span></div>
     <div class="g2"><button id="iCall" class="sbtn">⚔ CALL FOR INITIATIVE</button><button id="iMon" class="sbtn">🎲 ROLL MONSTERS</button></div>
     <div id="iList"></div>
     <div id="iStep" class="istep" hidden><button id="iPrev" class="sbtn" title="Previous turn">◀</button><span id="iRound"></span><button id="iNext" class="sbtn">NEXT TURN ▶</button></div>
@@ -3616,9 +3616,13 @@ function adBox() {
   const on = !!adOn();
   return `<div class="sec" style="margin-top:10px">AUTO DAMAGE</div><button id="adBtn" class="sbtn ${on ? "on" : ""}" style="width:100%">AUTO DAMAGE: ${on ? "ON" : "OFF"}</button>
     ${on ? `<div class="help" id="adLast">${esc2(adLast())}</div>` : ""}
-    <div class="help">${on ? "Hits mark wounds on sheets and monster cards by themselves; KO and Dead go on the tokens. Anyone can untick a box to fix a mistake. Keep this panel open during fights." : "Off: players and the GM mark wounds by hand."}</div>`;
+    <div class="help">${on ? "Hits mark wounds on sheets and monster cards by themselves; KO and Dead go on the tokens. Anyone can untick a box to fix a mistake. Keep this panel open during fights." : "Off: players and the GM mark wounds by hand."}</div>
+    <div class="sec" style="margin-top:10px">AUTO-ROLL MONSTERS</div><button id="gmAuto" class="sbtn ${autoMon() ? "on" : ""}" style="width:100%">AUTO-ROLL MONSTERS: ${autoMon() ? "ON" : "OFF"}</button>
+    <div class="help">${autoMon() ? "CALL FOR INITIATIVE also rolls the monsters." : "Off: tap ROLL MONSTERS yourself after calling initiative."}</div>`;
 }
-function bindAd() { if ($("adBtn")) $("adBtn").onclick = async () => {
+function bindAd() {
+  if ($("gmAuto")) $("gmAuto").onclick = () => { store.set("ns.autoMon", autoMon() ? "0" : "1"); drawMonsters(); };
+  if ($("adBtn")) $("adBtn").onclick = async () => {
   const on = !adOn(); await OBR.room.setMetadata({ [AUTOD]: on ? Date.now() : 0 }).catch(() => {});
   lastMd = await OBR.room.getMetadata(); drawMonsters(); }; }
 // the newest thing auto damage did, for the line under the switch
