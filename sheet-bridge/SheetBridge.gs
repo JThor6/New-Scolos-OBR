@@ -1,5 +1,5 @@
 /**
- * New Scolos Sheet Bridge — lets the Owlbear add-on read a character's Main Sheet
+ * New Scolos Sheet Bridge - lets the Owlbear add-on read a character's Main Sheet
  * and update three live-play things: vitality track, Extraordinary Power used today, COP spent.
  *
  * Owned and deployed by Jake as a web app ("Execute as: Me", "Who has access: Anyone").
@@ -176,7 +176,7 @@ function setupPermissions() {
 // Fills Jake's fillable template (New_Scolos_Character_Sheet.pdf) from a character's Main Sheet,
 // saves it in the character folder (replacing that character's previous export) and returns a link.
 const PDF_TEMPLATE_ID = '1nJhcRYr7xSSEk89Oi0ELtabyUgHUMGVF';
-// Run once from the editor (function dropdown → authorizePdf → Run → Allow) so the bridge may download pdf-lib.
+// Run once from the editor (function dropdown -> authorizePdf -> Run -> Allow) so the bridge may download pdf-lib.
 function authorizePdf() { UrlFetchApp.fetch('https://unpkg.com/pdf-lib@1.17.1/package.json'); Logger.log('PDF export allowed. Now deploy a new version.'); }
 // pdf-lib needs setTimeout, which Apps Script doesn't have
 var setTimeout = function (f, t) { Utilities.sleep(t || 0); return f(); };
@@ -207,9 +207,9 @@ async function exportPdf(id) {
   if (ptsName && (v('F13') !== '' || ptsMax)) extra.push(ptsName + ' ' + (v('F13') || '0') + (ptsMax ? ' / ' + ptsMax : ''));
   const god = note(/^god:\s*(.+)$/i), major = note(/^major school:\s*(.+)$/i), minor = note(/^minor school:\s*(.+)$/i);
   if (god) extra.push('God: ' + god);
-  if (major || minor) extra.push('Major: ' + (major || '-') + ' · Minor: ' + (minor || '-'));
+  if (major || minor) extra.push('Major: ' + (major || '-') + ' \u00B7 Minor: ' + (minor || '-'));
   set('Name', v('C3')); set('Type', type); set('Level', v('F5')); set('Credits', v('F7'));
-  set('ExtPower', [v('C5')].concat(extra).filter(String).join('  ·  '));
+  set('ExtPower', [v('C5')].concat(extra).filter(String).join('  \u00B7  '));
   check('ExtPowerUsed', v('F6').toUpperCase() === 'TRUE');
   set('CurrentXP', v('F3')); set('SpentXP', v('F4')); set('AttrSpent', v('F10')); set('AttrRemaining', v('F12'));
   set('Adroitness', v('C7')); set('RawStrength', v('C8')); set('Intellect', v('C9')); set('Charm', v('C10')); set('DamagePenalty', v('C12'));
@@ -370,7 +370,7 @@ function framePortrait(id, fid, f) {
   } finally { lock.releaseLock(); }
 }
 // POGS: the add-on draws the pog (picture + the table's ring) and sends a PNG. One pog per character, saved as
-// "<Name> - Pog.png" in Character Portraits → Pogs (a new one replaces the old one, which goes to Drive's trash).
+// "<Name> - Pog.png" in Character Portraits -> Pogs (a new one replaces the old one, which goes to Drive's trash).
 // Pog files (only those) are "anyone with the link can view", so Owlbear can load them straight onto the map from
 // https://lh3.googleusercontent.com/d/<file id> (tested Nov 24 2026: that address works in Owlbear).
 function sharePog(f) { try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {} }
@@ -402,7 +402,7 @@ function getPog(id) {
 }
 // ---------------- MONSTER ART (GM) ----------------
 // One picture per monster NAME (the add-on drops trailing numbers, so "Hive Runner 1" and "Hive Runner 3" share it,
-// in every encounter). Saved in Character Portraits → Monster Art: "<Name> - Art", a small copy, and "<Name> - Pog.png"
+// in every encounter). Saved in Character Portraits -> Monster Art: "<Name> - Art", a small copy, and "<Name> - Pog.png"
 // (the add-on draws the red enemy ring). Which files belong to which name: Script Properties "ma:<name key>".
 const MONSTER_ART_FOLDER = 'Monster Art';
 function monKey(k) {
@@ -591,7 +591,7 @@ function doGet(e) {
       const out = sheetsIn(campaignFolder(CHARACTER_FOLDER_ID, p.campaign)).map(function (f) { return { id: f.id, name: f.name }; });
       return json({ ok: true, sheets: out });
     }
-    if (p.doc === 'rules') return json(rulesDoc()); // REFERENCE → New Scolos Rules Work in Progress
+    if (p.doc === 'rules') return json(rulesDoc()); // REFERENCE -> New Scolos Rules Work in Progress
     if (p.portrait) return json(getPortrait(p.portrait, !!p.full, p.pic || ''));
     if (p.portraits) return json(getGallery(p.portraits));
     if (p.pog) return json(getPog(p.pog));
