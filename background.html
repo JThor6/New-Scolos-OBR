@@ -58,24 +58,29 @@ async function showRoll(r, spin) {
 }
 
 // ---------------- Success Delta ----------------
-// In combat, an attack roll (Ranged Weapons, Melee Weapon Fighting, Martial Arts, Unconventional Weapons, Spellcasting,
-// a monster's Attack) waits for the next Adroitness roll by someone else: that's the defender. Every screen works it out
-// from the same shared rolls, so everyone sees the same card. Nothing gets marked on a sheet.
+// In or out of combat, an attack roll (Ranged Weapons, Melee Weapon Fighting, Martial Arts, Unconventional Weapons,
+// Spellcasting, a monster's Attack) waits for the next Adroitness roll by someone else: that's the defender.
+// Every screen works it out from the same shared rolls, so everyone sees the same card. Nothing gets marked on a sheet.
 // Success Delta = attack total - defense total (ties go to the attacker). Damage = Delta + Damage Bonus - defender's Armor Bonus.
 // Wounds (Main Sheet row 15): 1-2 Light, 3-4 Medium, 5-6 Critical, 7-8 Down & KO'ed, 9+ Dead.
-const SD = "com.newscolos.dice/delta", SD_W = 280, SD_H = 192, SD_MS = 5000, ATTACK_WAIT = 3 * 60e3;
-let openAttack = null, combatOn = false, myId = "";
+// The Success Delta spot (just left of the roll cards) shows one thing at a time:
+//   - "waiting": an attack was rolled, and it asks for the defender's Adroitness roll. ✕ on it drops the attack for everyone.
+//   - the result: up 30 seconds (hover keeps it), ✕ closes it on your screen.
+const SD = "com.newscolos.dice/delta", SD_W = 280, SD_H = 192, SDW_H = 104, SD_MS = 30000, ATTACK_WAIT = 3 * 60e3;
+const SDCANCEL = "com.newscolos.dice/sdcancel"; // room metadata: { id } of an attack someone dropped with ✕
+let openAttack = null, myId = "", sdOn = "", lastCancel = "";
 const nameOf = (r) => r.char || r.who;
 const isAdr = (r) => /^(?:⚡\s*)?adroitness\b/i.test(String(r.label || "")) && !/initiative/i.test(String(r.label || ""));
 // One screen works it out: the one whose roll is the defense (the defender's player, or the GM for monsters).
 // It saves the result into the room like a roll, so every screen shows the same card and Roll History line,
 // including anyone who joins later. Other screens only keep track of the open attack.
 function combatCheck(r, mine) {
-  if (!combatOn || r.cop || r.ap || r.sd || !Array.isArray(r.dice) || !r.dice.length) return;
-  if (r.atk) { openAttack = { ...r, at0: Date.now() }; return; }
+  if (r.cop || r.ap || r.sd || !Array.isArray(r.dice) || !r.dice.length) return;
+  if (r.atk) { openAttack = { ...r, at0: Date.now() }; showWait(openAttack).catch(() => {}); return; }
   if (!openAttack || !isAdr(r) || nameOf(r) === nameOf(openAttack)) return;
   const a = openAttack; openAttack = null;
-  if (Date.now() - a.at0 > ATTACK_WAIT || !mine) return;
+  if (Date.now() - a.at0 > ATTACK_WAIT) { closeWait(a.id); return; }
+  if (!mine) { setTimeout(() => closeWait(a.id), 10000); return; } // the result card replaces it when it arrives
   makeDelta(a, r).catch(() => {});
 }
 async function makeDelta(a, d) {
@@ -90,21 +95,33 @@ async function makeDelta(a, d) {
   if (!list.some(x => x.id === e.id)) await OBR.room.setMetadata({ [key]: [e, ...list].slice(0, KEEP) });
 }
 let seenIds = new Set();
-async function showDelta(e) {
-  try { rollLog(OBR.room.id, [e]); } catch {}
+// Opens the Success Delta spot: just left of the roll cards, on the bottom row; if there's no room, at the left edge beside the panel
+async function openSD(params, h, ms) {
   const url = new URL("go.html", location.href); url.searchParams.set("p", "toast");
   const ref = new URLSearchParams(location.search).get("obrref"); if (ref) url.searchParams.set("obrref", ref);
-  url.searchParams.set("id", SD); url.searchParams.set("ms", SD_MS); url.searchParams.set("sd", JSON.stringify(e));
-  // just left of the roll cards, on the bottom row; if there's no room it goes at the left edge beside the panel
+  url.searchParams.set("id", SD); url.searchParams.set("ms", ms);
+  for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
   let left = 0; try { if (await OBR.action.isOpen()) left = ((await OBR.action.getWidth()) || 520) + 40; } catch {}
   const x0 = rowLeft || left + (vw - left) / 2, x = Math.max(left + 8, Math.round(x0 - SD_W - GAP));
   await OBR.popover.close(SD).catch(() => {});
-  await OBR.popover.open({ id: SD, url: url.href, width: SD_W, height: SD_H,
+  await OBR.popover.open({ id: SD, url: url.href, width: SD_W, height: h,
     anchorReference: "POSITION", anchorPosition: { left: x, top: vh - 80 },
     anchorOrigin: { horizontal: "LEFT", vertical: "BOTTOM" }, transformOrigin: { horizontal: "LEFT", vertical: "BOTTOM" },
     disableClickAway: true, hidePaper: true });
 }
+async function showDelta(e) {
+  try { rollLog(OBR.room.id, [e]); } catch {}
+  sdOn = "r:" + e.id;
+  await openSD({ sd: JSON.stringify(e) }, SD_H, SD_MS);
+}
+// An attack is waiting for its defense: who attacked, with what, and a nudge for the defender to roll Adroitness
+async function showWait(a) {
+  sdOn = "w:" + a.id;
+  const w = { id: a.id, att: nameOf(a), who: a.char ? a.who : "", at: a.total, l: String(a.label || "").slice(0, 46), sp: a.sp || /spellcast/i.test(a.label || "") ? 1 : 0 };
+  await openSD({ sdw: JSON.stringify(w) }, SDW_H, ATTACK_WAIT);
+}
+function closeWait(id) { if (sdOn === "w:" + id) { sdOn = ""; OBR.popover.close(SD).catch(() => {}); } }
 
 // Announcements show for 5 seconds, then close themselves
 // One message at a time: a new one first clears the old one and its timer. Before, the 5-second close timer
@@ -132,6 +149,7 @@ OBR.onReady(async () => {
   OBR.room.onMetadataChange((md) => { const n = markList(md).length; if (n !== markCount) { markCount = n; markMenu(n); } });
   const me = await OBR.player.getId();
   const seen = new Set(allRolls(await OBR.room.getMetadata()).map(r => r.id)); seenIds = seen; myId = me;
+  lastCancel = (await OBR.room.getMetadata())[SDCANCEL]?.id || "";
   const isGM = (await OBR.player.getRole()) === "GM";
   // Initiative: tell players to roll, and show the bar across the top while combat is on
   const BAR = "com.newscolos.initbar", LEFT = 545; // starts just past the New Scolos panel at L size, so it never overlaps (S or L)
@@ -139,7 +157,6 @@ OBR.onReady(async () => {
   let lastCur = "";
   async function initUpdate(md) {
     const st = md[INIT];
-    combatOn = !!st?.open; if (!combatOn) openAttack = null;
     if (!st?.open || !st.cur) lastCur = ""; // new combat starts fresh, so its first turn always pings
     // "Your turn" ping for the player whose turn it is
     if (st?.open && st.cur && st.cur !== lastCur && !isGM) { // players only: the GM never gets these
@@ -191,6 +208,8 @@ OBR.onReady(async () => {
   OBR.room.onMetadataChange((md) => {
     rollLog(OBR.room.id, allRolls(md));
     initUpdate(md);
+    // someone tapped ✕ on a waiting attack (it wasn't an attack on anyone): drop it on every screen
+    const c = md[SDCANCEL]; if (c?.id && c.id !== lastCancel) { lastCancel = c.id; if (openAttack?.id === c.id) openAttack = null; closeWait(c.id); }
     for (const r of allRolls(md).reverse()) { // oldest first
       if (seen.has(r.id)) continue;
       seen.add(r.id);
