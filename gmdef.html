@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<style>
+  /* GM only: a slim bar at the top of the map while a player's attack waits on a monster's defense (Jake, Nov 25).
+     One button per monster that can defend; tapping it rolls that monster's Adroitness from the GM tab.
+     Deep purple and quiet, like DEFEND!. Goes away by itself once the defense is rolled or the attack is dropped. */
+  html, body { margin:0; background:transparent; overflow:hidden; font-family:system-ui, sans-serif; }
+  .p { box-sizing:border-box; height:100vh; display:flex; align-items:center; gap:8px; padding:6px 8px 6px 12px;
+    background:linear-gradient(135deg, rgba(40,22,64,.95), rgba(26,14,40,.95)); border:1px solid #4a3a78; border-radius:12px;
+    box-shadow:0 2px 10px rgba(0,0,0,.4); color:#d9ccf5; animation:in .2s ease-out; }
+  .t { flex:none; max-width:42%; font-size:12px; font-weight:700; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .t b { color:#fff; } .t small { display:block; font-size:10.5px; color:#a597cc; font-weight:700; }
+  .bs { flex:1; min-width:0; display:flex; gap:6px; overflow-x:auto; scrollbar-width:thin; padding:2px 0; }
+  .bs button { flex:none; padding:8px 12px; border-radius:9px; border:1px solid #6a4fa0; background:#3b2563; color:#f1e9ff;
+    font:800 13px system-ui; cursor:pointer; white-space:nowrap; }
+  .bs button:hover { background:#4a2f7a; } .bs button:disabled { opacity:.55; cursor:default; }
+  .x { flex:none; width:26px; height:26px; border-radius:7px; border:1px solid #3a3058; background:transparent; color:#8f84b0; font:800 13px system-ui; cursor:pointer; }
+  .x:hover { color:#fff; }
+  @keyframes in { from { transform:translateY(-10px); opacity:0; } }
+</style></head>
+<body><div class="p"><div class="t" id="t"></div><div class="bs" id="bs"></div><button class="x" id="x" title="Hide (the attack stays open)">✕</button></div>
+<script type="module">
+  import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
+  import { sameName } from "./shared.js";
+  const ID = "com.newscolos.gmdef", $ = (i) => document.getElementById(i);
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const get = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || "null") ?? d; } catch { return d; } };
+  let room = new URLSearchParams(location.search).get("room") || "", lastKey = "";
+  const close = () => { if (OBR.isAvailable) OBR.popover.close(ID).catch(() => {}); };
+  $("x").onclick = () => { const w = get("ns.sd:" + room, {}).wait; if (w) try { localStorage.setItem("ns.gmDefHide", w.id); } catch {} close(); };
+  function draw() {
+    const w = get("ns.sd:" + room, {}).wait, live = get("ns.monLive", []);
+    if (!w || Date.now() - w.at0 > 3 * 60e3 || (w.defs || []).length >= (w.n || 1)) return close();
+    // monsters that can defend: the targets (Target Lock), or every living monster if nothing was targeted
+    const pool = w.tg?.length ? live.filter(n => w.tg.some(t => sameName(t, n))) : live;
+    const can = pool.filter(n => !sameName(n, w.att) && !(w.defs || []).some(d => sameName(d, n)));
+    if (!can.length) return close();
+    const sg = (n) => n > 0 ? "+" + n : String(n);
+    $("t").innerHTML = `🛡 <b>${esc(w.att)}</b> ${w.sp ? "casts" : "attacks"} ${sg(w.at)}<small>${w.tg?.length ? "Defend with:" : "No target: who defends?"}</small>`;
+    const key = can.join("|"); if (key === lastKey) return; lastKey = key;
+    $("bs").innerHTML = can.map(n => `<button data-n="${esc(n)}" title="Roll ${esc(n)}'s Adroitness to defend">🛡 ${esc(n)}</button>`).join("");
+    $("bs").querySelectorAll("button").forEach(b => b.onclick = () => {
+      b.disabled = true; const ts = Date.now();
+      try { localStorage.setItem("ns.monDefReq", JSON.stringify({ ts, n: b.dataset.n })); } catch {}
+      // the GM's New Scolos panel does the roll; if it's closed, open it (it picks the request up when the monsters load)
+      setTimeout(async () => { if (localStorage.getItem("ns.monDefDone") !== String(ts)) { try { await OBR.action.open(); } catch {} } }, 1200);
+      setTimeout(() => { if (b.isConnected) b.disabled = false; }, 4000);
+    });
+  }
+  window.addEventListener("storage", (e) => { if (e.key === "ns.sd:" + room || e.key === "ns.monLive") draw(); });
+  setInterval(draw, 3000);
+  if (OBR.isAvailable) OBR.onReady(() => { room = room || OBR.room.id; draw(); }); else draw();
+</script></body></html>

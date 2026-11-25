@@ -99,7 +99,7 @@ function combatCheck(r, mine) {
     // 🎯 Targets on and tokens selected: exactly those defend (one each); otherwise the next Adroitness roll(s)
     const tg = Array.isArray(r.tg) && r.tg.length ? r.tg.slice(0, 12) : null;
     openAttack = { ...r, at0: Date.now(), n: tg ? tg.length : 1, defs: [], tg, multi: tg || MULTI.test(String(r.label || "")) ? 1 : 0 };
-    syncWait(); openCard().catch(() => {}); defPop(openAttack).catch(() => {}); return;
+    syncWait(); openCard().catch(() => {}); defPop(openAttack).catch(() => {}); gmDefPop(openAttack).catch(() => {}); return;
   }
   const a = openAttack, who = nameOf(r);
   if (!a || !isAdr(r) || who === nameOf(a) || a.defs.includes(who) || a.defs.length >= a.n || Date.now() - a.at0 > ATTACK_WAIT) return;
@@ -193,6 +193,21 @@ async function initPop(sid) {
   await OBR.popover.close("com.newscolos.initpop").catch(() => {});
   await OBR.popover.open({ id: "com.newscolos.initpop", url: url.href, width: w, height: 70,
     anchorReference: "POSITION", anchorPosition: { left: Math.round(vw / 2), top: 76 }, // just under the initiative bar
+    anchorOrigin: { horizontal: "CENTER", vertical: "TOP" }, transformOrigin: { horizontal: "CENTER", vertical: "TOP" },
+    disableClickAway: true, hidePaper: true });
+}
+// GM only: a slim "defend with" bar at the top of the map when a player's attack waits on a monster (Jake, Nov 25).
+// gmdef.html works out which monsters can defend and closes itself once they have.
+async function gmDefPop(a) {
+  if (!amGM || a.pid === myId) return; // the GM's own (monster) attacks are defended by players
+  const url = new URL("go.html", location.href); url.searchParams.set("p", "gmdef"); url.searchParams.set("room", OBR.room.id);
+  const ref = new URLSearchParams(location.search).get("obrref"); if (ref) url.searchParams.set("obrref", ref);
+  const vw = await OBR.viewport.getWidth(); let left = 0;
+  try { if (await OBR.action.isOpen()) left = ((await OBR.action.getWidth()) || 520) + 40; } catch {}
+  const w = Math.max(320, Math.min(620, vw - left - 40));
+  await OBR.popover.close("com.newscolos.gmdef").catch(() => {});
+  await OBR.popover.open({ id: "com.newscolos.gmdef", url: url.href, width: w, height: 56,
+    anchorReference: "POSITION", anchorPosition: { left: Math.round(left + (vw - left) / 2), top: 76 }, // just under the initiative bar
     anchorOrigin: { horizontal: "CENTER", vertical: "TOP" }, transformOrigin: { horizontal: "CENTER", vertical: "TOP" },
     disableClickAway: true, hidePaper: true });
 }

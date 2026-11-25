@@ -2731,6 +2731,10 @@ function drawMonsters() {
   if (touchDev) html += `<div class="mlockrow"><button id="mLock" class="mlock ${locked ? "on" : ""}" title="${locked ? "Monsters locked (tap to unlock)" : "Lock monsters so they don't move"}">${locked ? LOCK_SVG : UNLOCK_SVG}</button></div>`;
   html += `<div id="mlist" class="${locked ? "mlocked" : ""}">${cards.map(x => x[1]).join("")}</div>`;
   $("mo").innerHTML = pickers() + html + adBox() + stasisBox();
+  // living monsters on this encounter, for the GM's "defend with" bar over the map (gmdef.html)
+  { const live = [...document.querySelectorAll("#mo .mcard:not(.dead)")].map(c => c.dataset.n).filter(Boolean);
+    const j = JSON.stringify(live); if (store.get("ns.monLive") !== j) store.set("ns.monLive", j); }
+  setTimeout(monDefReq, 0);
   setTimeout(updateDefBanner, 0); // targeted monsters stay lit after a redraw
   if ($("mLock")) $("mLock").onclick = () => { store.set("ns.monLock", store.get("ns.monLock") === "1" ? "" : "1"); drawMonsters(); };
   bindMonDrag();
@@ -3590,6 +3594,17 @@ function initReq() {
   store.set("ns.initReqDone", String(q.ts));
   quickRoll(adr, "Adroitness");
 }
+// 🛡 on the GM's "defend with" bar over the map: roll that monster's Adroitness from its card on the GM tab
+function monDefReq() {
+  if (standalone || !isGM || rollBusy) return;
+  let q = null; try { q = JSON.parse(localStorage.getItem("ns.monDefReq") || "null"); } catch {}
+  if (!q?.ts || Date.now() - q.ts > 20e3 || store.get("ns.monDefDone") === String(q.ts)) return;
+  const card = [...document.querySelectorAll("#mo .mcard")].find(c => c.dataset.n === q.n);
+  const b = card?.querySelector('.rd.ra[data-l="Adroitness"]');
+  if (!b) { if (!document.querySelector("#mo .mcard")) $("monTab")?.click(); return; } // monsters not loaded yet: open the GM tab, tried again once they are
+  store.set("ns.monDefDone", String(q.ts)); b.click();
+}
+window.addEventListener("storage", (e) => { if (e.key === "ns.monDefReq") monDefReq(); });
 window.addEventListener("storage", (e) => { if (e.key === "ns.initReq") initReq(); if (e.key === "ns.turnRolled") updateInitBanner(); });
 setInterval(() => { if (!standalone) updateDefBanner(); }, 5000);
 // CALL FOR INITIATIVE also rolls the monsters (ON unless the GM switched it off; saved in this browser)
