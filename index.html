@@ -302,12 +302,11 @@
   .defban .defbtns { display:flex; flex-wrap:wrap; gap:5px; flex:none; }
   .defban .defbtns button { background:#dfe4f2; }
   #defx { background:transparent !important; color:#f1f3f9 !important; padding:4px 6px !important; }
-  /* a monster Target Lock picked: impossible to miss while scrolling */
-  #mo .mcard.sdtgt { outline:3px solid #ff4d3d; outline-offset:1px; animation:sdtgt 1.2s ease-in-out infinite; }
-  #mo .mcard.sdtgt .mtop { background:linear-gradient(90deg, #b3121f, #ff4d3d) !important; border-bottom-color:#ff8a7f !important; }
-  #mo .mcard.sdtgt .mtop b { color:#fff !important; }
-  #mo .sddefb { margin-right:6px; padding:6px 12px; background:#fff !important; color:#b3121f !important; border:2px solid #fff !important; font-weight:900; font-size:14px; letter-spacing:.5px; box-shadow:0 0 12px rgba(255,255,255,.7); }
-  @keyframes sdtgt { 50% { box-shadow:0 0 0 4px rgba(255,77,61,.45), 0 0 22px rgba(255,77,61,.6); } }
+  /* a monster Target Lock picked: deep purple, calm (Jake, Nov 25: no red) */
+  #mo .mcard.sdtgt { outline:2px solid #6a4fa0; outline-offset:1px; }
+  #mo .mcard.sdtgt .mtop { background:linear-gradient(90deg, #2a1a45, #3b2563) !important; border-bottom-color:#5a4488 !important; }
+  #mo .mcard.sdtgt .mtop b { color:#e6dcff !important; }
+  #mo .sddefb { margin-right:6px; padding:5px 11px; background:#3b2563 !important; color:#e6dcff !important; border:1px solid #6a4fa0 !important; font-weight:800; font-size:13px; letter-spacing:.5px; box-shadow:none; }
   #mo .rd.ra.sddef { animation:sddef 1.6s ease-in-out infinite; } @keyframes sddef { 50% { box-shadow:0 0 0 3px rgba(223,228,242,.55); } }
   .initban span { flex:1; }
   #initx { background:transparent !important; color:#f1f3f9 !important; padding:4px 6px !important; }
@@ -2090,6 +2089,9 @@ function typeRefBtn() {
 document.addEventListener("click", (e) => { const b = e.target.closest(".tref, .sref"); if (!b) return; e.preventDefault(); e.stopPropagation();
   if (b.id === "gmPty") return popParty(); // GM tab: pop out the Party view
   if (b.id === "gmAuto") { store.set("ns.autoMon", autoMon() ? "0" : "1"); b.textContent = "Auto-roll monsters: " + (autoMon() ? "ON" : "OFF"); b.classList.toggle("on", autoMon()); return; }
+  if (b.id === "gmHeal") return healAskMon();
+  if (b.id === "gmHealY") return healAllMon();
+  if (b.id === "gmHealN") return healResetMon();
   if (b.id === "gmClr") return clearConds(b); // GM tab: sweep every condition off the map (asks first)
   popOut(b.dataset.k); }, true);
 function ptCtl() { return `<div class="ctl"><button id="ptm">−</button><b>${esc2(V("F13") || "0")}</b><button id="ptp">+</button></div>`; }
@@ -2660,7 +2662,7 @@ function bindMonArt() {
 }
 function drawMonsters() {
   const v = monVals || [], c = (row, i) => String(v[row]?.[i] ?? "").trim();
-  let html = `<div class="initbox"><div class="sec" style="margin-top:2px;display:flex;align-items:center;flex-wrap:wrap;row-gap:2px">INITIATIVE<button id="gmAuto" class="sref hist ${autoMon() ? "on" : ""}" style="margin-left:12px" title="On: CALL FOR INITIATIVE also rolls the monsters. Off: tap ROLL MONSTERS yourself">Auto-roll monsters: ${autoMon() ? "ON" : "OFF"}</button><button id="gmClr" class="sref hist" style="margin-left:auto" title="Take every condition (Dead, Unconscious, your own) off every token on this map">✕ Clear conditions</button><button id="gmPty" class="sref hist" style="margin-left:10px" title="Pop the Party view out beside the map (tap again to close it)">${REF_SVG}Party</button><button class="sref hist" style="margin-left:10px" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></div>
+  let html = `<div class="initbox"><div class="sec" style="margin-top:2px;display:flex;align-items:center;flex-wrap:wrap;row-gap:2px">INITIATIVE<button id="gmAuto" class="sref hist ${autoMon() ? "on" : ""}" style="margin-left:12px" title="On: CALL FOR INITIATIVE also rolls the monsters. Off: tap ROLL MONSTERS yourself">Auto-roll monsters: ${autoMon() ? "ON" : "OFF"}</button><button id="gmClr" class="sref hist" style="margin-left:auto" title="Take every condition (Dead, Unconscious, your own) off every token on this map">✕ Clear conditions</button><span id="gmHealW" style="margin-left:10px;display:inline-flex;align-items:center;gap:6px"><button id="gmHeal" class="sref hist" title="Clear every wound and Dead on every monster in this encounter (asks first)">✚ Clear monster wounds</button></span><button id="gmPty" class="sref hist" style="margin-left:10px" title="Pop the Party view out beside the map (tap again to close it)">${REF_SVG}Party</button><button class="sref hist" style="margin-left:10px" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></div>
     <div class="g2"><button id="iCall" class="sbtn">⚔ CALL FOR INITIATIVE</button><button id="iMon" class="sbtn">🎲 ROLL MONSTERS</button></div>
     <div id="iList"></div>
     <div id="iStep" class="istep" hidden><button id="iPrev" class="sbtn" title="Previous turn">◀</button><span id="iRound"></span><button id="iNext" class="sbtn">NEXT TURN ▶</button></div>
@@ -2730,6 +2732,8 @@ function drawMonsters() {
     await monSet(row, col, on);
     // the last wound box (D) also flips the DEAD button to match
     if (col === 19 && !!(monVals[row - 1] || [])[19] !== on) await monSet(row, 20, on);
+    // DEAD turned off: take the Dead label off its tokens (auto damage on or off); the wound boxes stay as they are
+    if (col === 20 && !on) { const r = monVals[row - 1] || []; if (r[0]) applyCond(String(r[0]).trim(), adOn() && !!String(r[17] ?? "").trim(), false); return; }
     monCond(row);
   });
 }
@@ -2773,7 +2777,7 @@ async function syncDeadGroups() {
 // ---------------- INITIATIVE (GM controls) ----------------
 let initMd = {};
 // Subtle highlight on the monster cards whose group is up in initiative
-// The monster whose turn it is: its card is outlined and gets a big NEXT TURN ▶ under its name bar.
+// The monster whose turn it is: its card is outlined and gets a big NEXT TURN ▶ under its vitality track (act, then tap it).
 // Groups go one member at a time (Hive Runner 1, then 2...); combats rolled before that existed light up the whole group.
 function markTurn() {
   const st = initMd[INIT], cur = st?.open ? st.cur : "", who = cur ? turnNames(initMd).cur : "";
@@ -2783,7 +2787,7 @@ function markTurn() {
   cards.forEach(card => {
     const t = on.includes(card), btn = card.querySelector(".mnext");
     card.classList.toggle("turn", t);
-    if (t && !btn) { card.querySelector(".mtop")?.insertAdjacentHTML("afterend", `<button class="mnext" title="Done with this monster: move to the next turn">NEXT TURN ▶</button>`);
+    if (t && !btn) { card.querySelector(".pvit.mv")?.insertAdjacentHTML("afterend", `<button class="mnext" title="Done with this monster: move to the next turn">NEXT TURN ▶</button>`);
       card.querySelector(".mnext").onclick = (e) => { e.stopPropagation(); initStep(1); }; }
     if (!t && btn) btn.remove();
   });
@@ -3450,6 +3454,30 @@ async function clearConds(b) {
   catch { b.textContent = "Couldn't clear (is a map open?)"; }
   setTimeout(() => { if (b.isConnected) b.textContent = "✕ Clear conditions"; }, 2500);
 }
+// GM tab: clear every wound box and Dead on every monster in this encounter (asks Yes / No first).
+// Their Dead / Unconscious labels come off the tokens too; mooks get their pre-marked boxes back.
+const HEAL_BTN = `<button id="gmHeal" class="sref hist" title="Clear every wound and Dead on every monster in this encounter (asks first)">✚ Clear monster wounds</button>`;
+function healResetMon(msg) { const w = $("gmHealW"); if (!w) return; w.innerHTML = msg ? `<span class="sref hist" style="cursor:default">${esc2(msg)}</span>` : HEAL_BTN;
+  if (msg) setTimeout(() => { const x = $("gmHealW"); if (x) x.innerHTML = HEAL_BTN; }, 2500); }
+function healAskMon() { const w = $("gmHealW"); if (!w) return;
+  w.innerHTML = `<span class="sref hist" style="cursor:default;color:#ff8f8f">Clear all monster wounds?</span><button id="gmHealY" class="sref hist" style="color:#ff8f8f;font-weight:800">YES</button><button id="gmHealN" class="sref hist" style="font-weight:800">NO</button>`; }
+async function healAllMon() {
+  const w = $("gmHealW"); if (w) w.innerHTML = `<span class="sref hist" style="cursor:default">Clearing…</span>`;
+  try {
+    if (!monVals) { healResetMon("No encounter open"); return; }
+    const v = monVals, hdr = Math.max(0, v.findIndex(r => String(r?.[0] || "").trim().toLowerCase() === "name"));
+    let n = 0;
+    for (let row = hdr + 1; row < v.length; row++) {
+      const r = v[row] || []; if (!String(r[0] ?? "").trim()) continue;
+      const set = [12, 13, 14, 15, 16, 17, 18, 19].filter(i => String(r[i] ?? "").trim() && !/^false$/i.test(String(r[i])));
+      if (!set.length) continue; n++;
+      for (const i of set) await monSet(row + 1, i + 1, false);
+      applyCond(String(r[0]).trim(), false, false);
+    }
+    await premarkMooks();
+    healResetMon(n ? `✓ Cleared ${n} monster${n === 1 ? "" : "s"}` : "No wounds to clear");
+  } catch { healResetMon("Couldn't clear all of them. Check the cards"); }
+}
 // ---------------- AUTO DAMAGE (GM switch, bottom of the GM tab) ----------------
 // When it's on, every Success Delta that lands a wound marks it on the defender's character sheet or monster card,
 // and Down & KO'ed / Dead put the Unconscious 💤 / Dead ☠️ condition on their token (Dead replaces Unconscious).
@@ -3534,7 +3562,7 @@ async function applyCond(name, ko, dead) {
 }
 // A monster card's KO / Dead state -> its tokens
 function monCond(row) { const r = (monVals || [])[row - 1] || [], on = (i) => !!String(r[i] ?? "").trim() && !/^false$/i.test(String(r[i]));
-  if (adOn() && r[0]) applyCond(String(r[0]).trim(), on(17), on(18) || on(19)); }
+  if (adOn() && r[0]) applyCond(String(r[0]).trim(), on(17), on(19)); }
 // Mooks / minions: MW, CW and KO come pre-marked (D stays empty), so any hit past their 3 Light boxes kills them
 let premarking = false;
 async function premarkMooks() {
