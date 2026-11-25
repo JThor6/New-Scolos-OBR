@@ -2332,11 +2332,21 @@ async function gmAll(label, change, local) {
     const chars = await characterSheets();
     const todo = chars.map(c => ({ c, b: change(c.values) })).filter(x => x.b);
     if (!todo.length) return say(`${label}: nothing to change. Everyone is already set.`);
-    const res = await Promise.all(todo.map(({ c, b }) => bridgePost({ id: c.id, ...b }).then(r => ({ c, b, r })).catch(e => ({ c, b, r: { ok: false, error: e.message } }))));
+    // One character at a time, with a second try: the bridge saves one sheet at a time, and firing all of them at once
+    // made some give up waiting (Nov 25: New Day left 4 of 8 characters on "Power used")
+    const res = [];
+    for (const [k, { c, b }] of todo.entries()) {
+      say(`${label}: saving ${k + 1} of ${todo.length} (${c.name})…`);
+      let r = await bridgePost({ id: c.id, ...b }).catch(e => ({ ok: false, error: e.message }));
+      if (!r.ok && !/table code|permission|access|denied/i.test(r.error || "")) { await new Promise(x => setTimeout(x, 1200)); r = await bridgePost({ id: c.id, ...b }).catch(e => ({ ok: false, error: e.message })); }
+      res.push({ c, b, r });
+    }
     const ok = res.filter(x => x.r.ok), bad = res.filter(x => !x.r.ok);
     for (const { c, b } of ok) { local(c.values, b); cache.set("sheet." + c.id, c.values); }
     cache.set(ck("chars"), chars);
     say(`${label}: ${ok.length ? "updated " + ok.map(x => x.c.name).join(", ") : "nothing saved"}.` + (bad.length ? ` Didn't save: ${bad.map(x => x.c.name + " (" + (x.r.error || "error") + ")").join(", ")}.` : ""));
+    // the Party view (panel or pop-out) and players' own sheets reload now instead of in 30 s
+    if (ok.length && !standalone) OBR.room.setMetadata({ [SHEETPING]: { id: "*", ts: Date.now() } }).catch(() => {});
   } catch (e) { say(`${label} failed: ${e.message || e}`); }
   finally { sync(-1); }
 }
@@ -3458,7 +3468,8 @@ function adMeta(md, first) {
   const p = md[SHEETPING];
   if (first) pingSeen = p?.ts || 0;
   else if (p?.ts && p.ts !== pingSeen) { pingSeen = p.ts;
-    if (p.id && p.id === sheetId() && !mgrOn) {
+    if (p.id === "*" && !mgrOn) { partyOn ? showParty() : sheetVals && loadSheet(true); }
+    else if (p.id && p.id === sheetId() && !mgrOn) {
       const ad = actDef(); if (p.hurt && ad?.hurt) { setActive(""); endActive(ad.c === "rv" ? "Your body was hit. Your spirit snaps back." : "You took damage and reappear."); }
       loadSheet(true); } }
   if (!isGM || UPLINK) return;
