@@ -214,6 +214,12 @@
   /* every button reacts at once: no double-tap-zoom wait on tablets/phones */
   button, input, .box, .rollbox { touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
   .healb:disabled { opacity:.4; cursor:default; }
+  /* NEXT ROLL +1 / +2: a one-time bonus on the next roll (hidden, flanking, the GM says so) */
+  .nbw { display:flex; align-items:center; gap:4px; margin-bottom:3px; font:800 10px system-ui; letter-spacing:.8px; color:var(--dim); }
+  .nbw .nb { padding:1px 7px; border-radius:6px; border:1px solid #4a4466; background:transparent; color:var(--dim); font:800 11px system-ui; cursor:pointer; }
+  .nbw .nb.on { background:#5fd38d; border-color:#5fd38d; color:#0c1a12; box-shadow:0 0 8px rgba(95,211,141,.5); }
+  .nbw.armed > span { color:#5fd38d; }
+  .nbrow { display:flex; justify-content:flex-end; margin:4px 0 2px; }
   .stabrow { display:flex; align-items:flex-end; justify-content:space-between; gap:6px; }
   .tgtme { margin-bottom:3px; padding:2px 8px; border-radius:6px; border:1px solid #4a4466; background:transparent; color:var(--dim); font:800 10.5px system-ui; letter-spacing:.8px; cursor:pointer; }
   .tgtme.on { background:#343948; border-color:#aab3cc; color:#f1f3f9; }
@@ -822,6 +828,8 @@ async function quickRoll(modText, label, whoName, br = "", monPen = 0, cs = null
 }
 async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = null, cs = null) {
   let m = (parseInt(String(modText).replace("−", "-"), 10) || 0) + pen;
+  const nbK = whoName ? "m" : "p", nb = standalone ? 0 : nbGet(nbK); // NEXT ROLL +1 / +2 (used up here)
+  if (nb) { m += nb; store.set("ns.nb." + nbK, ""); setTimeout(nbDraw, 0); }
   // If the GM called for initiative, a player's next Adroitness roll is their initiative
   let initSid = "";
   if (!standalone && !whoName && label === "Adroitness") {
@@ -834,6 +842,7 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
   const ad = !whoName ? actDef() : null;
   if (ad?.skill && ad.skill[0].test(label)) { m += ad.skill[1]; label = `${label} · ${ad.t} +${ad.skill[1]}`; }
   if (ad?.strike && KS_ATTACK.test(label)) { m += ad.strike; label = `FROM THE SHADOWS · ${label} +${ad.strike} unseen`; setTimeout(() => endActive("You strike and reappear."), 0); }
+  if (nb) label = `${label || "Roll"} · +${nb} bonus`;
   const dice = ks ? [1, 1, 1, 1] : real || [rollDie(), rollDie(), rollDie(), rollDie()];
   if (real) label = (String(label || "Roll").slice(0, 46) + " · analog").trim(); // rolled with physical dice, typed in
   const who = whoName || (standalone ? "Test" : await OBR.player.getName());
@@ -854,7 +863,7 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
       if (db != null) { r.db = db; r.dbk = mel ? "melee" : "ranged"; } else if (melt) r.pwd = 1; else if (/spellcast/i.test(r.label)) r.sp = 1; }
   } else if (cs) { // a monster card: Attack uses its Offense, and its Armor counts when it defends
     const ab = num(cs.ab), db = num(cs.db); if (ab != null) r.ab = ab;
-    if (/^attack$/i.test(label)) { r.atk = 1; if (db != null) { r.db = db; r.dbk = "offense"; } }
+    if (/^attack\b/i.test(label)) { r.atk = 1; if (db != null) { r.db = db; r.dbk = "offense"; } }
   }
   if (r.atk && !standalone) { // 🎯 Targets on: the tokens this roller has selected are what the attack is aimed at
     try { if (tgtOn()) {
@@ -1148,7 +1157,7 @@ function drawSheet() {
     ${V("H16") ? "" : (deadSeen.set(sheetId(), false), "")}<div class="shead">${ptHead()}<div class="shn"><b>${esc2(V("C3") || "Unnamed")}${V("H16") ? ` <span class="deadtag">(DEAD)</span>` : ""}</b><small>${[V("C4"), V("F5") !== "" ? "Level " + V("F5") : ""].filter(Boolean).map(esc2).join(" · ")}${V("F7") !== "" ? `<span class="cred" title="Credits">¤ ${esc2((n => n == null ? V("F7") : n.toLocaleString("en-US"))(num(V("F7"))))} credits</span>` : ""}</small></div>
       <span class="shcol"><span class="shbtns"><button id="reload" class="ibtn" title="Reload from Google Sheet">↻</button><button id="mgr" class="ibtn mgrb" title="Manage character: XP, skills, gear, notes">⚙ Manage Character</button></span><button class="sref hist" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></span></div>
     <div id="ksbar" class="ksbar" hidden></div><div id="actbar" class="actbar" hidden></div>
-    <div class="stab">ATTRIBUTES</div>
+    <div class="stabrow"><div class="stab">ATTRIBUTES</div>${nbChips("p")}</div>
     <div class="g5">${[["Adroitness", "C7"], ["Raw Str.", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att"><small class="inft" data-inf="at:${{ "Raw Str.": "Raw Strength" }[n] || n}" data-sec="attr">${n}</small><b>${esc2(V(c))}</b><button class="rd ra" data-m="${esc2(V(c))}" data-l="${{ "Raw Str.": "Raw Strength" }[n] || n}" data-b="${({ "Raw Str.": "Raw Strength" }[n] || n) + "|" + esc2(V(c))}" title="Roll ${n}">${ROLL_ICON}</button></div>`).join("")}
       <!-- Easter egg: the 9+ DEAD box marked turns Dmg Pen. into a skull and crossbones -->
       <div class="att dp ${sheetPen() ? "on" : ""}"><small class="inft" data-inf="dp" data-sec="attr">Dmg Pen.</small>${V("H16") ? `<b class="egg ${skullPop()}" title="Dead"><svg class="skull" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M32 4C17 4 7 14.5 7 28.5c0 8 3.8 13.6 9 16.8V52c0 3 2 5 5 5h22c3 0 5-2 5-5v-6.7c5.2-3.2 9-8.8 9-16.8C57 14.5 47 4 32 4Z M14.5 30.5c0-4.6 3.6-7.5 8-7.5s7.5 3.3 7 7.5c-.4 3.9-3.6 6.5-7.5 6.5s-7.5-2.4-7.5-6.5Z M34.5 30.5c-.5-4.2 2.6-7.5 7-7.5s8 2.9 8 7.5c0 4.1-3.6 6.5-7.5 6.5s-7.1-2.6-7.5-6.5Z M32 38.5l-4 7h8Z M24.5 50h2.6v7h-2.6Z M30.7 50h2.6v7h-2.6Z M36.9 50h2.6v7h-2.6Z"/></svg></b>` : `<b>${esc2(V("C12"))}</b>`}${sheetPen() ? `<em>all rolls</em>` : ""}</div></div>
@@ -2272,6 +2281,14 @@ function gmTools() {
 }
 // 🎯 Targets (room setting, off by default): when on, an attack roll takes the tokens its roller has selected as its targets,
 // and only those characters' / monsters' Adroitness rolls defend against it. Off keeps the game fast: next Adroitness rolls defend.
+// NEXT ROLL +1 / +2: tap before rolling; the very next roll gets it, then it switches itself off. Tap it again to cancel.
+// "p" = rolls from the character sheet (and Analog Dice Uplink); "m" = the GM's monster rolls. Kept per browser.
+const nbGet = (k) => parseInt(store.get("ns.nb." + k)) || 0;
+const nbChips = (k) => standalone ? "" : `<span class="nbw ${nbGet(k) ? "armed" : ""}" data-k="${k}" title="One-time bonus on your next ${k === "m" ? "monster " : ""}roll: hidden, flanking, a clever plan, or the GM says so. Used up after one roll; tap again to cancel."><span>NEXT ${k === "m" ? "MONSTER " : ""}ROLL</span>${[1, 2].map(v => `<button class="nb ${nbGet(k) === v ? "on" : ""}" data-v="${v}">+${v}</button>`).join("")}</span>`;
+function nbDraw() { document.querySelectorAll(".nbw").forEach(w => { const v = nbGet(w.dataset.k); w.classList.toggle("armed", !!v);
+  w.querySelectorAll(".nb").forEach(b => b.classList.toggle("on", +b.dataset.v === v)); }); }
+document.addEventListener("click", (e) => { const b = e.target.closest(".nbw .nb"); if (!b) return; e.preventDefault(); e.stopPropagation();
+  const k = b.closest(".nbw").dataset.k, v = +b.dataset.v; store.set("ns.nb." + k, nbGet(k) === v ? "" : String(v)); nbDraw(); }, true);
 // Per person (this browser): each player and the GM turns it on for their own attacks if they want it.
 const tgtOn = () => store.get("ns.targets") === "1";
 const tgtBtn = () => standalone ? "" : `<button id="tgtme" class="tgtme ${tgtOn() ? "on" : ""}" title="Off: whoever rolls Adroitness next defends (fast). On: select the target token(s) on the map before you roll an attack, and only they defend.">TARGET LOCK: ${tgtOn() ? "ON" : "OFF"}</button>`;
@@ -2651,6 +2668,7 @@ function drawMonsters() {
   cards.sort((a, b) => { const i = order.indexOf(a[0]), j = order.indexOf(b[0]); return (i < 0 ? 1e6 + a[0] : i) - (j < 0 ? 1e6 + b[0] : j); });
   const locked = touchDev && store.get("ns.monLock") === "1";
   if (touchDev) html += `<div class="mlockrow"><button id="mLock" class="mlock ${locked ? "on" : ""}" title="${locked ? "Monsters locked (tap to unlock)" : "Lock monsters so they don't move"}">${locked ? LOCK_SVG : UNLOCK_SVG}</button></div>`;
+  html += `<div class="nbrow">${nbChips("m")}</div>`;
   html += `<div id="mlist" class="${locked ? "mlocked" : ""}">${cards.map(x => x[1]).join("")}</div>`;
   $("mo").innerHTML = pickers() + html + stasisBox();
   if ($("mLock")) $("mLock").onclick = () => { store.set("ns.monLock", store.get("ns.monLock") === "1" ? "" : "1"); drawMonsters(); };

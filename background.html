@@ -70,7 +70,7 @@ async function showRoll(r, spin) {
 const SD = "com.newscolos.dice/delta", SD_W = 280, ATTACK_WAIT = 3 * 60e3, SD_KEEP = 30;
 const SDCANCEL = "com.newscolos.dice/sdcancel"; // room metadata: { id } of an attack someone dropped with ✕
 const SDN = "com.newscolos.dice/sdn";           // room metadata: { id, n, ts } how many defenders an attack has
-const MULTI = /spellcast|unconventional|meltdown|shockwave|^attack$/i;
+const MULTI = /spellcast|unconventional|meltdown|shockwave|^attack\b/i;
 let openAttack = null, myId = "", lastCancel = "", lastSdn = 0, sd = { list: [], wait: null };
 const nameOf = (r) => r.char || r.who;
 const isAdr = (r) => /^(?:⚡\s*)?adroitness\b/i.test(String(r.label || "")) && !/initiative/i.test(String(r.label || ""));
