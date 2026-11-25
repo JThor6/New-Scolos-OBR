@@ -84,7 +84,7 @@
   const PIN_SVG = `<svg viewBox="0 0 24 24" width="11" height="11" aria-hidden="true"><path d="M9 3h6l-1 6 4 4v2h-5v6l-1 1-1-1v-6H6v-2l4-4z" fill="currentColor"/></svg>`;
   // compact card for small screens (background.html decides): two short lines, tap to open the full card
   const MINI = q.get("mini") === "1", MW = Number(q.get("mw")) || 220; let big = false;
-  let idx = -1, lastSig = "", lastH = 0, timer = 0, over = false;
+  let idx = -1, lastSig = "", lastH = 0, timer = 0, over = false, maxH = 0, sizeMode = "";
 
   const close = () => { clearTimeout(timer); set("ns.sdAlive:" + room, "0"); ready.then(() => OBR.popover.close(ID)).catch(() => {}); };
   const liveWait = (s) => { const w = s.wait; return w && Date.now() - w.at0 < WAIT && (w.defs || []).length < (w.n || 1) ? w : null; };
@@ -161,7 +161,14 @@
     if ($("nm")) $("nm").onclick = () => setN(Math.max(1, (w.n || 1) - 1));
     if ($("np")) $("np").onclick = () => setN(Math.min(12, (w.n || 1) + 1));
     // grow / shrink to fit (anchored at the bottom, so it grows upward)
-    const h = Math.ceil($("t").getBoundingClientRect().height) + 2;
+    // it only ever grows: paging back and forth (‹ ›) keeps the size of the biggest result shown, so it doesn't jump
+    // (Jake, Nov 25). The size resets when the mini card is opened or shrunk.
+    const t = $("t"), mode = MINI ? (big ? "big" : "mini") : "full";
+    if (mode !== sizeMode) { sizeMode = mode; maxH = 0; }
+    t.style.minHeight = "";
+    maxH = Math.max(maxH, Math.ceil(t.getBoundingClientRect().height));
+    t.style.minHeight = maxH + "px";
+    const h = maxH + 2;
     if (h !== lastH) { lastH = h; ready.then(() => OBR.popover.setHeight(ID, h)).catch(() => {}); }
     // something new: restart the fade timer (if fading is on)
     const sig = JSON.stringify([list.length && list[list.length - 1].id, w && w.id, w && w.n, w && (w.defs || []).length]);
