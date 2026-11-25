@@ -219,7 +219,7 @@
   .nbw .nb { padding:1px 7px; border-radius:6px; border:1px solid #4a4466; background:transparent; color:var(--dim); font:800 11px system-ui; cursor:pointer; }
   .nbw .nb.on { background:#5fd38d; border-color:#5fd38d; color:#0c1a12; box-shadow:0 0 8px rgba(95,211,141,.5); }
   .nbw.armed > span { color:#5fd38d; }
-  .nbrow { display:flex; justify-content:flex-end; margin:4px 0 2px; }
+  .nbw.nbc { margin:0 6px 0 0; } .nbw.nbc .nb { padding:3px 8px; font-size:12px; }
   .stabrow { display:flex; align-items:flex-end; justify-content:space-between; gap:6px; }
   .tgtme { margin-bottom:3px; padding:2px 8px; border-radius:6px; border:1px solid #4a4466; background:transparent; color:var(--dim); font:800 10.5px system-ui; letter-spacing:.8px; cursor:pointer; }
   .tgtme.on { background:#343948; border-color:#aab3cc; color:#f1f3f9; }
@@ -828,7 +828,7 @@ async function quickRoll(modText, label, whoName, br = "", monPen = 0, cs = null
 }
 async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = null, cs = null) {
   let m = (parseInt(String(modText).replace("−", "-"), 10) || 0) + pen;
-  const nbK = whoName ? "m" : "p", nb = standalone ? 0 : nbGet(nbK); // NEXT ROLL +1 / +2 (used up here)
+  const nbK = whoName ? "mon:" + whoName : "p", nb = standalone ? 0 : nbGet(nbK); // NEXT ROLL +1 / +2 (used up here)
   if (nb) { m += nb; store.set("ns.nb." + nbK, ""); setTimeout(nbDraw, 0); }
   // If the GM called for initiative, a player's next Adroitness roll is their initiative
   let initSid = "";
@@ -1175,7 +1175,7 @@ function drawSheet() {
       <div class="fld c"><small class="inft" data-inf="cop" data-sec="combat">COP${copMaxT !== "" ? ` <span class="dimn">/ ${esc2(copMaxT)}</span>` : ""}</small><div class="ctl"><button id="copm" title="Use a point">−</button><b id="copv" title="Points left this combat">${esc2((m => isNaN(m) ? (V("H29") || "0") : String(Math.max(0, m - (parseInt(V("H29")) || 0))))(parseInt(copMaxT)))}</b><button id="copp" title="Give a point back">+</button></div></div></div>
     <div class="infp gpow" data-for="combat" hidden></div>
 
-    ${trained.h ? `<div class="stab">SKILLS</div><button class="sref" data-k="tab:Skill List" title="Open the Skill List beside the map">${REF_SVG}Skill List</button>${trained.h}` : ""}
+    ${trained.h ? `<div class="stabrow"><span><div class="stab">SKILLS</div><button class="sref" data-k="tab:Skill List" title="Open the Skill List beside the map">${REF_SVG}Skill List</button></span>${nbChips("p")}</div>${trained.h}` : ""}
     ${untrained.h ? `<div class="stab">UNTRAINED SKILLS</div><button class="sref" data-k="tab:Skill List" title="Open the Skill List beside the map">${REF_SVG}Skill List</button>${untrained.h}` : ""}
     ${eq.length ? `<div class="stab">EQUIPPED</div><div class="lbox">${lines(eq)}</div>` : ""}
     ${inv.length ? `<div class="stab">INVENTORY</div><div class="lbox">${lines(inv)}</div>` : ""}
@@ -2287,7 +2287,8 @@ function gmTools() {
 // NEXT ROLL +1 / +2: tap before rolling; the very next roll gets it, then it switches itself off. Tap it again to cancel.
 // "p" = rolls from the character sheet (and Analog Dice Uplink); "m" = the GM's monster rolls. Kept per browser.
 const nbGet = (k) => parseInt(store.get("ns.nb." + k)) || 0;
-const nbChips = (k) => standalone ? "" : `<span class="nbw ${nbGet(k) ? "armed" : ""}" data-k="${k}" title="One-time bonus on your next ${k === "m" ? "monster " : ""}roll: hidden, flanking, a clever plan, or the GM says so. Used up after one roll; tap again to cancel."><span>NEXT ${k === "m" ? "MONSTER " : ""}ROLL</span>${[1, 2].map(v => `<button class="nb ${nbGet(k) === v ? "on" : ""}" data-v="${v}">+${v}</button>`).join("")}</span>`;
+// k: "p" = this player's sheet, "mon:<name>" = one monster card (compact: no label, it sits on the card's name bar)
+const nbChips = (k, compact) => standalone ? "" : `<span class="nbw ${compact ? "nbc" : ""} ${nbGet(k) ? "armed" : ""}" data-k="${esc2(k)}" title="One-time bonus on ${k.startsWith("mon:") ? "this monster's" : "your"} next roll: hidden, flanking, a clever plan, or the GM says so. Used up after one roll; tap again to cancel.">${compact ? "" : "<span>NEXT ROLL</span>"}${[1, 2].map(v => `<button class="nb ${nbGet(k) === v ? "on" : ""}" data-v="${v}">+${v}</button>`).join("")}</span>`;
 function nbDraw() { document.querySelectorAll(".nbw").forEach(w => { const v = nbGet(w.dataset.k); w.classList.toggle("armed", !!v);
   w.querySelectorAll(".nb").forEach(b => b.classList.toggle("on", +b.dataset.v === v)); }); }
 document.addEventListener("click", (e) => { const b = e.target.closest(".nbw .nb"); if (!b) return; e.preventDefault(); e.stopPropagation();
@@ -2654,7 +2655,7 @@ function drawMonsters() {
     const attrs = [["Adroitness", 4, "Adroitness"], ["Raw Str.", 3, "Raw Strength"], ["Intellect", 5, "Intellect"], ["Charm", 6, "Charm"]].map(([n, i, full]) =>
       `<div class="att"><small>${n}</small><b>${esc2(c(row, i) || "-")}</b>${roll(full, c(row, i)).replace('class="rd"', 'class="rd ra"')}</div>`).join("");
     cards.push([sheetRow, `<div class="mcard ${dead ? "dead" : ""}" data-row="${sheetRow}" data-g="${esc2("m:" + (c(row, 1) || name))}">
-      <div class="mtop" title="Drag to move this monster up or down"><span class="mgrip">⋮⋮</span>${monThumb(name)}<b>${esc2(name)}${dead ? ` <span class="deadtag">(DEAD)</span>` : ""}</b>${pen && !dead ? `<span class="mwnd">wounded ${pen}</span>` : ""}${c(row, 2) ? `<span class="mkind">${esc2(c(row, 2))}</span>` : ""}<span style="flex:1"></span>
+      <div class="mtop" title="Drag to move this monster up or down"><span class="mgrip">⋮⋮</span>${monThumb(name)}<b>${esc2(name)}${dead ? ` <span class="deadtag">(DEAD)</span>` : ""}</b>${pen && !dead ? `<span class="mwnd">wounded ${pen}</span>` : ""}${c(row, 2) ? `<span class="mkind">${esc2(c(row, 2))}</span>` : ""}<span style="flex:1"></span>${dead ? "" : nbChips("mon:" + name, true)}
         <button class="sbtn mdead ${dead ? "on" : ""}" data-r="${sheetRow}" data-on="${dead ? "" : "1"}">${dead ? SKULL + "DEAD" : "DEAD?"}</button></div>
       <div class="g4 matt">${attrs}</div>
       <div class="mrow2">${monArtCell(name)}<div class="skc matk"><span><small>ATTACK</small></span><b>${esc2(c(row, 7) || "-")}</b>${roll("Attack", c(row, 7))}</div>
@@ -2671,7 +2672,6 @@ function drawMonsters() {
   cards.sort((a, b) => { const i = order.indexOf(a[0]), j = order.indexOf(b[0]); return (i < 0 ? 1e6 + a[0] : i) - (j < 0 ? 1e6 + b[0] : j); });
   const locked = touchDev && store.get("ns.monLock") === "1";
   if (touchDev) html += `<div class="mlockrow"><button id="mLock" class="mlock ${locked ? "on" : ""}" title="${locked ? "Monsters locked (tap to unlock)" : "Lock monsters so they don't move"}">${locked ? LOCK_SVG : UNLOCK_SVG}</button></div>`;
-  html += `<div class="nbrow">${nbChips("m")}</div>`;
   html += `<div id="mlist" class="${locked ? "mlocked" : ""}">${cards.map(x => x[1]).join("")}</div>`;
   $("mo").innerHTML = pickers() + html + adBox() + stasisBox();
   if ($("mLock")) $("mLock").onclick = () => { store.set("ns.monLock", store.get("ns.monLock") === "1" ? "" : "1"); drawMonsters(); };
