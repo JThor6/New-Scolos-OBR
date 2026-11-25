@@ -2906,9 +2906,9 @@ function ptPanelDraw() {
       ${ptP.edit ? `<div class="ptzoom"><button class="sbtn" data-z="-1" title="Zoom out">−</button><input type="range" min="1" max="5" step="0.01" value="${ptP.f.z}" title="Zoom"><button class="sbtn" data-z="1" title="Zoom in">+</button></div>
       <div class="ptbtns"><button class="sbtn" data-e="reset">RESET</button><button class="sbtn" data-e="cancel">CANCEL</button><button class="sbtn" data-e="save"></button></div>`
       : `<div class="ptbtns"><button class="sbtn" data-e="edit">✎ ADJUST CIRCLE</button></div>`}</div>
-    ${ptP.edit ? "" : `<div class="ptgh">POG <span>· your token for the map</span></div>
+    ${ptP.edit ? "" : `<div class="ptgh">POG <span>· your token for the map, made from your ★ portrait and its circle</span></div>
     <div class="pogrow">${ptP.pogId ? `<img class="pogpv" src="${ptP.pogUrl || pogSrc(ptP.pogId)}" alt="">` : ""}
-      <div class="ptbtns" style="flex-direction:column">${ptP.pogId ? `<button class="sbtn on" data-g="table">⬇ PUT ON THE TABLE</button>` : ""}<button class="sbtn ${ptP.pogId ? "" : "on"}" data-g="make">◎ ${ptP.pogId ? "REMAKE FROM THIS PICTURE" : "MAKE POG FROM THIS PICTURE"}</button>${ptP.pogId ? `<button class="sbtn" data-g="dl">SAVE A COPY</button>` : ""}</div></div>`}`
+      <div class="ptbtns" style="flex-direction:column">${ptP.pogId ? `<button class="sbtn on" data-g="table">⬇ PUT ON THE TABLE</button>` : ""}<button class="sbtn ${ptP.pogId ? "" : "on"}" data-g="make">◎ ${ptP.pogId ? "REMAKE POG FROM PORTRAIT" : "MAKE POG FROM PORTRAIT"}</button>${ptP.pogId ? `<button class="sbtn" data-g="dl">SAVE A COPY</button>` : ""}</div></div>`}`
     : `<div class="mnote" style="text-align:center">Tap + or drop a picture here to add one.</div>`}
     <div id="ptmsg" class="ptmsg ${ptP.msg ? ptP.msg[0] : ""}">${esc2(ptP.msg ? ptP.msg[1] : "")}</div></div>`;
   el.querySelectorAll(".ptg[data-p]").forEach(b => b.onclick = () => { if (b.dataset.p === ptP.sel) return; ptP.sel = b.dataset.p; ptP.f = null; ptP.dirty = false; ptP.edit = false; ptP.msg = null; ptPanelDraw(); });
@@ -2955,9 +2955,11 @@ function ptPanelDraw() {
   };
 }
 // USE AS PORTRAIT / SAVE A COPY / REMOVE for the picked picture, and the pog buttons
-function bindPtPicButtons(el, p) {
+function bindPtPicButtons(el, p0) {
+  const p = p0;
   const gmk = el.querySelector('[data-g="make"]');
   if (gmk) gmk.onclick = async () => {
+    const p = ptP.pics.find(x => x.id === ptP.cur) || p0; // always the ★ portrait
     gmk.disabled = true; gmk.textContent = "MAKING POG…"; ptSay("", "Drawing the pog and saving it to Google Drive…");
     try {
       const r = await bridgeGet({ portrait: ptP.id, pic: p.id, full: 1 });
