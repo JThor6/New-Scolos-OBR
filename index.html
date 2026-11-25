@@ -2497,7 +2497,7 @@ async function monDropAll() {
       const [name, pogId] = want[i], col = i % cols, row = Math.floor(i / cols);
       let pos = { x: c.x + (col - (cols - 1) / 2) * dpi, y: c.y + (row - (rows - 1) / 2) * dpi };
       try { pos = await OBR.scene.grid.snapPosition(pos); } catch {}
-      items.push(buildImage({ url: pogSrc(pogId), mime: "image/png", width: 512, height: 512 }, { dpi: 512, offset: { x: 256, y: 256 } }).name(name).position(pos).layer("CHARACTER").build());
+      items.push(buildImage({ url: pogSrc(pogId), mime: "image/png", width: 512, height: 512 }, { dpi: 512, offset: { x: 256, y: 256 } }).name(name).plainText(name).textType("PLAIN").position(pos).layer("CHARACTER").build());
     }
     await OBR.scene.items.addItems(items);
     obrNote(`✓ ${items.length} monster${items.length === 1 ? "" : "s"} on the table${noArt.length ? ` (${noArt.length} skipped: no art yet)` : ""}.`, "SUCCESS");
@@ -2917,7 +2917,7 @@ const b64Blob = async (mime, data) => (await fetch(`data:${mime};base64,${data}`
 // Owlbear: put a pog into the person's own Owlbear storage (Owlbear asks to confirm), as a 1-square character
 async function pogToOwlbear(blob, name) {
   if (!OBR.isReady) throw new Error("this only works inside Owlbear Rodeo");
-  await OBR.assets.uploadImages([buildImageUpload(blob).name(name).dpi(512).offset({ x: 256, y: 256 }).build()], "CHARACTER");
+  await OBR.assets.uploadImages([buildImageUpload(blob).name(name).plainText(name).textType("PLAIN").dpi(512).offset({ x: 256, y: 256 }).build()], "CHARACTER");
 }
 // Drop a pog straight onto the map: pog files in Drive are shared by link, and Owlbear loads them from this
 // address (tested Nov 24 2026). Lands in the middle of the person's screen, snapped to the grid, one square big.
@@ -2928,7 +2928,7 @@ async function pogDrop(pogId, itemName) {
   let pos = await OBR.viewport.inverseTransformPoint({ x: vw / 2, y: vh / 2 });
   try { pos = await OBR.scene.grid.snapPosition(pos); } catch {}
   await OBR.scene.items.addItems([buildImage({ url: pogSrc(pogId), mime: "image/png", width: 512, height: 512 }, { dpi: 512, offset: { x: 256, y: 256 } })
-    .name(itemName).position(pos).layer("CHARACTER").build()]);
+    .name(itemName).plainText(itemName).textType("PLAIN").position(pos).layer("CHARACTER").build()]);
 }
 const obrNote = (t, kind = "INFO") => OBR.notification.show(t, kind).then(id => setTimeout(() => OBR.notification.close(id).catch(() => {}), 5000)).catch(() => {});
 
