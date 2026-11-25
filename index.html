@@ -3675,16 +3675,33 @@ async function healAllMon() {
   try {
     if (!monVals) { healResetMon("No encounter open"); return; }
     const v = monVals, hdr = Math.max(0, v.findIndex(r => String(r?.[0] || "").trim().toLowerCase() === "name"));
-    let n = 0;
+    // Work out each monster's fresh state first (mooks / minions: MW, CW, KO pre-marked; everyone else: all clear),
+    // then send only the boxes that change, several at a time, and redraw once (Nov 25: it used to save box by box,
+    // then clear the mooks' pre-marks and mark them again).
+    let n = 0; const jobs = [], before = JSON.stringify(monVals);
+    const on = (x) => !!String(x ?? "").trim() && !/^false$/i.test(String(x));
     for (let row = hdr + 1; row < v.length; row++) {
       const r = v[row] || []; if (!String(r[0] ?? "").trim()) continue;
-      const set = [12, 13, 14, 15, 16, 17, 18, 19].filter(i => String(r[i] ?? "").trim() && !/^false$/i.test(String(r[i])));
-      if (!set.length) continue; n++;
-      for (const i of set) await monSet(row + 1, i + 1, false);
+      const mook = /\b(mook|minion)s?\b/i.test(String(r[0]) + " " + String(r[2] ?? ""));
+      const want = (i) => mook && (i === 15 || i === 16 || i === 17);
+      const diff = [12, 13, 14, 15, 16, 17, 18, 19].filter(i => on(r[i]) !== want(i));
+      if (!diff.length) continue; n++;
+      for (const i of diff) { jobs.push([row + 1, i + 1, want(i)]); v[row][i] = want(i) ? "X" : ""; }
       applyCond(String(r[0]).trim(), false, false);
     }
-    await premarkMooks();
-    healResetMon(n ? `✓ Cleared ${n} monster${n === 1 ? "" : "s"}` : "No wounds to clear");
+    if (!jobs.length) { healResetMon("No wounds to clear"); return; }
+    drawMonsters(); sync(1);
+    const post = ([row, col, val]) => fetch(BRIDGE, { method: "POST", body: JSON.stringify({ code: store.get("ns.code"), id: monId(), tracker: 1, row, col, on: val }) })
+      .then(x => x.json()).catch(e => ({ ok: false, error: e.message }));
+    let bad = 0;
+    for (let k = 0; k < jobs.length; k += 6) { // 6 at a time
+      const res = await Promise.all(jobs.slice(k, k + 6).map(async j => { let r = await post(j); if (!r.ok) r = await post(j); return r; }));
+      bad += res.filter(r => !r.ok).length;
+    }
+    sync(-1);
+    if (bad) { monVals = JSON.parse(before); showMonsters(); healResetMon(`${bad} box${bad === 1 ? "" : "es"} didn't save. Reloaded the cards`); return; }
+    cache.set("mon." + monId(), monVals); syncDeadGroups();
+    healResetMon(`✓ Cleared ${n} monster${n === 1 ? "" : "s"}`);
   } catch { healResetMon("Couldn't clear all of them. Check the cards"); }
 }
 // ---------------- AUTO DAMAGE (GM switch, bottom of the GM tab) ----------------
@@ -3899,8 +3916,9 @@ if (standalone) {
       document.querySelector(".tab.on")?.click();
     });
     $("monTab").hidden = !isGM;
+    if (isGM) $("monTab").parentElement.prepend($("monTab")); // the GM's own tab comes first for the GM (Jake, Nov 25)
     if (PARTYPOP) { $("sh").innerHTML = ""; if (isGM) showParty(); else $("sh").innerHTML = `<div class="empty">The Party pop-out is for the GM.</div>`; }
-    else document.querySelector('.tab[data-t="sheet"]').click(); // Character is the first tab: open it once the GM/player role is known
+    else document.querySelector(isGM && !UPLINK ? '.tab[data-t="mon"]' : '.tab[data-t="sheet"]').click(); // open the first tab once the role is known: GM for the GM, Character Sheet for players
     if (isGM) { initMd = await OBR.room.getMetadata(); OBR.room.onMetadataChange((m) => { initMd = m; drawInitList(); markTurn(); skipDeadTurn(); });
       fixMarkScale(); OBR.scene.onReadyChange((r) => { if (r) fixMarkScale(); }); }
     if (!UPLINK && !PARTYPOP) applySize();
