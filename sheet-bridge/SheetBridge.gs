@@ -463,12 +463,14 @@ function saveMonPog(a) {
     if (!info) throw new Error('That monster has no art any more. Reload monsters.');
     const pf = subFolder(subFolder(DriveApp.getFolderById(PORTRAIT_FOLDER_ID), MONSTER_ART_FOLDER), POG_FOLDER).createFile(Utilities.newBlob(pb, 'image/png', info.name + ' - Pog.png'));
     sharePog(pf);
-    const old = info.pog;
-    info.pog = pf.getId(); info.shared = true; info.t = Date.now();
-    info.f = { z: Math.round(z * 100) / 100, x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
+    const old = [info.pog], fr = { z: Math.round(z * 100) / 100, x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 }, t = Date.now();
+    info.pog = pf.getId(); info.shared = true; info.t = t; info.f = fr;
     monSet(k, info);
-    trashUnused([old]);
-    return { ok: true, t: info.t, pogId: info.pog, f: info.f };
+    // other names sharing this art ("Hive Runner Boss") can take the same new pog
+    const also = (a.also || []).slice(0, 30).map(monKey).filter(function (x) { return x !== k; }), done = [];
+    also.forEach(function (x) { const o = monInfo(x); if (!o) return; old.push(o.pog); o.pog = info.pog; o.shared = true; o.t = t; o.f = fr; monSet(x, o); done.push(x); });
+    trashUnused(old);
+    return { ok: true, t: t, pogId: info.pog, f: fr, also: done };
   } finally { lock.releaseLock(); }
 }
 // use one monster's art for other names too ("Hive Runner Boss" gets the Hive Runner art)

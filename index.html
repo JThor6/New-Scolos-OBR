@@ -2404,10 +2404,14 @@ function monPogAdjust(k, name) {
   const a = monArt.get(k); if (!a) return;
   document.querySelector(".ptov")?.remove();
   const f = { z: a.f?.z || 1, x: a.f?.x ?? 50, y: a.f?.y ?? 50 };
+  // other monster names on screen using the same art (linked with "Same art?")
+  const linked = [...new Map([...document.querySelectorAll("#mo .mart")].map(e => [e.dataset.mk, e.dataset.n])).entries()]
+    .filter(([lk]) => lk !== k && monArt.get(lk)?.url === a.url);
   const ov = document.createElement("div"); ov.className = "ptov";
   ov.innerHTML = `<div class="ptbox"><button class="ptx" title="Close">✕</button><b>ADJUST POG · ${esc2(monLabel(name))}</b>
     <div class="pted"><div class="ptedc" style="border-color:#ff2b3d"><img src="${a.url}" alt=""></div>
       <div class="ptzoom"><button class="sbtn" data-z="-1" title="Zoom out">−</button><input type="range" min="1" max="5" step="0.01" value="${f.z}" title="Zoom"><button class="sbtn" data-z="1" title="Zoom in">+</button></div>
+      ${linked.length ? `<div style="align-self:stretch">${linked.map(([lk, ln]) => `<label class="ptsw"><input type="checkbox" value="${esc2(lk)}" checked> Also update ${esc2(monLabel(ln))}</label>`).join("")}</div>` : ""}
       <div class="ptbtns"><button class="sbtn" data-e="reset">RESET</button><button class="sbtn" data-e="cancel">CANCEL</button><button class="sbtn on" data-e="save">SAVE POG</button></div>
       <div class="ptmsg" style="color:var(--dim)">Drag to move · zoom with the slider${matchMedia("(pointer:fine)").matches ? " or mouse wheel" : ""}</div></div></div>`;
   document.body.append(ov);
@@ -2436,14 +2440,48 @@ function monPogAdjust(k, name) {
       const r = await bridgeGet({ monfull: k });
       if (!r.ok || r.none) throw new Error(r.ok ? "the art is gone" : ptBridgeMsg(r.error));
       const pog = drawPog(await loadImg(`data:${r.mime};base64,${r.data}`), f, "enemy", 512).toDataURL("image/png").split(",")[1];
-      const s2 = await bridgePost({ monPog: { key: k, f, data: pog } }).catch(x => ({ ok: false, error: x.message }));
+      const also = [...ov.querySelectorAll("label input:checked")].map(i => i.value);
+      const s2 = await bridgePost({ monPog: { key: k, f, data: pog, also } }).catch(x => ({ ok: false, error: x.message }));
       if (!s2.ok) throw new Error(ptBridgeMsg(s2.error));
       a.f = s2.f; a.t = s2.t; a.pogId = s2.pogId; await monArtPog(a); cache.set("ma." + k, a);
+      for (const lk of s2.also || []) { const la = monArt.get(lk); if (la) { la.f = s2.f; la.t = s2.t; la.pogId = s2.pogId; la.pogUrl = a.pogUrl; cache.set("ma." + lk, la); } }
       close(); drawMonsters(); obrNote(`✓ ${monLabel(name)} pog saved.`, "SUCCESS");
     } catch (err) { b.disabled = false; b.textContent = "SAVE POG"; msg.className = "ptmsg bad"; msg.textContent = "Couldn't save: " + (err.message || err); }
   };
 }
 function monArtErr(m) { const note = OBR.notification?.show; if (note) OBR.notification.show(m, "ERROR").catch(() => {}); else alert(m); }
+// ⬇ PUT ALL ON THE TABLE: one token per living monster card that has art and isn't on the map yet (by name),
+// laid out in rows of 5 around the middle of the GM's screen, snapped to the grid.
+async function monDropAll() {
+  const b = $("monAll"); if (b) b.disabled = true;
+  try {
+    if (!OBR.isReady) throw new Error("this only works inside Owlbear Rodeo");
+    const onMap = new Set((await OBR.scene.items.getItems(i => i.type === "IMAGE")).map(i => i.name));
+    const want = [], noArt = [];
+    document.querySelectorAll("#mo .mcard").forEach(card => {
+      if (card.classList.contains("dead")) return;
+      const el = card.querySelector(".mart"); if (!el) return;
+      const name = el.dataset.n, a = monArt.get(el.dataset.mk);
+      if (onMap.has(name)) return;
+      if (!a?.pogId) { noArt.push(name); return; }
+      want.push([name, a.pogId]);
+    });
+    if (!want.length) return obrNote(`Every living monster with art is already on the map${noArt.length ? ` (${noArt.length} with no art yet)` : ""}.`, "WARNING");
+    const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight(), dpi = await OBR.scene.grid.getDpi();
+    const c = await OBR.viewport.inverseTransformPoint({ x: vw / 2, y: vh / 2 });
+    const cols = Math.min(5, want.length), rows = Math.ceil(want.length / cols);
+    const items = [];
+    for (let i = 0; i < want.length; i++) {
+      const [name, pogId] = want[i], col = i % cols, row = Math.floor(i / cols);
+      let pos = { x: c.x + (col - (cols - 1) / 2) * dpi, y: c.y + (row - (rows - 1) / 2) * dpi };
+      try { pos = await OBR.scene.grid.snapPosition(pos); } catch {}
+      items.push(buildImage({ url: pogSrc(pogId), mime: "image/png", width: 512, height: 512 }, { dpi: 512, offset: { x: 256, y: 256 } }).name(name).position(pos).layer("CHARACTER").build());
+    }
+    await OBR.scene.items.addItems(items);
+    obrNote(`✓ ${items.length} monster${items.length === 1 ? "" : "s"} on the table${noArt.length ? ` (${noArt.length} skipped: no art yet)` : ""}.`, "SUCCESS");
+  } catch (e) { obrNote("Couldn't put them on the table: " + (e.message || e), "ERROR"); }
+  finally { if ($("monAll")) $("monAll").disabled = false; }
+}
 async function monArtTable(k, name) {
   const a = monArt.get(k);
   if (!a?.pogId) return obrNote("This pog isn't ready to drop yet. Tap ↻ RELOAD MONSTERS and try again.", "WARNING");
@@ -2493,7 +2531,7 @@ function drawMonsters() {
     <div id="iStep" class="istep" hidden><button id="iPrev" class="sbtn" title="Previous turn">◀</button><span id="iRound"></span><button id="iNext" class="sbtn">NEXT TURN ▶</button></div>
     <div class="iadd"><input id="iName" placeholder="Add a name"><input id="iNum" placeholder="+0" inputmode="numeric"><button id="iNeg" class="sbtn negbtn" title="Flip to minus / plus">±</button><button id="iAdd" class="sbtn">ADD</button></div>
     <button id="iEnd" class="sbtn" style="width:100%;margin-top:5px">END COMBAT</button></div>
-    <button id="monRe" class="sbtn" style="width:100%;margin-top:8px">↻ RELOAD MONSTERS</button>`;
+    <div class="g2" style="margin-top:8px"><button id="monAll" class="sbtn" title="Every living monster with art that isn't on the map yet, in a grid in the middle of your screen">⬇ PUT ALL ON THE TABLE</button><button id="monRe" class="sbtn">↻ RELOAD MONSTERS</button></div>`;
   const cards = [];
   const hdr = Math.max(0, v.findIndex(r => String(r?.[0] || "").trim().toLowerCase() === "name"));
   for (let row = hdr + 1; row < v.length; row++) {
@@ -2532,6 +2570,7 @@ function drawMonsters() {
   bindPicker();
   bindMonArt();
   $("monRe").onclick = () => { monArtChecked.clear(); showMonsters(); };
+  $("monAll").onclick = monDropAll;
   $("iPrev").onclick = () => initStep(-1); $("iNext").onclick = () => initStep(1);
   $("iCall").onclick = async () => { const b = $("iCall"); b.disabled = true; b.textContent = "⚔ CALLING…";
     try { await callInitiative(); b.textContent = "✓ INITIATIVE CALLED"; OBR.notification.show("⚔ Initiative called. Players' next Adroitness roll counts.", "SUCCESS").then(id => setTimeout(() => OBR.notification.close(id).catch(() => {}), 4000)).catch(() => {}); }
