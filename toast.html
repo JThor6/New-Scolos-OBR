@@ -50,6 +50,8 @@
   .chip { flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:3px 2px 2px; border-radius:7px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); }
   .chip b { font-size:16px; font-weight:900; color:#f1f3f9; line-height:1.1; font-variant-numeric:tabular-nums; }
   .chip small { font-size:8.5px; font-weight:800; letter-spacing:.3px; color:#9aa2b8; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  .chip.wide { flex:1.7; } .chip.res { flex:1.2; } .chip.d0 { flex:.85; }
+  .chip small { white-space:normal; text-align:center; line-height:1.05; }
   .chip.res { background:rgba(255,255,255,.14); border-color:var(--wc, rgba(255,255,255,.3)); } .chip.res b { color:var(--wc, #fff); }
   .op { align-self:center; font-size:14px; font-weight:900; color:#7d859c; }
   .sdhead { display:flex; align-items:baseline; justify-content:space-between; gap:6px; margin-top:6px; }
@@ -108,7 +110,7 @@
     const R = sdResult(e), w = R.w ? WOUND_STEPS[R.w - 1] : null, sg = (n) => n > 0 ? "+" + n : String(n);
     const wc = !R.hit ? "#a9b0c3" : w ? w.c : "#c9cede";
     document.body.style.setProperty("--wc", wc);
-    const bk = BONUS_NAME[e.dbk] || "Bonus";
+    const bk = (BONUS_NAME[e.dbk] || "") + " Damage Bonus";
     const chip = (v, k, cls = "") => `<div class="chip ${cls}"><b>${esc(v)}</b><small>${esc(k)}</small></div>`, op = (o) => `<span class="op">${o}</span>`;
     const versus = `<div class="sdvs"><div class="sdp"><b>${esc(e.att || "")}</b><span>ATTACK <i>${sg(e.at)}</i></span></div>` +
       `<div class="sdbadge"><b>${esc(String(e.delta))}</b><small>DELTA</small></div>` +
@@ -117,8 +119,8 @@
     if (!R.hit) body = `<div class="sdeqn">${chip(sg(e.at), "Attack")}${op("−")}${chip(sg(e.dt), "Defense")}${op("=")}${chip(String(e.delta), "Delta", "res")}</div>` +
       `<div class="sdhead"><span class="sdh1">MISS</span><span class="sdh2">${esc(R.sub)}</span></div>`;
     else {
-      body = `<div class="sdeqn">${chip(String(e.delta), "Delta")}${op("+")}${chip(e.db != null ? String(e.db) : "?", bk)}${op("−")}${chip(e.ab != null ? String(e.ab) : "?", "Armor")}${op("=")}${chip(R.dmg != null ? String(R.dmg) : "?", "Damage", "res")}</div>` +
-        `<div class="sdhead"><span class="sdh1 ${R.w >= 4 ? "glow" : ""}">${esc(R.headline.toUpperCase())}</span><span class="sdh2">${esc(R.tie ? "Tie: attacker wins" : R.dmg == null ? "Add spell bonus" : w ? w.r + " damage" : "No wound")}</span></div>` +
+      body = `<div class="sdeqn">${chip(String(e.delta), "Delta", "d0")}${op("+")}${chip(e.db != null ? String(e.db) : "?", bk, "wide")}${op("−")}${chip(e.ab != null ? String(e.ab) : "?", "Armor Bonus")}${op("=")}${chip(R.dmg != null ? String(R.dmg) : "?", "Damage", "res")}</div>` +
+        `<div class="sdhead"><span class="sdh1 ${R.w >= 4 ? "glow" : ""}">${esc(R.headline.toUpperCase())}</span><span class="sdh2">${esc(R.tie ? "Tie: attacker wins" : R.dmg == null ? "Add the spell's Damage Bonus" : w ? w.r + " damage" : "No wound")}</span></div>` +
         `<div class="track">${WOUND_STEPS.map(s => `<div class="seg ${s.i === R.w ? "on" : ""}" style="--sc:${s.c};${s.i === R.w ? `background:${s.c}` : ""}">${esc(s.s.toUpperCase())}</div>`).join("")}</div>`;
     }
     document.getElementById("t").innerHTML = `<div class="sdtop"><span class="sdk">Success Delta</span></div>` + versus + body;

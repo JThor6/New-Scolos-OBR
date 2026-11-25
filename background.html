@@ -63,7 +63,7 @@ async function showRoll(r, spin) {
 // from the same shared rolls, so everyone sees the same card. Nothing gets marked on a sheet.
 // Success Delta = attack total - defense total (ties go to the attacker). Damage = Delta + Damage Bonus - defender's Armor Bonus.
 // Wounds (Main Sheet row 15): 1-2 Light, 3-4 Medium, 5-6 Critical, 7-8 Down & KO'ed, 9+ Dead.
-const SD = "com.newscolos.dice/delta", SD_W = 280, SD_H = 184, SD_MS = 5000, ATTACK_WAIT = 3 * 60e3;
+const SD = "com.newscolos.dice/delta", SD_W = 280, SD_H = 192, SD_MS = 5000, ATTACK_WAIT = 3 * 60e3;
 let openAttack = null, combatOn = false;
 const nameOf = (r) => r.char || r.who;
 const isAdr = (r) => /^(?:⚡\s*)?adroitness\b/i.test(String(r.label || "")) && !/initiative/i.test(String(r.label || ""));

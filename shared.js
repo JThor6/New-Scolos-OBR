@@ -43,7 +43,7 @@ export function sdResult(e) {
   const dmg = hit && known ? e.delta + e.db - (e.ab ?? 0) : null;
   const w = dmg != null ? woundFor(dmg) : 0;
   const headline = !hit ? "Miss" : dmg == null ? "Hit" : w ? WOUND_STEPS[w - 1].n : "Armor holds";
-  const sub = !hit ? `${e.def} beats the attack by ${-e.delta}` : dmg == null ? "Add the spell's Damage Bonus, then subtract armor"
+  const sub = !hit ? `${e.def} beats the attack by ${-e.delta}` : dmg == null ? "Add the spell's Damage Bonus, then subtract the Armor Bonus"
     : w ? `${dmg} damage on the Vitality Track` : "Hit, but no damage gets through";
   return { hit, known, dmg, w, headline, sub, tie: e.delta === 0 };
 }
@@ -121,10 +121,10 @@ function sdLine(e, time, detail, esc) {
   const col = !R.hit ? "#9aa0b8" : w ? w.c : "#d5d9e8";
   const head = `<div class="hn">${esc(e.att)} <span class="sdvs">▸</span> ${esc(e.def)} <span class="t">${time}</span></div>`;
   const tag = `<span class="sdtag" style="color:${col};border-color:${col}">${esc(R.headline)}</span>`;
-  const bk = (BONUS_NAME[e.dbk] || (e.sp ? "Spell" : "Damage")) + " bonus";
+  const bk = (BONUS_NAME[e.dbk] || (e.sp ? "Spell" : "")) + " Damage Bonus";
   const math = !R.hit ? `<span class="sdeq">${fmt(e.at)} vs ${fmt(e.dt)} = <b>${e.delta}</b></span>`
-    : R.dmg == null ? `<span class="sdeq"><b>${e.delta}</b> Δ + ? ${e.ab != null ? `− ${e.ab} armor` : ""}</span>`
-    : `<span class="sdeq"><b>${e.delta}</b> Δ + ${e.db} <small>${esc((BONUS_NAME[e.dbk] || "dmg").toLowerCase())}</small> − ${e.ab ?? 0} <small>armor</small> = <b style="color:${col}">${R.dmg}</b></span>`;
+    : R.dmg == null ? `<span class="sdeq"><b>${e.delta}</b> Δ + ? ${e.ab != null ? `− ${e.ab} armor bonus` : ""}</span>`
+    : `<span class="sdeq"><b>${e.delta}</b> Δ + ${e.db} <small>${esc((BONUS_NAME[e.dbk] ? BONUS_NAME[e.dbk] + " " : "").toLowerCase())}damage bonus</small> − ${e.ab ?? 0} <small>armor bonus</small> = <b style="color:${col}">${R.dmg}</b></span>`;
   if (!detail) return `<div class="hl sd">${head}<div class="hr"><span class="sdic">Δ</span>${math}${tag}</div></div>`;
   const rows = [[`${esc(e.att)} <small>attack</small>`, fmt(e.at)], [`${esc(e.def)} <small>defense (Adroitness)</small>`, fmt(e.dt)],
     [`Success Delta <small>${R.tie ? "tie: attacker wins" : "attack − defense"}</small>`, String(e.delta)]];
@@ -164,7 +164,7 @@ export const ROLL_CSS = `
   .hl.sd { border-left:3px solid #8f97ad; padding-left:5px; background:rgba(160,170,195,.07); }
   .hl .sdvs { color:var(--dim); font-weight:400; }
   .hl .sdic { flex:none; width:20px; height:20px; border-radius:5px; background:#3a3f50; color:#d5d9e8; font-weight:900; font-size:13px; display:flex; align-items:center; justify-content:center; }
-  .hl .sdeq { flex:1; min-width:0; font-size:12px; font-weight:700; color:#b9bfd2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .hl .sdeq { flex:1; min-width:0; font-size:12px; font-weight:700; color:#b9bfd2; line-height:1.3; }
   .hl .sdeq b { color:#f1f3f9; } .hl .sdeq small { font-size:10px; font-weight:600; color:var(--dim); }
   .hl .sdtag { flex:none; margin-left:auto; font-size:10px; font-weight:900; letter-spacing:.5px; text-transform:uppercase; padding:2px 6px; border:1px solid; border-radius:10px; white-space:nowrap; }
   .histdet { width:100%; margin:4px 0 2px; padding:4px; font-size:11px; font-weight:800; border:1px solid #3a3d55; border-radius:6px; background:var(--paper); color:var(--dim); cursor:pointer; }
