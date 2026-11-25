@@ -17,7 +17,7 @@ export function allRolls(metadata) {
 export const POWER_CARDS = {
   "bullet stop": { c: "bs", n: "Bullet Stop", t: "BULLET STOP ACTIVATED", s: "Allies within 10 ft: +2 Armor Bonus for a turn" },
   "avatar": { c: "av", n: "Avatar", t: "AVATAR", s: "Becomes living magic: +1 Armor, +1 Spellcasting" },
-  "flash forward": { c: "ff", t: "FLASH FORWARD", s: "Once a round, they or an ally reroll any roll" },
+  "flash forward": { c: "ff", t: "FLASH FORWARD", s: "One reroll today: theirs, or anyone who hears their warning" },
   "disappear completely": { c: "wr", t: "VANISHED", s: "Gone from sight" },
   "mind over matter": { c: "mm", t: "MIND OVER MATTER", s: "The world starts to float" },
   "spirit walk": { c: "rv", t: "SPIRIT WALK", s: "The body falls still. Something cold moves through the walls" },

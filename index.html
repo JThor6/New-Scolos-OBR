@@ -1924,7 +1924,8 @@ function updateKS() {
 const ACTIVE = {
   "bullet stop": { t: "BULLET STOP ACTIVE", x: "Debris orbits you: +2 Armor Bonus for the rest of this combat. Allies within 10 ft get +2 Armor Bonus until your next turn.", until: "combat", armor: 2 },
   "avatar": { t: "AVATAR", x: "You are your major school until the scene ends: +1 Armor Bonus and +1 Spellcasting (added to your Spellcasting rolls).", until: "manual", armor: 1, skill: [/spellcasting/i, 1] },
-  "flash forward": { t: "FLASH FORWARD", x: "Your mind runs a few seconds ahead. Once each round, after any roll, you or an ally rerolls it. The new roll stands.", until: "combat", reroll: true },
+  // Jake, Nov 25: one reroll per day (not per round); the Mentalist can give it to anyone who can hear their warning
+  "flash forward": { t: "FLASH FORWARD", x: "You see a few seconds ahead. One reroll today: after any roll, you reroll it, or shout a warning and anyone who can hear you rerolls theirs. The new roll stands. Tap ✕ once it's used.", until: "manual" },
   "disappear completely": { t: "VANISHED", x: "Gone from eyes and cameras. Sound, smell and touch still give you away. Your next attack from the sheet gets +1 (unseen) and brings you back. Taking damage brings you back too.", until: "combat", strike: 1, hurt: true },
   "mind over matter": { t: "MIND OVER MATTER", x: "Holding it: you can't attack or use skills. Big feats need an Intellect roll (in the power box).", until: "manual", hold: true },
   "spirit walk": { t: "SPIRIT WALK", x: "Your spirit is out for about ten minutes. Your body lies limp and helpless, so the crew has to guard it. Any damage to it snaps you back.", until: "manual", hurt: true },
