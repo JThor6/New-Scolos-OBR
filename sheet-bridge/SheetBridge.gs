@@ -311,7 +311,8 @@ function getGallery(id) {
     const b = DriveApp.getFileById(p.small).getBlob();
     return { id: p.full, t: p.t, f: p.f || null, mime: b.getContentType(), data: Utilities.base64Encode(b.getBytes()) };
   });
-  return { ok: true, cur: info.cur, t: info.pics.length ? info.t : 0, max: PORTRAIT_MAX, pics: pics };
+  const pog = info.pog && liveFile(info.pog) ? info.pog : '';
+  return { ok: true, cur: info.cur, t: info.pics.length ? info.t : 0, max: PORTRAIT_MAX, pics: pics, pog: pog };
 }
 // add a picture to the character's set and make it the portrait
 function savePortrait(id, pic) {
@@ -370,6 +371,9 @@ function framePortrait(id, fid, f) {
 }
 // POGS: the add-on draws the pog (picture + the table's ring) and sends a PNG. One pog per character, saved as
 // "<Name> - Pog.png" in Character Portraits → Pogs (a new one replaces the old one, which goes to Drive's trash).
+// Pog files (only those) are "anyone with the link can view", so Owlbear can load them straight onto the map from
+// https://lh3.googleusercontent.com/d/<file id> (tested Nov 24 2026: that address works in Owlbear).
+function sharePog(f) { try { f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW); } catch (e) {} }
 const POG_FOLDER = 'Pogs';
 function savePog(id, data) {
   const sh = openMain(id); // folder check
@@ -384,10 +388,11 @@ function savePog(id, data) {
     const it = root.getFoldersByName(POG_FOLDER);
     const folder = it.hasNext() ? it.next() : root.createFolder(POG_FOLDER);
     const f = folder.createFile(Utilities.newBlob(bytes, 'image/png', name + ' - Pog.png'));
+    sharePog(f);
     if (info.pog) { try { DriveApp.getFileById(info.pog).setTrashed(true); } catch (e) {} }
     info.pog = f.getId();
     portraitSaveInfo(id, info);
-    return { ok: true, name: f.getName() };
+    return { ok: true, name: f.getName(), pogId: f.getId() };
   } finally { lock.releaseLock(); }
 }
 function getPog(id) {
@@ -407,6 +412,22 @@ function monKey(k) {
 }
 function monInfo(k) { const s = PropertiesService.getScriptProperties().getProperty('ma:' + k); return s ? JSON.parse(s) : null; }
 function subFolder(parent, name) { const it = parent.getFoldersByName(name); return it.hasNext() ? it.next() : parent.createFolder(name); }
+// files still used by any monster name (art can be shared between names)
+function monFilesInUse() {
+  const all = PropertiesService.getScriptProperties().getProperties(), used = {};
+  Object.keys(all).forEach(function (key) { if (key.indexOf('ma:') !== 0) return; try { const i = JSON.parse(all[key]); [i.full, i.small, i.pog].forEach(function (id) { used[id] = 1; }); } catch (e) {} });
+  return used;
+}
+function trashUnused(ids) {
+  const used = monFilesInUse();
+  ids.forEach(function (id) { if (id && !used[id]) { try { DriveApp.getFileById(id).setTrashed(true); } catch (e) {} } });
+}
+function monSet(k, info) { PropertiesService.getScriptProperties().setProperty('ma:' + k, JSON.stringify(info)); }
+function monOut(info, withData) {
+  const o = { t: info.t, name: info.name, pogId: info.shared ? info.pog : '', f: info.f || null };
+  if (withData) { const f = liveFile(info.small); if (!f) return null; const b = f.getBlob(); o.mime = b.getContentType(); o.data = Utilities.base64Encode(b.getBytes()); }
+  return o;
+}
 function saveMonArt(a) {
   const k = monKey(a && a.key);
   const label = (String(a.name || k).replace(/[\\/:*?"<>|]/g, '').trim() || 'Monster').slice(0, 60);
@@ -421,11 +442,46 @@ function saveMonArt(a) {
     const ff = root.createFile(Utilities.newBlob(fb, full.mime, label + ' - Art.' + PORTRAIT_EXT[full.mime]));
     const sf = subFolder(root, PORTRAIT_SMALL_FOLDER).createFile(Utilities.newBlob(sb, small.mime, label + ' (small).' + PORTRAIT_EXT[small.mime]));
     const pf = subFolder(root, POG_FOLDER).createFile(Utilities.newBlob(pb, 'image/png', label + ' - Pog.png'));
+    sharePog(pf);
     const old = monInfo(k);
-    const info = { full: ff.getId(), small: sf.getId(), pog: pf.getId(), t: Date.now(), name: label };
-    PropertiesService.getScriptProperties().setProperty('ma:' + k, JSON.stringify(info));
-    if (old) [old.full, old.small, old.pog].forEach(function (fid) { try { DriveApp.getFileById(fid).setTrashed(true); } catch (e) {} });
-    return { ok: true, t: info.t, name: label };
+    const info = { full: ff.getId(), small: sf.getId(), pog: pf.getId(), t: Date.now(), name: label, shared: true, f: null };
+    monSet(k, info);
+    if (old) trashUnused([old.full, old.small, old.pog]);
+    return { ok: true, t: info.t, name: label, pogId: info.pog };
+  } finally { lock.releaseLock(); }
+}
+// a new pog for one monster name: the art placed differently in the red ring (f = zoom/position)
+function saveMonPog(a) {
+  const k = monKey(a && a.key), f = a.f || {};
+  const z = Number(f.z), x = Number(f.x), y = Number(f.y);
+  if (!(z >= 1 && z <= 5 && x >= 0 && x <= 100 && y >= 0 && y <= 100)) throw new Error('Bad pog framing.');
+  const pb = Utilities.base64Decode(String(a.data || ''));
+  if (!pb.length || pb.length > 5 * 1024 * 1024) throw new Error('The pog did not come through. Try again.');
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    const info = monInfo(k);
+    if (!info) throw new Error('That monster has no art any more. Reload monsters.');
+    const pf = subFolder(subFolder(DriveApp.getFolderById(PORTRAIT_FOLDER_ID), MONSTER_ART_FOLDER), POG_FOLDER).createFile(Utilities.newBlob(pb, 'image/png', info.name + ' - Pog.png'));
+    sharePog(pf);
+    const old = info.pog;
+    info.pog = pf.getId(); info.shared = true; info.t = Date.now();
+    info.f = { z: Math.round(z * 100) / 100, x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
+    monSet(k, info);
+    trashUnused([old]);
+    return { ok: true, t: info.t, pogId: info.pog, f: info.f };
+  } finally { lock.releaseLock(); }
+}
+// use one monster's art for other names too ("Hive Runner Boss" gets the Hive Runner art)
+function copyMonArt(a) {
+  const from = monKey(a && a.from), info = monInfo(from);
+  if (!info) throw new Error('That monster has no art any more. Reload monsters.');
+  const to = (a.to || []).slice(0, 30).map(monKey).filter(function (k) { return k !== from; });
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    const old = [];
+    to.forEach(function (k) { const o = monInfo(k); if (o) old.push(o.full, o.small, o.pog); monSet(k, info); });
+    trashUnused(old);
+    return { ok: true, art: monOut(info, false), to: to };
   } finally { lock.releaseLock(); }
 }
 // small copies for many monsters at once; "have" = the times the add-on already has (unchanged ones are skipped)
@@ -434,34 +490,31 @@ function getMonArt(keys, have) {
   const out = {};
   keys.forEach(function (raw, i) {
     let k; try { k = monKey(raw); } catch (e) { return; }
-    const info = monInfo(k);
+    let info = monInfo(k);
     if (!info) { out[k] = null; return; }
-    if (String(info.t) === have[i]) { out[k] = { t: info.t, same: true }; return; }
-    const f = liveFile(info.small);
-    if (!f) { PropertiesService.getScriptProperties().deleteProperty('ma:' + k); out[k] = null; return; }
-    const b = f.getBlob();
-    out[k] = { t: info.t, name: info.name, mime: b.getContentType(), data: Utilities.base64Encode(b.getBytes()) };
+    if (!info.shared) { const pf = liveFile(info.pog); if (pf) { sharePog(pf); info.shared = true; monSet(k, info); } } // art made before pogs were shared
+    if (String(info.t) === have[i]) { const o = monOut(info, false); o.same = true; out[k] = o; return; }
+    const o = monOut(info, true);
+    if (!o) { PropertiesService.getScriptProperties().deleteProperty('ma:' + k); out[k] = null; return; }
+    out[k] = o;
   });
   return { ok: true, art: out };
+}
+function getMonFull(k) {
+  const info = monInfo(monKey(k)), f = info && liveFile(info.full);
+  if (!f) return { ok: true, none: true };
+  const b = f.getBlob();
+  return { ok: true, mime: b.getContentType(), data: Utilities.base64Encode(b.getBytes()) };
 }
 function getMonPog(k) {
   const info = monInfo(monKey(k)), f = info && liveFile(info.pog);
   if (!f) return { ok: true, none: true };
   return { ok: true, t: info.t, name: info.name, mime: 'image/png', data: Utilities.base64Encode(f.getBlob().getBytes()) };
 }
-// EXPERIMENT: make one monster's pog viewable by anyone with the link and hand back three Google addresses for it,
-// to see which one Owlbear can load straight onto the map (only the pog file is shared; art and folders stay private)
-function monPogUrls(k) {
-  const info = monInfo(monKey(k)), f = info && liveFile(info.pog);
-  if (!f) return { ok: true, none: true };
-  f.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-  const id = f.getId();
-  return { ok: true, name: info.name, urls: ['https://lh3.googleusercontent.com/d/' + id, 'https://drive.google.com/thumbnail?id=' + id + '&sz=w512', 'https://drive.google.com/uc?export=view&id=' + id] };
-}
 function removeMonArt(k) {
   k = monKey(k);
   const info = monInfo(k);
-  if (info) { [info.full, info.small, info.pog].forEach(function (fid) { try { DriveApp.getFileById(fid).setTrashed(true); } catch (e) {} }); PropertiesService.getScriptProperties().deleteProperty('ma:' + k); }
+  if (info) { PropertiesService.getScriptProperties().deleteProperty('ma:' + k); trashUnused([info.full, info.small, info.pog]); }
   return { ok: true };
 }
 
@@ -507,7 +560,8 @@ function openMain(id) {
 // GET ?code=...&portrait=SHEET_ID  -> that character's small portrait (&full=1 for the full picture, &pic=FILE_ID for another of their pictures)
 // GET ?code=...&portraits=SHEET_ID -> all that character's pictures (small copies), for picking a new portrait
 // GET ?code=...&pog=SHEET_ID       -> that character's pog (PNG)
-// GET ?code=...&monart=k1|k2&have=t1|t2 -> monster art (small copies) by monster name; &monpog=key -> that monster's pog
+// GET ?code=...&monart=k1|k2&have=t1|t2 -> monster art (small copies) by monster name; &monpog=key -> that monster's pog;
+//     &monfull=key -> the full art (for re-making the pog)
 function doGet(e) {
   try {
     const p = e.parameter;
@@ -543,7 +597,7 @@ function doGet(e) {
     if (p.pog) return json(getPog(p.pog));
     if (p.monart) return json(getMonArt(p.monart, p.have));
     if (p.monpog) return json(getMonPog(p.monpog));
-    if (p.monpogurl) return json(monPogUrls(p.monpogurl));
+    if (p.monfull) return json(getMonFull(p.monfull));
     if (p.tab) { // a whole tab, e.g. Combat Options or Priest (used by the Rules tab)
       openMain(p.id); // folder check
       const t = SpreadsheetApp.openById(p.id).getSheetByName(p.tab);
@@ -569,6 +623,8 @@ function doPost(e) {
     if (b.pog) return json(savePog(b.id, b.pog));
     if (b.monArt) return json(saveMonArt(b.monArt));
     if (b.monArtRemove) return json(removeMonArt(b.monArtRemove));
+    if (b.monPog) return json(saveMonPog(b.monPog));
+    if (b.monArtCopy) return json(copyMonArt(b.monArtCopy));
     if (b.portraitPick) return json(pickPortrait(b.id, String(b.portraitPick)));
     if (b.portraitFrame) return json(framePortrait(b.id, String(b.portraitFrame), b.frame));
     if (b.portraitRemove) return json(removePortrait(b.id, b.portraitRemove));
