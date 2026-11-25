@@ -317,7 +317,9 @@ OBR.onReady(async () => {
   const rolledNow = (k) => { try { return !!k && localStorage.getItem("ns.turnRolled") === k; } catch { return false; } };
   async function markRolled(r) { if (isGM || !r || /initiative/i.test(String(r.label || ""))) return;
     const k = turnKey((await OBR.room.getMetadata())[INIT]); if (!k || rolledNow(k)) return;
-    try { localStorage.setItem("ns.turnRolled", k); } catch {} turnPop(true); }
+    // shows up once their dice have landed (~2 s), not the instant they tap roll (Jake, Nov 25: a little drama)
+    setTimeout(async () => { if (turnKey((await OBR.room.getMetadata())[INIT]) !== k) return; // the turn moved on meanwhile
+      try { localStorage.setItem("ns.turnRolled", k); } catch {} turnPop(true); }, REVEAL_MS); }
   async function initUpdate(md) {
     const st = md[INIT];
     if (!isGM) { const k = turnKey(st); turnPop(rolledNow(k)); }
