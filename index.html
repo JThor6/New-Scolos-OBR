@@ -313,6 +313,8 @@
   @keyframes spin { to { transform:rotate(360deg); } }
   .histdet { width:100%; margin:4px 0 2px; padding:4px; font-size:11px; font-weight:800; border:1px solid #3a3d55; border-radius:6px; background:var(--paper); color:var(--dim); cursor:pointer; }
   .mcard { border:2px solid #000; outline:1px solid #444a66; border-radius:8px; background:var(--paper); padding:6px 8px 8px; margin-top:8px; }
+  .mnext { display:block; width:calc(100% - 16px); margin:8px 8px 2px; padding:14px 0; border-radius:10px; border:2px solid #000; background:var(--accent); color:#000; font:900 20px system-ui; letter-spacing:1px; cursor:pointer; box-shadow:0 0 14px rgba(187,153,255,.45); }
+  .mnext:active { transform:scale(.98); }
   .mcard.turn { outline:2px solid var(--accent); box-shadow:0 0 0 3px rgba(187,153,255,.18); background:rgba(187,153,255,.10); }
   .mcard.dead { background:rgba(150,30,40,.45); outline-color:#a33; opacity:.75; }
   .mcard.dead .mtop b { text-decoration:line-through; }
@@ -691,7 +693,7 @@
 </main>
 <script type="module">
 import OBR, { buildImage, buildImageUpload, buildLabel } from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
-import { NS, KEEP, rollKey, allRolls, fmt, INIT, initEntries, rollLine, ROLL_CSS, rollLog, LOG_MAX, POWER_CARDS, sameName, sdResult, MARK_ITEM, DEFAULT_MARKS, initMove } from "./shared.js";
+import { NS, KEEP, rollKey, allRolls, fmt, INIT, initEntries, rollLine, ROLL_CSS, rollLog, LOG_MAX, POWER_CARDS, sameName, sdResult, MARK_ITEM, DEFAULT_MARKS, initMove, turnNames } from "./shared.js";
 document.head.insertAdjacentHTML("beforeend", `<style>${ROLL_CSS}</style>`);
 import { TYPES, SECTIONS, REF_GROUPS, getTab, sectionHtml } from "./rules.js";
 
@@ -2676,7 +2678,7 @@ function drawMonsters() {
     // always Adroitness, Raw Strength, Intellect, Charm left to right (the tracker sheet's columns are in a different order)
     const attrs = [["Adroitness", 4, "Adroitness"], ["Raw Str.", 3, "Raw Strength"], ["Intellect", 5, "Intellect"], ["Charm", 6, "Charm"]].map(([n, i, full]) =>
       `<div class="att"><small>${n}</small><b>${esc2(c(row, i) || "-")}</b>${roll(full, c(row, i)).replace('class="rd"', 'class="rd ra"')}</div>`).join("");
-    cards.push([sheetRow, `<div class="mcard ${dead ? "dead" : ""}" data-row="${sheetRow}" data-g="${esc2("m:" + (c(row, 1) || name))}">
+    cards.push([sheetRow, `<div class="mcard ${dead ? "dead" : ""}" data-row="${sheetRow}" data-n="${esc2(name)}" data-g="${esc2("m:" + (c(row, 1) || name))}">
       <div class="mtop" title="Drag to move this monster up or down"><span class="mgrip">⋮⋮</span>${monThumb(name)}<b>${esc2(name)}${dead ? ` <span class="deadtag">(DEAD)</span>` : ""}</b>${pen && !dead ? `<span class="mwnd">wounded ${pen}</span>` : ""}${c(row, 2) ? `<span class="mkind">${esc2(c(row, 2))}</span>` : ""}<span style="flex:1"></span>${dead ? "" : nbChips("mon:" + name, true)}
         <button class="sbtn mdead ${dead ? "on" : ""}" data-r="${sheetRow}" data-on="${dead ? "" : "1"}">${dead ? SKULL + "DEAD" : "DEAD?"}</button></div>
       <div class="g4 matt">${attrs}</div>
@@ -2769,9 +2771,20 @@ async function syncDeadGroups() {
 // ---------------- INITIATIVE (GM controls) ----------------
 let initMd = {};
 // Subtle highlight on the monster cards whose group is up in initiative
+// The monster whose turn it is: its card is outlined and gets a big NEXT TURN ▶ under its name bar.
+// Groups go one member at a time (Hive Runner 1, then 2...); combats rolled before that existed light up the whole group.
 function markTurn() {
-  const st = initMd[INIT], cur = st?.open ? st.cur : "";
-  document.querySelectorAll("#mo .mcard").forEach(card => card.classList.toggle("turn", !!cur && card.dataset.g === cur));
+  const st = initMd[INIT], cur = st?.open ? st.cur : "", who = cur ? turnNames(initMd).cur : "";
+  const cards = [...document.querySelectorAll("#mo .mcard")];
+  let on = cards.filter(card => who && !card.classList.contains("dead") && nm(card.dataset.n) === nm(who));
+  if (!on.length) on = cards.filter(card => !!cur && card.dataset.g === cur);
+  cards.forEach(card => {
+    const t = on.includes(card), btn = card.querySelector(".mnext");
+    card.classList.toggle("turn", t);
+    if (t && !btn) { card.querySelector(".mtop")?.insertAdjacentHTML("afterend", `<button class="mnext" title="Done with this monster: move to the next turn">NEXT TURN ▶</button>`);
+      card.querySelector(".mnext").onclick = (e) => { e.stopPropagation(); initStep(1); }; }
+    if (!t && btn) btn.remove();
+  });
 }
 function drawInitList() {
   const box = $("iList"); if (!box) return;
