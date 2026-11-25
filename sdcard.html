@@ -50,6 +50,7 @@
   .wa { display:flex; align-items:baseline; justify-content:space-between; gap:6px; }
   .wa b { font-size:13px; font-weight:800; color:#eef0f7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .wa b small { margin-left:5px; font-size:10px; font-weight:600; color:#9aa0b8; }
   .wa span { flex:none; font-size:10px; font-weight:700; color:#9aa2b8; letter-spacing:.4px; } .wa span i { font-style:normal; color:#dfe3ef; font-weight:900; font-size:13px; }
+  .ap { margin-top:6px; font-size:10.5px; font-weight:800; color:#cfd5e4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .tg { margin-top:2px; font-size:10.5px; font-weight:700; color:#9aa2b8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .tg b { color:#dfe3ef; font-weight:800; }
   .tg.dim { font-style:italic; color:#7d859c; }
   .wl { font-size:10.5px; font-weight:700; color:#aab1c5; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -124,7 +125,7 @@
       `<div class="top"><span class="k">${waitOnly ? "Δ · Waiting" : "Success Delta"}</span><span class="sp"></span>${nav}` +
       `<button class="b pin ${pin ? "on" : ""}" id="pin" title="${pin ? "Stays up until you close it. Tap to make it fade 20 s after the last result" : "Fades 20 s after the last result. Tap to make it stay up until you close it"}">${PIN_SVG}<span>${pin ? "STAY" : "20s"}</span></button>` +
       `<button class="b" id="x" title="Close (opens again on the next attack, or from the DICE tab)">✕</button></div>` +
-      (e ? resultHtml(e) : "") + (w ? waitHtml(w, !!e) : "");
+      (e ? resultHtml(e) + (e.ap ? `<div class="ap">${/^auto damage/i.test(e.ap) ? "" : "✓ "}${esc(e.ap)}</div>` : "") : "") + (w ? waitHtml(w, !!e) : "");
     const $ = (id) => document.getElementById(id);
     $("x").onclick = close;
     $("pin").onclick = () => { set(PIN, pinned() ? "0" : "1"); render(); arm(true); };

@@ -683,8 +683,8 @@
   <div id="hand" class="hand" hidden></div>
 </main>
 <script type="module">
-import OBR, { buildImage, buildImageUpload } from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
-import { NS, KEEP, rollKey, allRolls, fmt, INIT, initEntries, rollLine, ROLL_CSS, rollLog, LOG_MAX, POWER_CARDS, sameName } from "./shared.js";
+import OBR, { buildImage, buildImageUpload, buildLabel } from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
+import { NS, KEEP, rollKey, allRolls, fmt, INIT, initEntries, rollLine, ROLL_CSS, rollLog, LOG_MAX, POWER_CARDS, sameName, sdResult, MARK_ITEM, DEFAULT_MARKS } from "./shared.js";
 document.head.insertAdjacentHTML("beforeend", `<style>${ROLL_CSS}</style>`);
 import { TYPES, SECTIONS, REF_GROUPS, getTab, sectionHtml } from "./rules.js";
 
@@ -1205,7 +1205,7 @@ function drawSheet() {
     if (w < 3) { const lw = [0, 1, 2].map(i => !!V("BCD"[i] + "16")); w = on ? lw.indexOf(false) : lw.lastIndexOf(true); if (w < 0) return; }
     healUndo.delete(sheetId());
     const ad = actDef(); if (on && ad?.hurt) { setActive(""); endActive(ad.c === "rv" ? "Your body was hit. Your spirit snaps back." : "You took damage and reappear."); }
-    save({ wound: w, on }, () => setCell("BCDEFGH"[w] + "16", on ? "X" : ""));
+    save({ wound: w, on }, () => setCell("BCDEFGH"[w] + "16", on ? "X" : "")).then(condReport);
   });
   $("heal").onclick = () => heal(1);
   $("healN").oninput = () => { healNVal = $("healN").value; };
@@ -2088,19 +2088,19 @@ async function heal(n = 1) { // n steps at once is one save and one undo
   const id = sheetId(), stack = healUndo.get(id) || [];
   // the Dead box (H) never moves; it's only cleared by hand
   const six = was.slice(0, 6), moved = six.slice(n).concat(Array(Math.min(n, 6)).fill(false));
-  if (await setTrack(moved.concat(was[6]))) { stack.push(was); healUndo.set(id, stack.slice(-5)); drawSheet(); }
+  if (await setTrack(moved.concat(was[6]))) { stack.push(was); healUndo.set(id, stack.slice(-5)); drawSheet(); condReport(); }
 }
 async function clearTrack() { // every box off, Dead too; counts as one Undo
   if (busy || Date.now() < healWait) return;
   const was = "BCDEFGH".split("").map(c => !!V(c + "16")), id = sheetId(), stack = healUndo.get(id) || [];
-  if (await setTrack(Array(7).fill(false))) { stack.push(was); healUndo.set(id, stack.slice(-5)); drawSheet(); }
+  if (await setTrack(Array(7).fill(false))) { stack.push(was); healUndo.set(id, stack.slice(-5)); drawSheet(); condReport(); }
 }
 async function undoHeal() {
   if (busy || Date.now() < healWait) return;
   const id = sheetId(), stack = healUndo.get(id) || [];
   if (!stack.length) return;
   const prev = stack[stack.length - 1];
-  if (await setTrack(prev)) { stack.pop(); drawSheet(); }
+  if (await setTrack(prev)) { stack.pop(); drawSheet(); condReport(); }
 }
 async function setTrack(now) { // write a whole vitality track (7 true/false), only the boxes that change
   if (busy) return false;
@@ -2201,6 +2201,7 @@ async function showMonsters() {
   if (!r.ok) { if (!saved) box.innerHTML = `${pickers()}<div class="err">Couldn't load monsters: ${esc2(r.error)}</div>` + stasisBox(); bindPicker(); return; }
   cache.set("mon." + monId(), r.values);
   if (JSON.stringify(r.values) !== JSON.stringify(monVals)) { monVals = r.values; drawMonsters(); }
+  premarkMooks();
 }
 // Encounter dropdown: every sheet in the encounter folder (one sheet per encounter, each with an "Extension Tracker" tab)
 let encList = cache.get(ck("encList")) || [];
@@ -2211,7 +2212,7 @@ function encounterPicker() {
     encList.map(e => `<option value="${esc2(e.id)}" ${e.id === cur ? "selected" : ""}>${esc2(e.name)}</option>`).join("")}</select></div>`;
 }
 function bindPicker() {
-  bindGmTools(); bindStasis();
+  bindGmTools(); bindStasis(); bindAd();
   if ($("campSel")) $("campSel").onchange = () => OBR.room.setMetadata({ [CAMP]: $("campSel").value }); // everyone in the room follows
   if (!$("encSel")) return;
   $("encSel").onchange = () => { store.set(ck("ns.encounter"), $("encSel").value); monVals = null; showMonsters(); };
@@ -2670,7 +2671,7 @@ function drawMonsters() {
   if (touchDev) html += `<div class="mlockrow"><button id="mLock" class="mlock ${locked ? "on" : ""}" title="${locked ? "Monsters locked (tap to unlock)" : "Lock monsters so they don't move"}">${locked ? LOCK_SVG : UNLOCK_SVG}</button></div>`;
   html += `<div class="nbrow">${nbChips("m")}</div>`;
   html += `<div id="mlist" class="${locked ? "mlocked" : ""}">${cards.map(x => x[1]).join("")}</div>`;
-  $("mo").innerHTML = pickers() + html + stasisBox();
+  $("mo").innerHTML = pickers() + html + adBox() + stasisBox();
   if ($("mLock")) $("mLock").onclick = () => { store.set("ns.monLock", store.get("ns.monLock") === "1" ? "" : "1"); drawMonsters(); };
   bindMonDrag();
   bindPicker();
@@ -2699,7 +2700,8 @@ function drawMonsters() {
     if (col >= 13 && col <= 15) { const lw = [12, 13, 14].map(i => !!String((monVals[row - 1] || [])[i] ?? "").trim()); const k = on ? lw.indexOf(false) : lw.lastIndexOf(true); if (k < 0) return; col = 13 + k; }
     await monSet(row, col, on);
     // the last wound box (D) also flips the DEAD button to match
-    if (col === 19 && !!(monVals[row - 1] || [])[19] !== on) monSet(row, 20, on);
+    if (col === 19 && !!(monVals[row - 1] || [])[19] !== on) await monSet(row, 20, on);
+    monCond(row);
   });
 }
 async function monSet(row, col, on) {
@@ -3385,6 +3387,149 @@ function updateDefBanner() {
 $("defx").onclick = () => { const w = sdWait(); if (w) store.set("ns.defHide", w.id); $("defban").hidden = true; };
 window.addEventListener("storage", (e) => { if (!standalone && e.key === "ns.sd:" + OBR.room.id) updateDefBanner(); });
 setInterval(() => { if (!standalone) updateDefBanner(); }, 5000);
+// ---------------- AUTO DAMAGE (GM switch, bottom of the GM tab) ----------------
+// When it's on, every Success Delta that lands a wound marks it on the defender's character sheet or monster card,
+// and Down & KO'ed / Dead put the Unconscious 💤 / Dead ☠️ condition on their token (Dead replaces Unconscious).
+// Unticking boxes by hand (anyone) takes the condition off again. The GM's panel does all of it, so it has to be open
+// somewhere (it catches up on hits from the last 10 minutes when it opens). Spell hits (damage "?") are skipped.
+// Where a wound goes: the first empty box at its level, moving right if those are full (LW LW LW MW CW KO D).
+const AUTOD = "com.newscolos.autodmg";            // room: 0 = off, otherwise the time it was switched on
+const APPLIED = "com.newscolos.dice/applied";     // room: [{ id, t }] what auto damage marked, shown on the card
+const CONDREQ = "com.newscolos.cond/";            // room: <player> -> { name, ko, dead, ts } after a hand change on a sheet
+const SHEETPING = "com.newscolos.sheetping";      // room: { id, ts, hurt } "this sheet changed, reload it"
+const BOX_START = [0, 0, 3, 4, 5, 6];             // wound level 1..5 -> its first box
+const BOX_NAME = ["Light Wound", "Light Wound", "Light Wound", "Medium Wound", "Critical Wound", "Down & KO'ed", "Dead"];
+const adOn = () => Number((lastMd || {})[AUTOD]) || 0;
+const nm = (x) => String(x || "").toLowerCase().replace(/\s+/g, " ").trim();
+function adBox() {
+  const on = !!adOn();
+  return `<div class="sec" style="margin-top:10px">AUTO DAMAGE</div><button id="adBtn" class="sbtn ${on ? "on" : ""}" style="width:100%">AUTO DAMAGE: ${on ? "ON" : "OFF"}</button>
+    <div class="help">${on ? "Hits mark wounds on sheets and monster cards by themselves; KO and Dead go on the tokens. Anyone can untick a box to fix a mistake. Keep this panel open during fights." : "Off: players and the GM mark wounds by hand."}</div>`;
+}
+function bindAd() { if ($("adBtn")) $("adBtn").onclick = async () => {
+  const on = !adOn(); await OBR.room.setMetadata({ [AUTOD]: on ? Date.now() : 0 }).catch(() => {});
+  lastMd = await OBR.room.getMetadata(); drawMonsters(); }; }
+let condSeen = {}, pingSeen = 0;
+function adMeta(md, first) {
+  lastMd = md;
+  // players: the GM marked a wound on my sheet: reload it (and a hurt ends Spirit Walk / Disappear Completely)
+  const p = md[SHEETPING];
+  if (first) pingSeen = p?.ts || 0;
+  else if (p?.ts && p.ts !== pingSeen) { pingSeen = p.ts;
+    if (p.id && p.id === sheetId() && !mgrOn) {
+      const ad = actDef(); if (p.hurt && ad?.hurt) { setActive(""); endActive(ad.c === "rv" ? "Your body was hit. Your spirit snaps back." : "You took damage and reappear."); }
+      loadSheet(true); } }
+  if (!isGM || PARTYPOP || UPLINK) return;
+  // GM: someone changed their track by hand: put their token's conditions in step
+  for (const [k, v] of Object.entries(md)) if (k.startsWith(CONDREQ) && v?.ts && condSeen[k] !== v.ts) {
+    condSeen[k] = v.ts; if (!first && adOn() && Date.now() - v.ts < 60e3) applyCond(v.name, v.ko, v.dead); }
+  if (first) autoDamage();
+}
+// Players (and the GM looking at a sheet): after a hand change on the vitality track, tell the GM's screen the KO / Dead state
+function condReport() {
+  if (standalone || !adOn() || !sheetVals) return;
+  const name = String(V("C3") || "").trim(); if (!name) return;
+  if (isGM && !PARTYPOP && !UPLINK) return applyCond(name, !!V("G16"), !!V("H16"));
+  OBR.room.setMetadata({ [CONDREQ + me]: { name, ko: !!V("G16"), dead: !!V("H16"), ts: Date.now() } }).catch(() => {});
+}
+// Unconscious 💤 / Dead ☠️ on every token with that name (the same labels as the right-click Mark menu)
+async function applyCond(name, ko, dead) {
+  try {
+    if (!(await OBR.scene.isReady())) return;
+    const want = dead ? [DEFAULT_MARKS[0]] : ko ? [DEFAULT_MARKS[1]] : [];
+    const toks = await OBR.scene.items.getItems(i => i.type === "IMAGE" && (i.layer === "CHARACTER" || i.layer === "MOUNT") && nm(i.name) === nm(name));
+    const k = (await OBR.scene.grid.getDpi()) / 150;
+    for (const t of toks) {
+      const marks = await OBR.scene.items.getItems(i => i.metadata?.[MARK_ITEM]?.on === t.id);
+      const drop = marks.filter(m => DEFAULT_MARKS.includes(m.metadata[MARK_ITEM].text) && !want.includes(m.metadata[MARK_ITEM].text));
+      const have = new Set(marks.map(m => m.metadata[MARK_ITEM].text));
+      if (drop.length) await OBR.scene.items.deleteItems(drop.map(m => m.id));
+      const add = want.filter(w => !have.has(w));
+      if (add.length) await OBR.scene.items.addItems(add.map(text => buildLabel().plainText(text).position({ x: 0, y: 0 })
+        .fontSize(16.5 * k).fontWeight(700).fillColor("#ffffff").padding(4.5 * k)
+        .backgroundColor("#1b1e2e").backgroundOpacity(0.85).cornerRadius(9 * k)
+        .strokeColor("#bb99ff").strokeWidth(2 * k).strokeOpacity(1)
+        .pointerDirection("DOWN").pointerHeight(9 * k).pointerWidth(12 * k)
+        .attachedTo(t.id).disableAttachmentBehavior(["ROTATION", "SCALE"])
+        .layer("TEXT").locked(true).disableHit(true)
+        .metadata({ [MARK_ITEM]: { on: t.id, text, n: Date.now() } }).build()));
+      if (drop.length || add.length) { // re-stack the labels above the head, oldest closest
+        const all = (await OBR.scene.items.getItems(i => i.metadata?.[MARK_ITEM]?.on === t.id)).sort((a, b) => (a.metadata[MARK_ITEM].n || 0) - (b.metadata[MARK_ITEM].n || 0));
+        if (all.length) { const b = await OBR.scene.items.getItemBounds([t.id]);
+          await OBR.scene.items.updateItems(all.map(m => m.id), (ds) => ds.forEach((d, i) => {
+            d.position = { x: b.center.x, y: b.min.y - 2 * k - (i ? 9 * k + i * 33 * k : 0) }; d.style.pointerHeight = i ? 0 : 9 * k; })); }
+      }
+    }
+  } catch {}
+}
+// A monster card's KO / Dead state -> its tokens
+function monCond(row) { const r = (monVals || [])[row - 1] || [], on = (i) => !!String(r[i] ?? "").trim() && !/^false$/i.test(String(r[i]));
+  if (adOn() && r[0]) applyCond(String(r[0]).trim(), on(17), on(18) || on(19)); }
+// Mooks / minions: MW, CW and KO come pre-marked (D stays empty), so any hit past their 3 Light boxes kills them
+let premarking = false;
+async function premarkMooks() {
+  if (premarking || !monVals) return; premarking = true;
+  try {
+    const v = monVals, hdr = Math.max(0, v.findIndex(r => String(r?.[0] || "").trim().toLowerCase() === "name"));
+    for (let row = hdr + 1; row < v.length; row++) {
+      const r = v[row] || [], c = (i) => String(r[i] ?? "").trim();
+      if (!c(0) || !/\b(mook|minion)s?\b/i.test(c(0) + " " + c(2))) continue;
+      if ([12, 13, 14, 15, 16, 17, 18].some(i => c(i)) || /^(true|x|yes|dead)$/i.test(c(19))) continue; // already started
+      for (const col of [16, 17, 18]) await monSet(row + 1, col, true);
+    }
+  } finally { premarking = false; }
+}
+// The engine: new Success Delta results (this screen's list, written by the background page) -> wounds
+let adBusy = false, adAgain = false;
+async function autoDamage() {
+  if (standalone || !isGM || PARTYPOP || UPLINK) return;
+  const since = adOn(); if (!since) return;
+  if (adBusy) { adAgain = true; return; } adBusy = true;
+  try {
+    const KEY = "ns.adDone:" + OBR.room.id;
+    let list = []; try { list = JSON.parse(localStorage.getItem("ns.sd:" + OBR.room.id) || "{}").list || []; } catch {}
+    let done = []; try { done = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch {}
+    for (const e of list) {
+      if (done.includes(e.id)) continue;
+      done = [...done, e.id].slice(-60); store.set(KEY, JSON.stringify(done)); // never twice, even if something fails below
+      if (!e.ts || e.ts < since || Date.now() - e.ts > 10 * 60e3) continue;
+      const R = sdResult(e); if (!R.hit || !R.w) continue; // miss, armor held, or spell damage unknown
+      const t = await applyWound(e.def, R.w).catch(x => "Auto damage failed: " + x.message);
+      if (t) { const md = await OBR.room.getMetadata(), ap = Array.isArray(md[APPLIED]) ? md[APPLIED] : [];
+        await OBR.room.setMetadata({ [APPLIED]: [{ id: e.id, t }, ...ap].slice(0, 8) }).catch(() => {}); }
+    }
+  } finally { adBusy = false; if (adAgain) { adAgain = false; autoDamage(); } }
+}
+async function applyWound(name, w) {
+  const start = BOX_START[w];
+  const pick = (marks) => { for (let i = start; i < 7; i++) if (!marks[i]) return i; return -1; };
+  const said = (i) => i < 0 ? `${name} is already dead` : `${BOX_NAME[i]} marked on ${name}${i > start ? " (boxes full, moved right)" : ""}`;
+  // a monster on the GM tab's encounter?
+  if (!monVals && monId()) { const r = await bridgeGet({ id: monId(), tab: "Extension Tracker" }).catch(() => null); if (r?.ok) monVals = r.values; }
+  const v = monVals || [], row = v.findIndex((r, i) => i > 0 && nm(r?.[0]) === nm(name));
+  if (row > 0) {
+    const r = v[row], on = (i) => !!String(r[i] ?? "").trim() && !/^false$/i.test(String(r[i]));
+    const i = pick([12, 13, 14, 15, 16, 17, 18].map(on));
+    if (i >= 0) { await monSet(row + 1, 13 + i, true); if (i === 6 && !on(19)) await monSet(row + 1, 20, true); }
+    monCond(row + 1); return said(i);
+  }
+  // a character in this room's campaign?
+  let chars = cache.get(ck("chars")) || [], c = chars.find(x => nm(x.name) === nm(name));
+  if (!c) { chars = await characterSheets().catch(() => chars); c = chars.find(x => nm(x.name) === nm(name)); }
+  if (!c) return `Auto damage: couldn't find "${name}" on the GM tab or in the campaign's characters. Mark it by hand.`;
+  const r = await bridgeGet({ id: c.id }); if (!r?.ok) throw new Error(r?.error || "couldn't read the sheet");
+  const marks = "BCDEFGH".split("").map((_, k) => !!String(r.values?.[15]?.[k + 1] ?? "").trim());
+  const i = pick(marks);
+  if (i >= 0) {
+    const res = await fetch(BRIDGE, { method: "POST", body: JSON.stringify({ code: store.get("ns.code"), id: c.id, wound: i, on: true }) }).then(x => x.json());
+    if (!res.ok) throw new Error(res.error + (/permission|access|denied/i.test(res.error || "") ? " (the sheet must be shared with Jake as Editor)" : ""));
+    marks[i] = true;
+    await OBR.room.setMetadata({ [SHEETPING]: { id: c.id, ts: Date.now(), hurt: 1 } }).catch(() => {});
+    if (sheetId() === c.id && !mgrOn) loadSheet(true);
+  }
+  applyCond(name, marks[5], marks[6]);
+  return said(i);
+}
 // Party pop-out (GM only): this same page opened beside the map, showing only the Party overview with the GM strip.
 const PTY_POP_ICON = `<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const PARTY_POP = "com.newscolos.party";
@@ -3438,8 +3583,9 @@ if (standalone) {
     if (isGM) { initMd = await OBR.room.getMetadata(); OBR.room.onMetadataChange((m) => { initMd = m; drawInitList(); markTurn(); }); }
     if (!UPLINK && !PARTYPOP) applySize();
     render(rollLog(OBR.room.id, allRolls(await OBR.room.getMetadata())));
-    OBR.room.onMetadataChange((md) => { render(rollLog(OBR.room.id, allRolls(md))); updateInitBanner(md); actSync(md); });
-    updateInitBanner(); actSync(await OBR.room.getMetadata());
+    OBR.room.onMetadataChange((md) => { render(rollLog(OBR.room.id, allRolls(md))); updateInitBanner(md); actSync(md); adMeta(md); });
+    updateInitBanner(); actSync(await OBR.room.getMetadata()); adMeta(await OBR.room.getMetadata(), true);
+    window.addEventListener("storage", (e) => { if (e.key === "ns.sd:" + OBR.room.id) autoDamage(); });
     const readAct = (ps) => { partyAct = ps.map(p => p.metadata?.[ACT_MD]).filter(Boolean); if (partyOn && lastParty && $("shbody")) drawParty($("shbody"), lastParty); };
     readAct(await OBR.party.getPlayers()); OBR.party.onChange(readAct);
   });

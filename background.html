@@ -138,7 +138,12 @@ async function openCard() {
     disableClickAway: true, hidePaper: true });
 }
 // ✕ on a waiting attack, and − / + defenders, come in through room metadata so every screen follows
+// What the GM's AUTO DAMAGE marked ("Medium Wound marked on Hive Runner 2"): shown on the matching result card
+const APPLIED = "com.newscolos.dice/applied";
 function sdMeta(md) {
+  const ap = Array.isArray(md[APPLIED]) ? md[APPLIED] : []; let ch = false;
+  for (const a of ap) { const e = sd.list.find(x => x.id === a.id); if (e && e.ap !== a.t) { e.ap = String(a.t).slice(0, 120); ch = true; } }
+  if (ch) sdSave();
   const c = md[SDCANCEL]; if (c?.id && c.id !== lastCancel) { lastCancel = c.id; if (openAttack?.id === c.id) { openAttack = null; syncWait(); } }
   const n = md[SDN]; if (n?.ts && n.ts !== lastSdn) { lastSdn = n.ts;
     if (openAttack?.id === n.id && openAttack.n !== n.n) { openAttack.n = Math.max(1, Math.min(12, Number(n.n) || 1)); syncWait(); } }
