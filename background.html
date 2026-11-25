@@ -119,6 +119,9 @@ let seenIds = new Set();
 function addResult(e) {
   try { rollLog(OBR.room.id, [e]); } catch {}
   if (!e.aid) e.aid = String(e.id || "").split("-")[1] || ""; // results saved before Nov 25 didn't carry the attack id
+  // A result always counts its defender on the waiting attack, even if this screen missed the defense roll itself
+  // (otherwise "roll Adroitness" stays up under a hit that's already worked out)
+  if (openAttack && e.aid === openAttack.id && e.def && !openAttack.defs.some(d => sameName(d, e.def))) { openAttack.defs.push(e.def); syncWait(); }
   const fresh = !sd.list.some(x => x.id === e.id);
   if (fresh) { sd.list.push(e); sd.list = sd.list.slice(-SD_KEEP); }
   sdSave(); openCard().catch(() => {});
