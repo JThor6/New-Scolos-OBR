@@ -100,7 +100,7 @@
       : `<span class="t1">🛡 ${w.sp ? "If it's aimed at someone, they" : "Defender"}: roll Adroitness</span>`;
     return `<div class="wait ${strip ? "strip" : ""}">` +
       `<div class="wa"><b>${esc(w.att)}${w.who ? `<small>${esc(w.who)}</small>` : ""}</b><span>${verb} <i>${sg(Number(w.at) || 0)}</i></span></div>` +
-      (w.l || w.tg ? `<div class="wl">${esc(w.l || "")}${w.tg ? ` → 🎯 ${esc(w.tg.join(", "))}` : ""}</div>` : "") +
+      (w.l || w.tg ? `<div class="wl">${esc(w.l || "")}${w.tg ? ` → ${esc(w.tg.join(", "))}` : ""}</div>` : "") +
       `<div class="ask">${ask}<button class="b" id="drop" title="Not an attack on anyone: drop it for everyone">✕</button></div>` +
       (d ? `<div class="done">Defended: ${esc(w.defs.join(", "))}</div>` : "") + `</div>`;
   }

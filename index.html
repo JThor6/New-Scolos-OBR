@@ -215,7 +215,7 @@
   button, input, .box, .rollbox { touch-action:manipulation; -webkit-tap-highlight-color:transparent; }
   .healb:disabled { opacity:.4; cursor:default; }
   .stabrow { display:flex; align-items:flex-end; justify-content:space-between; gap:6px; }
-  .tgtme { margin-bottom:3px; padding:2px 8px; border-radius:6px; border:1px solid #4a4466; background:transparent; color:var(--dim); font:700 11px system-ui; cursor:pointer; }
+  .tgtme { margin-bottom:3px; padding:2px 8px; border-radius:6px; border:1px solid #4a4466; background:transparent; color:var(--dim); font:800 10.5px system-ui; letter-spacing:.8px; cursor:pointer; }
   .tgtme.on { background:#343948; border-color:#aab3cc; color:#f1f3f9; }
   .stab { display:inline-block; background:#000; color:#fff; font-weight:800; font-size:12px; letter-spacing:.5px; padding:2px 10px; border-radius:6px 6px 0 0; margin-top:10px; }
   .att { border:3px solid #000; outline:1px solid #444a66; border-radius:8px; background:var(--paper); text-align:center; padding:4px 2px; }
@@ -2264,17 +2264,17 @@ function bindStasis() {
 function gmTools() {
   return `<div class="sec" style="margin-top:2px">TABLE</div><div class="g2" style="margin-bottom:4px">
     <button id="gmDay" class="sbtn">☀ NEW DAY</button><button id="gmCop" class="sbtn">⚡ REFILL COP</button></div>
-    <button id="gmTgt" class="sbtn" style="width:100%;margin-bottom:4px" title="Off: whoever rolls Adroitness next defends (fast). On: select the target token(s) on the map before you roll a monster's attack, and only they defend. Just for you.">🎯 TARGETS: …</button>
+    <button id="gmTgt" class="sbtn" style="width:100%;margin-bottom:4px" title="Off: whoever rolls Adroitness next defends (fast). On: select the target token(s) on the map before you roll a monster's attack, and only they defend. Just for you.">TARGET LOCK: …</button>
     <div id="gmMsg" class="help" hidden></div>`;
 }
 // 🎯 Targets (room setting, off by default): when on, an attack roll takes the tokens its roller has selected as its targets,
 // and only those characters' / monsters' Adroitness rolls defend against it. Off keeps the game fast: next Adroitness rolls defend.
 // Per person (this browser): each player and the GM turns it on for their own attacks if they want it.
 const tgtOn = () => store.get("ns.targets") === "1";
-const tgtBtn = () => standalone ? "" : `<button id="tgtme" class="tgtme ${tgtOn() ? "on" : ""}" title="Off: whoever rolls Adroitness next defends (fast). On: select the target token(s) on the map before you roll an attack, and only they defend.">🎯 Targets: ${tgtOn() ? "ON" : "OFF"}</button>`;
+const tgtBtn = () => standalone ? "" : `<button id="tgtme" class="tgtme ${tgtOn() ? "on" : ""}" title="Off: whoever rolls Adroitness next defends (fast). On: select the target token(s) on the map before you roll an attack, and only they defend.">TARGET LOCK: ${tgtOn() ? "ON" : "OFF"}</button>`;
 function drawTgt() {
-  const g = $("gmTgt"); if (g) { g.textContent = tgtOn() ? "🎯 TARGETS: ON (select targets, then roll the attack)" : "🎯 TARGETS: OFF"; g.classList.toggle("on", tgtOn()); }
-  const p = $("tgtme"); if (p) { p.textContent = "🎯 Targets: " + (tgtOn() ? "ON" : "OFF"); p.classList.toggle("on", tgtOn()); }
+  const g = $("gmTgt"); if (g) { g.textContent = tgtOn() ? "TARGET LOCK: ON (select targets, then roll the attack)" : "TARGET LOCK: OFF"; g.classList.toggle("on", tgtOn()); }
+  const p = $("tgtme"); if (p) { p.textContent = "TARGET LOCK: " + (tgtOn() ? "ON" : "OFF"); p.classList.toggle("on", tgtOn()); }
 }
 const flipTgt = () => { store.set("ns.targets", tgtOn() ? "" : "1"); drawTgt(); };
 function bindGmTools() {
