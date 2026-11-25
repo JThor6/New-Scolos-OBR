@@ -241,6 +241,18 @@
   .ptop b { font-size:15px; } .ptop small { color:var(--dim); font-size:11px; flex:1; }
   .ppw { font-size:9px; font-weight:800; padding:2px 5px; border-radius:4px; background:var(--plus); color:#000; }
   .ppw.u { background:#555b75; color:var(--ink); }
+  /* GM strip on Party cards: small labelled numbers, defense first */
+  .gmstrip { display:flex; flex-wrap:wrap; gap:4px; margin-top:5px; }
+  .gmc { display:inline-flex; align-items:baseline; gap:4px; padding:2px 7px; border-radius:6px; background:rgba(255,255,255,.06); border:1px solid #3a3f58; font-size:12px; line-height:1.4; white-space:nowrap; }
+  .gmc small { font-size:9px; font-weight:800; letter-spacing:.5px; color:var(--dim); }
+  .gmc b { font-weight:800; font-variant-numeric:tabular-nums; }
+  .gmc i { font-style:normal; font-size:9px; font-weight:900; margin-left:3px; color:#c7b6ff; }
+  .gmc.def { border-color:#4a5f8a; background:rgba(90,140,230,.1); }
+  .gmc.pwr { border-color:#9d86ff; box-shadow:0 0 6px rgba(157,134,255,.35); }
+  .gmc.empty { opacity:.45; }
+  .gmc.cred b { color:#d9c6ff; }
+  .gmc.xp b { color:#9be7b0; }
+  .gmc.wnd { border-color:#7a3340; background:rgba(255,90,90,.12); color:#ff8f8f; font-size:11px; font-weight:900; }
   .pvit { display:flex; align-items:flex-end; gap:4px; margin-top:5px; }
   .pvit i { display:flex; flex-direction:column; align-items:center; font-style:normal; gap:1px; }
   .pvit i small { font-size:9px; font-weight:800; color:var(--dim); }
@@ -3140,6 +3152,27 @@ async function showParty() {
   finally { sync(-1); }
 }
 let lastParty = null;
+// GM only: one strip of numbers on each Party card (defense, COP, points, credits, level/XP, wounded)
+function gmStrip(v, cell) {
+  const n = (a1) => num(cell(v, a1)), sg = (x) => x > 0 ? "+" + x : String(x);
+  const name = cell(v, "C3"), type = cell(v, "C4");
+  // an armor power that's on (Bullet Stop +2, Avatar +1) counts toward their Armor Bonus
+  const pw = partyAct.find(p => p.name === name), extra = (pw && ACTIVE[pw.n]?.armor) || 0;
+  const adr = n("C7"), arm = n("H25"), cop = n("H29"), copMax = n("H28"), pts = n("F13"), ptsMax = num(/^\d+$/.test(cell(v, "H13")) ? cell(v, "H13") : cell(v, "G13"));
+  const cred = n("F7"), lvl = n("F5"), xp = n("F3"), pen = n("C12");
+  const chip = (k, val, cls = "", tip = "") => `<span class="gmc ${cls}" ${tip ? `title="${esc2(tip)}"` : ""}><small>${k}</small><b>${val}</b></span>`;
+  const out = [];
+  if (adr != null) out.push(chip("ADR", sg(adr), "def", "Adroitness: what they defend with"));
+  if (arm != null) out.push(chip("ARMOR", sg(arm + extra) + (extra ? `<i>+${extra}</i>` : ""), "def" + (extra ? " pwr" : ""), extra ? `Armor Bonus ${sg(arm)}, plus ${extra} from ${ACTIVE[pw.n]?.t || "a power"}` : "Armor Bonus"));
+  if (copMax) out.push(chip("COP", `${cop ?? 0}/${copMax}`, (cop ?? 0) <= 0 ? "empty" : "", "Combat Option Points left"));
+  const pt = /mage/i.test(type) ? "SP" : /priest/i.test(type) ? "INV" : "";
+  if (pt && (pts != null || ptsMax != null)) out.push(chip(pt, `${pts ?? 0}${ptsMax != null ? "/" + ptsMax : ""}`, (pts ?? 0) <= 0 ? "empty" : "", pt === "SP" ? "Spell Points left" : "Invocations left"));
+  out.push(chip("¤", (cred ?? 0).toLocaleString("en-US"), "cred", "Credits"));
+  if (lvl != null) out.push(chip("LVL", String(lvl), "", "Level"));
+  if (xp) out.push(chip("XP", String(xp), "xp", "Unspent XP"));
+  if (pen && pen < 0) out.push(`<span class="gmc wnd" title="Rolling with the wound penalty">wounded ${pen}</span>`);
+  return `<div class="gmstrip">${out.join("")}</div>`;
+}
 function drawParty(body, chars) {
   lastParty = chars;
   {
@@ -3151,7 +3184,7 @@ function drawParty(body, chars) {
       const used = cell(v, "F6").toUpperCase() === "TRUE";
       return `<div class="pcard">
         <div class="ptop">${ptIcon(c.id, cell(v, "C3"))}<b>${esc2(cell(v, "C3"))}</b>${isGM && ptT(c.id) ? `<button class="pogb" data-pog="${esc2(c.id)}" data-n="${esc2(cell(v, "C3"))}" title="Add this character's pog to your Owlbear characters">◎ POG</button>` : ""}<small>${esc2(cell(v, "C4"))}</small><span class="ppw ${used ? "u" : ""}">${used ? "POWER USED" : "POWER READY"}</span></div>
-        ${actBadge(cell(v, "C3"))}<div class="pvit">${marks.map((m, i) => `<i><small>${["LW", "LW", "LW", "MW", "CW", "KO", "D"][i]}</small><span class="${m ? "x" : ""}"></span></i>`).join("")}<em class="${worst >= 4 ? "bad" : ""}">${esc2(status)}</em></div>
+        ${isGM ? gmStrip(v, cell) : ""}${actBadge(cell(v, "C3"))}<div class="pvit">${marks.map((m, i) => `<i><small>${["LW", "LW", "LW", "MW", "CW", "KO", "D"][i]}</small><span class="${m ? "x" : ""}"></span></i>`).join("")}<em class="${worst >= 4 ? "bad" : ""}">${esc2(status)}</em></div>
       </div>`;
     }).join("") : `<div class="empty">No characters found.</div>`;
     fillPts(body);
