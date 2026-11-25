@@ -299,6 +299,12 @@
   .defban .defbtns { display:flex; flex-wrap:wrap; gap:5px; flex:none; }
   .defban .defbtns button { background:#dfe4f2; }
   #defx { background:transparent !important; color:#f1f3f9 !important; padding:4px 6px !important; }
+  /* a monster Target Lock picked: impossible to miss while scrolling */
+  #mo .mcard.sdtgt { outline:3px solid #ff4d3d; outline-offset:1px; animation:sdtgt 1.2s ease-in-out infinite; }
+  #mo .mcard.sdtgt .mtop { background:linear-gradient(90deg, #b3121f, #ff4d3d) !important; border-bottom-color:#ff8a7f !important; }
+  #mo .mcard.sdtgt .mtop b { color:#fff !important; }
+  #mo .sddefb { margin-right:6px; padding:6px 12px; background:#fff !important; color:#b3121f !important; border:2px solid #fff !important; font-weight:900; font-size:14px; letter-spacing:.5px; box-shadow:0 0 12px rgba(255,255,255,.7); }
+  @keyframes sdtgt { 50% { box-shadow:0 0 0 4px rgba(255,77,61,.45), 0 0 22px rgba(255,77,61,.6); } }
   #mo .rd.ra.sddef { animation:sddef 1.6s ease-in-out infinite; } @keyframes sddef { 50% { box-shadow:0 0 0 3px rgba(223,228,242,.55); } }
   .initban span { flex:1; }
   #initx { background:transparent !important; color:#f1f3f9 !important; padding:4px 6px !important; }
@@ -2674,6 +2680,7 @@ function drawMonsters() {
   if (touchDev) html += `<div class="mlockrow"><button id="mLock" class="mlock ${locked ? "on" : ""}" title="${locked ? "Monsters locked (tap to unlock)" : "Lock monsters so they don't move"}">${locked ? LOCK_SVG : UNLOCK_SVG}</button></div>`;
   html += `<div id="mlist" class="${locked ? "mlocked" : ""}">${cards.map(x => x[1]).join("")}</div>`;
   $("mo").innerHTML = pickers() + html + adBox() + stasisBox();
+  setTimeout(updateDefBanner, 0); // targeted monsters stay lit after a redraw
   if ($("mLock")) $("mLock").onclick = () => { store.set("ns.monLock", store.get("ns.monLock") === "1" ? "" : "1"); drawMonsters(); };
   bindMonDrag();
   bindPicker();
@@ -3377,6 +3384,16 @@ function updateDefBanner() {
   // GM tab: pulse the Adroitness dice of the monsters that can defend
   const mons = w && isGM ? [...document.querySelectorAll("#mo .rd.ra")].filter(b => b.dataset.l === "Adroitness" && canDefend(w, b.dataset.w)) : [];
   document.querySelectorAll("#mo .rd.ra").forEach(b => b.classList.toggle("sddef", mons.includes(b)));
+  // Target Lock picked these monsters: their whole card lights up red with a big 🛡 DEFEND on the name bar (rolls its Adroitness)
+  const hit = new Set(w?.tg?.length ? mons.map(b => b.closest(".mcard")).filter(Boolean) : []);
+  document.querySelectorAll("#mo .mcard").forEach(card => {
+    const on = hit.has(card), btn = card.querySelector(".sddefb");
+    card.classList.toggle("sdtgt", on);
+    if (on && !btn) { const dead = card.querySelector(".mdead");
+      dead?.insertAdjacentHTML("beforebegin", `<button class="sbtn sddefb" title="Roll this monster's Adroitness to defend">🛡 DEFEND</button>`);
+      card.querySelector(".sddefb").onclick = (e) => { e.stopPropagation(); if (!rollBusy) card.querySelector('.rd.ra[data-l="Adroitness"]')?.click(); }; }
+    if (!on && btn) btn.remove();
+  });
   let btns = [];
   if (w && isGM) btns = w.tg?.length ? mons.map(b => [b.dataset.w, () => b.click()]) : [];
   else if (w && sheetVals && canDefend(w, myChar())) btns = [["DEFEND", () => { const adr = sheetVals?.[6]?.[2]; if (adr != null && String(adr).trim() !== "") quickRoll(adr, "Adroitness · Defense"); }]]; // its own label, so it's never taken as initiative
