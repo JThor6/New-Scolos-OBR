@@ -2074,7 +2074,9 @@ function typeRefBtn() {
   const t = TYPES.find(x => x.trim().toLowerCase() === V("C4").trim().toLowerCase()); if (!t) return "";
   return `<button class="tref" data-k="${esc2("tab:" + t)}" title="Open all your ${esc2(t.trim())} rules beside the map">${REF_SVG}${esc2(t.trim().toUpperCase())} RULES</button>`;
 }
-document.addEventListener("click", (e) => { const b = e.target.closest(".tref, .sref"); if (!b) return; e.preventDefault(); e.stopPropagation(); popOut(b.dataset.k); }, true);
+document.addEventListener("click", (e) => { const b = e.target.closest(".tref, .sref"); if (!b) return; e.preventDefault(); e.stopPropagation();
+  if (b.id === "gmPty") return popParty(); // GM tab: pop out the Party view
+  popOut(b.dataset.k); }, true);
 function ptCtl() { return `<div class="ctl"><button id="ptm">−</button><b>${esc2(V("F13") || "0")}</b><button id="ptp">+</button></div>`; }
 function ptMaxV() { return /^\d+$/.test(V("H13")) ? V("H13") : /^\d+$/.test(V("G13")) ? V("G13") : ""; }
 // Healing: every mark on the vitality track shifts one box left; the leftmost (Light Wound) drops off.
@@ -2631,7 +2633,7 @@ function bindMonArt() {
 }
 function drawMonsters() {
   const v = monVals || [], c = (row, i) => String(v[row]?.[i] ?? "").trim();
-  let html = `<div class="initbox"><div class="sec" style="margin-top:2px;display:flex;align-items:center">INITIATIVE<button class="sref hist" style="margin-left:auto" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></div>
+  let html = `<div class="initbox"><div class="sec" style="margin-top:2px;display:flex;align-items:center">INITIATIVE<button id="gmPty" class="sref hist" style="margin-left:auto" title="Pop the Party view out beside the map (tap again to close it)">${REF_SVG}Party</button><button class="sref hist" style="margin-left:10px" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></div>
     <div class="g2"><button id="iCall" class="sbtn">⚔ CALL FOR INITIATIVE</button><button id="iMon" class="sbtn">🎲 ROLL MONSTERS</button></div>
     <div id="iList"></div>
     <div id="iStep" class="istep" hidden><button id="iPrev" class="sbtn" title="Previous turn">◀</button><span id="iRound"></span><button id="iNext" class="sbtn">NEXT TURN ▶</button></div>
