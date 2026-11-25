@@ -67,18 +67,6 @@
   .seg.on { color:#16131a; box-shadow:0 0 9px var(--sc); transform:scaleY(1.12); }
   .seg.past { opacity:.55; }
   .sdmiss { margin-top:8px; display:flex; align-items:center; gap:8px; }
-  .sdx { margin-left:auto; width:22px; height:22px; padding:0; border-radius:6px; border:1px solid rgba(255,255,255,.18); background:rgba(255,255,255,.06);
-    color:#c9cede; font-size:12px; font-weight:900; line-height:1; cursor:pointer; }
-  .sdx:hover { background:rgba(255,255,255,.18); color:#fff; }
-  /* waiting for the defense: same slate card, smaller, with a slow pulse on the line that asks for the roll */
-  .sdwa { display:flex; align-items:baseline; justify-content:space-between; gap:6px; margin-top:5px; }
-  .sdwa b { font-size:13px; font-weight:800; color:#eef0f7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .sdwa b small { margin-left:5px; font-size:10px; font-weight:600; color:#9aa0b8; }
-  .sdwa span { flex:none; font-size:10px; font-weight:700; color:#9aa2b8; letter-spacing:.4px; } .sdwa span i { font-style:normal; color:#dfe3ef; font-weight:900; font-size:13px; }
-  .sdwl { font-size:10.5px; font-weight:700; color:#aab1c5; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .sdask { margin-top:6px; padding:4px 7px; border-radius:7px; background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12);
-    font-size:11.5px; font-weight:800; color:#eef0f7; animation:sdp 1.8s ease-in-out infinite; }
-  @keyframes sdp { 50% { border-color:rgba(255,255,255,.4); background:rgba(255,255,255,.12); } }
   
   /* resting the mouse on a card keeps it up */
   body.hold { border-color:rgba(255,255,255,.55) !important; }
@@ -139,17 +127,7 @@
         `<div class="sdhead"><span class="sdh1 ${R.w >= 4 ? "glow" : ""}">${esc(R.headline.toUpperCase())}</span><span class="sdh2">${esc(R.tie ? "Tie: attacker wins" : R.dmg == null ? "Add the spell's Damage Bonus" : w ? w.r + " damage" : "No wound")}</span></div>` +
         `<div class="track">${WOUND_STEPS.map(s => `<div class="seg ${s.i === R.w ? "on" : ""}" style="--sc:${s.c};${s.i === R.w ? `background:${s.c}` : ""}">${esc(s.s.toUpperCase())}</div>`).join("")}</div>`;
     }
-    document.getElementById("t").innerHTML = `<div class="sdtop"><span class="sdk">Success Delta</span><button class="sdx" id="sdx" title="Close">✕</button></div>` + versus + body;
-    document.body.classList.add("sd");
-  }
-  if (q.get("sdw")) { // an attack is waiting for the defender's Adroitness roll
-    let w = {}; try { w = JSON.parse(q.get("sdw")); } catch {}
-    const sg = (n) => n > 0 ? "+" + n : String(n);
-    document.getElementById("t").innerHTML = `<div class="sdtop"><span class="sdk">Success Delta · waiting</span>` +
-      `<button class="sdx" id="sdx" title="${w.sp ? "Not aimed at anyone" : "Not an attack on anyone"}: drop it for everyone">✕</button></div>` +
-      `<div class="sdwa"><b>${esc(w.att || "")}${w.who ? `<small>${esc(w.who)}</small>` : ""}</b><span>${w.sp ? "CASTS" : "ATTACKS"} <i>${sg(Number(w.at) || 0)}</i></span></div>` +
-      (w.l ? `<div class="sdwl">${esc(w.l)}</div>` : "") +
-      `<div class="sdask">🛡 ${w.sp ? "If it's aimed at someone, they" : "Defender"}: roll Adroitness</div>`;
+    document.getElementById("t").innerHTML = `<div class="sdtop"><span class="sdk">Success Delta</span></div>` + versus + body;
     document.body.classList.add("sd");
   }
   if (q.get("ks")) document.body.classList.add("ks"); else if (q.get("pw")) document.body.classList.add("pw");
@@ -179,14 +157,6 @@
     document.body.style.opacity = "1"; document.body.classList.add("hold");
     hold(Date.now() + 2000); clearInterval(keep); keep = setInterval(() => over && hold(Date.now() + 2000), 1000); });
   document.body.addEventListener("mouseleave", () => { over = false; clearInterval(keep); document.body.classList.remove("hold");
-    // Success Delta cards keep the rest of their time (a waiting attack mustn't vanish because someone moused over it)
-    const rest = q.get("sd") || q.get("sdw") ? Math.max(AFTER, endAt - Date.now()) : AFTER;
-    hold(Date.now() + rest); schedule(rest); });
-  let endAt = Date.now() + ms;
-  if (OBR.isAvailable) OBR.onReady(() => { endAt = Date.now() + ms; schedule(ms); }); else schedule(ms);
-  // ✕ on the Success Delta spot: the result just closes here; a waiting attack is dropped on every screen
-  const x = document.getElementById("sdx");
-  if (x) x.onclick = async (ev) => { ev.stopPropagation();
-    if (q.get("sdw") && OBR.isAvailable) { try { const w = JSON.parse(q.get("sdw")); await OBR.room.setMetadata({ "com.newscolos.dice/sdcancel": { id: w.id, ts: Date.now() } }); } catch {} }
-    close(); };
+    hold(Date.now() + AFTER); schedule(AFTER); });
+  if (OBR.isAvailable) OBR.onReady(() => schedule(ms)); else schedule(ms);
 </script></body></html>

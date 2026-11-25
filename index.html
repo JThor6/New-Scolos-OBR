@@ -32,10 +32,10 @@
   .big .total { font-size:38px; }
   /* uplink pop-out: only the uplink shows */
   .uplhead { display:none; }
-  body.upl > header, body.upl nav, body.upl #initban, body.upl section { display:none !important; }
+  body.upl > header, body.upl nav, body.upl #initban, body.upl #defban, body.upl section { display:none !important; }
   body.upl #dice { display:block !important; padding-top:0; }
   body.upl #dice > *:not(#hand):not(#uplhead) { display:none !important; }
-  body.pty > header, body.pty nav, body.pty #initban, body.pty section:not(#sheet) { display:none !important; }
+  body.pty > header, body.pty nav, body.pty #initban, body.pty #defban, body.pty section:not(#sheet) { display:none !important; }
   body.pty #sheet { display:block !important; padding-top:0; }
   body.pty .ptpop { display:none; }
   body.pty .uplhead, body.upl .uplhead { display:flex; align-items:center; gap:6px; position:sticky; top:0; z-index:2; padding:7px 10px; margin:0 -10px; background:rgba(0,0,0,.55); border-radius:12px 12px 0 0; }
@@ -284,6 +284,13 @@
   .negbtn { background:#2b2f45; color:#f1f3f9; border:2px solid #444a66; border-radius:8px; min-width:44px; font:800 20px system-ui; cursor:pointer; }
   .initban { display:flex; align-items:center; gap:8px; margin:8px 10px 0; padding:8px 10px; background:#3d3460; border:2px solid #bb99ff; border-radius:10px; font-weight:700; font-size:13px; }
   .initban[hidden] { display:none; }
+  /* 🛡 Defend banner: slate like the Success Delta card */
+  .defban { background:#343948; border-color:#aab3cc; flex-wrap:wrap; }
+  .defban #deft { flex:1 1 150px; min-width:0; }
+  .defban .defbtns { display:flex; flex-wrap:wrap; gap:5px; flex:none; }
+  .defban .defbtns button { background:#dfe4f2; }
+  #defx { background:transparent !important; color:#f1f3f9 !important; padding:4px 6px !important; }
+  #mo .rd.ra.sddef { animation:sddef 1.6s ease-in-out infinite; } @keyframes sddef { 50% { box-shadow:0 0 0 3px rgba(223,228,242,.55); } }
   .initban span { flex:1; }
   #initx { background:transparent !important; color:#f1f3f9 !important; padding:4px 6px !important; }
   .initban button { background:#bb99ff; color:#000; border:0; border-radius:8px; font:800 13px system-ui; padding:6px 10px; cursor:pointer; }
@@ -648,6 +655,7 @@
 </head>
 <body>
 <header><h1>NEW SCOLOS</h1><span class="hctl"><span id="syncdot" class="syncdot" hidden title="Syncing with Google Sheets">⟳</span><button id="solid" class="tab" title="See-through / solid">◐</button><button id="size" class="tab" title="Make the panel narrower"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M2 12h8M7 8l3 4-3 4M22 12h-8M17 8l-3 4 3 4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg></button></span><nav><button class="tab on" data-t="sheet">CHARACTER SHEET</button><button class="tab" data-t="rules">REFERENCE</button><button class="tab" data-t="dice">DICE</button><button class="tab" data-t="gen">CHARACTER CREATOR</button><button class="tab" data-t="mon" id="monTab" hidden>GM</button></nav></header>
+<div id="defban" class="initban defban" hidden><span id="deft"></span><span id="defbtns" class="defbtns"></span><button id="defx" title="Hide">✕</button></div>
 <div id="initban" class="initban" hidden><span>⚔ Initiative! Your next Adroitness roll counts.</span><button id="initgo">ROLL</button><button id="initx" title="Hide">✕</button></div>
 <section id="sheet"><div id="ptyhead" class="uplhead"><b>PARTY OVERVIEW</b><button id="ptyx" title="Close">✕</button></div><div id="sh"><div class="empty">Loading…</div></div></section>
 <section id="rules" hidden><div id="ru"></div></section>
@@ -659,7 +667,7 @@
   <button id="roll">ROLL</button>
   <div id="err" class="err" hidden></div>
   <div id="last"></div>
-  <div style="display:flex;gap:6px;align-items:stretch"><button id="histbtn" class="histbtn" style="flex:1">SHOW ROLL HISTORY</button><button id="dicepop" class="histbtn" style="flex:none;width:44px;color:var(--dim);display:flex;align-items:center;justify-content:center" title="Pop out roll history"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
+  <div style="display:flex;gap:6px;align-items:stretch"><button id="histbtn" class="histbtn" style="flex:1">SHOW ROLL HISTORY</button><button id="sdshow" class="histbtn" style="flex:none;width:44px;color:var(--dim);font-size:17px;font-weight:900" title="Show the Success Delta card again">Δ</button><button id="dicepop" class="histbtn" style="flex:none;width:44px;color:var(--dim);display:flex;align-items:center;justify-content:center" title="Pop out roll history"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
   <div id="history" hidden><div class="empty">No rolls yet.</div></div>
   <div id="handrow" style="display:flex;gap:6px;align-items:stretch"><button id="handbtn" class="histbtn" style="flex:1">ANALOG DICE UPLINK</button><button id="handpop" class="histbtn" style="flex:none;width:44px;color:var(--dim);display:flex;align-items:center;justify-content:center" title="Pop the uplink out beside the map"><svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
   <div id="uplhead" class="uplhead"><b>ANALOG DICE UPLINK</b><button id="uplx" title="Close">✕</button></div>
@@ -667,7 +675,7 @@
 </main>
 <script type="module">
 import OBR, { buildImage, buildImageUpload } from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
-import { NS, KEEP, rollKey, allRolls, fmt, INIT, initEntries, rollLine, ROLL_CSS, rollLog, LOG_MAX, POWER_CARDS } from "./shared.js";
+import { NS, KEEP, rollKey, allRolls, fmt, INIT, initEntries, rollLine, ROLL_CSS, rollLog, LOG_MAX, POWER_CARDS, sameName } from "./shared.js";
 document.head.insertAdjacentHTML("beforeend", `<style>${ROLL_CSS}</style>`);
 import { TYPES, SECTIONS, REF_GROUPS, getTab, sectionHtml } from "./rules.js";
 
@@ -747,6 +755,8 @@ function render(rolls) {
   for (const el of [$("history"), $("refRolls")]) if (el) el.innerHTML = html;
   document.querySelectorAll(".histdet").forEach(btn => btn.onclick = (e) => { e.preventDefault(); histDetail = !histDetail; try { localStorage.setItem("ns.histDetail", histDetail ? "on" : "off"); } catch {} render(lastRolls); });
 }
+// Δ: bring back the Success Delta card (background.html opens it; ‹ › on it pages through the results)
+$("sdshow").onclick = () => { try { localStorage.setItem("ns.sdShow", String(Date.now())); } catch {} };
 $("histbtn").onclick = () => {
   const h = $("history"); h.hidden = !h.hidden;
   $("histbtn").textContent = h.hidden ? "SHOW ROLL HISTORY" : "HIDE ROLL HISTORY";
@@ -832,13 +842,23 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
   // atk: this was an attack roll. db: its damage bonus (melee or ranged). ab: this roller's Armor Bonus (with any armor power on)
   if (!whoName) {
     const ab = num(V("H25")); if (ab != null) r.ab = ab + (actDef()?.armor || 0);
-    if (KS_ATTACK.test(r.label) || /spellcast/i.test(r.label)) { r.atk = 1;
+    // Meltdown's shockwave is rolled against Adroitness too (an Expanded Shockwave hits several people)
+    const melt = /^⚡\s*meltdown/i.test(r.label);
+    if (/^smite\b/i.test(r.label)) { r.atk = 1; r.db = 4; r.dbk = "smite"; } // Smite: Damage = Delta + 4
+    else if (KS_ATTACK.test(r.label) || /spellcast/i.test(r.label) || melt) { r.atk = 1;
       const mel = /melee|martial/i.test(r.label), rng = /ranged|unconventional/i.test(r.label);
-      const db = mel ? num(V("H23")) : rng ? num(V("H24")) : null;
-      if (db != null) { r.db = db; r.dbk = mel ? "melee" : "ranged"; } else if (/spellcast/i.test(r.label)) r.sp = 1; }
+      const db = melt ? null : mel ? num(V("H23")) : rng ? num(V("H24")) : null;
+      if (db != null) { r.db = db; r.dbk = mel ? "melee" : "ranged"; } else if (melt) r.pwd = 1; else if (/spellcast/i.test(r.label)) r.sp = 1; }
   } else if (cs) { // a monster card: Attack uses its Offense, and its Armor counts when it defends
     const ab = num(cs.ab), db = num(cs.db); if (ab != null) r.ab = ab;
     if (/^attack$/i.test(label)) { r.atk = 1; if (db != null) { r.db = db; r.dbk = "offense"; } }
+  }
+  if (r.atk && !standalone) { // 🎯 Targets on: the tokens this roller has selected are what the attack is aimed at
+    try { if ((await OBR.room.getMetadata())[TGT]) {
+      const sel = (await OBR.player.getSelection()) || [], self = String(whoName || myChar() || "").toLowerCase();
+      const names = sel.length ? (await OBR.scene.items.getItems(sel)).map(i => String(i.name || "").trim()).filter(n => n && !sameName(n, self)) : [];
+      if (names.length) r.tg = [...new Set(names)].slice(0, 12);
+    } } catch {}
   }
   if (br) { const [at, av, sr] = String(br).split("|"); r.at = String(at || "").trim().slice(0, 14); r.av = String(av || "").trim(); if (sr !== undefined) r.sr = String(sr).trim(); }
   // the always-running background page shows it in the bottom-right roll cards
@@ -1129,7 +1149,7 @@ function drawSheet() {
     <div class="infp gpow" data-for="attr" hidden></div>
     <div class="stab">VITALITY TRACK</div><button id="heal" class="healb" title="Heal one step: every wound moves one box left; the leftmost Light Wound goes away. Dead stays until you uncheck it." ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}>✚ HEAL 1 STEP</button><span class="healn"><button id="healGo" class="healb" title="Heal that many steps: every wound moves that many boxes left. Dead stays until you uncheck it." ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}>✚ HEAL STEPS</button><button id="healDn" class="healb hstep" title="One less step" ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}>−</button><input id="healN" type="number" min="1" max="6" inputmode="numeric" placeholder="#" value="${esc2(healNVal)}" title="How many steps to heal" ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}><button id="healUp" class="healb hstep" title="One more step" ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}>+</button></span>${(healUndo.get(sheetId()) || []).length ? `<button id="healUndo" class="healb undo" title="Put the vitality track back the way it was before the last heal">↶ UNDO (${healUndo.get(sheetId()).length})</button>` : ""}${"BCDEFGH".split("").some(c => V(c + "16")) ? `<button id="healClr" class="healb clr" title="Full heal: clear every wound on the vitality track, Dead too. Tap twice to confirm.">✚ FULL HEAL</button>` : ""}
     <div class="vit">${["B", "C", "D", "E", "F", "G", "H"].map((c, i) => { const t = V(c + "15"); const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<button class="box ${V(c + "16") ? "x" : ""}" data-w="${i}"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk ${V(c + "16") ? "x" : ""}">${V(c + "16") ? "✕" : ""}</span></button>`; }).join("")}</div>
-    <div class="g2b ${ptInEP() ? "g2p" : ""}"><div class="fld"><div class="epl"><div class="ephd"><small>Extraordinary Power</small>${typeRefBtn()}</div><div id="pwname">${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div></div></div>
+    <div class="g2b ${ptInEP() ? "g2p" : ""}"><div class="fld"><div class="epl"><div class="ephd"><small>Extraordinary Power</small>${typeRefBtn()}</div><div id="pwname">${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div>${/^priest$/i.test(V("C4").trim()) ? `<button id="smite" class="pwroll" title="Prayer against the target's Adroitness. Damage = Success Delta + 4. Costs 2 invocations (tap − twice)">⚔<span>Smite: roll Prayer</span></button>` : ""}</div></div>
       <div class="fld c"><small>Used Today</small><button id="pw" class="chk ${used ? "x" : ""}">${used ? "✕" : ""}</button></div>${ptInEP() ? `
       <div class="fld c epp"><small>${esc2(V("E13"))}${ptMaxV() ? ` <span>/ ${esc2(ptMaxV())}</span>` : ""}</small>${ptCtl()}${/^priest$/i.test(V("C4").trim()) ? `<button class="sref epref" data-k="gods" title="Open The Gods beside the map">${REF_SVG}The Gods</button>` : /^mage$/i.test(V("C4").trim()) ? `<button class="sref epref" data-k="schools" title="Open Schools of Magic beside the map">${REF_SVG}Schools</button>` : ""}</div>` : ""}</div>
     <div id="pwd" class="gpow pwd" hidden></div>
@@ -1152,6 +1172,8 @@ function drawSheet() {
   fillPowers(); bindInfo(); updateKS(); updateActive(); publishActive(); bindPt();
   document.querySelectorAll("#shbody .actarmx").forEach(b => b.onclick = (e) => { e.stopPropagation(); endActive(); });
   document.querySelectorAll("#shbody .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l, "", b.dataset.b); });
+  // Smite (Priest): a Prayer roll that feeds the Success Delta card, Damage = Delta + 4
+  if ($("smite")) $("smite").onclick = (e) => { e.stopPropagation(); const pm = powerMod("Prayer"); quickRoll(pm ? pm.m : 0, "Smite · Prayer", "", pm?.br || ""); };
   // the whole attribute or skill box rolls, except its underlined name (that opens the info)
   document.querySelectorAll("#shbody .att, #shbody .skc").forEach(box => { const rd = box.querySelector(".rd"); if (!rd) return;
     box.classList.add("rollbox"); box.onclick = (e) => { if (e.target.closest(".inft, .rd")) return; rd.click(); }; });
@@ -2238,9 +2260,17 @@ function bindStasis() {
 function gmTools() {
   return `<div class="sec" style="margin-top:2px">TABLE</div><div class="g2" style="margin-bottom:4px">
     <button id="gmDay" class="sbtn">☀ NEW DAY</button><button id="gmCop" class="sbtn">⚡ REFILL COP</button></div>
+    <button id="gmTgt" class="sbtn" style="width:100%;margin-bottom:4px" title="Off: the next Adroitness rolls after an attack defend (fast). On: attackers select their target tokens before rolling, and only those defend.">🎯 TARGETS: …</button>
     <div id="gmMsg" class="help" hidden></div>`;
 }
+// 🎯 Targets (room setting, off by default): when on, an attack roll takes the tokens its roller has selected as its targets,
+// and only those characters' / monsters' Adroitness rolls defend against it. Off keeps the game fast: next Adroitness rolls defend.
+const TGT = "com.newscolos.dice/targets";
+async function drawTgt() { const b = $("gmTgt"); if (!b || standalone) return;
+  const on = !!(await OBR.room.getMetadata())[TGT]; b.textContent = on ? "🎯 TARGETS: ON (select targets, then roll the attack)" : "🎯 TARGETS: OFF";
+  b.classList.toggle("on", on); }
 function bindGmTools() {
+  if ($("gmTgt")) { drawTgt(); $("gmTgt").onclick = async () => { const on = !!(await OBR.room.getMetadata())[TGT]; await OBR.room.setMetadata({ [TGT]: !on }).catch(() => {}); drawTgt(); }; }
   const arm = (b, label, run) => { if (!b) return; b.onclick = () => {
     if (b.dataset.armed) { delete b.dataset.armed; b.textContent = label; run(); return; }
     b.dataset.armed = "1"; b.textContent = "TAP AGAIN TO CONFIRM";
@@ -3301,6 +3331,31 @@ $("initgo").onclick = () => {
   if (adr != null && String(adr).trim() !== "") return quickRoll(adr, "Adroitness");
   document.querySelector('.tab[data-t="sheet"]').click(); // sheet not loaded yet: open it so they can roll from there
 };
+// 🛡 Defend banner: while an attack waits for defenders (background.html keeps it in "ns.sd:<room>"), a player who could
+// defend gets a DEFEND button that rolls Adroitness from their sheet. With 🎯 Targets on, only the targets get it.
+// The GM gets one button per targeted monster on the GM tab's cards; with Targets off, the monsters' Adroitness dice pulse.
+function sdWait() { try { const w = JSON.parse(localStorage.getItem("ns.sd:" + OBR.room.id) || "{}").wait;
+  return w && Date.now() - w.at0 < 3 * 60e3 && (w.defs || []).length < (w.n || 1) ? w : null; } catch { return null; } }
+function canDefend(w, name) { if (!name || sameName(name, w.att) || (w.defs || []).some(d => sameName(d, name))) return false;
+  return !w.tg?.length || w.tg.some(t => sameName(t, name)); }
+function updateDefBanner() {
+  if (standalone || !$("defban")) return;
+  const w = sdWait(), sg = (n) => n > 0 ? "+" + n : String(n);
+  // GM tab: pulse the Adroitness dice of the monsters that can defend
+  const mons = w && isGM ? [...document.querySelectorAll("#mo .rd.ra")].filter(b => b.dataset.l === "Adroitness" && canDefend(w, b.dataset.w)) : [];
+  document.querySelectorAll("#mo .rd.ra").forEach(b => b.classList.toggle("sddef", mons.includes(b)));
+  let btns = [];
+  if (w && isGM) btns = w.tg?.length ? mons.map(b => [b.dataset.w, () => b.click()]) : [];
+  else if (w && sheetVals && canDefend(w, myChar())) btns = [["DEFEND", () => { const adr = sheetVals?.[6]?.[2]; if (adr != null && String(adr).trim() !== "") quickRoll(adr, "Adroitness"); }]];
+  const show = !!w && btns.length > 0 && store.get("ns.defHide") !== w.id;
+  $("defban").hidden = !show; if (!show) return;
+  $("deft").textContent = `🛡 ${w.att} ${w.sp ? "casts" : "attacks"} ${sg(w.at)}${w.l ? " · " + w.l : ""}${w.tg?.length ? " → " + w.tg.join(", ") : ""}. ${isGM ? "Defend with:" : "Roll to defend:"}`;
+  $("defbtns").innerHTML = btns.map((b, i) => `<button data-i="${i}">🛡 ${esc2(b[0])}</button>`).join("");
+  $("defbtns").querySelectorAll("button").forEach(b => b.onclick = () => { if (!rollBusy) btns[+b.dataset.i][1](); });
+}
+$("defx").onclick = () => { const w = sdWait(); if (w) store.set("ns.defHide", w.id); $("defban").hidden = true; };
+window.addEventListener("storage", (e) => { if (!standalone && e.key === "ns.sd:" + OBR.room.id) updateDefBanner(); });
+setInterval(() => { if (!standalone) updateDefBanner(); }, 5000);
 // Party pop-out (GM only): this same page opened beside the map, showing only the Party overview with the GM strip.
 const PTY_POP_ICON = `<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const PARTY_POP = "com.newscolos.party";
@@ -3354,7 +3409,7 @@ if (standalone) {
     if (isGM) { initMd = await OBR.room.getMetadata(); OBR.room.onMetadataChange((m) => { initMd = m; drawInitList(); markTurn(); }); }
     if (!UPLINK && !PARTYPOP) applySize();
     render(rollLog(OBR.room.id, allRolls(await OBR.room.getMetadata())));
-    OBR.room.onMetadataChange((md) => { render(rollLog(OBR.room.id, allRolls(md))); updateInitBanner(md); actSync(md); });
+    OBR.room.onMetadataChange((md) => { render(rollLog(OBR.room.id, allRolls(md))); updateInitBanner(md); actSync(md); if (isGM) drawTgt(); });
     updateInitBanner(); actSync(await OBR.room.getMetadata());
     const readAct = (ps) => { partyAct = ps.map(p => p.metadata?.[ACT_MD]).filter(Boolean); if (partyOn && lastParty && $("shbody")) drawParty($("shbody"), lastParty); };
     readAct(await OBR.party.getPlayers()); OBR.party.onChange(readAct);

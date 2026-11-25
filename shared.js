@@ -48,7 +48,7 @@ export const WOUND_STEPS = [
   { i: 5, n: "Dead", s: "Dead", r: "9+", c: "#ff2626" },
 ];
 export const woundFor = (dmg) => dmg >= 9 ? 5 : dmg >= 7 ? 4 : dmg >= 5 ? 3 : dmg >= 3 ? 2 : dmg >= 1 ? 1 : 0;
-export const BONUS_NAME = { melee: "Melee", ranged: "Ranged", offense: "Offense", spell: "Spell" }; // short: they label a number
+export const BONUS_NAME = { melee: "Melee", ranged: "Ranged", offense: "Offense", spell: "Spell", power: "Power", smite: "Smite" }; // short: they label a number
 // One Success Delta in plain words, used by the table card and Roll History.
 // e: { att, def, at, dt, delta, db?, dbk?, sp?, ab? }
 export function sdResult(e) {
@@ -56,9 +56,15 @@ export function sdResult(e) {
   const dmg = hit && known ? e.delta + e.db - (e.ab ?? 0) : null;
   const w = dmg != null ? woundFor(dmg) : 0;
   const headline = !hit ? "Miss" : dmg == null ? "Hit" : w ? WOUND_STEPS[w - 1].n : "Armor holds";
-  const sub = !hit ? `${e.def} beats the attack by ${-e.delta}` : dmg == null ? "Add the spell's Damage Bonus, then subtract the Armor Bonus"
+  const sub = !hit ? `${e.def} beats the attack by ${-e.delta}` : dmg == null ? `Add the ${e.dbk === "power" ? "power's" : "spell's"} Damage Bonus, then subtract the Armor Bonus`
     : w ? `${dmg} damage on the Vitality Track` : "Hit, but no damage gets through";
   return { hit, known, dmg, w, headline, sub, tie: e.delta === 0 };
+}
+
+// Loose name match for targets and defenders: "Raxx" matches "Raxx Veldt", case and extra spaces don't matter
+export function sameName(a, b) {
+  const x = String(a || "").toLowerCase().replace(/\s+/g, " ").trim(), y = String(b || "").toLowerCase().replace(/\s+/g, " ").trim();
+  return !!x && !!y && (x === y || x.startsWith(y + " ") || y.startsWith(x + " "));
 }
 
 export function fmt(n) { return n > 0 ? `+${n}` : `${n}`; }
