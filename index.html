@@ -716,6 +716,8 @@ const line = (r) => rollLine(r, histDetail);
 $("dicepop").onclick = () => popOut("__rolls");
 // the pop-out's SIMPLE/DETAILED switch and this one stay in step
 window.addEventListener("storage", (e) => { if (e.key === "ns.histDetail") { histDetail = e.newValue === "on"; render(lastRolls); } });
+// the background page adds Success Delta lines straight into this room's log: pick them up
+window.addEventListener("storage", (e) => { try { if (!standalone && e.key && e.key.startsWith("ns.rollLog@") && OBR.room.id && e.key === "ns.rollLog@" + OBR.room.id) render(rollLog(OBR.room.id, [])); } catch {} });
 let lastRolls = [];
 function render(rolls) {
   lastRolls = rolls;
@@ -811,11 +813,12 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
   if (!whoName) {
     const ab = num(V("H25")); if (ab != null) r.ab = ab + (actDef()?.armor || 0);
     if (KS_ATTACK.test(r.label) || /spellcast/i.test(r.label)) { r.atk = 1;
-      const db = /melee|martial/i.test(r.label) ? num(V("H23")) : /ranged|unconventional/i.test(r.label) ? num(V("H24")) : null;
-      if (db != null) r.db = db; else if (/spellcast/i.test(r.label)) r.sp = 1; }
+      const mel = /melee|martial/i.test(r.label), rng = /ranged|unconventional/i.test(r.label);
+      const db = mel ? num(V("H23")) : rng ? num(V("H24")) : null;
+      if (db != null) { r.db = db; r.dbk = mel ? "melee" : "ranged"; } else if (/spellcast/i.test(r.label)) r.sp = 1; }
   } else if (cs) { // a monster card: Attack uses its Offense, and its Armor counts when it defends
     const ab = num(cs.ab), db = num(cs.db); if (ab != null) r.ab = ab;
-    if (/^attack$/i.test(label)) { r.atk = 1; if (db != null) r.db = db; }
+    if (/^attack$/i.test(label)) { r.atk = 1; if (db != null) { r.db = db; r.dbk = "offense"; } }
   }
   if (br) { const [at, av, sr] = String(br).split("|"); r.at = String(at || "").trim().slice(0, 14); r.av = String(av || "").trim(); if (sr !== undefined) r.sr = String(sr).trim(); }
   // the always-running background page shows it in the bottom-right roll cards

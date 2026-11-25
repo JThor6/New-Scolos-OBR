@@ -31,18 +31,37 @@
   body.ap.mm { background:rgba(8,50,52,.82); border-color:#5ff0c8; box-shadow:0 0 14px rgba(95,240,200,.5); } body.ap.mm .lbl { color:#a8ffe6; text-shadow:0 5px 0 rgba(0,0,0,.45); }
   body.ap.rv { background:radial-gradient(circle at 25% 30%, rgba(75,15,100,.92), rgba(12,0,22,.95)); border-color:#8a3fd1; box-shadow:0 0 18px rgba(140,60,220,.75), inset 0 0 14px rgba(150,255,190,.15); }
   body.ap.rv .lbl { font-family:'Creepster', 'Bangers', Impact, sans-serif; font-size:21px; color:#c6ffd8; text-shadow:0 0 6px #7dffa8, 0 0 16px #8a3fd1; } body.ap.rv .left { color:#d9c8f0; font-style:italic; }
-  /* Success Delta: neutral slate card, left of the roll cards */
-  body.sd { background:rgba(46,50,62,.86); border:1px solid rgba(200,206,222,.45); box-shadow:0 2px 10px rgba(0,0,0,.45); }
-  body.sd .t { flex-direction:column; align-items:stretch; flex-wrap:nowrap; gap:2px; padding:6px 10px; }
-  .sdh { display:flex; align-items:center; justify-content:space-between; font-size:10px; font-weight:900; letter-spacing:1.5px; color:#aeb4c8; }
-  .sdn { font-family:'Luckiest Guy', 'Bangers', Impact, sans-serif; font-size:24px; letter-spacing:0; color:#f1f3f9; line-height:1; padding-top:2px; }
-  .sdn.miss { color:#9aa0b8; }
-  .sdv { font-size:12px; font-weight:800; color:#d5d9e8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .sdv small { color:#9aa0b8; font-weight:700; }
-  .sdm { font-size:11px; font-weight:700; color:#b9bfd2; }
-  .sdw { font-family:'Bangers', Impact, sans-serif; letter-spacing:1px; font-size:17px; line-height:1.05; color:#f1f3f9; }
-  .sdw.w1 { color:#ffe08a; } .sdw.w2 { color:#ffb36b; } .sdw.w3 { color:#ff7a6b; } .sdw.w4 { color:#ff5470; } .sdw.w5 { color:#ff3b3b; text-shadow:0 0 8px rgba(255,40,40,.6); }
-  .sdw.w0 { color:#9aa0b8; }
+  /* Success Delta: neutral slate card, left of the roll cards. Reads top to bottom:
+     who vs who → the delta → the damage sum → where it lands on the Vitality Track */
+  body.sd { background:linear-gradient(180deg, rgba(52,57,72,.93), rgba(34,37,48,.93)); border:1px solid rgba(200,206,222,.38); box-shadow:0 4px 16px rgba(0,0,0,.5); text-shadow:none; }
+  body.sd .t { display:block; padding:8px 11px 9px; }
+  .sdtop { display:flex; align-items:center; gap:8px; }
+  .sdk { font-size:9.5px; font-weight:900; letter-spacing:1.6px; color:#9aa2b8; text-transform:uppercase; }
+  .sdvs { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:6px; margin-top:4px; }
+  .sdp { min-width:0; } .sdp.r { text-align:right; }
+  .sdp b { display:block; font-size:12.5px; font-weight:800; color:#eef0f7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sdp span { font-size:10px; font-weight:700; color:#9aa2b8; letter-spacing:.4px; }
+  .sdp span i { font-style:normal; color:#dfe3ef; font-weight:900; }
+  .sdbadge { display:flex; flex-direction:column; align-items:center; justify-content:center; min-width:42px; height:38px; padding:0 6px; border-radius:9px;
+    background:#1e2130; border:1px solid rgba(255,255,255,.16); }
+  .sdbadge b { font-family:'Luckiest Guy', 'Bangers', Impact, sans-serif; font-size:23px; line-height:1; color:#fff; padding-top:3px; }
+  .sdbadge small { font-size:8px; font-weight:900; letter-spacing:1px; color:#9aa2b8; }
+  .sdeqn { display:flex; align-items:stretch; justify-content:center; gap:3px; margin-top:7px; }
+  .chip { flex:1; min-width:0; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:3px 2px 2px; border-radius:7px; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.08); }
+  .chip b { font-size:16px; font-weight:900; color:#f1f3f9; line-height:1.1; font-variant-numeric:tabular-nums; }
+  .chip small { font-size:8.5px; font-weight:800; letter-spacing:.3px; color:#9aa2b8; text-transform:uppercase; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; }
+  .chip.res { background:rgba(255,255,255,.14); border-color:var(--wc, rgba(255,255,255,.3)); } .chip.res b { color:var(--wc, #fff); }
+  .op { align-self:center; font-size:14px; font-weight:900; color:#7d859c; }
+  .sdhead { display:flex; align-items:baseline; justify-content:space-between; gap:6px; margin-top:6px; }
+  .sdh1 { white-space:nowrap; font-family:'Bangers', Impact, sans-serif; font-size:20px; letter-spacing:1px; line-height:1; color:var(--wc, #eef0f7); }
+  .sdh1.glow { text-shadow:0 0 10px var(--wc); }
+  .sdh2 { font-size:10px; font-weight:700; color:#aab1c5; text-align:right; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .track { display:grid; grid-template-columns:repeat(5, 1fr); gap:3px; margin-top:5px; }
+  .seg { height:17px; border-radius:4px; background:rgba(255,255,255,.07); display:flex; align-items:center; justify-content:center; font-size:8.5px; font-weight:900; color:#727a90; letter-spacing:.3px; }
+  .seg.on { color:#16131a; box-shadow:0 0 9px var(--sc); transform:scaleY(1.12); }
+  .seg.past { opacity:.55; }
+  .sdmiss { margin-top:8px; display:flex; align-items:center; gap:8px; }
+  
   /* resting the mouse on a card keeps it up */
   body.hold { border-color:rgba(255,255,255,.55) !important; }
   .tot { margin-left:auto; font-family:'Luckiest Guy', 'Bangers', Impact, sans-serif; font-size:23px; min-width:30px; text-align:right; padding-top:2px; }
@@ -50,7 +69,7 @@
 <body><div class="t" id="t"></div>
 <script type="module">
   import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
-  import { POWER_CARDS } from "./shared.js";
+  import { POWER_CARDS, sdResult, WOUND_STEPS, BONUS_NAME } from "./shared.js";
   // Shows one roll passed in the address: ?who=Zak&dice=1,0,-1,1&mod=3&total=4 (&spin=1 for a slot-machine reveal)
   const q = new URLSearchParams(location.search);
   const fmt = (n) => (n > 0 ? "+" : "") + n;
@@ -84,18 +103,25 @@
       `<span class="lbl">${esc(pc.t)}</span>` + (pc.s ? `<span class="left">${esc(pc.s)}</span>` : "");
     document.body.classList.add("ap"); if (pc.c) document.body.classList.add(pc.c); fit();
   }
-  if (q.get("sd")) { // Success Delta: attacker vs defender, then the damage and the wound it lands on
-    const delta = Number(q.get("delta")), hit = delta >= 0, g = (k) => q.get(k);
-    const plus = (n) => n < 0 ? `− ${-n}` : `+ ${n}`, minus = (n) => n < 0 ? `+ ${-n}` : `− ${n}`;
-    const wl = g("wound") || "", wc = { "LIGHT WOUND": 1, "MEDIUM WOUND": 2, "CRITICAL WOUND": 3, "DOWN & KO'ED": 4, "DEAD": 5 }[wl] || 0;
-    let foot;
-    if (!hit) foot = `<span class="sdw w0">MISS</span>`;
-    else if (g("dmg") != null) foot = `<span class="sdm">${delta} delta ${plus(Number(g("db")))} bonus ${minus(Number(g("ab") ?? 0))} armor = ${esc(g("dmg"))}</span>` +
-      `<span class="sdw w${wc}">${wc ? esc(wl) : "HIT · ARMOR STOPS IT"}</span>`;
-    else foot = `<span class="sdm">${delta} delta + ${g("sp") ? "spell" : "damage"} bonus ${g("ab") != null ? minus(Number(g("ab"))) : "−"} armor</span><span class="sdw">HIT · ADD THE BONUS</span>`;
-    document.getElementById("t").innerHTML =
-      `<div class="sdh"><span>SUCCESS DELTA</span><span class="sdn ${hit ? "" : "miss"}">${esc(String(delta))}</span></div>` +
-      `<div class="sdv">${esc(g("att") || "")} <small>${fmt(Number(g("at")))}</small> ▸ ${esc(g("def") || "")} <small>${fmt(Number(g("dt")))}</small></div>` + foot;
+  if (q.get("sd")) { // Success Delta: who vs who, the delta, the damage sum, and where it lands on the Vitality Track
+    let e = {}; try { e = JSON.parse(q.get("sd")); } catch {}
+    const R = sdResult(e), w = R.w ? WOUND_STEPS[R.w - 1] : null, sg = (n) => n > 0 ? "+" + n : String(n);
+    const wc = !R.hit ? "#a9b0c3" : w ? w.c : "#c9cede";
+    document.body.style.setProperty("--wc", wc);
+    const bk = BONUS_NAME[e.dbk] || "Bonus";
+    const chip = (v, k, cls = "") => `<div class="chip ${cls}"><b>${esc(v)}</b><small>${esc(k)}</small></div>`, op = (o) => `<span class="op">${o}</span>`;
+    const versus = `<div class="sdvs"><div class="sdp"><b>${esc(e.att || "")}</b><span>ATTACK <i>${sg(e.at)}</i></span></div>` +
+      `<div class="sdbadge"><b>${esc(String(e.delta))}</b><small>DELTA</small></div>` +
+      `<div class="sdp r"><b>${esc(e.def || "")}</b><span>DEFENSE <i>${sg(e.dt)}</i></span></div></div>`;
+    let body;
+    if (!R.hit) body = `<div class="sdeqn">${chip(sg(e.at), "Attack")}${op("−")}${chip(sg(e.dt), "Defense")}${op("=")}${chip(String(e.delta), "Delta", "res")}</div>` +
+      `<div class="sdhead"><span class="sdh1">MISS</span><span class="sdh2">${esc(R.sub)}</span></div>`;
+    else {
+      body = `<div class="sdeqn">${chip(String(e.delta), "Delta")}${op("+")}${chip(e.db != null ? String(e.db) : "?", bk)}${op("−")}${chip(e.ab != null ? String(e.ab) : "?", "Armor")}${op("=")}${chip(R.dmg != null ? String(R.dmg) : "?", "Damage", "res")}</div>` +
+        `<div class="sdhead"><span class="sdh1 ${R.w >= 4 ? "glow" : ""}">${esc(R.headline.toUpperCase())}</span><span class="sdh2">${esc(R.tie ? "Tie: attacker wins" : R.dmg == null ? "Add spell bonus" : w ? w.r + " damage" : "No wound")}</span></div>` +
+        `<div class="track">${WOUND_STEPS.map(s => `<div class="seg ${s.i === R.w ? "on" : ""}" style="--sc:${s.c};${s.i === R.w ? `background:${s.c}` : ""}">${esc(s.s.toUpperCase())}</div>`).join("")}</div>`;
+    }
+    document.getElementById("t").innerHTML = `<div class="sdtop"><span class="sdk">Success Delta</span></div>` + versus + body;
     document.body.classList.add("sd");
   }
   if (q.get("ks")) document.body.classList.add("ks"); else if (q.get("pw")) document.body.classList.add("pw");

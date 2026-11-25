@@ -63,11 +63,10 @@ async function showRoll(r, spin) {
 // from the same shared rolls, so everyone sees the same card. Nothing gets marked on a sheet.
 // Success Delta = attack total - defense total (ties go to the attacker). Damage = Delta + Damage Bonus - defender's Armor Bonus.
 // Wounds (Main Sheet row 15): 1-2 Light, 3-4 Medium, 5-6 Critical, 7-8 Down & KO'ed, 9+ Dead.
-const SD = "com.newscolos.dice/delta", SD_W = 236, SD_H = 112, SD_MS = 5000, ATTACK_WAIT = 3 * 60e3;
+const SD = "com.newscolos.dice/delta", SD_W = 280, SD_H = 184, SD_MS = 5000, ATTACK_WAIT = 3 * 60e3;
 let openAttack = null, combatOn = false;
 const nameOf = (r) => r.char || r.who;
 const isAdr = (r) => /^(?:⚡\s*)?adroitness\b/i.test(String(r.label || "")) && !/initiative/i.test(String(r.label || ""));
-const wound = (d) => d >= 9 ? "DEAD" : d >= 7 ? "DOWN & KO'ED" : d >= 5 ? "CRITICAL WOUND" : d >= 3 ? "MEDIUM WOUND" : d >= 1 ? "LIGHT WOUND" : "";
 function combatCheck(r) {
   if (!combatOn || r.cop || r.ap || !Array.isArray(r.dice) || !r.dice.length) return;
   if (r.atk) { openAttack = { ...r, at0: Date.now() }; return; }
@@ -77,17 +76,15 @@ function combatCheck(r) {
   showDelta(a, r).catch(() => {});
 }
 async function showDelta(a, d) {
-  const delta = a.total - d.total;
+  // one entry for the card and for Roll History; every screen makes the same id, so nothing doubles up
+  const e = { id: "sd-" + a.id + "-" + d.id, sd: 1, ts: (d.ts || Date.now()) + 1, who: nameOf(a), dice: [], total: a.total - d.total,
+    att: nameOf(a), def: nameOf(d), at: a.total, dt: d.total, delta: a.total - d.total };
+  if (a.db != null) { e.db = a.db; if (a.dbk) e.dbk = a.dbk; } else if (a.sp) { e.sp = 1; e.dbk = "spell"; }
+  if (d.ab != null) e.ab = d.ab;
+  try { rollLog(OBR.room.id, [e]); } catch {}
   const url = new URL("go.html", location.href); url.searchParams.set("p", "toast");
   const ref = new URLSearchParams(location.search).get("obrref"); if (ref) url.searchParams.set("obrref", ref);
-  const set = (k, v) => { if (v != null && v !== "") url.searchParams.set(k, v); };
-  set("id", SD); set("ms", SD_MS); set("sd", "1");
-  set("att", nameOf(a)); set("def", nameOf(d)); set("at", a.total); set("dt", d.total); set("delta", delta);
-  if (delta >= 0) {
-    if (a.db != null) set("db", a.db); else if (a.sp) set("sp", "1");
-    if (d.ab != null) set("ab", d.ab);
-    if (a.db != null) { const dmg = delta + a.db - (d.ab ?? 0); set("dmg", dmg); set("wound", wound(dmg) || "NO WOUND"); }
-  }
+  url.searchParams.set("id", SD); url.searchParams.set("ms", SD_MS); url.searchParams.set("sd", JSON.stringify(e));
   // just left of the roll cards, on the bottom row; if there's no room it goes at the left edge beside the panel
   const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
   let left = 0; try { if (await OBR.action.isOpen()) left = ((await OBR.action.getWidth()) || 520) + 40; } catch {}

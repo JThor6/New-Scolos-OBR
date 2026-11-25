@@ -69,6 +69,7 @@ function drawRolls() {
   document.getElementById("det").onclick = () => { try { localStorage.setItem("ns.histDetail", d ? "off" : "on"); } catch {} drawRolls(); };
 }
 window.addEventListener("storage", (e) => { if (e.key === "ns.histDetail") drawRolls(); });
+window.addEventListener("storage", (e) => { try { if (e.key && e.key.startsWith("ns.rollLog@") && OBR.room.id && e.key === "ns.rollLog@" + OBR.room.id) { rolls = rollLog(OBR.room.id, []); drawRolls(); } } catch {} });
 if (OBR.isAvailable) OBR.onReady(async () => {
   rolls = rollLog(OBR.room.id, allRolls(await OBR.room.getMetadata())); drawRolls();
   OBR.room.onMetadataChange((md) => { rolls = rollLog(OBR.room.id, allRolls(md)); drawRolls(); });

@@ -24,6 +24,30 @@ export const POWER_CARDS = {
   "corpse walk": { c: "rv", t: "CORPSE WALK", s: "The dead get back up" },
 };
 
+// ---------------- Success Delta ----------------
+// Damage = Success Delta + Damage Bonus - defender's Armor Bonus, landing on the Vitality Track (Main Sheet row 15).
+// i: 1 Light .. 5 Dead, 0 = no wound. c: the color for it.
+export const WOUND_STEPS = [
+  { i: 1, n: "Light Wound", s: "Light", r: "1-2", c: "#ffd36b" },
+  { i: 2, n: "Medium Wound", s: "Medium", r: "3-4", c: "#ffa24d" },
+  { i: 3, n: "Critical Wound", s: "Critical", r: "5-6", c: "#ff6a4d" },
+  { i: 4, n: "Down & KO'ed", s: "KO'ed", r: "7-8", c: "#ff3d6e" },
+  { i: 5, n: "Dead", s: "Dead", r: "9+", c: "#ff2626" },
+];
+export const woundFor = (dmg) => dmg >= 9 ? 5 : dmg >= 7 ? 4 : dmg >= 5 ? 3 : dmg >= 3 ? 2 : dmg >= 1 ? 1 : 0;
+export const BONUS_NAME = { melee: "Melee", ranged: "Ranged", offense: "Offense", spell: "Spell" }; // short: they label a number
+// One Success Delta in plain words, used by the table card and Roll History.
+// e: { att, def, at, dt, delta, db?, dbk?, sp?, ab? }
+export function sdResult(e) {
+  const hit = e.delta >= 0, known = e.db != null;
+  const dmg = hit && known ? e.delta + e.db - (e.ab ?? 0) : null;
+  const w = dmg != null ? woundFor(dmg) : 0;
+  const headline = !hit ? "Miss" : dmg == null ? "Hit" : w ? WOUND_STEPS[w - 1].n : "Armor holds";
+  const sub = !hit ? `${e.def} beats the attack by ${-e.delta}` : dmg == null ? "Add the spell's Damage Bonus, then subtract armor"
+    : w ? `${dmg} damage on the Vitality Track` : "Hit, but no damage gets through";
+  return { hit, known, dmg, w, headline, sub, tie: e.delta === 0 };
+}
+
 export function fmt(n) { return n > 0 ? `+${n}` : `${n}`; }
 
 export function summary(r) {
@@ -68,6 +92,7 @@ export function rollLine(r, histDetail) {
   const wm = label.match(/\s*\((w(?:o(?:u(?:n(?:d(?:e(?:d)?)?)?)?)?)?)\b([^)]*)\)?\s*$/i);
   if (wm && (wm[1].length >= 4 || !wm[2])) { if (pen == null) pen = n((wm[2] || "").match(/-\d+/)?.[0]) ?? -1; label = label.slice(0, wm.index).trim(); }
   const wtag = pen ? `<span class="wtag">wounded ${fmt(pen)}</span>` : "";
+  if (r.sd) return sdLine(r, time, histDetail, esc);
   if (r.bs) r = { ...r, ap: "bullet stop" }; // the first Bullet Stop cards (Nov 24) used their own flag
   if (r.ap) { const pc = POWER_CARDS[r.ap] || { c: "bs", t: r.label || "Power", s: "" };
     return `<div class="hl ap ${pc.c}">${head0(r, time, esc)}<div class="hr"><span class="hlbl">⚡ ${esc(pc.t)}${pc.s ? `: ${esc(pc.s)}` : ""}</span></div></div>`; }
@@ -89,6 +114,25 @@ export function rollLine(r, histDetail) {
     `<div class="br res"><span>Result</span><b>${fmt(r.total)}</b></div>`;
   if (r.ks) rows[0][0] = "Dice <small>Kill Shot</small>";
   return `<div class="hl det${xc}">${head}<div class="hlbl full">${esc(label || "Roll")}</div><div class="hr">${dice}<span class="hlbl"></span><span class="tot">${fmt(r.total)}</span></div><div class="brk">${table}</div></div>`;
+}
+// Success Delta in Roll History: who hit whom, the damage math as a row of numbers, and the wound it lands on.
+function sdLine(e, time, detail, esc) {
+  const R = sdResult(e), w = R.w ? WOUND_STEPS[R.w - 1] : null;
+  const col = !R.hit ? "#9aa0b8" : w ? w.c : "#d5d9e8";
+  const head = `<div class="hn">${esc(e.att)} <span class="sdvs">▸</span> ${esc(e.def)} <span class="t">${time}</span></div>`;
+  const tag = `<span class="sdtag" style="color:${col};border-color:${col}">${esc(R.headline)}</span>`;
+  const bk = (BONUS_NAME[e.dbk] || (e.sp ? "Spell" : "Damage")) + " bonus";
+  const math = !R.hit ? `<span class="sdeq">${fmt(e.at)} vs ${fmt(e.dt)} = <b>${e.delta}</b></span>`
+    : R.dmg == null ? `<span class="sdeq"><b>${e.delta}</b> Δ + ? ${e.ab != null ? `− ${e.ab} armor` : ""}</span>`
+    : `<span class="sdeq"><b>${e.delta}</b> Δ + ${e.db} <small>${esc((BONUS_NAME[e.dbk] || "dmg").toLowerCase())}</small> − ${e.ab ?? 0} <small>armor</small> = <b style="color:${col}">${R.dmg}</b></span>`;
+  if (!detail) return `<div class="hl sd">${head}<div class="hr"><span class="sdic">Δ</span>${math}${tag}</div></div>`;
+  const rows = [[`${esc(e.att)} <small>attack</small>`, fmt(e.at)], [`${esc(e.def)} <small>defense (Adroitness)</small>`, fmt(e.dt)],
+    [`Success Delta <small>${R.tie ? "tie: attacker wins" : "attack − defense"}</small>`, String(e.delta)]];
+  if (R.hit) { rows.push([`+ ${esc(bk)}`, e.db != null ? `+${e.db}` : "?"]); rows.push([`− ${esc(e.def)}'s Armor Bonus`, e.ab != null ? `−${e.ab}` : "?"]); }
+  const table = rows.map(([k, v]) => `<div class="br"><span>${k}</span><b>${v}</b></div>`).join("") +
+    `<div class="br res"><span>${R.hit ? (R.dmg != null ? "Damage" : "Damage <small>add the spell's bonus</small>") : "Result"}</span><b style="color:${col}">${R.hit ? (R.dmg ?? "?") : "Miss"}</b></div>` +
+    (R.hit && R.dmg != null ? `<div class="br"><span>Vitality Track</span><b style="color:${col}">${w ? `${esc(w.n)} (${w.r})` : "No wound"}</b></div>` : "");
+  return `<div class="hl sd det">${head}<div class="hr"><span class="sdic">Δ</span>${math}${tag}</div><div class="brk">${table}</div></div>`;
 }
 // Styles for rollLine (dice colors come from each page's .die rules)
 export const ROLL_CSS = `
@@ -117,13 +161,19 @@ export const ROLL_CSS = `
   .hl .br small { font-weight:400; opacity:.75; margin-left:3px; } .hl .br b { color:var(--text, #fff); }
   .hl .br .wr, .hl .br:has(.wr) b { color:#ff8f8f; }
   .hl .br.res { border-top:1px solid #444a66; margin-top:2px; padding-top:3px; color:#fff; }
+  .hl.sd { border-left:3px solid #8f97ad; padding-left:5px; background:rgba(160,170,195,.07); }
+  .hl .sdvs { color:var(--dim); font-weight:400; }
+  .hl .sdic { flex:none; width:20px; height:20px; border-radius:5px; background:#3a3f50; color:#d5d9e8; font-weight:900; font-size:13px; display:flex; align-items:center; justify-content:center; }
+  .hl .sdeq { flex:1; min-width:0; font-size:12px; font-weight:700; color:#b9bfd2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .hl .sdeq b { color:#f1f3f9; } .hl .sdeq small { font-size:10px; font-weight:600; color:var(--dim); }
+  .hl .sdtag { flex:none; margin-left:auto; font-size:10px; font-weight:900; letter-spacing:.5px; text-transform:uppercase; padding:2px 6px; border:1px solid; border-radius:10px; white-space:nowrap; }
   .histdet { width:100%; margin:4px 0 2px; padding:4px; font-size:11px; font-weight:800; border:1px solid #3a3d55; border-radius:6px; background:var(--paper); color:var(--dim); cursor:pointer; }
 `;
 
 // Roll log: the room only holds each player's last 10 rolls (Owlbear's room storage is tiny),
-// so every browser also keeps its own copy of the last 100 rolls it has seen in this room.
-// Every page calls this with the room's rolls; it merges them in (no duplicates) and returns the newest 100.
-export const LOG_MAX = 100;
+// so every browser also keeps its own copy of the last 200 rolls it has seen in this room.
+// Every page calls this with the room's rolls; it merges them in (no duplicates) and returns the newest 200.
+export const LOG_MAX = 200;
 export function rollLog(roomId, roomRolls) {
   // one log per Owlbear room, so the 47th Precinct room and the main game never mix
   if (!roomId) { try { roomId = atob(new URLSearchParams(location.search).get("obrref") || "").split(" ")[1]; } catch {} }
