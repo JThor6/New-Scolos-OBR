@@ -3406,11 +3406,14 @@ const nm = (x) => String(x || "").toLowerCase().replace(/\s+/g, " ").trim();
 function adBox() {
   const on = !!adOn();
   return `<div class="sec" style="margin-top:10px">AUTO DAMAGE</div><button id="adBtn" class="sbtn ${on ? "on" : ""}" style="width:100%">AUTO DAMAGE: ${on ? "ON" : "OFF"}</button>
+    ${on ? `<div class="help" id="adLast">${esc2(adLast())}</div>` : ""}
     <div class="help">${on ? "Hits mark wounds on sheets and monster cards by themselves; KO and Dead go on the tokens. Anyone can untick a box to fix a mistake. Keep this panel open during fights." : "Off: players and the GM mark wounds by hand."}</div>`;
 }
 function bindAd() { if ($("adBtn")) $("adBtn").onclick = async () => {
   const on = !adOn(); await OBR.room.setMetadata({ [AUTOD]: on ? Date.now() : 0 }).catch(() => {});
   lastMd = await OBR.room.getMetadata(); drawMonsters(); }; }
+// the newest thing auto damage did, for the line under the switch
+const adLast = () => { const a = (lastMd || {})[APPLIED]; return Array.isArray(a) && a[0] ? "Last: " + a[0].t : "Waiting for the first hit…"; };
 let condSeen = {}, pingSeen = 0;
 function adMeta(md, first) {
   lastMd = md;
@@ -3422,6 +3425,7 @@ function adMeta(md, first) {
       const ad = actDef(); if (p.hurt && ad?.hurt) { setActive(""); endActive(ad.c === "rv" ? "Your body was hit. Your spirit snaps back." : "You took damage and reappear."); }
       loadSheet(true); } }
   if (!isGM || PARTYPOP || UPLINK) return;
+  if ($("adLast")) $("adLast").textContent = adLast();
   // GM: someone changed their track by hand: put their token's conditions in step
   for (const [k, v] of Object.entries(md)) if (k.startsWith(CONDREQ) && v?.ts && condSeen[k] !== v.ts) {
     condSeen[k] = v.ts; if (!first && adOn() && Date.now() - v.ts < 60e3) applyCond(v.name, v.ko, v.dead); }
@@ -3485,9 +3489,10 @@ async function premarkMooks() {
 let adBusy = false, adAgain = false;
 async function autoDamage() {
   if (standalone || !isGM || PARTYPOP || UPLINK) return;
-  const since = adOn(); if (!since) return;
   if (adBusy) { adAgain = true; return; } adBusy = true;
   try {
+    const md0 = await OBR.room.getMetadata(); lastMd = md0;
+    const since = Number(md0[AUTOD]) || 0; if (!since) return;
     const KEY = "ns.adDone:" + OBR.room.id;
     let list = []; try { list = JSON.parse(localStorage.getItem("ns.sd:" + OBR.room.id) || "{}").list || []; } catch {}
     let done = []; try { done = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch {}
@@ -3496,7 +3501,7 @@ async function autoDamage() {
       done = [...done, e.id].slice(-60); store.set(KEY, JSON.stringify(done)); // never twice, even if something fails below
       if (!e.ts || e.ts < since || Date.now() - e.ts > 10 * 60e3) continue;
       const R = sdResult(e); if (!R.hit || !R.w) continue; // miss, armor held, or spell damage unknown
-      const t = await applyWound(e.def, R.w).catch(x => "Auto damage failed: " + x.message);
+      const t = await applyWound(e.def, R.w).catch(x => "Auto damage failed: " + (x?.message || x));
       if (t) { const md = await OBR.room.getMetadata(), ap = Array.isArray(md[APPLIED]) ? md[APPLIED] : [];
         await OBR.room.setMetadata({ [APPLIED]: [{ id: e.id, t }, ...ap].slice(0, 8) }).catch(() => {}); }
     }
@@ -3585,7 +3590,7 @@ if (standalone) {
     if (isGM) { initMd = await OBR.room.getMetadata(); OBR.room.onMetadataChange((m) => { initMd = m; drawInitList(); markTurn(); }); }
     if (!UPLINK && !PARTYPOP) applySize();
     render(rollLog(OBR.room.id, allRolls(await OBR.room.getMetadata())));
-    OBR.room.onMetadataChange((md) => { render(rollLog(OBR.room.id, allRolls(md))); updateInitBanner(md); actSync(md); adMeta(md); });
+    OBR.room.onMetadataChange((md) => { try { adMeta(md); } catch {} render(rollLog(OBR.room.id, allRolls(md))); updateInitBanner(md); actSync(md); });
     updateInitBanner(); actSync(await OBR.room.getMetadata()); adMeta(await OBR.room.getMetadata(), true);
     window.addEventListener("storage", (e) => { if (e.key === "ns.sd:" + OBR.room.id) autoDamage(); });
     const readAct = (ps) => { partyAct = ps.map(p => p.metadata?.[ACT_MD]).filter(Boolean); if (partyOn && lastParty && $("shbody")) drawParty($("shbody"), lastParty); };
