@@ -3420,7 +3420,9 @@ const CONDREQ = "com.newscolos.cond/";            // room: <player> -> { name, k
 const SHEETPING = "com.newscolos.sheetping";      // room: { id, ts, hurt } "this sheet changed, reload it"
 const BOX_START = [0, 0, 3, 4, 5, 6];             // wound level 1..5 -> its first box
 const BOX_NAME = ["Light Wound", "Light Wound", "Light Wound", "Medium Wound", "Critical Wound", "Down & KO'ed", "Dead"];
-const adOn = () => Number((lastMd || {})[AUTOD]) || 0;
+// ON by default (Jake, Nov 25): never set = on. The switch is only there if players hate it. Off is stored as 0.
+const adSince = (md) => { const v = (md || {})[AUTOD]; return v === undefined || v === null ? 1 : Number(v) || 0; };
+const adOn = () => adSince(lastMd);
 const nm = (x) => String(x || "").toLowerCase().replace(/\s+/g, " ").trim();
 function adBox() {
   const on = !!adOn();
@@ -3443,7 +3445,7 @@ function adMeta(md, first) {
     if (p.id && p.id === sheetId() && !mgrOn) {
       const ad = actDef(); if (p.hurt && ad?.hurt) { setActive(""); endActive(ad.c === "rv" ? "Your body was hit. Your spirit snaps back." : "You took damage and reappear."); }
       loadSheet(true); } }
-  if (!isGM || PARTYPOP || UPLINK) return;
+  if (!isGM || UPLINK) return;
   if ($("adLast")) $("adLast").textContent = adLast();
   // GM: someone changed their track by hand: put their token's conditions in step
   for (const [k, v] of Object.entries(md)) if (k.startsWith(CONDREQ) && v?.ts && condSeen[k] !== v.ts) {
@@ -3507,15 +3509,16 @@ async function premarkMooks() {
 // The engine: new Success Delta results (this screen's list, written by the background page) -> wounds
 let adBusy = false, adAgain = false;
 async function autoDamage() {
-  if (standalone || !isGM || PARTYPOP || UPLINK) return;
+  if (standalone || !isGM || UPLINK) return; // the main panel or the Party pop-out, whichever is open (the done-list stops doubles)
   if (adBusy) { adAgain = true; return; } adBusy = true;
   try {
     const md0 = await OBR.room.getMetadata(); lastMd = md0;
-    const since = Number(md0[AUTOD]) || 0; if (!since) return;
+    const since = adSince(md0); if (!since) return;
     const KEY = "ns.adDone:" + OBR.room.id;
     let list = []; try { list = JSON.parse(localStorage.getItem("ns.sd:" + OBR.room.id) || "{}").list || []; } catch {}
     let done = []; try { done = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch {}
     for (const e of list) {
+      try { done = JSON.parse(localStorage.getItem(KEY) || "[]"); } catch {}
       if (done.includes(e.id)) continue;
       done = [...done, e.id].slice(-60); store.set(KEY, JSON.stringify(done)); // never twice, even if something fails below
       if (!e.ts || e.ts < since || Date.now() - e.ts > 10 * 60e3) continue;
@@ -3612,6 +3615,7 @@ if (standalone) {
     OBR.room.onMetadataChange((md) => { try { adMeta(md); } catch {} render(rollLog(OBR.room.id, allRolls(md))); updateInitBanner(md); actSync(md); });
     updateInitBanner(); actSync(await OBR.room.getMetadata()); adMeta(await OBR.room.getMetadata(), true);
     window.addEventListener("storage", (e) => { if (e.key === "ns.sd:" + OBR.room.id) autoDamage(); });
+    if (isGM && !UPLINK) { const beat = () => store.set("ns.adAlive:" + OBR.room.id, String(Date.now())); beat(); setInterval(beat, 2000); }
     const readAct = (ps) => { partyAct = ps.map(p => p.metadata?.[ACT_MD]).filter(Boolean); if (partyOn && lastParty && $("shbody")) drawParty($("shbody"), lastParty); };
     readAct(await OBR.party.getPlayers()); OBR.party.onChange(readAct);
   });

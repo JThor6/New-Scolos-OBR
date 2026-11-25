@@ -1,7 +1,7 @@
 <!doctype html><html><head><meta charset="utf-8"></head><body>
 <script type="module">
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
-import { allRolls, INIT, initEntries, markList, rollLog, rollKey, KEEP, sameName } from "./shared.js";
+import { allRolls, INIT, initEntries, markList, rollLog, rollKey, KEEP, sameName, sdResult } from "./shared.js";
 // Runs all session, even when the dice panel is closed.
 // Shows rolls as small cards at the bottom middle of the map. Up to 8 at once (two rows of 4, middle cards first),
 // so when everyone rolls together (initiative) the whole table's results are visible.
@@ -119,8 +119,22 @@ let seenIds = new Set();
 function addResult(e) {
   try { rollLog(OBR.room.id, [e]); } catch {}
   if (!e.aid) e.aid = String(e.id || "").split("-")[1] || ""; // results saved before Nov 25 didn't carry the attack id
-  if (!sd.list.some(x => x.id === e.id)) { sd.list.push(e); sd.list = sd.list.slice(-SD_KEEP); }
+  const fresh = !sd.list.some(x => x.id === e.id);
+  if (fresh) { sd.list.push(e); sd.list = sd.list.slice(-SD_KEEP); }
   sdSave(); openCard().catch(() => {});
+  if (fresh && amGM) adWatch(e).catch(() => {});
+}
+// GM screen: AUTO DAMAGE is on and this hit lands a wound, but no New Scolos panel or Party pop-out is open to mark it:
+// say so on the card (it catches up within 10 minutes once one opens)
+async function adWatch(e) {
+  const R = sdResult(e); if (!R.hit || !R.w) return;
+  const md = await OBR.room.getMetadata(), ad = md["com.newscolos.autodmg"]; if (ad !== undefined && ad !== null && !Number(ad)) return; // on unless switched off
+  await new Promise(r => setTimeout(r, 4000));
+  let alive = 0; try { alive = Number(localStorage.getItem("ns.adAlive:" + OBR.room.id) || 0); } catch {}
+  if (Date.now() - alive < 6000) return;
+  const md2 = await OBR.room.getMetadata(), ap = Array.isArray(md2[APPLIED]) ? md2[APPLIED] : [];
+  if (ap.some(a => a.id === e.id)) return;
+  await OBR.room.setMetadata({ [APPLIED]: [{ id: e.id, t: "Auto damage: not marked yet. Open the New Scolos panel (GM) and it catches up." }, ...ap].slice(0, 8) });
 }
 // Opens (or reopens) the card: just left of the roll cards, on the bottom row; if there's no room, at the left edge beside the panel.
 // It sizes itself to what it shows, growing upward.
