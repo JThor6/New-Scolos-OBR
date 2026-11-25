@@ -1111,7 +1111,7 @@ async function loadSheet(quiet) {
   cache.set("sheet." + id, r.values);
   const ptWas = ptT(id), ptKnown = ptBridge; notePt(id, r);
   if (JSON.stringify(r.values) === JSON.stringify(sheetVals) && $("shbody")?.querySelector(".fld") && ptWas === ptT(id) && ptKnown === ptBridge) return; // nothing changed
-  sheetVals = r.values; drawSheet();
+  sheetVals = r.values; drawSheet(); defReq();
 }
 
 function list(cells) { return cells.map(V).filter(Boolean); }
@@ -3432,6 +3432,7 @@ function updateDefBanner() {
   let btns = [];
   if (w && isGM) btns = w.tg?.length ? mons.map(b => [b.dataset.w, () => b.click()]) : [];
   else if (w && sheetVals && canDefend(w, myChar())) btns = [["DEFEND", () => { const adr = sheetVals?.[6]?.[2]; if (adr != null && String(adr).trim() !== "") quickRoll(adr, "Adroitness · Defense"); }]]; // its own label, so it's never taken as initiative
+  defReq();
   const show = !!w && btns.length > 0 && store.get("ns.defHide") !== w.id;
   $("defban").hidden = !show; if (!show) return;
   $("deft").textContent = `🛡 ${w.att} ${w.sp ? "casts" : "attacks"} ${sg(w.at)}${w.l ? " · " + w.l : ""}${w.tg?.length ? " → " + w.tg.join(", ") : ""}. ${isGM ? "Defend with:" : "Roll to defend:"}`;
@@ -3440,6 +3441,18 @@ function updateDefBanner() {
 }
 $("defx").onclick = () => { const w = sdWait(); if (w) store.set("ns.defHide", w.id); $("defban").hidden = true; };
 window.addEventListener("storage", (e) => { if (!standalone && e.key === "ns.sd:" + OBR.room.id) updateDefBanner(); });
+// 🛡 ROLL ADROITNESS on the DEFEND! pop-up over the map (defpop.html) asks this panel to roll the defense from the sheet.
+// The pop-up also opens this panel if it was closed, so the request waits up to 20 s for the sheet to load.
+function defReq() {
+  if (standalone || isGM || rollBusy) return;
+  let q = null; try { q = JSON.parse(localStorage.getItem("ns.defReq") || "null"); } catch {}
+  if (!q?.ts || Date.now() - q.ts > 20e3 || store.get("ns.defReqDone") === String(q.ts)) return;
+  const w = sdWait(), adr = sheetVals?.[6]?.[2];
+  if (!w || !sheetVals || adr == null || String(adr).trim() === "") return; // not ready yet: tried again when the sheet loads
+  store.set("ns.defReqDone", String(q.ts));
+  if (canDefend(w, myChar())) quickRoll(adr, "Adroitness · Defense");
+}
+window.addEventListener("storage", (e) => { if (e.key === "ns.defReq") defReq(); });
 setInterval(() => { if (!standalone) updateDefBanner(); }, 5000);
 // CALL FOR INITIATIVE also rolls the monsters (ON unless the GM switched it off; saved in this browser)
 const autoMon = () => store.get("ns.autoMon") !== "0";

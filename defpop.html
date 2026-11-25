@@ -13,16 +13,23 @@
   .s { margin-top:3px; font-size:12.5px; font-weight:700; color:#e4d9ff; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .s b { color:#fff; }
   .t { min-width:0; flex:1; }
+  .r { flex:none; padding:8px 12px; border-radius:9px; border:1px solid #7a62b8; background:#3b2563; color:#f1e9ff; font:800 13px system-ui; letter-spacing:.5px; cursor:pointer; white-space:nowrap; }
+  .r:hover { background:#4a2f7a; } .r:disabled { opacity:.6; cursor:default; }
   @keyframes in { from { transform:translateY(-12px); opacity:0; } }
 </style></head>
-<body><div class="p" id="p"><span class="ic">🛡</span><div class="t"><div class="h">DEFEND!</div><div class="s" id="s"></div></div></div>
+<body><div class="p" id="p"><span class="ic">🛡</span><div class="t"><div class="h">DEFEND!</div><div class="s" id="s"></div></div><button class="r" id="r" title="Roll Adroitness from your character sheet to defend">🛡 ROLL ADROITNESS</button></div>
 <script type="module">
   import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
   const q = new URLSearchParams(location.search), ID = "com.newscolos.defpop";
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const at = Number(q.get("at")) || 0;
-  document.getElementById("s").innerHTML = `<b>${esc(q.get("att"))}</b> ${q.get("sp") ? "casts at" : "attacks"} you (${at > 0 ? "+" + at : at}). Roll Adroitness.`;
+  document.getElementById("s").innerHTML = `<b>${esc(q.get("att"))}</b> ${q.get("sp") ? "casts at" : "attacks"} you (${at > 0 ? "+" + at : at})`;
   const close = () => { if (OBR.isAvailable) OBR.popover.close(ID).catch(() => {}); };
   document.getElementById("p").onclick = close;
+  // Roll right here: the New Scolos panel rolls Adroitness from the sheet (it's opened if it was closed)
+  document.getElementById("r").onclick = async (e) => { e.stopPropagation(); const b = e.currentTarget; b.disabled = true; b.textContent = "Rolling…";
+    try { localStorage.setItem("ns.defReq", JSON.stringify({ ts: Date.now() })); } catch {}
+    if (OBR.isAvailable) { try { if (!(await OBR.action.isOpen())) await OBR.action.open(); } catch {} }
+    setTimeout(close, 900); };
   if (OBR.isAvailable) OBR.onReady(() => setTimeout(close, 7000));
 </script></body></html>
