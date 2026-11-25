@@ -22,7 +22,18 @@ export const POWER_CARDS = {
   "mind over matter": { c: "mm", t: "MIND OVER MATTER", s: "The world starts to float" },
   "spirit walk": { c: "rv", t: "SPIRIT WALK", s: "The body falls still. Something cold moves through the walls" },
   "corpse walk": { c: "rv", t: "CORPSE WALK", s: "The dead get back up" },
+  // daily powers with no roll and nothing that stays on: a card so the table knows it was used
+  "kill shot": { c: "ksa", t: "KILL SHOT ARMED", s: "Next attack: +, +, +, +" },
+  "echo of the dead": { c: "rv", t: "ECHO OF THE DEAD", s: "A ghost answers the call" },
+  "appraiser's eye": { c: "dp", t: "APPRAISER'S EYE", s: "Sizing up what it's worth, and who'd pay" },
+  "last rites": { c: "dp", t: "LAST RITES", s: "Jacked into a dead machine" },
+  "sleeper code": { c: "dp", t: "SLEEPER CODE", s: "Something is left waiting in the system" },
+  "mind touch": { c: "ff", t: "MIND TOUCH", s: "Reaching into someone's head" },
+  "borrowed face": { c: "wr", t: "BORROWED FACE", s: "Wearing someone else's face" },
+  "commune": { c: "av", t: "COMMUNE", s: "Asks their god one question" },
 };
+// Any other daily power: gold card with its name
+export const powerCard = (n, label) => POWER_CARDS[n] || { c: "dp", t: String(label || n || "POWER").toUpperCase(), s: "Daily Extraordinary Power" };
 
 // ---------------- Success Delta ----------------
 // Damage = Success Delta + Damage Bonus - defender's Armor Bonus, landing on the Vitality Track (Main Sheet row 15).
@@ -94,7 +105,7 @@ export function rollLine(r, histDetail) {
   const wtag = pen ? `<span class="wtag">wounded ${fmt(pen)}</span>` : "";
   if (r.sd) return sdLine(r, time, histDetail, esc);
   if (r.bs) r = { ...r, ap: "bullet stop" }; // the first Bullet Stop cards (Nov 24) used their own flag
-  if (r.ap) { const pc = POWER_CARDS[r.ap] || { c: "bs", t: r.label || "Power", s: "" };
+  if (r.ap) { const pc = powerCard(r.ap, r.label);
     return `<div class="hl ap ${pc.c}">${head0(r, time, esc)}<div class="hr"><span class="hlbl">⚡ ${esc(pc.t)}${pc.s ? `: ${esc(pc.s)}` : ""}</span></div></div>`; }
   if (r.cop) return `<div class="hl cop">${head0(r, time, esc)}<div class="hr"><span class="hlbl">⚔ Used a Combat Option Point</span><span class="tot">${r.max != null ? `${r.total}/${r.max}` : ""}</span></div></div>`;
   const dice = `<span class="dice hd">${r.dice.map(d => `<div class="${cls(d)}">${face(d)}</div>`).join("")}</span>`;
@@ -146,6 +157,8 @@ export const ROLL_CSS = `
   .hl.pw { border-left:3px solid #ffc94d; padding-left:5px; background:rgba(255,201,77,.08); } .hl.pw .hlbl, .hl.pw .tot { color:#ffc94d; }
   .hl.cop { border-left:3px solid #4fc3f7; padding-left:5px; background:rgba(79,195,247,.08); } .hl.cop .hlbl, .hl.cop .tot { color:#7fd4ff; font-weight:800; }
   .hl.ap { border-left:3px solid #9d86ff; padding-left:5px; background:rgba(157,134,255,.1); } .hl.ap .hlbl { color:#c7b6ff; font-weight:800; }
+  .hl.ap.ksa { border-left-color:#e04a3f; background:rgba(150,25,25,.2); } .hl.ap.ksa .hlbl { color:#ff6b5e; }
+  .hl.ap.dp { border-left-color:#ffc94d; background:rgba(255,201,77,.08); } .hl.ap.dp .hlbl { color:#ffc94d; }
   .hl.ap.av { border-left-color:#e8b5ff; } .hl.ap.av .hlbl { color:#ffd9ff; }
   .hl.ap.ff { border-left-color:#3ee6ff; background:rgba(62,230,255,.08); } .hl.ap.ff .hlbl { color:#bff7ff; }
   .hl.ap.wr { border-left:3px dashed rgba(210,210,225,.5); background:rgba(255,255,255,.03); } .hl.ap.wr .hlbl { color:rgba(230,230,240,.6); font-style:italic; }

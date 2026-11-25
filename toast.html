@@ -25,6 +25,8 @@
   body.ap { background:rgba(45,30,105,.78); border:2px solid #9d86ff; box-shadow:0 0 14px rgba(157,134,255,.6); }
   body.ap .lbl { flex-basis:100%; color:#c7b6ff; font-family:'Bangers', Impact, sans-serif; letter-spacing:1px; font-size:18px; line-height:1.1; }
   body.ap .left { flex-basis:100%; font-size:12px; font-weight:800; color:#e4dcff; }
+  body.ap.ksa { background:rgba(120,15,15,.78); border-color:#ff4d3d; box-shadow:0 0 14px rgba(255,60,40,.6); } body.ap.ksa .lbl { color:#ff6b5e; } body.ap.ksa .left { color:#ffc2bb; }
+  body.ap.dp { background:rgba(70,48,8,.78); border-color:#ffc94d; box-shadow:0 0 14px rgba(255,201,77,.5); } body.ap.dp .lbl { color:#ffc94d; } body.ap.dp .left { color:#ffe6a8; }
   body.ap.av { background:linear-gradient(135deg, rgba(25,60,120,.85), rgba(110,30,120,.85)); border-color:#e8b5ff; box-shadow:0 0 16px rgba(199,125,255,.65); } body.ap.av .lbl { color:#ffd9ff; text-shadow:0 0 8px #c77dff; }
   body.ap.ff { background:rgba(5,45,60,.82); border-color:#3ee6ff; box-shadow:0 0 14px rgba(62,230,255,.55); } body.ap.ff .lbl { color:#bff7ff; text-shadow:-4px 0 rgba(62,230,255,.55), -8px 0 rgba(62,230,255,.25); }
   body.ap.wr { background:rgba(10,10,14,.55); border:1px dashed rgba(210,210,225,.5); box-shadow:none; } body.ap.wr .lbl { color:rgba(235,235,245,.55); letter-spacing:6px; text-shadow:0 0 8px rgba(255,255,255,.4); } body.ap.wr .left { color:rgba(220,220,230,.6); font-style:italic; }
@@ -71,7 +73,7 @@
 <body><div class="t" id="t"></div>
 <script type="module">
   import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
-  import { POWER_CARDS, sdResult, WOUND_STEPS, BONUS_NAME } from "./shared.js";
+  import { POWER_CARDS, powerCard, sdResult, WOUND_STEPS, BONUS_NAME } from "./shared.js";
   // Shows one roll passed in the address: ?who=Zak&dice=1,0,-1,1&mod=3&total=4 (&spin=1 for a slot-machine reveal)
   const q = new URLSearchParams(location.search);
   const fmt = (n) => (n > 0 ? "+" : "") + n;
@@ -100,7 +102,7 @@
     document.body.classList.add("cp");
   }
   if (q.get("ap")) { // a power that stays on was switched on: who, and what it does
-    const pc = POWER_CARDS[q.get("ap")] || { c: "", t: q.get("label") || "POWER", s: "" };
+    const pc = powerCard(q.get("ap"), q.get("label"));
     document.getElementById("t").innerHTML = `<span class="who"><span style="overflow:hidden;text-overflow:ellipsis">${esc(q.get("char") || q.get("who") || "")}${q.get("char") ? `<span class="pn">${esc(q.get("who") || "")}</span>` : ""}</span></span>` +
       `<span class="lbl">${esc(pc.t)}</span>` + (pc.s ? `<span class="left">${esc(pc.s)}</span>` : "");
     document.body.classList.add("ap"); if (pc.c) document.body.classList.add(pc.c); fit();

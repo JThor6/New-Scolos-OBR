@@ -1907,10 +1907,10 @@ function actSync(md) {
   }
   updateActive(); // new round: the reroll tracker resets
 }
-async function announcePower(n) {
+async function announcePower(n, name = "") {
   if (standalone) return;
   const who = await OBR.player.getName();
-  const r = { id: crypto.randomUUID().slice(0, 8), pid: me || "local", who, ap: n, label: POWER_CARDS[n]?.t || n, dice: [], mod: 0, total: 0, ts: Date.now() };
+  const r = { id: crypto.randomUUID().slice(0, 8), pid: me || "local", who, ap: n, label: POWER_CARDS[n]?.t || String(name || n).toUpperCase().slice(0, 40), dice: [], mod: 0, total: 0, ts: Date.now() };
   if (myChar()) r.char = myChar();
   try { localStorage.setItem("ns.toastReq", JSON.stringify(r)); } catch {}
   saveRoll(r);
@@ -1971,7 +1971,7 @@ function powerRollBtns(name) {
     return `<div class="pwrolls">${usedNote}<button class="pwroll bsaura ${a ? "on" : ""}" ${on && !a ? "disabled" : ""}>⚡<span>${a ? "Bullet Stop is on: +2 Armor Bonus. Tap to end it" : on ? "Used Today" : "Use Bullet Stop: +2 Armor Bonus until the combat ends (checks Used Today)"}</span></button>` +
       `<div class="pwtn">Use it on your turn. It doesn't take your action, so you can still fight. The +2 ends when the GM ends the combat, or with ✕.</div></div>`; }
   const start = e.act ? e.act.map(r => btn(r, "", on)).join("")
-    : `<button class="pwroll pwuse" data-act="${ACTIVE[key] ? esc2(key) : ""}" ${on ? "disabled" : ""}>⚡<span>${on ? (actGet()?.n === key ? "On now. End it with ✕ on the bar" : "Used Today") : `Use ${esc2(name)}: checks Used Today`}</span></button>`;
+    : `<button class="pwroll pwuse" data-act="${ACTIVE[key] ? esc2(key) : ""}" data-k="${esc2(key)}" data-n="${esc2(name)}" ${on ? "disabled" : ""}>⚡<span>${on ? (actGet()?.n === key ? "On now. End it with ✕ on the bar" : "Used Today") : `Use ${esc2(name)}: checks Used Today`}</span></button>`;
   const alt = e.alt ? `<div class="pwtn">${esc2(e.an)}</div>` + e.alt.map(r => btn(r, "", on)).join("") : "";
   const follow = e.follow ? `<div class="pwtn">${esc2(e.fn)} ${on ? "Roll it here:" : "These rolls unlock once you use it."}</div>` + e.follow.map(r => btn(r, "pwtether", !on, e.fl)).join("") : "";
   return `<div class="pwrolls">${usedNote}${start}${alt}${follow}</div>`;
@@ -2005,13 +2005,13 @@ async function fillPowers() {
       box.innerHTML = `<div class="gpn">${k[0] === "a" ? "Always on · " : "⚡ "}${esc2(x.name)}<button class="pwx" title="Close">✕</button></div>` +
         (k[0] === "a" ? `<div>${esc2(x.text)}</div>` : (x.rules.map(([a, b]) => `<div>${a ? `<b>${esc2(a)}:</b> ` : ""}${esc2(b)}</div>`).join("") || `<div>No details on the type tab.</div>`) + powerRollBtns(x.name));
       box.querySelector(".pwx").onclick = () => { pwOpen = ""; show(); };
-      box.querySelectorAll(".ksarm").forEach(b => b.onclick = (e) => { e.stopPropagation(); if (powerUsed() && !ksArmed()) return; setKS(!ksArmed()); show(); });
+      box.querySelectorAll(".ksarm").forEach(b => b.onclick = (e) => { e.stopPropagation(); if (powerUsed() && !ksArmed()) return; const arming = !ksArmed(); setKS(arming); if (arming) announcePower("kill shot", "Kill Shot"); show(); });
       box.querySelectorAll(".bsaura").forEach(b => b.onclick = (e) => { e.stopPropagation();
         if (actGet()?.n === "bullet stop") return endActive();
         if (powerUsed()) return;
         markPowerUsed(); startActive("bullet stop"); drawSheet(); });
       box.querySelectorAll(".pwuse").forEach(b => b.onclick = (e) => { e.stopPropagation(); if (powerUsed()) return; markPowerUsed();
-        if (b.dataset.act) { startActive(b.dataset.act); drawSheet(); } else show(); });
+        if (b.dataset.act) { startActive(b.dataset.act); drawSheet(); } else { announcePower(b.dataset.k, b.dataset.n); show(); } }); // every daily gets a table card
       box.querySelectorAll(".pwtether").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (rollBusy || !powerUsed()) return; await quickRoll(b.dataset.m, b.dataset.l, "", b.dataset.b); });
       box.querySelectorAll(".pwroll:not(.ksarm):not(.pwuse):not(.pwtether):not(.bsaura)").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (rollBusy || powerUsed()) return;
         // once per day: lock every power button right away so a second click can't roll it again
