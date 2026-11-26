@@ -3904,7 +3904,7 @@ let pogQT = 0; const pogAsked = new Set(); // "no pog" is checked again once per
 async function partyPogVis() {
   const bs = [...document.querySelectorAll(".pogt")]; if (!bs.length || standalone) return;
   let names = null; try { if (await OBR.scene.isReady()) names = new Set((await OBR.scene.items.getItems(i => i.layer === "CHARACTER" || i.layer === "MOUNT")).map(i => nm(i.name))); } catch {}
-  for (const b of bs) b.hidden = !names || names.has(nm(b.dataset.n));
+  for (const b of bs) { b.hidden = !names || names.has(nm(b.dataset.n)); const p = b.nextElementSibling; if (p?.classList.contains("pogp")) p.hidden = b.hidden; }
 }
 // your own sheet (players), or the sheet the GM has open: the button beside the name
 async function pogQuick() {
@@ -4194,13 +4194,14 @@ function drawParty(body, chars) {
       const status = worst < 0 ? "Unhurt" : cell(v, "BCDEFGH"[worst] + "15").replace(/^\S+\s+/, "");
       const used = cell(v, "F6").toUpperCase() === "TRUE", usedU = cell(v, "F8").toUpperCase() === "TRUE", hasU = !/^(priest|mage)$/i.test(cell(v, "C4"));
       return `<div class="pcard">
-        <div class="ptop">${ptIcon(c.id, cell(v, "C3"))}<b>${esc2(cell(v, "C3"))}</b>${isGM && ptT(c.id) ? `<button class="pogb" data-pog="${esc2(c.id)}" data-n="${esc2(cell(v, "C3"))}" title="Add this character's pog to your Owlbear characters">◎ POG</button><button class="pogb pogt" data-pt="${esc2(c.id)}" data-n="${esc2(cell(v, "C3"))}" hidden title="Put this character's pog on the map (middle of your screen). Only shows while they aren't on the map.">⬇ PUT POG ON THE TABLE</button>` : ""}<small>${esc2(cell(v, "C4"))}</small>${hasU ? `<span class="ppw ${used ? "u" : ""}">${used ? "COMBAT USED" : "COMBAT READY"}</span><span class="ppw ${usedU ? "u" : ""}">${usedU ? "UTILITY USED" : "UTILITY READY"}</span>` : `<span class="ppw ${used ? "u" : ""}">${used ? "POWER USED" : "POWER READY"}</span>`}</div>
+        <div class="ptop">${ptIcon(c.id, cell(v, "C3"))}<b>${esc2(cell(v, "C3"))}</b>${isGM && ptT(c.id) ? `<button class="pogb" data-pog="${esc2(c.id)}" data-n="${esc2(cell(v, "C3"))}" title="Add this character's pog to your Owlbear characters">◎ POG</button><button class="pogb pogt" data-pt="${esc2(c.id)}" data-n="${esc2(cell(v, "C3"))}" hidden title="Put this character's pog on the map (middle of your screen). Only shows while they aren't on the map.">⬇ PUT POG ON THE TABLE</button><button class="pogb pogp" hidden title="Every character with a pog who isn't on the map yet, in the middle of your screen">⬇ PUT PARTY ON THE TABLE</button>` : ""}<small>${esc2(cell(v, "C4"))}</small>${hasU ? `<span class="ppw ${used ? "u" : ""}">${used ? "COMBAT USED" : "COMBAT READY"}</span><span class="ppw ${usedU ? "u" : ""}">${usedU ? "UTILITY USED" : "UTILITY READY"}</span>` : `<span class="ppw ${used ? "u" : ""}">${used ? "POWER USED" : "POWER READY"}</span>`}</div>
         ${isGM ? gmStrip(v, cell) : ""}${actBadge(cell(v, "C3"))}<div class="pvit">${marks.map((m, i) => `<i><small>${["LW", "LW", "LW", "MW", "CW", "KO", "D"][i]}</small><span class="${m ? "x" : ""}"></span></i>`).join("")}<em class="${worst >= 4 ? "bad" : ""}">${esc2(status)}</em></div>
       </div>`;
     }).join("") : `<div class="empty">No characters found.</div>`);
     if ($("ptyPop")) $("ptyPop").onclick = popParty;
     if ($("ptyDrop")) $("ptyDrop").onclick = async () => { const b = $("ptyDrop"); b.disabled = true; try { await partyDrop(); } finally { b.disabled = false; } };
     body.querySelectorAll(".pogt").forEach(b => b.onclick = async (e) => { e.stopPropagation(); b.disabled = true; try { await partyDrop(b.dataset.pt); } finally { b.disabled = false; partyPogVis(); } });
+    body.querySelectorAll(".pogp").forEach(b => b.onclick = async (e) => { e.stopPropagation(); b.disabled = true; try { await partyDrop(); } finally { b.disabled = false; partyPogVis(); } });
     partyPogVis();
     fillPts(body);
     body.querySelectorAll(".pti").forEach(b => b.onclick = () => ptView(b.dataset.ptv, b.dataset.n, false));
