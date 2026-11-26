@@ -293,6 +293,14 @@
   .tbtns button { font:800 11px system-ui; letter-spacing:.4px; padding:5px 8px; border-radius:6px; cursor:pointer; background:rgba(40,36,64,.9); border:1px solid #4a4170; color:#e6defa; }
   .tbtns button:disabled { opacity:.4; cursor:default; }
   .tmsg { margin-top:5px; font-size:11px; color:#cfc6ee; }
+  .tmon { margin-top:6px; border-top:1px solid #3a3558; padding-top:5px; }
+  .tmh { font-size:10px; font-weight:800; letter-spacing:.6px; color:var(--dim); display:flex; gap:6px; align-items:center; } .tmh span { font-weight:600; letter-spacing:0; color:#e6c97a; text-transform:none; flex:1; }
+  .tmh button { font:800 10px system-ui; padding:2px 6px; border-radius:5px; background:transparent; border:1px solid #4a4170; color:#cfc6ee; cursor:pointer; }
+  .tmr { display:flex; flex-wrap:wrap; align-items:center; gap:4px; margin-top:4px; } .tmr small { color:var(--dim); font-size:10px; }
+  .tmr button, .tmb button { font:700 11px system-ui; padding:3px 7px; border-radius:6px; cursor:pointer; background:rgba(40,36,64,.9); border:1px solid #4a4170; color:#e6defa; }
+  .tmr button b { color:#c7b6ff; } .tmb { display:inline-flex; flex-wrap:wrap; gap:4px; margin-left:auto; }
+  .tmr button.ttg.on { background:rgba(91,63,158,.75); border-color:#b9a6ff; color:#fff; } .tmr button.hot { background:rgba(91,63,158,.7); border-color:#9d86ff; }
+  .tmr button:disabled { opacity:.5; }
   .tban { position:sticky; top:0; z-index:5; display:flex; flex-direction:column; gap:4px; padding:4px 0; background:linear-gradient(#222639 70%, transparent); }
   .tban[hidden] { display:none; } .tbrow { display:flex; gap:4px; } .tbrow button { flex:1; }
   .tban button { width:100%; padding:9px 10px; border-radius:8px; cursor:pointer; font:800 14px system-ui; letter-spacing:.5px; color:#f0eaff; background:rgba(91,63,158,.55); border:1px solid #9d86ff; display:flex; flex-wrap:wrap; align-items:baseline; justify-content:center; gap:4px 10px; }
@@ -1014,7 +1022,10 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
     if (/^attack\b/i.test(label)) { r.atk = 1; if (db != null) { r.db = db; r.dbk = "offense"; } }
   }
   { const spl = !whoName ? pendingSpell : null; pendingSpell = null; if (spl) applySpell(r, spl); } // a spell from the spell window
-  if (r.atk && !standalone) { // 🎯 Targets on: the tokens this roller has selected are what the attack is aimed at
+  if (r.atk && !standalone && testOn() && testTgt.length) { // test mode: the targets picked in the Party view, no map selection needed
+    const self = String(whoName || myChar() || ""), names = testTgt.filter(n => !sameName(n, self));
+    if (names.length) r.tg = names.slice(0, 12); else r.notg = 1;
+  } else if (r.atk && !standalone) { // 🎯 Targets on: the tokens this roller has selected are what the attack is aimed at
     try { if (tgtOn()) {
       const sel = (await OBR.player.getSelection()) || [], self = String(whoName || myChar() || "").toLowerCase();
       // only tokens (character / mount layer pictures): a selected map, drawing or note isn't a target
@@ -2369,6 +2380,7 @@ async function coCandidates() {
   return out;
 }
 async function coFoes() { // the tokens you have selected (the enemy the option is aimed at)
+  if (testOn() && testTgt.length) return testTgt.filter(n => !sameName(n, myChar())).slice(0, 6); // test mode: the picked targets
   try { const sel = (await OBR.player.getSelection()) || []; if (!sel.length) return [];
     const me2 = myChar(); return [...new Set((await OBR.scene.items.getItems(sel)).filter(i => i.type === "IMAGE" && (i.layer === "CHARACTER" || i.layer === "MOUNT")).map(i => String(i.name || "").trim()).filter(n => n && !sameName(n, me2)))].slice(0, 6); } catch { return []; }
 }
@@ -4236,10 +4248,11 @@ function testBarHtml() {
     <div class="tbtns" style="margin-top:4px"><button data-t="heal1" title="Every character: each wound moves one box left">✚ HEAL EVERYONE 1 STEP</button><button data-t="healall" title="Every character: all wounds off (Dead stays)">✚ FULL HEAL EVERYONE</button>
     <button data-t="cop" title="Everyone's COP to full">⚡ FILL COP</button><button data-t="day" title="Powers back, invocations / spell points refilled, COP to 0">☀ NEW DAY</button>
     <button data-t="tgt" title="Target Lock: attacks go at the tokens you select">TARGET LOCK: ${tgtOn() ? "ON" : "OFF"}</button></div>
-    <div class="tmsg" id="tmsg" hidden></div></div>`;
+    <div class="tmsg" id="tmsg" hidden></div><div class="tmon" id="tmon"></div></div>`;
 }
 function testBarUpdate() {
   const el = $("tstat"); if (!el) return;
+  try { testMonDraw(); } catch {}
   const md = actMd || lastMd || {}, st = md[INIT], w = sdWait(), t = st?.open ? turnNames(md) : null;
   const need = st?.open ? (lastParty || []).filter(c => !initEntries(md).some(e => e.pc && sameName(e.name, pCell(c.values, "C3")))).length : 0;
   const defs = w ? (lastParty || []).filter(c => canDefend(w, pCell(c.values, "C3"))).length : 0;
@@ -4300,6 +4313,44 @@ function bindTestBar(body) {
 // after a party-wide change: redraw the list and any open sheet with the new values
 function afterGmAll() { const ch = cache.get(ck("chars")); if (ch && $("tlist")) drawParty($("tlist"), ch); else if (partyOn) showParty();
   if (sheetOverride || (!partyOn && sheetVals)) loadSheet(true); }
+
+// Test mode targets and monsters (Jake, Nov 26): playing alone on one account, selecting tokens on the map is awkward (and the
+// GM screen covers it). Pick targets here instead: tap ◎ on a monster or a party member. Every attack rolled while test mode
+// is on (from a Party card, an open sheet, a monster below, Combat Options) is aimed at them, exactly like Target Lock.
+// The encounter's monsters (from the GM tab) are listed with their attack and defend rolls, so a fight runs from here.
+let testTgt = [], tmonLoading = false;
+function testMonDraw() {
+  const box = $("tmon"); if (!box || !testOn()) return;
+  if (!monVals && monId() && !tmonLoading) { tmonLoading = true;
+    bridgeGet({ id: monId(), tab: "Extension Tracker" }).then(r => { if (r?.ok) monVals = r.values; }).catch(() => {}).finally(() => { tmonLoading = false; testMonDraw(); }); }
+  const v = monVals || [], c = (row, i) => String(v[row]?.[i] ?? "").trim(), w = sdWait(), sg = (x) => (x > 0 ? "+" : "") + x;
+  const hdr = Math.max(0, v.findIndex(r => String(r?.[0] || "").trim().toLowerCase() === "name"));
+  const on = (n) => testTgt.some(t => sameName(t, n)) ? "on" : "";
+  let mons = "";
+  for (let row = hdr + 1; row < v.length; row++) {
+    const name = c(row, 0); if (!name || /^(true|x|yes|dead)$/i.test(c(row, 19))) continue;
+    const mook = /\b(mook|minion)s?\b/i.test(name + " " + c(row, 2)), pen = !mook && [16, 17].some(i => c(row, i)) ? -1 : 0;
+    const wi = [12, 13, 14, 15, 16, 17, 18].map(i => !!c(row, i)).lastIndexOf(true), hurt = wi >= 0 ? ["LW", "LW", "LW", "MW", "CW", "KO", "D"][wi] : "";
+    const adr = num(c(row, 4)) ?? 0, cs = esc2(JSON.stringify({ db: c(row, 8), ab: c(row, 10) }));
+    const atks = monAttacks(c(row, 7), c(row, 8)).filter(a => a.val).map(a => `<button data-mr="${esc2(a.val)}" data-ml="${esc2(a.name ? "Attack · " + a.name : "Attack")}" data-mn="${esc2(name)}" data-mp="${pen}" data-mc="${esc2(JSON.stringify({ db: a.off, ab: c(row, 10) }))}">⚔ ${esc2(a.name || "Attack")} <b>${sg((num(a.val) ?? 0) + pen)}</b></button>`).join("");
+    const canDef = w && canDefend(w, name), da = defAttr(w), dv = num(c(row, { Adroitness: 4, "Raw Strength": 3, Intellect: 5, Charm: 6 }[da] ?? 4)) ?? adr;
+    mons += `<div class="tmr"><button class="ttg ${on(name)}" data-tg="${esc2(name)}" title="Target ${esc2(name)}">◎ ${esc2(name)}</button><small>ARM ${esc2(c(row, 10) || "0")}${hurt ? ` · ${hurt}` : ""}${pen ? " · wounded -1" : ""}</small>
+      <span class="tmb">${atks}<button class="${canDef ? "hot" : ""}" data-mr="${dv}" data-ml="${esc2(da)}" data-mn="${esc2(name)}" data-mp="${pen}" data-mc="${cs}">🛡 ${esc2(da === "Adroitness" ? "Defend" : da)} <b>${sg(dv + pen)}</b></button></span></div>`;
+  }
+  const party = (lastParty || []).map(ch => pCell(ch.values, "C3")).filter(Boolean).map(n => `<button class="ttg ${on(n)}" data-tg="${esc2(n)}">◎ ${esc2(n)}</button>`).join("");
+  const h = `<div class="tmh">TARGETS <span>${testTgt.length ? esc2(testTgt.join(", ")) : "none: tap ◎ to aim attacks"}</span>${testTgt.length ? `<button data-tclr="1">CLEAR</button>` : ""}</div>
+    <div class="tmr tparty"><small>Party:</small>${party}</div>
+    <div class="tmh" style="margin-top:6px">MONSTERS <span>${monId() ? (v.length ? "" : "loading…") : "pick an encounter on the GM tab"}</span></div>${mons}`;
+  if (box.dataset.h === h) return; box.dataset.h = h; box.innerHTML = h;
+  box.querySelectorAll("[data-tg]").forEach(b => b.onclick = (e) => { e.stopPropagation(); const n = b.dataset.tg;
+    testTgt = testTgt.some(t => sameName(t, n)) ? testTgt.filter(t => !sameName(t, n)) : [...testTgt, n]; testMonDraw(); });
+  box.querySelectorAll("[data-tclr]").forEach(b => b.onclick = (e) => { e.stopPropagation(); testTgt = []; testMonDraw(); });
+  box.querySelectorAll("[data-mr]").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (b.disabled) return; b.disabled = true;
+    await rollQ; // wait for any party rolls in line
+    for (let i = 0; i < 30 && rollBusy; i++) await new Promise(r => setTimeout(r, 100));
+    try { await quickRoll(b.dataset.mr, b.dataset.ml, b.dataset.mn, "", parseInt(b.dataset.mp) || 0, JSON.parse(b.dataset.mc || "{}")); }
+    finally { setTimeout(() => { if (b.isConnected) b.disabled = false; }, 1500); } });
+}
 // switching test mode on or off: redraw the Party view (and on the GM screen, the columns)
 function testApply() {
   if (GMS) { document.body.classList.toggle("gmtest", testOn()); if (!testOn()) { sheetOverride = ""; sheetVals = null; } $("sh").innerHTML = ""; return showParty(); }
