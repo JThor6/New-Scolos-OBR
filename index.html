@@ -2746,7 +2746,7 @@ function encounterPicker() {
     encList.map(e => `<option value="${esc2(e.id)}" ${e.id === cur ? "selected" : ""}>${esc2(e.name)}</option>`).join("")}</select></div>`;
 }
 function bindPicker() {
-  bindGmTools(); bindStasis(); bindAd();
+  bindGmTools(); bindStasis(); bindNuke(); bindAd();
   if ($("campSel")) $("campSel").onchange = () => OBR.room.setMetadata({ [CAMP]: $("campSel").value }); // everyone in the room follows
   if (!$("encSel")) return;
   $("encSel").onchange = () => { store.set(ck("ns.encounter"), $("encSel").value); monVals = null; showMonsters(); };
@@ -2769,7 +2769,35 @@ function stasisBox() {
       stList.map(c => `<option value="${esc2(c.id)}">${esc2(c.name)}</option>`).join("")}</select></div>
     <button id="stGo" class="sbtn" style="width:100%">MOVE TO STASIS</button>
     <div id="stAsk" class="stask" hidden></div>
-    <div id="stMsg" class="help" hidden></div></div>`;
+    <div id="stMsg" class="help" hidden></div></div>
+    <div class="sec" style="margin-top:18px">NUKE SCREEN</div>
+    <div class="help">Wipes the board: every token (characters, monsters, mounts) and everything stuck to them, like condition labels, comes off this map. The map itself, props, drawings and notes stay.</div>
+    <button id="nukeGo" class="sbtn" style="width:100%">☢ NUKE SCREEN</button><div id="nukeAsk" class="stask" hidden></div><div id="nukeMsg" class="help" hidden></div>`;
+}
+// ☢ NUKE SCREEN (Jake, Nov 26): asks first, then deletes every token on this scene and whatever is attached to them
+function bindNuke() {
+  const go = $("nukeGo"); if (!go) return;
+  const ask = $("nukeAsk"), msg = $("nukeMsg"), say = (t) => { msg.hidden = !t; msg.textContent = t; };
+  go.onclick = async () => {
+    if (standalone) return say("Only works inside Owlbear Rodeo.");
+    if (!(await OBR.scene.isReady())) return say("No map is open.");
+    const toks = await OBR.scene.items.getItems(i => i.layer === "CHARACTER" || i.layer === "MOUNT");
+    if (!toks.length) return say("Nothing to nuke: no tokens on this map.");
+    say(""); ask.hidden = false;
+    ask.innerHTML = `<div><b>Are you sure?</b> This takes <b>${toks.length}</b> token${toks.length > 1 ? "s" : ""} off the map, with their labels.</div>
+      <div class="g2" style="margin-top:6px"><button id="nukeNo" class="sbtn">CANCEL</button><button id="nukeYes" class="sbtn stbad">YES, NUKE IT</button></div>`;
+    $("nukeNo").onclick = () => { ask.hidden = true; };
+    $("nukeYes").onclick = async () => { ask.hidden = true; go.disabled = true;
+      try {
+        const all = await OBR.scene.items.getItems(i => i.layer === "CHARACTER" || i.layer === "MOUNT");
+        const ids = new Set(all.map(i => i.id));
+        const stuck = await OBR.scene.items.getItems(i => (i.attachedTo && ids.has(i.attachedTo)) || (i.metadata?.[MARK_ITEM]?.on && ids.has(i.metadata[MARK_ITEM].on)));
+        stuck.forEach(i => ids.add(i.id));
+        await OBR.scene.items.deleteItems([...ids]);
+        say(`☢ Board wiped: ${all.length} token${all.length > 1 ? "s" : ""} gone.`);
+      } catch (e) { say("Didn't go through: " + (e?.message || e)); }
+      go.disabled = false; };
+  };
 }
 async function refreshStList() {
   const r = await bridgeGet({ list: 1 }).catch(() => null);
