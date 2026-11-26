@@ -3234,9 +3234,9 @@ function drawMonsters() {
   $("monAll").onclick = monDropAll;
   $("iPrev").onclick = () => initStep(-1); $("iNext").onclick = () => initStep(1);
   $("iCall").onclick = async () => { const b = $("iCall"); b.disabled = true; b.textContent = "⚔ CALLING…";
-    try { await startFight(); if (autoMon()) await rollMonsterInit(); b.textContent = "✓ INITIATIVE CALLED"; }
+    try { await startFight(); if (autoMon()) await rollMonsterInit(true); b.textContent = "✓ INITIATIVE CALLED"; }
     catch { b.textContent = "Didn't go through, tap again"; }
-    setTimeout(() => { if ($("iCall")) { $("iCall").disabled = false; $("iCall").textContent = "⚔ CALL FOR INITIATIVE"; } }, 2500); }; $("iMon").onclick = async () => { const b = $("iMon"); if (b.disabled) return; b.disabled = true; try { await rollMonsterInit(); } finally { setTimeout(() => { if ($("iMon")) b.disabled = false; }, 1200); } }; $("iEnd").onclick = () => { // two taps: the first asks, the second (within 4 s) ends combat
+    setTimeout(() => { if ($("iCall")) { $("iCall").disabled = false; $("iCall").textContent = "⚔ CALL FOR INITIATIVE"; } }, 2500); }; $("iMon").onclick = async () => { const b = $("iMon"); if (b.disabled) return; b.disabled = true; try { await rollMonsterInit(); } catch (e) { gmNote("ROLL MONSTERS didn't work: " + (e?.message || e), "ERROR"); } finally { setTimeout(() => { if ($("iMon")) b.disabled = false; }, 1200); } }; $("iEnd").onclick = () => { // two taps: the first asks, the second (within 4 s) ends combat
     const b = $("iEnd");
     if (b.dataset.arm) { delete b.dataset.arm; b.textContent = "END COMBAT"; return endInitiative(); }
     b.dataset.arm = "1"; b.textContent = "TAP AGAIN TO END COMBAT";
@@ -3405,13 +3405,23 @@ async function startFight() {
 }
 // Jake, Nov 25: ROLL MONSTERS with no fight going (or only a stale one: called over 3 minutes ago and turns never started)
 // starts a real one, exactly like CALL FOR INITIATIVE, so players' rolls get entered. Mid-fight it just adds the monsters.
-async function rollMonsterInit() {
+// Nov 26: a fight left running whose monsters have ALL rolled already counts as over too (an old fight nobody ended),
+// so the tap starts a new one instead of doing nothing. Every outcome says what happened.
+const gmNote = (t, k = "INFO") => OBR.notification.show(t, k).then(id => setTimeout(() => OBR.notification.close(id).catch(() => {}), 4000)).catch(() => {});
+async function rollMonsterInit(quiet) {
+  const v = monVals || [], c = (row, i) => String(v[row]?.[i] ?? "").trim();
+  if (!v.length) { gmNote("No monsters loaded. Open an encounter on the GM tab first.", "WARNING"); return; }
   const md = await OBR.room.getMetadata(), st = md[INIT];
+  const groupIds = new Set(); { const h = Math.max(0, v.findIndex(r => String(r?.[0] || "").trim().toLowerCase() === "name"));
+    for (let row = h + 1; row < v.length; row++) if (c(row, 0) && !/^(true|x|yes|dead)$/i.test(c(row, 19))) groupIds.add("m:" + (c(row, 1) || c(row, 0))); }
+  const inFight = new Set((md[INIT + "/m"] || []).filter(e => e.sid === st?.sid).map(e => e.id));
   const stale = st?.open && !st.cur && Date.now() - (st.at || 0) > 3 * 60e3;
-  if (!st?.open || stale) { if (stale) await OBR.room.setMetadata({ [INIT]: { ...st, open: false } }); await startFight(); }
+  const done = st?.open && groupIds.size > 0 && [...groupIds].every(id => inFight.has(id)); // every monster already rolled in it
+  let fresh = false;
+  // quiet = from CALL FOR INITIATIVE, which already set up the fight: never restart it
+  if (!st?.open || stale || (done && !quiet)) { if (st?.open) await OBR.room.setMetadata({ [INIT]: { ...st, open: false } }); await startFight(); fresh = true; }
   const sid = (await OBR.room.getMetadata())[INIT].sid;
   const have = new Set(((await OBR.room.getMetadata())[INIT + "/m"] || []).filter(e => e.sid === sid).map(e => e.id));
-  const v = monVals || [], c = (row, i) => String(v[row]?.[i] ?? "").trim();
   const hdr = Math.max(0, v.findIndex(r => String(r?.[0] || "").trim().toLowerCase() === "name"));
   const groups = new Map();
   for (let row = hdr + 1; row < v.length; row++) {
@@ -3432,6 +3442,7 @@ async function rollMonsterInit() {
   }
   const cur = (await OBR.room.getMetadata())[INIT + "/m"] || [];
   await OBR.room.setMetadata({ [INIT + "/m"]: [...cur.filter(e => e.sid === sid), ...add] });
+  if (!quiet && !fresh) gmNote(add.length ? `🎲 ${add.length} monster group${add.length > 1 ? "s" : ""} added to the fight.` : "Every monster has already rolled.");
 }
 // Add a late arrival by hand (monster or anyone), with their initiative number
 async function addInitEntry() {
