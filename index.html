@@ -2801,10 +2801,10 @@ function bindStasis() {
 // Jake, Nov 25: COP is 0 at the start of each day; a fight starting (CALL FOR INITIATIVE) fills everyone to full;
 // unspent points stay after the fight; New Day empties them back to 0.
 function gmTools() {
-  return `<div class="sec" style="margin-top:2px">TABLE</div><div class="g3" style="margin-bottom:4px;grid-template-columns:1fr 1fr 1fr">
+  return `<div class="g3" style="margin:0 0 4px;grid-template-columns:1fr 1fr 1fr">
     <button id="gmDay" class="sbtn" title="Combat and utility uses back, invocations / spell points refilled, everyone's COP back to 0">☀ NEW DAY</button><button id="gmCop" class="sbtn" title="Everyone's COP to full (CALL FOR INITIATIVE does this too)">⚡ FILL COP</button><button id="gmCop0" class="sbtn" title="Everyone's COP to 0">○ EMPTY COP</button></div>
     <button id="gmTgt" class="sbtn" style="width:100%;margin-bottom:4px" title="Off: whoever rolls Adroitness next defends (fast). On: select the target token(s) on the map before you roll a monster's attack, and only they defend. Just for you.">TARGET LOCK: …</button>
-    <button id="gmScr" class="sbtn" style="width:100%;margin-bottom:4px" title="Opens a big window over the whole screen: Party, Success Delta results, Roll History, what's in play and REFERENCE. ✕ at its top closes it.">GM SCREEN (full window)</button>
+    <button id="gmScr" class="sbtn" style="width:100%;margin-bottom:4px;font-weight:500" title="Opens a big window over the whole screen: Party, Success Delta results, what's happening right now (turn, Combat Options, conditions) and REFERENCE. ✕ at its top closes it.">GM SCREEN (full window)</button>
     <div id="gmMsg" class="help" hidden></div><div id="gmFx" class="cofxbar" hidden></div>`;
 }
 // 🎯 Targets (room setting, off by default): when on, an attack roll takes the tokens its roller has selected as its targets,
