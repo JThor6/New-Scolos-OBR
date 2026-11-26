@@ -48,7 +48,8 @@
   .gmsc h2 span { flex:1; } .gmsc h2 select { font:600 12px system-ui; background:#15172b; color:var(--ink); border:1px solid #444a66; border-radius:6px; padding:3px; max-width:60%; }
   .gmsc .sub { font-size:11px; font-weight:800; letter-spacing:.6px; color:var(--dim); margin:8px 0 4px; text-transform:uppercase; }
   .gmscond { display:flex; flex-wrap:wrap; align-items:center; gap:5px; padding:5px 0; border-bottom:1px solid rgba(255,255,255,.06); font-size:13px; }
-  .gmscond b { color:#e2d8ff; margin-right:3px; } .gmscond span { padding:2px 8px; border-radius:8px; background:#2c2250; border:1px solid #4a3a78; color:#ddd5f3; font-weight:700; font-size:12px; }
+  .gmscond b { color:#e2d8ff; margin-right:3px; } .gmscond small { color:#a99cd0; font-size:12px; }
+  .ondot { width:8px; height:8px; padding:0 !important; border-radius:50%; background:#7ad39a !important; border:none !important; box-shadow:0 0 6px rgba(122,211,154,.6); } .gmscond span { padding:2px 8px; border-radius:8px; background:#2c2250; border:1px solid #4a3a78; color:#ddd5f3; font-weight:700; font-size:12px; }
   .gmsturn { font-size:13px; line-height:1.5; } .gmsturn b { color:#e2d8ff; }
   .sdbig { border:1px solid #444a66; border-radius:8px; padding:6px 8px; background:rgba(15,17,28,.55); }
   .sdnav { display:flex; align-items:center; gap:6px; margin:6px 0; } .sdnav span { flex:1; text-align:center; color:var(--dim); font-weight:700; font-size:12px; }
@@ -858,7 +859,7 @@ function render(rolls) {
     (rolls.length ? rolls.slice(0, LOG_MAX).map(line).join("") : `<div class="empty">No rolls yet.</div>`);
   // same list on the DICE tab and in REFERENCE → ROLL HISTORY
   for (const el of [$("history"), $("refRolls")]) if (el) el.innerHTML = html;
-  if (GMS) try { gmsSd(); } catch {}
+  if (GMS) try { gmsSd(); gmsRolls(); } catch {}
   document.querySelectorAll(".histdet").forEach(btn => btn.onclick = (e) => { e.preventDefault(); histDetail = !histDetail; try { localStorage.setItem("ns.histDetail", histDetail ? "on" : "off"); } catch {} render(lastRolls); });
 }
 // Δ: bring back the Success Delta card (background.html opens it; ‹ › on it pages through the results)
@@ -4418,7 +4419,7 @@ function gmsSetup() {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !standalone) OBR.modal.close(GMS_ID).catch(() => {}); });
   document.body.insertAdjacentHTML("beforeend", `
     <div class="gmsc"><h2><span>SUCCESS DELTA</span></h2><div id="gmsSd"><div class="empty">No results yet. Attacks and their defense rolls land here and stay.</div></div></div>
-    <div class="gmsc"><h2><span>RIGHT NOW</span></h2><div id="gmsTurn" class="gmsturn"></div><div class="sub">Combat Options in play</div><div id="gmsFx" class="cofxbar"><div class="empty">Nothing in play.</div></div><div class="sub">Conditions</div><div id="gmsCond"><div class="empty">No conditions on the map.</div></div></div>
+    <div class="gmsc"><h2><span>RIGHT NOW</span></h2><div id="gmsTurn" class="gmsturn"></div><div class="sub">Combat Options in play</div><div id="gmsFx" class="cofxbar"><div class="empty">Nothing in play.</div></div><div class="sub">Conditions</div><div id="gmsCond"><div class="empty">No conditions on the map.</div></div><div class="sub">At the Table</div><div id="gmsOn"><div class="empty">Checking…</div></div><div class="sub">Dice Rolls</div><div id="gmsRolls"><div class="empty">No rolls yet.</div></div></div>
     <div class="gmsc"><h2><span>REFERENCE</span><select id="gmsPick"></select></h2><div id="gmsRef"><div class="rr">Loading…</div></div></div>`);
   const pick = $("gmsPick");
   pick.innerHTML = REF_GROUPS.map(([g, keys]) => `<optgroup label="${esc2(g)}">${keys.map(k => SECTIONS.find(x => x[1] === k)).filter(Boolean).map(([t, k]) => `<option value="${esc2(k)}">${esc2(t)}</option>`).join("")}</optgroup>`).join("");
@@ -4429,7 +4430,25 @@ function gmsSetup() {
   if (first) show(first);
   gmsTurn();
   // Conditions (Jake, Nov 26): every condition label on the map, by token. Dead is left out (easy to see on the GM tab).
-  if (!standalone) OBR.onReady(async () => { gmsCond(); OBR.scene.items.onChange(() => gmsCondSoon()); OBR.scene.onReadyChange(() => gmsCond()); });
+  if (!standalone) OBR.onReady(async () => { gmsCond(); OBR.scene.items.onChange(() => gmsCondSoon()); OBR.scene.onReadyChange(() => gmsCond());
+    gmsOnline(); OBR.party.onChange(() => gmsOnline()); });
+}
+// At the Table: who's connected right now (Owlbear only lists people who are in the room), with the character they last
+// rolled as. Dice Rolls: the roll history without the Success Delta results (those are in the column on the left).
+async function gmsOnline() {
+  const box = $("gmsOn"); if (!box) return;
+  try {
+    const others = await OBR.party.getPlayers(), meName = await OBR.player.getName();
+    const charOf = (pid) => (lastRolls || []).find(r => r.pid === pid && r.char)?.char || "";
+    const rows = [{ name: meName, role: "GM", id: me }, ...others.map(p => ({ name: p.name, role: p.role, id: p.id }))];
+    box.innerHTML = rows.map(p => `<div class="gmscond"><span class="ondot"></span><b>${esc2(p.name)}</b>${p.role === "GM" ? `<small>GM</small>` : charOf(p.id) ? `<small>${esc2(charOf(p.id))}</small>` : ""}</div>`).join("");
+  } catch (e) { box.innerHTML = `<div class="err">Couldn't read who's here: ${esc2(e?.message || e)}</div>`; }
+}
+function gmsRolls() {
+  const box = $("gmsRolls"); if (!box) return;
+  const rolls = (lastRolls || []).filter(r => !r.sd).slice(0, 40);
+  box.innerHTML = rolls.length ? rolls.map(r => rollLine(r, false)).join("") : `<div class="empty">No rolls yet.</div>`;
+  gmsOnline(); // the character names come from the rolls
 }
 let gmsCondT = 0; const gmsCondSoon = () => { clearTimeout(gmsCondT); gmsCondT = setTimeout(gmsCond, 250); };
 async function gmsCond() {
