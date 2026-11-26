@@ -1524,6 +1524,8 @@ function drawManager() {
   $("shbody").innerHTML = `
     <button id="mgr" class="sbtn mgrbtn on">✓ DONE MANAGING</button>
     <div class="mtitle">${esc2(V("C3"))} · Level ${levelOf(xpSpent())}</div>
+    <div class="stab">NAME</div>
+    <div class="mrow"><input id="nmNew" maxlength="40" value="${esc2(V("C3"))}" placeholder="Character name"><button id="nmGo" class="sbtn" title="Changes the name on the sheet and the Google file's name">✎ CHANGE NAME</button></div><div id="nmMsg" class="mnote" hidden></div>
     <div class="stab">CREDITS</div>
     <div class="mrow"><b class="mcred">${esc2((num(V("F7")) ?? 0).toLocaleString("en-US"))}</b><input id="crAmt" inputmode="numeric" placeholder="Amount"><button id="crAdd" class="sbtn">+ ADD</button><button id="crSub" class="sbtn">− SPEND</button></div>
     <div class="stab">XP & ATTRIBUTE POINTS</div>
@@ -1606,6 +1608,20 @@ function drawManager() {
     if (sign < 0 && amt > cur) return err("Not enough credits.");
     mgrSave({ F7: cur + sign * amt }); };
   $("crAdd").onclick = () => cred(1); $("crSub").onclick = () => cred(-1);
+  // Change name (Jake, Nov 26): the sheet's name (C3) and the Google file's name, through the Sheet Bridge
+  const nmSay = (t, bad) => { const m = $("nmMsg"); if (!m) return; m.hidden = !t; m.textContent = t; m.style.color = bad ? "#f08a8a" : "var(--dim)"; };
+  const nmGo = async () => { const name = $("nmNew").value.replace(/\s+/g, " ").trim();
+    if (!name) return nmSay("Type a name.", true); if (name === V("C3").trim()) return nmSay("That's already the name.");
+    if (!(await whenFree())) return nmSay("Still saving something else. Tap again in a moment.", true);
+    $("nmGo").disabled = true; nmSay("Saving the new name…"); busy = true;
+    const r = await bridgePost({ rename: name }).catch(e => ({ ok: false, error: e.message }));
+    busy = false;
+    if (!r.ok) { if ($("nmGo")) $("nmGo").disabled = false;
+      return nmSay(/nothing to change|bad|unknown/i.test(r.error || "") ? "The Sheet Bridge needs its latest update for this. The GM redeploys it, then try again." : "Didn't save: " + (r.error || "unknown error"), true); }
+    setCell("C3", r.name || name);
+    const chars = cache.get(ck("chars")) || []; const c = chars.find(x => x.id === sheetId()); if (c) { c.name = r.name || name; cache.set(ck("chars"), chars); }
+    cache.set("sheet." + sheetId(), sheetVals); sheetPush(); drawSheet(); };
+  $("nmGo").onclick = nmGo; $("nmNew").onkeydown = (e) => { if (e.key === "Enter") nmGo(); };
   const firstEmpty = (col) => { for (let i = L.inv[0]; i <= L.inv[1]; i++) if (!V(col + i)) return i; return 0; };
   $("eqGo").onclick = () => { const v = $("eqName").value.trim(); if (!v) return; const i = firstEmpty("E"); if (!i) return err("Equipped list is full."); mgrSave({ ["E" + i]: v }); };
   $("invGo").onclick = () => { const v = $("invName").value.trim(); if (!v) return;
@@ -3361,6 +3377,16 @@ async function skipDeadTurn() {
     if (nx && !monDeadName(turnNames(m).cur)) await OBR.room.setMetadata({ [INIT]: nx });
   } catch {} finally { setTimeout(() => { skipping = false; }, 500); }
 }
+// Jake, Nov 26: a fight starts on the first person's turn by itself (no NEXT TURN needed). Until someone ends that first
+// turn, the turn follows whoever is at the top, so a late initiative roll that beats them still goes first.
+let autoBusy = false;
+async function autoFirst() {
+  if (!isGM || PARTYPOP || UPLINK || autoBusy) return;
+  const st = initMd[INIT]; if (!st?.open || (st.cur && !st.auto)) return;
+  const list = initEntries(initMd); if (!list.length) return;
+  const top = list[0].id; if (st.cur === top && !(st.sub || 0)) return;
+  autoBusy = true; try { await OBR.room.setMetadata({ [INIT]: { ...st, cur: top, sub: 0, round: st.round || 1, auto: 1 } }); } catch {} finally { autoBusy = false; }
+}
 let turnScrolled = ""; // the turn whose card was last scrolled to the top
 function markTurn() {
   const st = initMd[INIT], cur = st?.open ? st.cur : "", who = cur ? turnNames(initMd).cur : "";
@@ -4532,7 +4558,7 @@ if (standalone) {
     if (isGM) $("monTab").parentElement.prepend($("monTab")); // the GM's own tab comes first for the GM (Jake, Nov 25)
     if (PARTYPOP) { $("sh").innerHTML = ""; if (isGM) showParty(); else $("sh").innerHTML = `<div class="empty">The Party pop-out is for the GM.</div>`; }
     else document.querySelector(isGM && !UPLINK ? '.tab[data-t="mon"]' : '.tab[data-t="sheet"]').click(); // open the first tab once the role is known: GM for the GM, Character Sheet for players
-    if (isGM) { initMd = await OBR.room.getMetadata(); OBR.room.onMetadataChange((m) => { initMd = m; drawInitList(); markTurn(); skipDeadTurn(); });
+    if (isGM) { initMd = await OBR.room.getMetadata(); OBR.room.onMetadataChange((m) => { initMd = m; drawInitList(); markTurn(); skipDeadTurn(); autoFirst(); });
       fixMarkScale(); OBR.scene.onReadyChange((r) => { if (r) fixMarkScale(); }); }
     if (!UPLINK && !PARTYPOP) applySize();
     render(rollLog(OBR.room.id, allRolls(await OBR.room.getMetadata())));

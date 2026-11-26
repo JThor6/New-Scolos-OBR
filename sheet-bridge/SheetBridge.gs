@@ -677,6 +677,14 @@ function doPost(e) {
         function (err) { cache.put('pdf:' + job, JSON.stringify({ ok: false, error: String(err && err.message || err) }), 600); });
       return json({ ok: true, job: job });
     }
+    if (b.rename !== undefined) { // Manage Character -> Change name: the name on the sheet (C3) and the Google file's name
+      const rs = openMain(b.id); // folder check
+      const name = String(b.rename || '').replace(/\s+/g, ' ').trim().slice(0, 40);
+      if (!name) throw new Error('Type a name.');
+      rs.getRange('C3').setValue(/^[=@+\-]/.test(name) ? "'" + name : name);
+      DriveApp.getFileById(b.id).setName(name);
+      return json({ ok: true, name: name });
+    }
     const sh = openMain(b.id);
     if (b.tracker) { // GM monster tracker: wound boxes (columns M-S) and Dead (column T) on the Extension Tracker tab
       const t = SpreadsheetApp.openById(b.id).getSheetByName(TRACKER_TAB);

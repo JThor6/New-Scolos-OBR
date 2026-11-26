@@ -103,7 +103,7 @@ export function initMove(md, d) {
   if (i < 0) { i = d > 0 ? 0 : list.length - 1; sub = d > 0 ? 0 : Math.max(0, memOf(list[i]).length - 1); }
   else if (d > 0) { if (sub < memOf(list[i]).length - 1) sub++; else { i++; sub = 0; if (i >= list.length) { i = 0; round++; } } }
   else { if (sub > 0) sub--; else { i--; if (i < 0) { i = list.length - 1; round = Math.max(1, round - 1); } sub = Math.max(0, memOf(list[i]).length - 1); } }
-  return { ...st, cur: list[i].id, sub, round };
+  return { ...st, cur: list[i].id, sub, round, auto: 0 }; // a real step ends the automatic first turn (see autoFirst)
 }
 // Whose token it is now, and who's on deck (token names): a player's character, or the group member whose turn it is
 export function turnNames(md) {
