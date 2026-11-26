@@ -3339,8 +3339,16 @@ async function partyDrop(only) {
     const off = list.filter(c => !onMap.some(n => sameName(n, c.name)));
     if (!off.length) return note(only ? `${list[0]?.name || "That character"} is already on the map.` : "Every character is already on the map.", "WARNING");
     const pogs = await pogIdsFor(off.map(c => c.id));
+    // Nov 26: a character with a portrait but no pog yet gets one made now, from their ★ portrait and its circle
+    // (Starfire had a portrait and was skipped as "no pog yet")
+    for (const c of off.filter(x => !pogs[x.id])) {
+      try { const r = await bridgeGet({ portrait: c.id, full: 1 }); if (!r?.ok || r.none) continue;
+        const url = drawPog(await loadImg(`data:${r.mime};base64,${r.data}`), r.frame || null, POG_STYLE, 512).toDataURL("image/png");
+        const s2 = await bridgePost({ id: c.id, pog: url.split(",")[1] }).catch(() => null);
+        if (s2?.ok && s2.pogId) { pogs[c.id] = s2.pogId; cache.set("pogid." + c.id, s2.pogId); } } catch {}
+    }
     const want = off.filter(c => pogs[c.id]), none = off.filter(c => !pogs[c.id]).map(c => c.name);
-    if (!want.length) return note(`No pog yet for ${none.join(", ")}. Players make one in Manage Character → Portrait.`, "WARNING");
+    if (!want.length) return note(`No picture yet for ${none.join(", ")}, so there's no pog to put down. Add a portrait in Manage Character → Portrait (or the Creator's last step).`, "WARNING");
     const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight(), dpi = await OBR.scene.grid.getDpi();
     const c = await OBR.viewport.inverseTransformPoint({ x: vw / 2, y: vh / 2 });
     const items = [];
@@ -3350,7 +3358,7 @@ async function partyDrop(only) {
       items.push(buildImage({ url: pogSrc(pogs[want[i].id]), mime: "image/png", width: 512, height: 512 }, { dpi: 512, offset: { x: 256, y: 256 } }).name(want[i].name).plainText(want[i].name).textType("PLAIN").position(pos).layer("CHARACTER").build());
     }
     await OBR.scene.items.addItems(items);
-    note(`✓ ${want.map(w => w.name).join(", ")} on the table${none.length ? `. No pog yet: ${none.join(", ")}` : ""}.`, "SUCCESS");
+    note(`✓ ${want.map(w => w.name).join(", ")} on the table${none.length ? `. No picture yet: ${none.join(", ")}` : ""}.`, "SUCCESS");
   } catch (e) { note("Couldn't put them on the table: " + (e.message || e), "ERROR"); }
 }
 // ⬇ PUT ALL ON THE TABLE: one token per living monster card that has art and isn't on the map yet (by name),
