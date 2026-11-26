@@ -106,13 +106,13 @@
   function waitHtml(w, strip) {
     const n = w.n || 1, d = (w.defs || []).length, verb = w.sp ? "CASTS" : "ATTACKS";
     const ask = w.multi
-      ? `<span class="t1">🛡 Roll Adroitness</span><button class="b" id="nm" title="One fewer defender" ${n <= 1 ? "disabled" : ""}>−</button><span class="n" title="Defended so far / how many defend">${d}/${n}</span><button class="b" id="np" title="One more defender (area attack)">+</button>`
-      : `<span class="t1">🛡 ${w.sp ? "If it's aimed at someone, they" : "Defender"}: roll Adroitness</span>`;
+      ? `<span class="t1">🛡 Roll ${w.dfa || "Adroitness"}</span><button class="b" id="nm" title="One fewer defender" ${n <= 1 ? "disabled" : ""}>−</button><span class="n" title="Defended so far / how many defend">${d}/${n}</span><button class="b" id="np" title="One more defender (area attack)">+</button>`
+      : `<span class="t1">🛡 ${w.sp ? "If it's aimed at someone, they" : "Defender"}: roll ${w.dfa || "Adroitness"}</span>`;
     return `<div class="wait ${strip ? "strip" : ""}">` +
       `<div class="wa"><b>${esc(w.att)}${w.who ? `<small>${esc(w.who)}</small>` : ""}</b><span>${verb} <i>${sg(Number(w.at) || 0)}</i></span></div>` +
       (w.l ? `<div class="wl">${esc(w.l)}</div>` : "") +
       (w.tg ? `<div class="tg">${w.tg.length > 1 ? "Targets" : "Target"}: <b>${esc(w.tg.join(", "))}</b></div>`
-        : w.notg ? `<div class="tg dim">No target selected · next Adroitness roll defends</div>` : "") +
+        : w.notg ? `<div class="tg dim">No target selected · next ${w.dfa || "Adroitness"} roll defends</div>` : "") +
       `<div class="ask">${ask}<button class="b" id="drop" title="Not an attack on anyone: drop it for everyone">✕</button></div>` +
       (d ? `<div class="done">Defended: ${esc(w.defs.join(", "))}</div>` : "") + `</div>`;
   }
@@ -125,7 +125,7 @@
         `<div class="mh" id="grow2"><span class="h1" style="--wc:${col};font-size:17px">${esc(!R.hit ? "MISS" : R.headline.toUpperCase())}</span><span class="md">Δ ${esc(e.delta)}${R.dmg != null ? ` · ${R.dmg} dmg` : ""}</span></div>` +
         (e.ap ? `<div class="ap">✓ ${esc(e.ap)}</div>` : ""); }
     if (w && !e) body += `<div class="mv"><b>${esc(w.att)}</b> ${w.sp ? "casts" : "attacks"} <b>${sg(Number(w.at) || 0)}</b>${w.tg ? ` → ${esc(w.tg.join(", "))}` : ""}</div>`;
-    if (w) body += `<div class="mw ${e ? "strip" : ""}"><span class="t1">🛡 ${w.multi ? "Adroitness" : "Roll Adroitness"}</span>` +
+    if (w) body += `<div class="mw ${e ? "strip" : ""}"><span class="t1">🛡 ${w.multi ? (w.dfa || "Adroitness") : "Roll " + (w.dfa || "Adroitness")}</span>` +
       (w.multi ? `<button class="b" id="nm" ${(w.n || 1) <= 1 ? "disabled" : ""}>−</button><span class="n">${(w.defs || []).length}/${w.n || 1}</span><button class="b" id="np">+</button>` : "") +
       `<button class="b" id="drop" title="Not an attack on anyone: drop it for everyone">✕</button></div>`;
     return `<div class="top">${nav}<span class="sp"></span><button class="b pin ${pinned() ? "on" : ""}" id="pin" title="${pinned() ? "Stays up until closed" : "Fades after 20 s"}">${PIN_SVG}</button><button class="b" id="x" title="Close">✕</button></div>` + body;

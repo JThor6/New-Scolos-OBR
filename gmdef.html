@@ -36,7 +36,7 @@
     const can = pool.filter(n => !sameName(n, w.att) && !(w.defs || []).some(d => sameName(d, n)));
     if (!can.length) return close();
     const sg = (n) => n > 0 ? "+" + n : String(n);
-    $("t").innerHTML = `🛡 <b>${esc(w.att)}</b> ${w.sp ? "casts" : "attacks"} ${sg(w.at)}<small>${w.tg?.length ? "Defend with:" : "No target: who defends?"}</small>`;
+    $("t").innerHTML = `🛡 <b>${esc(w.att)}</b> ${w.sp ? "casts" : "attacks"} ${sg(w.at)}<small>${w.dfa ? ` · defend with ${esc(w.dfa)}` : ""} ${w.tg?.length ? "Defend with:" : "No target: who defends?"}</small>`;
     const key = can.join("|"); if (key === lastKey) return; lastKey = key;
     $("bs").innerHTML = can.map(n => `<button data-n="${esc(n)}" title="Roll ${esc(n)}'s Adroitness to defend">🛡 ${esc(n)}</button>`).join("");
     $("bs").querySelectorAll("button").forEach(b => b.onclick = () => {

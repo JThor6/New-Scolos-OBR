@@ -23,6 +23,7 @@
   const q = new URLSearchParams(location.search), ID = "com.newscolos.defpop";
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const at = Number(q.get("at")) || 0;
+  const dfa = q.get("dfa") || "Adroitness"; document.getElementById("r").textContent = "🛡 ROLL " + dfa.toUpperCase(); document.getElementById("r").title = `Roll ${dfa} from your character sheet to defend`;
   document.getElementById("s").innerHTML = `<b>${esc(q.get("att"))}</b> ${q.get("sp") ? "casts at" : "attacks"} you (${at > 0 ? "+" + at : at})`;
   const close = () => { if (OBR.isAvailable) OBR.popover.close(ID).catch(() => {}); };
   document.getElementById("p").onclick = close;

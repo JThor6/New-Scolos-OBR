@@ -84,12 +84,15 @@ let amGM = false;
 let openAttack = null, myId = "", lastCancel = "", lastSdn = 0, sd = { list: [], wait: null };
 const nameOf = (r) => r.char || r.who;
 const isAdr = (r) => /^(?:⚡\s*)?adroitness\b/i.test(String(r.label || "")) && !/initiative/i.test(String(r.label || ""));
+// Most attacks are defended with Adroitness; a spell can name another attribute (Choking Gas: Raw Strength)
+const defOk = (a, r) => { const at = String(a.dfa || "Adroitness").toLowerCase(), l = String(r.label || "").replace(/^⚡\s*/, "").toLowerCase();
+  return l.startsWith(at) && !/initiative/i.test(l); };
 const sdKey = () => "ns.sd:" + OBR.room.id;
 const sdSave = () => { try { localStorage.setItem(sdKey(), JSON.stringify(sd)); } catch {} };
 function syncWait() {
   const a = openAttack;
   sd.wait = a ? { id: a.id, att: nameOf(a), who: a.char ? a.who : "", at: a.total, l: String(a.label || "").slice(0, 46),
-    sp: /spellcast|smite/i.test(a.label || "") ? 1 : 0, multi: a.multi, tg: a.tg || null, notg: a.notg ? 1 : 0, n: a.n, defs: a.defs, at0: a.at0 } : null;
+    sp: /spellcast|smite/i.test(a.label || "") ? 1 : 0, multi: a.multi, tg: a.tg || null, notg: a.notg ? 1 : 0, n: a.n, defs: a.defs, at0: a.at0, dfa: a.dfa || "" } : null;
   sdSave();
 }
 // One screen works out each result: the one whose roll is the defense (the defender's player, or the GM for monsters).
@@ -104,7 +107,7 @@ function combatCheck(r, mine) {
     syncWait(); openCard().catch(() => {}); defPop(openAttack).catch(() => {}); gmDefPop(openAttack).catch(() => {}); return;
   }
   const a = openAttack, who = nameOf(r);
-  if (!a || !isAdr(r) || who === nameOf(a) || a.defs.includes(who) || a.defs.length >= a.n || Date.now() - a.at0 > ATTACK_WAIT) return;
+  if (!a || !defOk(a, r) || who === nameOf(a) || a.defs.includes(who) || a.defs.length >= a.n || Date.now() - a.at0 > ATTACK_WAIT) return;
   if (a.tg && !a.tg.some(t => sameName(t, who) || sameName(t, r.who))) return; // not one of the targets
   sd.revealAt = Date.now() + REVEAL_MS; // the card waits for the defender's dice to land
   a.defs.push(who); syncWait();
@@ -179,7 +182,7 @@ async function defPop(a) {
   const url = new URL("go.html", location.href); url.searchParams.set("p", "defpop");
   const ref = new URLSearchParams(location.search).get("obrref"); if (ref) url.searchParams.set("obrref", ref);
   url.searchParams.set("att", nameOf(a)); url.searchParams.set("at", a.total); url.searchParams.set("l", String(a.label || "").slice(0, 40));
-  if (/spellcast|smite/i.test(a.label || "")) url.searchParams.set("sp", "1");
+  if (/spellcast|smite/i.test(a.label || "")) url.searchParams.set("sp", "1"); if (a.dfa) url.searchParams.set("dfa", a.dfa);
   const vw = await OBR.viewport.getWidth(), w = Math.min(420, vw - 40);
   await OBR.popover.close("com.newscolos.defpop").catch(() => {});
   await OBR.popover.open({ id: "com.newscolos.defpop", url: url.href, width: w, height: 70,

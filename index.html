@@ -519,6 +519,36 @@
   .gcop .ctl { justify-content:center; gap:4px; margin-top:3px; } .gcop .ctl button { padding:0 6px; } .gcop .ctl b { font-size:15px; }
   .pwb { background:none; border:none; padding:0; color:var(--ink); font:inherit; cursor:pointer; text-decoration:underline dotted #6b5aa0; text-underline-offset:3px; }
   .cob { background:none; border:none; padding:0; color:var(--ink); font:inherit; text-align:left; cursor:pointer; text-decoration:underline dotted #6b5aa0; text-underline-offset:3px; }
+  /* Spell window (Mage): tinted by the chosen school, deep and quiet */
+  .spov { position:fixed; inset:0; z-index:60; background:rgba(8,6,16,.55); display:flex; align-items:flex-start; justify-content:center; padding:10px 8px; overflow:auto; }
+  .spwin { --sa:#c9b8ff; --sb:rgba(40,26,76,.96); width:100%; max-width:470px; box-sizing:border-box; padding:10px 12px 12px; border-radius:12px; color:#e9e3fa;
+    background:linear-gradient(160deg, var(--sb), rgba(18,14,32,.97)); border:1px solid color-mix(in srgb, var(--sa) 45%, transparent); box-shadow:0 0 18px color-mix(in srgb, var(--sa) 22%, transparent); animation:spin .2s ease-out; }
+  @keyframes spin { from { transform:translateY(-8px); opacity:0; } }
+  .spload { padding:20px; text-align:center; color:#bfb3e0; }
+  .sphd { display:flex; align-items:center; gap:8px; } .sphd b { color:var(--sa); letter-spacing:1px; font-size:15px; flex:1; }
+  .spsp { font-weight:800; font-size:13px; padding:2px 8px; border-radius:8px; background:rgba(0,0,0,.3); color:#fff; }
+  .spx { background:none; border:none; color:#a99cd0; font-size:16px; cursor:pointer; padding:2px 6px; } .spx:hover { color:#fff; }
+  .spfl { font-style:italic; font-size:12px; color:color-mix(in srgb, var(--sa) 70%, #fff); opacity:.85; margin:3px 0 6px; }
+  .spsec { font-size:10.5px; font-weight:800; letter-spacing:1px; color:#a99cd0; margin:8px 0 4px; }
+  .sprow { display:flex; flex-wrap:wrap; gap:5px; }
+  .spb { flex:1 1 0; min-width:62px; display:flex; flex-direction:column; align-items:center; gap:1px; padding:5px 4px; border-radius:8px; cursor:pointer;
+    background:rgba(30,22,54,.8); border:1px solid #3e3266; color:#ddd5f3; font:700 12.5px system-ui; }
+  .spb small { font-weight:600; font-size:10px; color:#a99cd0; } .spb:hover { border-color:#6a58a8; }
+  .spb.on { border-color:var(--sa); background:color-mix(in srgb, var(--sa) 16%, rgba(30,22,54,.9)); color:#fff; } .spb.on small { color:#e6dcff; }
+  .spb.dim { opacity:.4; }
+  .splist { display:flex; flex-direction:column; gap:4px; max-height:240px; overflow:auto; }
+  .spc { text-align:left; padding:6px 8px; border-radius:8px; cursor:pointer; background:rgba(24,18,44,.75); border:1px solid #33295a; color:#d8d0ee; font:12px/1.35 system-ui; }
+  .spc b { display:block; color:#fff; font-size:13px; } .spc:hover { border-color:#5a4a90; }
+  .spc.on { border-color:var(--sa); background:color-mix(in srgb, var(--sa) 13%, rgba(24,18,44,.9)); }
+  .spc.own b { color:#c9b8ff; }
+  .spin { width:100%; box-sizing:border-box; padding:6px 8px; border-radius:7px; border:1px solid #4a3d7a; background:#151026; color:#fff; font:13px system-ui; }
+  .spfoot { margin-top:8px; padding-top:8px; border-top:1px solid #2f2650; }
+  .spsum { font-size:12px; color:#ddd5f3; margin-bottom:5px; line-height:1.4; } .spsum b { color:#fff; }
+  .sprl { font-size:12.5px; color:#cfc5ee; margin-bottom:6px; } .sprl b { color:#fff; }
+  .spgo { width:100%; padding:9px; border-radius:9px; cursor:pointer; border:1px solid color-mix(in srgb, var(--sa) 55%, #3b2563);
+    background:color-mix(in srgb, var(--sa) 14%, #2c1d4f); color:#fff; font:800 14px system-ui; letter-spacing:.8px; }
+  .spgo:hover:not(:disabled) { background:color-mix(in srgb, var(--sa) 24%, #2c1d4f); } .spgo:disabled { opacity:.45; cursor:default; }
+  .spnote { font-size:11px; color:#9d92c2; margin-top:5px; line-height:1.4; }
   .welc { position:relative; margin:2px 0 8px; padding:7px 30px 7px 10px; border-left:3px solid #5b3f9e; border-radius:6px; background:rgba(60,38,110,.45); font-size:12px; line-height:1.5; color:#ddd5f3; }
   .istep { display:flex; align-items:center; gap:5px; margin-top:5px; } .istep[hidden] { display:none; }
   .istep #iNext { flex:1; min-height:68px; font-size:20px; } .istep #iPrev { width:60px; min-height:68px; flex:none; font-size:20px; }
@@ -909,6 +939,7 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
     const ab = num(cs.ab), db = num(cs.db); if (ab != null) r.ab = ab;
     if (/^attack\b/i.test(label)) { r.atk = 1; if (db != null) { r.db = db; r.dbk = "offense"; } }
   }
+  { const spl = !whoName ? pendingSpell : null; pendingSpell = null; if (spl) applySpell(r, spl); } // a spell from the spell window
   if (r.atk && !standalone) { // 🎯 Targets on: the tokens this roller has selected are what the attack is aimed at
     try { if (tgtOn()) {
       const sel = (await OBR.player.getSelection()) || [], self = String(whoName || myChar() || "").toLowerCase();
@@ -1219,7 +1250,7 @@ function drawSheet() {
     <div class="infp gpow" data-for="attr" hidden></div>
     <div class="stab">VITALITY TRACK</div><button id="heal" class="healb" title="Heal one step: every wound moves one box left; the leftmost Light Wound goes away. Dead stays until you uncheck it." ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}>✚ HEAL 1 STEP</button><span class="healn"><button id="healGo" class="healb" title="Heal that many steps: every wound moves that many boxes left. Dead stays until you uncheck it." ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}>✚ HEAL STEPS</button><button id="healDn" class="healb hstep" title="One less step" ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}>−</button><input id="healN" type="number" min="1" max="6" inputmode="numeric" placeholder="#" value="${esc2(healNVal)}" title="How many steps to heal" ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}><button id="healUp" class="healb hstep" title="One more step" ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}>+</button></span>${(healUndo.get(sheetId()) || []).length ? `<button id="healUndo" class="healb undo" title="Put the vitality track back the way it was before the last heal">↶ UNDO (${healUndo.get(sheetId()).length})</button>` : ""}${"BCDEFGH".split("").some(c => V(c + "16")) ? `<button id="healClr" class="healb clr" title="Full heal: clear every wound on the vitality track, Dead too. Tap twice to confirm.">✚ FULL HEAL</button>` : ""}
     <div class="vit">${["B", "C", "D", "E", "F", "G", "H"].map((c, i) => { const t = V(c + "15"); const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<button class="box ${V(c + "16") ? "x" : ""}" data-w="${i}"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk ${V(c + "16") ? "x" : ""}">${V(c + "16") ? "✕" : ""}</span></button>`; }).join("")}</div>
-    <div class="g2b ${ptInEP() ? "g2p" : ""}"><div class="fld"><div class="epl"><div class="ephd"><small>Extraordinary Power</small>${typeRefBtn()}</div><div id="pwname">${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div>${/^priest$/i.test(V("C4").trim()) ? `<button id="smite" class="pwroll" ${(parseInt(V("F13")) || 0) < 2 ? "disabled" : ""} title="${(parseInt(V("F13")) || 0) < 2 ? "Smite costs 2 invocations: not enough left" : "Prayer against the target's Adroitness. Damage = Success Delta + 4. Takes 2 invocations off by itself"}">⚔<span>Smite: roll Prayer (2 inv.)</span></button>` : ""}</div></div>
+    <div class="g2b ${ptInEP() ? "g2p" : ""}"><div class="fld"><div class="epl"><div class="ephd"><small>Extraordinary Power</small>${typeRefBtn()}</div><div id="pwname">${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div>${/^priest$/i.test(V("C4").trim()) ? `<button id="smite" class="pwroll" ${(parseInt(V("F13")) || 0) < 2 ? "disabled" : ""} title="${(parseInt(V("F13")) || 0) < 2 ? "Smite costs 2 invocations: not enough left" : "Prayer against the target's Adroitness. Damage = Success Delta + 4. Takes 2 invocations off by itself"}">⚔<span>Smite: roll Prayer (2 inv.)</span></button>` : /^mage$/i.test(V("C4").trim()) ? `<button id="castsp" class="pwroll" title="Open the spell window: pick a school, a size and a spell">✦<span>Cast a spell (Spellcasting)</span></button>` : ""}</div></div>
       <div class="fld c"><small>Used Today</small>${hasUtility() ? `<div class="uses"><span>Combat</span><button id="pw" class="chk ${used ? "x" : ""}" title="Combat use spent today">${used ? "✕" : ""}</button><span>Utility</span><button id="pwu" class="chk ${usedU ? "x" : ""}" title="Utility use spent today">${usedU ? "✕" : ""}</button></div>` : `<button id="pw" class="chk ${used ? "x" : ""}">${used ? "✕" : ""}</button>`}</div>${ptInEP() ? `
       <div class="fld c epp"><small>${esc2(V("E13"))}${ptMaxV() ? ` <span>/ ${esc2(ptMaxV())}</span>` : ""}</small>${ptCtl()}${/^priest$/i.test(V("C4").trim()) ? `<button class="sref epref" data-k="gods" title="Open The Gods beside the map">${REF_SVG}The Gods</button>` : /^mage$/i.test(V("C4").trim()) ? `<button class="sref epref" data-k="schools" title="Open Schools of Magic beside the map">${REF_SVG}Schools</button>` : ""}${ptMaxV() ? `<button id="ptfill" class="ptfill" title="Fill back up to ${esc2(ptMaxV())} (after a long rest). Asks first">↻ refill</button>` : ""}</div>` : ""}</div>
     <div id="pwd" class="gpow pwd" hidden></div>
@@ -1241,8 +1272,11 @@ function drawSheet() {
     ${isGM ? "" : `<div class="discw"><button id="disc" class="discb" title="Pick a different character">⇄ Switch character</button></div>`}`;
   fillPowers(); bindInfo(); updateKS(); updateActive(); publishActive(); bindPt();
   document.querySelectorAll("#shbody .actarmx").forEach(b => b.onclick = (e) => { e.stopPropagation(); endActive(); });
-  document.querySelectorAll("#shbody .rd").forEach(b => b.onclick = (e) => { e.stopPropagation(); quickRoll(b.dataset.m, b.dataset.l, "", b.dataset.b); });
+  document.querySelectorAll("#shbody .rd").forEach(b => b.onclick = (e) => { e.stopPropagation();
+    if (/^mage$/i.test(V("C4").trim()) && /^spellcasting/i.test(b.dataset.l || "")) return openSpell(); // Mages pick a spell first
+    quickRoll(b.dataset.m, b.dataset.l, "", b.dataset.b); });
   // Smite (Priest): a Prayer roll that feeds the Success Delta card, Damage = Delta + 4
+  if ($("castsp")) $("castsp").onclick = (e) => { e.stopPropagation(); openSpell(); };
   if ($("tgtme")) $("tgtme").onclick = (e) => { e.stopPropagation(); flipTgt(); };
   // Smite spends its 2 invocations itself (Jake, Nov 25); greyed out with fewer than 2 left
   if ($("smite")) $("smite").onclick = (e) => { e.stopPropagation(); if (rollBusy || busy) return;
@@ -1294,6 +1328,111 @@ function drawSheet() {
     save({ points: max }, () => setCell("F13", String(max))); };
   if (!isNaN(copMax) && (parseInt(V("H29")) || 0) >= copMax) $("copm").disabled = true; // none left
   if ((parseInt(V("H29")) || 0) <= 0) $("copp").disabled = true; // already full
+}
+// ---------------- SPELLCASTING (Mage) ----------------
+// Jake, Nov 25: tapping Spellcasting on a Mage's sheet opens a spell window instead of rolling straight away.
+// Pick a school (major / minor), a size (Trick free / Small 2 SP +2 / Medium 4 +4 / Large 6 +6 / Huge 8 +8), then a spell
+// from the Master's Spell Book tab (or your own). CAST takes the Spell Points off and rolls Spellcasting; the roll has to
+// meet the size's difficulty or the spell fizzles (the SP stay spent). A spell that does damage then works like an attack:
+// it feeds the Success Delta card (Damage Bonus from the spell), and area spells can take several defenders.
+// Minor school: Tricks, Small and Medium only. +,+,+,+ = one size up or a second target. -,-,-,- = wild magic.
+const SPELL_SIZES = [["Trick", 0, 0], ["Small", 2, 2], ["Medium", 4, 4], ["Large", 6, 6], ["Huge", 8, 8]]; // name, SP, difficulty
+const SCHOOL_LOOK = { // window tint + a line of flavour per school (subtle, deep tones)
+  Cryo: ["#7fc8ff", "rgba(20,48,78,.96)", "Frost creeps along your fingers. Your breath fogs."],
+  Plasma: ["#ffb35c", "rgba(70,36,12,.96)", "Starfire wakes in your palms. The air shimmers with heat."],
+  Ion: ["#b9a8ff", "rgba(34,28,80,.96)", "Static lifts your hair. Every light in the room flickers."],
+  Nebula: ["#e9a8ff", "rgba(58,22,72,.96)", "Colored gas curls out of nowhere and glows."],
+  Void: ["#a99cd6", "rgba(14,10,30,.97)", "The space beside you goes darker than dark. Something listens."],
+  Fexgem: ["#7ff0d2", "rgba(14,52,50,.96)", "Crystal dust glitters on your skin. The ground hums."],
+  "Solar Wind": ["#ffe08a", "rgba(64,50,16,.96)", "A hot wind from nowhere tugs at your clothes."],
+  Zxil: ["#b8c79a", "rgba(30,36,24,.97)", "The air tastes of rust. Colors drain from the room."],
+};
+const spLook = (s) => SCHOOL_LOOK[s] || ["#c9b8ff", "rgba(40,26,76,.96)", "The forces of the universe lean in to listen."];
+// 4 Fudge dice: chance the total meets or beats the difficulty
+const FUDGE = [1, 4, 10, 16, 19, 16, 10, 4, 1]; // ways to roll -4..+4, out of 81
+const castOdds = (mod, diff) => Math.round(100 * FUDGE.reduce((a, w, i) => a + (i - 4 + mod >= diff ? w : 0), 0) / 81);
+let spellPk = null, pendingSpell = null;
+function mageSchools() { // "Major school: Cryo" / "Minor school: Ion" lines in Notes (the Character Creator writes them)
+  const out = { major: "", minor: "" };
+  for (const row of sheetVals || []) for (const c of row || []) { const s = String(c || "");
+    const a = s.match(/major school:\s*([A-Za-z ]+)/i), b = s.match(/minor school:\s*([A-Za-z ]+)/i);
+    if (a && !out.major) out.major = a[1].trim(); if (b && !out.minor) out.minor = b[1].trim(); }
+  return out;
+}
+async function spellBook() {
+  const v = await getTab("Spell Book"), t = (s) => String(s ?? "").trim();
+  return (v || []).slice(1).filter(r => t(r[0]) && t(r[2])).map(r => ({ sc: t(r[0]), sz: t(r[1]), n: t(r[2]), x: t(r[3]) }));
+}
+// What a spell's text says about rolling it: an attack (Damage Bonus, against which attribute) and whether it hits several
+function spellMath(x) {
+  const vs = String(x).match(/spellcasting vs\.?\s*(?:its |the highest |their )?(adroitness|raw strength|intellect|charm)/i);
+  const db = String(x).match(/damage bonus\s*\+?(\d+)/i);
+  const area = /everyone|up to \d+ targets|each\b|a group|squad/i.test(x);
+  const dfa = vs ? vs[1].replace(/\b\w/g, c => c.toUpperCase()) : "";
+  return { atk: !!(vs && db && !/crossing it|steps on it|leaving it|in its path/i.test(x)), db: db ? +db[1] : null, dfa, area, vs: !!vs };
+}
+function closeSpell() { spellPk = null; $("spov")?.remove(); }
+async function openSpell() {
+  if ($("spov")) return closeSpell(); // tapping Spellcasting again closes it
+  const sch = mageSchools(), pm = powerMod("Spellcasting"), mod = (pm?.m ?? 0) + sheetPen() + (actDef()?.skill?.[0].test("Spellcasting") ? actDef().skill[1] : 0);
+  spellPk = { school: sch.major || "", size: "Small", pick: -1, own: "", mod, sch, book: null, err: "" };
+  document.body.insertAdjacentHTML("beforeend", `<div id="spov" class="spov"><div class="spwin" id="spwin"><div class="spload">Opening your Spell Book…</div></div></div>`);
+  $("spov").onclick = (e) => { if (e.target.id === "spov") closeSpell(); };
+  drawSpell();
+  try { spellPk.book = await spellBook(); } catch (e) { if (spellPk) spellPk.err = "Couldn't read the Spell Book (" + e.message + "). You can still cast your own spell."; }
+  if (spellPk) { if (!spellPk.school) spellPk.school = [...new Set((spellPk.book || []).map(s => s.sc))][0] || "Cryo"; drawSpell(); }
+}
+function drawSpell() {
+  const P = spellPk, w = $("spwin"); if (!P || !w) return;
+  const sp = parseInt(V("F13")) || 0, all = [...new Set((P.book || []).map(s => s.sc))];
+  const schools = P.sch.major ? [P.sch.major, P.sch.minor].filter(Boolean) : all; // no schools in Notes: show them all
+  const minor = P.sch.major && P.school === P.sch.minor;
+  const [acc, bg, flav] = spLook(P.school), sz = SPELL_SIZES.find(s => s[0] === P.size) || SPELL_SIZES[1];
+  const list = (P.book || []).filter(s => s.sc.toLowerCase() === P.school.toLowerCase() && s.sz.toLowerCase() === P.size.toLowerCase());
+  const pick = P.pick >= 0 ? list[P.pick] : null, own = P.pick === -2;
+  const m = pick ? spellMath(pick.x) : { atk: false }, odds = sz[2] ? castOdds(P.mod, sz[2]) : 100;
+  const lack = sz[1] > sp, blocked = minor && sz[2] > 4;
+  w.style.setProperty("--sa", acc); w.style.setProperty("--sb", bg);
+  w.innerHTML = `<div class="sphd"><b>✦ CAST A SPELL</b><span class="spsp" title="Spell Points left today">${sp}${ptMaxV() ? ` / ${esc2(ptMaxV())}` : ""} SP</span><button class="spx" id="spx" title="Close">✕</button></div>
+    <div class="spfl">${esc2(flav)}</div>
+    <div class="spsec">SCHOOL</div><div class="sprow">${schools.map(s => `<button class="spb ${s === P.school ? "on" : ""}" data-sc="${esc2(s)}" style="--sa:${spLook(s)[0]}">${esc2(s)}${P.sch.major ? `<small>${s === P.sch.major ? "major" : "minor"}</small>` : ""}</button>`).join("")}</div>
+    ${P.sch.major ? "" : `<div class="spnote">No schools found in this character's Notes ("Major school: …"), so all of them show.</div>`}
+    <div class="spsec">SIZE</div><div class="sprow">${SPELL_SIZES.map(([n, c, d]) => { const off = (minor && d > 4) || c > sp;
+      return `<button class="spb sz ${n === P.size ? "on" : ""} ${off ? "dim" : ""}" data-sz="${n}" title="${minor && d > 4 ? "Major school only" : c > sp ? "Not enough Spell Points" : ""}">${n}<small>${c ? c + " SP · +" + d : "free · 0"}</small></button>`; }).join("")}</div>
+    <div class="spsec">SPELL</div><div class="splist">${P.err ? `<div class="spnote">${esc2(P.err)}</div>` : ""}${!P.book && !P.err ? `<div class="spnote">Loading…</div>` : ""}
+      ${list.map((s, i) => `<button class="spc ${i === P.pick ? "on" : ""}" data-i="${i}"><b>${esc2(s.n)}</b><span>${esc2(s.x)}</span></button>`).join("")}
+      <button class="spc own ${own ? "on" : ""}" data-i="-2"><b>Your own spell</b><span>Describe it with a verb from your school and a target. The GM agrees the size with you before the roll.</span></button>
+      ${own ? `<input id="spown" class="spin" maxlength="24" placeholder="Name it (e.g. Frost Lance)" value="${esc2(P.own)}">` : ""}</div>
+    <div class="spfoot">${pick || own ? `<div class="spsum">${m.atk ? `<b>Attack.</b> Cast it, then ${m.area ? "each target" : "the target"} rolls <b>${esc2(m.dfa)}</b>: Damage = Delta + ${m.db}${m.area ? ". Hits several: select their tokens with Target Lock, or set how many on the Success Delta card" : ""}.`
+        : pick && m.vs ? `The target resists with <b>${esc2(m.dfa)}</b>. The GM compares the rolls.` : own ? `If it does damage, the GM sets the Damage Bonus.` : `No defense roll: it just has to be cast.`}</div>` : ""}
+      <div class="sprl">Spellcasting <b>${P.mod >= 0 ? "+" : ""}${P.mod}</b> vs difficulty <b>${sz[2] ? "+" + sz[2] : "0"}</b> · <b>${odds}%</b> to cast${sz[1] ? ` · costs <b>${sz[1]} SP</b>` : " · free"}</div>
+      <button class="spgo" id="spgo" ${(!pick && !(own && P.own.trim())) || lack || blocked ? "disabled" : ""}>${blocked ? "Major school only" : lack ? "Not enough Spell Points" : `✦ CAST${pick ? " " + esc2(pick.n.toUpperCase()) : own && P.own.trim() ? " " + esc2(P.own.trim().toUpperCase()) : ""}`}</button>
+      <div class="spnote">Miss: it fizzles, the SP stay spent. On +, +, +, +: one size up for free or a second target. On -, -, -, -: wild magic.</div></div>`;
+  $("spx").onclick = closeSpell;
+  w.querySelectorAll("[data-sc]").forEach(b => b.onclick = () => { P.school = b.dataset.sc; P.pick = -1; if (P.sch.major && P.school === P.sch.minor && /large|huge/i.test(P.size)) P.size = "Medium"; drawSpell(); });
+  w.querySelectorAll("[data-sz]").forEach(b => b.onclick = () => { P.size = b.dataset.sz; P.pick = -1; drawSpell(); });
+  w.querySelectorAll("[data-i]").forEach(b => b.onclick = () => { const i = +b.dataset.i; P.pick = P.pick === i ? -1 : i; drawSpell(); if (i === -2) $("spown")?.focus(); });
+  if ($("spown")) $("spown").oninput = () => { P.own = $("spown").value; const g = $("spgo"); const ok = P.own.trim() && !lack && !blocked;
+    g.disabled = !ok; if (ok) g.textContent = "✦ CAST " + P.own.trim().toUpperCase(); };
+  $("spgo").onclick = () => castSpell(pick, sz, m);
+}
+function castSpell(pick, sz, m) {
+  const P = spellPk; if (!P || rollBusy || busy) return;
+  const have = parseInt(V("F13")) || 0; if (sz[1] > have) return;
+  const name = (pick ? pick.n : P.own.trim() || "Spell").slice(0, 22);
+  pendingSpell = { n: name, sc: P.school, sz: sz[0], d: sz[2], atk: !!m.atk, db: m.db, dfa: m.dfa || "Adroitness", area: !!m.area };
+  if (sz[1]) save({ points: have - sz[1] }, () => setCell("F13", String(have - sz[1]))); // the Spell Points go first, cast or fizzle
+  const pm = powerMod("Spellcasting");
+  closeSpell();
+  quickRoll(pm ? pm.m : 0, `Spellcasting · ${name} (${sz[0]}${sz[2] ? " +" + sz[2] : ""})`, "", pm?.br || "");
+}
+// Called from doQuickRoll once the dice are in: did it beat the difficulty, and is it an attack?
+function applySpell(r, sp) {
+  const pp = r.dice.every(d => d > 0), mm = r.dice.every(d => d < 0), ok = r.total >= sp.d && !mm;
+  delete r.atk; delete r.sp; delete r.db; delete r.dbk;
+  r.label = (r.label + (mm ? " · WILD MAGIC" : !ok ? " · FIZZLED" : pp ? " · CAST, ONE SIZE UP!" : " · CAST")).slice(0, 70);
+  r.spl = { sc: sp.sc, sz: sp.sz, d: sp.d, ok: ok ? 1 : 0 };
+  if (ok && sp.atk) { r.atk = 1; r.sp = 1; r.db = sp.db; r.dbk = "spell"; if (sp.dfa && sp.dfa !== "Adroitness") r.dfa = sp.dfa; if (sp.area) r.area = 1; }
 }
 // ---------------- SHEET MANAGER ----------------
 // Spend XP on skills and attribute points on attributes using the sheet's own cost chart (G4:H12),
@@ -3628,13 +3767,17 @@ $("initgo").onclick = () => {
 // The GM gets one button per targeted monster on the GM tab's cards; with Targets off, the monsters' Adroitness dice pulse.
 function sdWait() { try { const w = JSON.parse(localStorage.getItem("ns.sd:" + OBR.room.id) || "{}").wait;
   return w && Date.now() - w.at0 < 3 * 60e3 && (w.defs || []).length < (w.n || 1) ? w : null; } catch { return null; } }
+// The attribute a waiting attack is defended with (spells can name another one), and rolling it from the open sheet
+const defAttr = (w) => w?.dfa || "Adroitness";
+function defRollSheet(w) { const at = defAttr(w), cell = ATTR_CELL[at] || "C7", v = V(cell);
+  if (v == null || String(v).trim() === "") return false; quickRoll(v, at + " · Defense"); return true; }
 function canDefend(w, name) { if (!name || sameName(name, w.att) || (w.defs || []).some(d => sameName(d, name))) return false;
   return !w.tg?.length || w.tg.some(t => sameName(t, name)); }
 function updateDefBanner() {
   if (standalone || !$("defban")) return;
   const w = sdWait(), sg = (n) => n > 0 ? "+" + n : String(n);
   // GM tab: pulse the Adroitness dice of the monsters that can defend
-  const mons = w && isGM ? [...document.querySelectorAll("#mo .rd.ra")].filter(b => b.dataset.l === "Adroitness" && canDefend(w, b.dataset.w)) : [];
+  const mons = w && isGM ? [...document.querySelectorAll("#mo .rd.ra")].filter(b => b.dataset.l === defAttr(w) && canDefend(w, b.dataset.w)) : [];
   document.querySelectorAll("#mo .rd.ra").forEach(b => b.classList.toggle("sddef", mons.includes(b)));
   // Target Lock picked these monsters: their whole card lights up red with a big 🛡 DEFEND on the name bar (rolls its Adroitness)
   const hit = new Set(w?.tg?.length ? mons.map(b => b.closest(".mcard")).filter(Boolean) : []);
@@ -3643,7 +3786,7 @@ function updateDefBanner() {
     card.classList.toggle("sdtgt", on);
     if (on && !btn) { const dead = card.querySelector(".mdead");
       dead?.insertAdjacentHTML("beforebegin", `<button class="sbtn sddefb" title="Roll this monster's Adroitness to defend">🛡 DEFEND</button>`);
-      card.querySelector(".sddefb").onclick = (e) => { e.stopPropagation(); if (!rollBusy) card.querySelector('.rd.ra[data-l="Adroitness"]')?.click(); }; }
+      card.querySelector(".sddefb").onclick = (e) => { e.stopPropagation(); if (!rollBusy) card.querySelector(`.rd.ra[data-l="${defAttr(sdWait())}"]`)?.click(); }; }
     if (!on && btn) btn.remove();
   });
   // a DEFEND strip at the bottom of every card while targeted monsters wait to defend (reachable wherever the GM has scrolled)
@@ -3655,11 +3798,11 @@ function updateDefBanner() {
       st?.remove();
       card.insertAdjacentHTML("beforeend", `<div class="sdstrip" data-k="${esc2(key)}">🛡 DEFEND:${tg.map(n => `<button data-n="${esc2(n)}" title="Roll ${esc2(n)}'s Adroitness to defend">${esc2(n)}</button>`).join("")}</div>`);
       card.querySelectorAll(".sdstrip button").forEach(b => b.onclick = (e) => { e.stopPropagation(); if (rollBusy) return;
-        [...document.querySelectorAll("#mo .mcard")].find(c => c.dataset.n === b.dataset.n)?.querySelector('.rd.ra[data-l="Adroitness"]')?.click(); });
+        [...document.querySelectorAll("#mo .mcard")].find(c => c.dataset.n === b.dataset.n)?.querySelector(`.rd.ra[data-l="${defAttr(sdWait())}"]`)?.click(); });
     }); }
   let btns = [];
   if (w && isGM) btns = w.tg?.length ? mons.map(b => [b.dataset.w, () => b.click()]) : [];
-  else if (w && sheetVals && canDefend(w, myChar())) btns = [["DEFEND", () => { const adr = sheetVals?.[6]?.[2]; if (adr != null && String(adr).trim() !== "") quickRoll(adr, "Adroitness · Defense"); }]]; // its own label, so it's never taken as initiative
+  else if (w && sheetVals && canDefend(w, myChar())) btns = [[w.dfa ? "DEFEND: " + w.dfa.toUpperCase() : "DEFEND", () => defRollSheet(w)]]; // its own label, so it's never taken as initiative
   defReq();
   const show = !!w && btns.length > 0 && store.get("ns.defHide") !== w.id;
   $("defban").hidden = !show; if (!show) return;
@@ -3676,11 +3819,11 @@ function defReq() {
   if (rollBusy) { setTimeout(defReq, 800); return; }
   let q = null; try { q = JSON.parse(localStorage.getItem("ns.defReq") || "null"); } catch {}
   if (!q?.ts || Date.now() - q.ts > 20e3 || store.get("ns.defReqDone") === String(q.ts)) return;
-  const adr = sheetVals?.[6]?.[2];
-  if (!sheetVals || adr == null || String(adr).trim() === "") return; // not ready yet: tried again when the sheet loads
+  const w = sdWait(), at = defAttr(w), v = sheetVals ? V(ATTR_CELL[at] || "C7") : null;
+  if (!sheetVals || v == null || String(v).trim() === "") return; // not ready yet: tried again when the sheet loads
   // the pop-up only shows to a target, so just roll: the background page pairs it with the waiting attack (Success Delta)
   store.set("ns.defReqDone", String(q.ts));
-  quickRoll(adr, "Adroitness · Defense");
+  quickRoll(v, at + " · Defense");
 }
 window.addEventListener("storage", (e) => { if (e.key === "ns.defReq") defReq(); });
 // ⚔ ROLL INITIATIVE on the "Roll for initiative!" pop-up over the map (initpop.html): same idea as DEFEND!.
@@ -3701,7 +3844,7 @@ function monDefReq() {
   let q = null; try { q = JSON.parse(localStorage.getItem("ns.monDefReq") || "null"); } catch {}
   if (!q?.ts || Date.now() - q.ts > 20e3 || store.get("ns.monDefDone") === String(q.ts)) return;
   const card = [...document.querySelectorAll("#mo .mcard")].find(c => c.dataset.n === q.n);
-  const b = card?.querySelector('.rd.ra[data-l="Adroitness"]');
+  const b = card?.querySelector(`.rd.ra[data-l="${defAttr(sdWait())}"]`);
   if (!b) { if (!document.querySelector("#mo .mcard")) $("monTab")?.click(); return; } // monsters not loaded yet: open the GM tab, tried again once they are
   store.set("ns.monDefDone", String(q.ts)); b.click();
 }
