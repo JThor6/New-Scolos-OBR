@@ -973,8 +973,13 @@ const deadSeen = new Map();
 const skullPop = () => { const id = sheetId(), was = deadSeen.get(id); deadSeen.set(id, true); return was === false ? "pop" : ""; };
 const SKULL = `<svg class="skull" viewBox="0 0 64 64" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M32 4C17 4 7 14.5 7 28.5c0 8 3.8 13.6 9 16.8V52c0 3 2 5 5 5h22c3 0 5-2 5-5v-6.7c5.2-3.2 9-8.8 9-16.8C57 14.5 47 4 32 4Z M14.5 30.5c0-4.6 3.6-7.5 8-7.5s7.5 3.3 7 7.5c-.4 3.9-3.6 6.5-7.5 6.5s-7.5-2.4-7.5-6.5Z M34.5 30.5c-.5-4.2 2.6-7.5 7-7.5s8 2.9 8 7.5c0 4.1-3.6 6.5-7.5 6.5s-7.1-2.6-7.5-6.5Z M32 38.5l-4 7h8Z M24.5 50h2.6v7h-2.6Z M30.7 50h2.6v7h-2.6Z M36.9 50h2.6v7h-2.6Z"/></svg>`;
 // The open sheet's character name (shown on rolls)
-const myChar = () => String(sheetVals?.[2]?.[2] || "").trim().slice(0, 30);
-const sheetPen = () => num(sheetVals?.[11]?.[2]) || 0;
+// While the GM rolls for a Party card, every read goes to that character's values (proxy.vals), never the sheet open on
+// screen. (Nov 26: swapping sheetVals for the roll let a sheet loading at the same moment slip in, and an initiative entry
+// came out as the GM's own Owlbear name, "J-Thor6".)
+let proxy = null; // { id, name, vals }: the character the GM is rolling for from a Party card, during that roll
+const curVals = () => proxy?.vals || sheetVals;
+const myChar = () => String(curVals()?.[2]?.[2] || "").trim().slice(0, 30);
+const sheetPen = () => num(curVals()?.[11]?.[2]) || 0;
 async function quickRoll(modText, label, whoName, br = "", monPen = 0, cs = null) {
   if (rollBusy) return;
   setRollBusy(true);
@@ -993,7 +998,7 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
     const ip = initProxy();
     if (ip) { // the GM rolling for a character (Party card or their open sheet): their initiative, once, unless their player already rolled it
       if (st?.open && md0[`${INIT}/p/pc-${ip.id}`]?.sid !== st.sid && !initEntries(md0).some(e => e.pc && sameName(e.name, ip.name))) { initSid = st.sid; label = "Adroitness · Initiative"; } }
-    else if (st?.open && store.get("ns.initDone") !== st.sid) { initSid = st.sid; label = "Adroitness · Initiative"; }
+    else if (!isGM && st?.open && store.get("ns.initDone") !== st.sid) { initSid = st.sid; label = "Adroitness · Initiative"; } // the GM never goes on the bar as themselves
   }
   const ks = !whoName && !proxy && ksArmed() && KS_ATTACK.test(String(label || ""));
   if (ks) { label = "KILL SHOT · " + label; setKS(false); fillPowers(); setTimeout(() => markPowerUsed("combat"), 0); }
@@ -1051,7 +1056,7 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
   if (initSid) {
     // Write it, read it back, and try up to 3 times (Jake, Nov 25: once in a while a player's roll didn't make the bar).
     // Only marked done once it's really in the room, so the banner / pop-up stay up to roll again if it never lands.
-    const px = initProxy(), name = String(sheetVals?.[2]?.[2] || "").trim() || who, k = px ? `${INIT}/p/pc-${px.id}` : `${INIT}/p/${me}`;
+    const px = initProxy(), name = px ? px.name : String(sheetVals?.[2]?.[2] || "").trim() || who, k = px ? `${INIT}/p/pc-${px.id}` : `${INIT}/p/${me}`;
     const entry = { id: px ? "pc-" + px.id : me, sid: initSid, name, total: r.total, adr: m, pc: true, r: Math.random() };
     let landed = false;
     for (let t = 0; t < 3 && !landed; t++) {
@@ -1176,7 +1181,7 @@ let sheetOverride = ""; // Party pop-out / GM screen: the sheet the GM opened th
 const sheetId = () => sheetOverride || store.get(ck("ns.sheetId"));
 const setSheetId = (v) => store.set(ck("ns.sheetId"), v);
 const esc2 = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const V = (a1) => { const m = a1.match(/^([A-L])(\d+)$/); const row = sheetVals?.[+m[2] - 1] || []; return String(row[m[1].charCodeAt(0) - 65] ?? "").trim(); };
+const V = (a1) => { const m = a1.match(/^([A-L])(\d+)$/); const row = curVals()?.[+m[2] - 1] || []; return String(row[m[1].charCodeAt(0) - 65] ?? "").trim(); };
 
 document.querySelectorAll(".tab").forEach(b => b.onclick = () => {
   document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === b));
@@ -1299,9 +1304,9 @@ function coSlots() {
 let mgrOn = false; // Sheet Manager view on/off (per sheet view)
 // Find each section by its heading in column B, so sheets with extra rows (like a longer inventory) still work
 function layout() {
-  const at = (label, from = 1) => { for (let i = from; i <= (sheetVals?.length || 0); i++) if (V("B" + i).toLowerCase() === label) return i; return 0; };
+  const at = (label, from = 1) => { for (let i = from; i <= (curVals()?.length || 0); i++) if (V("B" + i).toLowerCase() === label) return i; return 0; };
   const tr = at("trained skills") || 19, ut = at("untrained skills", tr + 1) || 36, inv = at("inventory", ut + 1) || 45;
-  const end = Math.max(inv + 30, sheetVals?.length || 0);
+  const end = Math.max(inv + 30, curVals()?.length || 0);
   // current layout: Inventory | Equipped | Notes side by side from the Inventory row down, as long as they need
   if (V("G" + inv).toLowerCase() === "notes") return { trained: [tr + 1, ut - 1], untrained: [ut + 1, inv - 1], inv: [inv + 1, end], notes: [inv + 1, end], nc: "G" };
   const cr = at("combat rules", inv + 1) || inv + 14, notes = at("notes", cr + 1) || 71; // older sheets
@@ -4433,9 +4438,9 @@ setInterval(() => { if (testSplit() && $("tlist") && !rollBusy) characterSheets(
 // rest, Success Delta and initiative. So the GM can run an encounter from Party view, or roll for a player who stepped
 // away. Each card also shows DEFEND (an attack is waiting and they can defend) and ROLL INITIATIVE (a fight was called
 // and they haven't rolled). Works in the panel, the Party pop-out and the GM screen.
-let ptyOpen = "", proxy = null;
+let ptyOpen = "";
 // whose initiative a GM's Adroitness roll is: the Party card being rolled for, or the character sheet the GM has open
-const initProxy = () => proxy || (isGM && sheetVals && sheetId() && sheetId() !== "__party" ? { id: sheetId(), name: myChar() } : null); // proxy: the character the GM is rolling for, while that roll is made
+const initProxy = () => proxy || (isGM && sheetVals && sheetId() && sheetId() !== "__party" && myChar() ? { id: sheetId(), name: myChar() } : null); // proxy: the character the GM is rolling for, while that roll is made
 const pCell = (v, a1) => { const m = a1.match(/^([A-L])(\d+)$/); return String(v?.[+m[2] - 1]?.[m[1].charCodeAt(0) - 65] ?? "").trim(); };
 function partySkills(v) {
   const col = (r) => String(v[r - 1]?.[1] ?? "").trim();
@@ -4465,11 +4470,11 @@ function rollAs(c, mod, label, br = "") {
   const go = async () => {
     if (!c?.values) return;
     for (let i = 0; i < 30 && rollBusy; i++) await new Promise(r => setTimeout(r, 100)); // a roll from the sheet still landing
-    const keep = sheetVals; setRollBusy(true);
-    sheetVals = c.values; proxy = { id: c.id, name: pCell(c.values, "C3") };
+    setRollBusy(true);
+    proxy = { id: c.id, name: pCell(c.values, "C3"), vals: c.values };
     try { await doQuickRoll(mod, label, null, sheetPen(), br); }
     catch (e) { obrNote("Couldn't roll: " + (e.message || e), "ERROR"); }
-    finally { sheetVals = keep; proxy = null; await new Promise(r => setTimeout(r, 350)); setRollBusy(false); }
+    finally { proxy = null; await new Promise(r => setTimeout(r, 350)); setRollBusy(false); }
   };
   rollQ = rollQ.then(go, go);
   return rollQ;
