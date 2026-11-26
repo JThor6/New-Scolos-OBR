@@ -8,7 +8,12 @@ export function rollKey(playerId) { return `${NS}/rolls/${playerId}`; }
 // GM SCREEN's CLEAR buttons (Jake, Nov 26) put a time here for the whole room: { r: rolls cleared at, s: Success Deltas cleared at }
 export const CLEARED = `${NS}/cleared`;
 const clrKey = (roomId) => "ns.rollClr@" + (roomId || "local");
-export const isCleared = (r, c) => !!c && (r?.sd ? (r.ts || 0) <= (c.s || 0) : (r.ts || 0) <= (c.r || 0));
+// Each browser's clock can be a little off, so a clear is cut per player, by that player's own newest roll at the time
+// (cut.p[pid]). Players with nothing in the room then: anything over 5 minutes older than the clear. (Nov 26 fix: a GM clock
+// ahead of a player's made that player's next rolls look "cleared", so their defense rolls went missing.)
+export const isCleared = (r, c) => { if (!c || !r) return false; const cut = r.sd ? c.s : c.r; if (!cut) return false;
+  const ts = r.ts || 0; if (typeof cut === "number") return false; // old-style marks (one clock for everyone) are ignored
+  const own = cut.p?.[r.pid]; return own != null ? ts <= own : ts <= (cut.t || 0) - 5 * 60e3; };
 // GM-only CLEAR button (Jake, Nov 26): k "r" = rolls, "s" = Success Delta results, "rs" = both. Tap, then ARE YOU SURE? within 4 s.
 // Clears it for everyone in the room: a time mark in room metadata (every browser drops older entries from its own log) and
 // the saved rolls in the room are emptied too.
@@ -24,7 +29,9 @@ export function bindClear(root, OBR, after) {
     clearTimeout(b._t); delete b.dataset.armed; b.classList.remove("armed"); b.disabled = true; b.textContent = "CLEARING…";
     try {
       const md = await OBR.room.getMetadata(), now = Date.now(), c = { ...(md[CLEARED] || {}) };
-      if (k.includes("r")) c.r = now; if (k.includes("s")) c.s = now;
+      const cuts = (sd) => { const p = {}; for (const [key, v] of Object.entries(md)) if (key.startsWith(`${NS}/rolls/`) && Array.isArray(v) && key.endsWith("~sd") === sd)
+        for (const r of v) if (r?.pid) p[r.pid] = Math.max(p[r.pid] || 0, r.ts || 0); return { t: now, p }; };
+      if (k.includes("r")) c.r = cuts(false); if (k.includes("s")) c.s = cuts(true);
       const upd = { [CLEARED]: c };
       for (const key of Object.keys(md)) if (key.startsWith(`${NS}/rolls/`) && Array.isArray(md[key]) && (key.endsWith("~sd") ? k.includes("s") : k.includes("r"))) upd[key] = null;
       await OBR.room.setMetadata(upd);
