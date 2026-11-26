@@ -52,7 +52,7 @@ export function allRolls(metadata) {
 
 // Table cards for powers that stay on (c: the look, t: card title, s: line under it)
 export const POWER_CARDS = {
-  "bullet stop": { c: "bs", n: "Bullet Stop", t: "BULLET STOP ACTIVATED", s: "Allies within 10 ft: +2 Armor Bonus for a turn" },
+  "bullet stop": { c: "bs", n: "Bullet Stop", t: "BULLET STOP ACTIVATED", s: "+2 Armor Bonus for the combat. Allies within 10 ft: +2 until their next turn" },
   "avatar": { c: "av", n: "Avatar", t: "AVATAR", s: "Becomes living magic: +1 Armor, +1 Spellcasting" },
   "flash forward": { c: "ff", t: "FLASH FORWARD", s: "Sees it coming: one forced reroll every round (three a scene out of combat)" },
   "disappear completely": { c: "wr", t: "VANISHED", s: "Gone from sight" },
@@ -71,7 +71,7 @@ export const POWER_CARDS = {
   "sleeper code": { c: "dp", t: "SLEEPER CODE", s: "Something is left waiting in the system" },
   "mind touch": { c: "ff", t: "MIND TOUCH", s: "Reaching into someone's head" },
   "borrowed face": { c: "wr", t: "BORROWED FACE", s: "Wearing someone else's face" },
-  "commune": { c: "av", t: "COMMUNE", s: "Asks their god one question" },
+  "commune": { c: "av", t: "COMMUNE", s: "Asks their god one question. A cryptic vision answers" },
 };
 // Any other daily power: gold card with its name
 export const powerCard = (n, label) => POWER_CARDS[n] || { c: "dp", t: String(label || n || "POWER").toUpperCase(), s: "Daily Extraordinary Power" };

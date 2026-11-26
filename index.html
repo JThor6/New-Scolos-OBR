@@ -966,11 +966,12 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
     const ab = num(V("H25")); if (ab != null) r.ab = ab + (actDef()?.armor || 0);
     // Meltdown's shockwave is rolled against Adroitness too (an Expanded Shockwave hits several people)
     const melt = /^⚡\s*meltdown/i.test(r.label);
-    if (/^smite\b/i.test(r.label)) { r.atk = 1; r.db = 4; r.dbk = "smite"; } // Smite: Damage = Delta + 4
+    if (/^smite\b/i.test(r.label) || /^⚡\s*commune\b.*smite/i.test(r.label)) { r.atk = 1; r.db = 4; r.dbk = "smite"; } // Smite (and Commune's free Smite): Damage = Delta + 4
+    else if (/^⚡\s*hijack\b.*burn their gear/i.test(r.label)) { r.atk = 1; r.db = 2; r.dbk = "power"; r.dfa = "Intellect"; } // Hacker: vs their Intellect, Damage Bonus +2
     else if (KS_ATTACK.test(r.label) || /spellcast/i.test(r.label) || melt) { r.atk = 1;
       const spc = /spellcast/i.test(r.label), mel = !spc && W_MEL.test(r.label), rng = !spc && !mel && W_RNG.test(r.label); // a spell named "Blade Storm" is still a spell
-      const db = melt ? null : mel ? num(V("H23")) : rng ? num(V("H24")) : null;
-      if (db != null) { r.db = db; r.dbk = mel ? "melee" : "ranged"; } else if (melt) r.pwd = 1; else if (/spellcast/i.test(r.label)) r.sp = 1; }
+      const db = melt ? 4 : mel ? num(V("H23")) : rng ? num(V("H24")) : null; // Meltdown's shockwave: Damage = Delta + 4 (Subject Zero tab)
+      if (db != null) { r.db = db; r.dbk = melt ? "power" : mel ? "melee" : "ranged"; } else if (melt) r.pwd = 1; else if (/spellcast/i.test(r.label)) r.sp = 1; }
   } else if (cs) { // a monster card: Attack uses its Offense, and its Armor counts when it defends
     const ab = num(cs.ab), db = num(cs.db); if (ab != null) r.ab = ab;
     if (/^attack\b/i.test(label)) { r.atk = 1; if (db != null) { r.db = db; r.dbk = "offense"; } }
@@ -2589,6 +2590,8 @@ async function announcePower(n, name = "") {
 // Plain skill rolls the power only mentions in passing (Sneak to stay quiet, Acting when someone tests you) stay on the skill list.
 const POWER_ROLLS = {
   "tapping the quietwire": { act: [{ k: "Streetwise", t: "Roll Streetwise" }] },
+  // Priest (Master, Priest tab): ask one question (no roll), or in combat a free Smite that costs no invocations
+  "commune": { act: [{ k: "Prayer", t: "In combat: free Smite (roll Prayer, no invocations)", l: "Free Smite (Prayer)" }], use: "Or ask your god one question (no roll):", ut: "Ask one question" },
   "bullet stop": "aura", // one button: +2 Armor Bonus until the combat ends (✕ or the GM's END COMBAT ends it); doesn't take your action
   "kill shot": "arm", // arms Kill Shot: the next attack roll from the sheet comes up +, +, +, +
   "ghost in the machine": { act: [{ k: "Hacking", t: "Get in: roll Hacking" }], fn: "Inside, doing something the system would fight?", fl: "Once inside", follow: [{ k: "Hacking", t: "Roll Hacking (same difficulty)" }] },
@@ -2620,7 +2623,7 @@ function powerMod(k) {
   const a = SKILL_ATTR[k]; if (a) return { m: (num(V(ATTR_CELL[a])) ?? 0) - 4, br: "", un: true };
   return null;
 }
-const SKILL_ATTR = { "Streetwise": "Charm", "Hacking": "Intellect", "Insight": "Intellect", "Sneak": "Adroitness", "Acting / Impersonation": "Charm", "Telekinesis": "Intellect", "Spirit Tether": "Intellect" };
+const SKILL_ATTR = { "Prayer": "Charm", "Streetwise": "Charm", "Hacking": "Intellect", "Insight": "Intellect", "Sneak": "Adroitness", "Acting / Impersonation": "Charm", "Telekinesis": "Intellect", "Spirit Tether": "Intellect" };
 // Using a power ticks "Used today" (F6) on its own. Tries again for a few seconds if another save is still going.
 // pwPending covers the moment between the click and the sheet saving, so a second click can't use it again.
 // Two daily uses (Jake, Nov 25): one combat use (F6) and one utility use (F8). Priests and Mages only have the combat one.
