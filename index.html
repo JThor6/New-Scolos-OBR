@@ -1618,7 +1618,9 @@ function drawManager() {
     busy = false;
     if (!r.ok) { if ($("nmGo")) $("nmGo").disabled = false;
       return nmSay(/nothing to change|bad|unknown/i.test(r.error || "") ? "The Sheet Bridge needs its latest update for this. The GM redeploys it, then try again." : "Didn't save: " + (r.error || "unknown error"), true); }
+    const oldName = V("C3").trim();
     setCell("C3", r.name || name);
+    pogRename(oldName, r.name || name);
     const chars = cache.get(ck("chars")) || []; const c = chars.find(x => x.id === sheetId()); if (c) { c.name = r.name || name; cache.set(ck("chars"), chars); }
     cache.set("sheet." + sheetId(), sheetVals); sheetPush(); drawSheet(); };
   $("nmGo").onclick = nmGo; $("nmNew").onkeydown = (e) => { if (e.key === "Enter") nmGo(); };
@@ -3735,6 +3737,16 @@ async function pogToOwlbear(blob, name) {
 // Drop a pog straight onto the map: pog files in Drive are shared by link, and Owlbear loads them from this
 // address (tested Nov 24 2026). Lands in the middle of the person's screen, snapped to the grid, one square big.
 const pogSrc = (id) => `https://lh3.googleusercontent.com/d/${id}`;
+// Change name (Nov 26): the character's tokens on the map get the new name too. A player's Owlbear may not be allowed to
+// change tokens, so the GM's screen is asked as well (background.html, "com.newscolos.pogname").
+async function pogRename(from, to) {
+  if (standalone || !from || !to || nm(from) === nm(to)) return;
+  try { if (await OBR.scene.isReady()) {
+    const toks = await OBR.scene.items.getItems(i => (i.layer === "CHARACTER" || i.layer === "MOUNT") && nm(i.name) === nm(from));
+    if (toks.length) await OBR.scene.items.updateItems(toks.map(t => t.id), (ds) => ds.forEach(d => { d.name = to; if (d.text) d.text.plainText = to; }));
+  } } catch {}
+  OBR.broadcast.sendMessage("com.newscolos.pogname", { from, to }, { destination: "REMOTE" }).catch(() => {});
+}
 // Players (Nov 26): if their own Owlbear can't add it (the room doesn't let players add tokens, or it silently didn't land),
 // the GM's screen adds it for them, owned by the player (background.html, "com.newscolos.pogreq").
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));

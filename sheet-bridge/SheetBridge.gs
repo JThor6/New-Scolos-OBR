@@ -681,9 +681,15 @@ function doPost(e) {
       const rs = openMain(b.id); // folder check
       const name = String(b.rename || '').replace(/\s+/g, ' ').trim().slice(0, 40);
       if (!name) throw new Error('Type a name.');
+      const old = String(rs.getRange('C3').getDisplayValue()).trim().replace(/[\\/:*?"<>|]/g, '').slice(0, 60);
       rs.getRange('C3').setValue(/^[=@+\-]/.test(name) ? "'" + name : name);
       DriveApp.getFileById(b.id).setName(name);
-      return json({ ok: true, name: name });
+      // the pog and portrait files carry the name too ("<Name> - Pog.png", "<Name> - Portrait 2.jpg"): swap the old name for the new
+      const safe = name.replace(/[\\/:*?"<>|]/g, '').slice(0, 60), info = portraitInfo(b.id);
+      if (old && info) [info.pog].concat(info.pics.map(function (p) { return p.full; }), info.pics.map(function (p) { return p.small; })).forEach(function (fid) {
+        try { const f = fid && DriveApp.getFileById(fid); if (f && f.getName().indexOf(old + ' - ') === 0) f.setName(safe + f.getName().slice(old.length)); } catch (e) {}
+      });
+      return json({ ok: true, name: name, old: old });
     }
     const sh = openMain(b.id);
     if (b.tracker) { // GM monster tracker: wound boxes (columns M-S) and Dead (column T) on the Extension Tracker tab

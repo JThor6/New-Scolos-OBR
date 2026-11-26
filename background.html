@@ -313,6 +313,14 @@ OBR.onReady(async () => {
       // written with a GM stamp so the value changes: every screen (the GM's bar and tab too) gets a fresh update and redraws
       await OBR.room.setMetadata({ [k]: { ...e, gm: Date.now() } }); } catch {}
   });
+  // A player renamed their character: rename their tokens on this map (if their own Owlbear couldn't)
+  OBR.broadcast.onMessage("com.newscolos.pogname", async ({ data }) => {
+    if (!amGM) return; const from = String(data?.from || "").trim(), to = String(data?.to || "").trim().slice(0, 40);
+    if (!from || !to) return; const n = (x) => String(x || "").trim().toLowerCase();
+    try { if (!(await OBR.scene.isReady())) return;
+      const toks = await OBR.scene.items.getItems(i => (i.layer === "CHARACTER" || i.layer === "MOUNT") && n(i.name) === n(from));
+      if (toks.length) await OBR.scene.items.updateItems(toks.map(t => t.id), (ds) => ds.forEach(d => { d.name = to; if (d.text) d.text.plainText = to; })); } catch {}
+  });
   OBR.broadcast.onMessage("com.newscolos.pogreq", async ({ data }) => {
     if (!amGM) return; const it = data?.item;
     if (!it || it.type !== "IMAGE" || it.layer !== "CHARACTER" || !/^https:\/\/lh3\.googleusercontent\.com\/d\/[\w-]+$/.test(it.image?.url || "")) return;
