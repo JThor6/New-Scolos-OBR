@@ -493,6 +493,9 @@
   .gtools { display:flex; gap:5px; align-items:center; margin-top:6px; } .gtools .gq { margin:0; flex:1; min-width:0; } .gtools .sbtn { white-space:nowrap; font-size:11px; padding:5px 7px; }
   .gsh { font-size:10px; font-weight:800; letter-spacing:.5px; color:var(--dim); margin:8px 2px 3px; } .gsh span { color:var(--ink); }
   .gsr { display:flex; flex-wrap:wrap; align-items:stretch; background:var(--paper); border:1.5px solid #444a66; border-radius:7px; margin-top:3px; }
+  .gptz { border:2px dashed #4a4170; border-radius:10px; padding:12px; text-align:center; color:var(--dim); font-size:12px; line-height:1.5; } .gptz.over { border-color:var(--accent); background:rgba(91,63,158,.2); } .gptz b { color:var(--ink); }
+  .gptdone { display:flex; gap:10px; align-items:center; margin-top:8px; font-size:12px; } .gptdone img { width:84px; height:84px; flex:none; }
+  .gsr.glock { opacity:.55; } .gsr.glock:hover, .gsr.glock:has(.gask) { opacity:1; } .gask .gmeta { color:#d9ccff; }
   .gsr.on { border-color:var(--accent); background:rgba(61,52,96,.7); } .gsr[hidden], .gsh[hidden] { display:none; }
   .gsk2 { flex:1; min-width:0; display:flex; align-items:center; gap:6px; background:transparent; border:none; color:var(--ink); text-align:left; padding:5px 8px 2px; cursor:pointer; font:12px system-ui; }
   .gsk2 b { flex:1; min-width:0; font-weight:700; }
@@ -1597,7 +1600,9 @@ function drawManager() {
   $("skGo").onclick = () => {
     const name = $("skName").value.trim(); if (!name) return;
     const only = { hacking: "Hacker", telekinesis: "Subject Zero", "spirit tether": "Revenant", prayer: "Priest", spellcasting: "Mage" }[name.replace(/\s*\(.*$/, "").trim().toLowerCase()];
-    if (only && only.toLowerCase() !== V("C4").trim().toLowerCase()) return err(`${tc(name)} is for ${only}s only.${/^hacking/i.test(name) ? " Everyday computers and gadgets are the Tech skill." : ""}`);
+    if (only && only.toLowerCase() !== V("C4").trim().toLowerCase() && skAsk !== name.toLowerCase()) { skAsk = name.toLowerCase(); // Jake, Nov 26: GM can allow it
+      return err(`${tc(name)} is for ${only}s only. Ask your GM first. If your GM said yes, tap the button again to add it.${/^hacking/i.test(name) ? " (Everyday computers and gadgets are the Tech skill.)" : ""}`); }
+    skAsk = "";
     const [from, to] = L.untrained; // new skills always start Untrained
     let row = 0; for (let i = from; i <= to; i++) if (!V("B" + i)) { row = i; break; }
     if (!row) return err("The Untrained skills list is full on the sheet.");
@@ -1802,7 +1807,8 @@ const canReach = (i) => { for (let j = 0; j < i; j++) if (stepWhy(j)) return fal
 const SHORT = { Adroitness: "Adr", "Raw Strength": "Str", Intellect: "Int", Charm: "Cha" };
 let genData = {}; // Skills step: Skill List + type info kept in memory so each tap redraws instantly
 let genRecheck = null; // Finish step: re-checks the Create button when the name changes
-let genQ = "", genMove = null, genTarget = null, genInfo = ""; // skills step: search text, slot being moved, slot picked to fill next, last skill tapped
+let skAsk = "", genPic = null; // genPic: the Creator's portrait picture ({ file, pog preview }) until CREATE // Manage Character: the other-type skill waiting for a second tap (GM said yes)
+let genQ = "", genMove = null, genTarget = null, genInfo = "", genAsk = ""; // genAsk: the locked skill showing "ask your GM" // skills step: search text, slot being moved, slot picked to fill next, last skill tapped
 
 async function showGen() {
   const box = $("cg");
@@ -1824,7 +1830,7 @@ async function showGen() {
       const pv = document.querySelector(".shp .shn b"); if (pv) pv.textContent = cg.name.trim() || "Unnamed"; }; // keep the sheet preview in step
     $("gBack").onclick = () => go(-1); if ($("gNext")) $("gNext").onclick = () => go(1);
     document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { if (+b.dataset.go === cg.step) return; cg.step = +b.dataset.go; cgSave(); showGen(); });
-    $("gReset").onclick = () => { if ($("gReset").dataset.armed) { cg = cgNew(); cgSave(); genQ = ""; genMove = genTarget = null; genInfo = ""; return showGen(); } $("gReset").dataset.armed = 1; $("gReset").textContent = "TAP AGAIN TO CLEAR EVERYTHING"; $("gReset").classList.add("armed"); };
+    $("gReset").onclick = () => { if ($("gReset").dataset.armed) { cg = cgNew(); cgSave(); genQ = ""; genMove = genTarget = null; genInfo = ""; genPic = null; return showGen(); } $("gReset").dataset.armed = 1; $("gReset").textContent = "TAP AGAIN TO CLEAR EVERYTHING"; $("gReset").classList.add("armed"); };
   };
   // only show "Loading…" if the data isn't ready almost at once (cached tabs redraw instantly, no flicker or scroll jump)
   let loadT = setTimeout(() => { put(bar + `<div class="empty">Loading…</div>`); }, 250);
@@ -1907,9 +1913,12 @@ async function showGen() {
       if (!genData.list || genData.type !== cg.type) genData = { list: await skillList(), info: cg.type ? await typeInfo(cg.type).catch(() => null) : null, type: cg.type };
       const { list, info } = genData;
       // type-only skills: Prayer, Spellcasting, plus any "(Type Restricted: Only X)" on the Skill List (Hacking, Telekinesis, Spirit Tether)
-      const allowed = (n) => { const m = String(n).match(/type restricted:\s*only\s+([^)]+)\)/i);
-        if (m) return m[1].trim().toLowerCase() === String(cg.type || "").toLowerCase();
-        return !(/^prayer/i.test(n) && cg.type !== "Priest") && !(/^spellcasting/i.test(n) && cg.type !== "Mage"); };
+      // Jake, Nov 26: other types' skills show at the bottom, locked. Tapping one says to ask the GM, with a "my GM said yes" button.
+      const onlyOf = (n) => { const m = String(n).match(/type restricted:\s*only\s+([^)]+)\)/i); if (m) return m[1].trim();
+        return /^prayer/i.test(n) ? "Priest" : /^spellcasting/i.test(n) ? "Mage" : ""; };
+      const gmOkd = (n) => (cg.gmOk || []).includes(baseShort(n));
+      const typeOk = (n) => { const o = onlyOf(n); return !o || o.toLowerCase() === String(cg.type || "").toLowerCase(); };
+      const allowed = (n) => typeOk(n) || gmOkd(n);
       const need = reqSkill();
       const sugg = String((info?.rows.find(([a]) => /^suggested skills/i.test(a)) || [])[1] || "").split(/[,;]/).map(s => s.replace(/\(.*?\)/g, "").trim().toLowerCase()).filter(Boolean);
       const rawSugg = String((info?.rows.find(([a]) => /^suggested skills/i.test(a)) || [])[1] || "").split(/[,;]/).map(x => x.trim()).filter(Boolean);
@@ -1962,6 +1971,7 @@ async function showGen() {
       const suggList = avail.filter(s => suggRank(s.name) >= 0).sort((a, b) => suggRank(a.name) - suggRank(b.name));
       // every character needs a way to fight: ranged and melee are suggested for all types
       const fightList = avail.filter(x => suggRank(x.name) < 0 && /^(ranged weapons|melee weapon fighting)/i.test(x.name)).sort((a, b) => /^ranged/i.test(b.name) - /^ranged/i.test(a.name));
+      const lockedRows = list.filter(s => !allowed(s.name)).map(sk => `<div class="gsr glock" data-row="${esc2(sk.name)}" data-lock="1"><button class="gsk2" data-sk="${esc2(sk.name)}"><b>${esc2(baseShort(sk.name))}</b><em class="full">${esc2(onlyOf(sk.name))}s</em></button>${genAsk === sk.name ? `<div class="gsd gask"><div class="gmeta">${esc2(baseShort(sk.name))} is for ${esc2(onlyOf(sk.name))}s only. Ask your GM first.</div><div class="gopt"><button class="sbtn" data-askno="1">CANCEL</button><button class="sbtn" data-askyes="${esc2(sk.name)}">MY GM SAID YES, ADD IT</button></div></div>` : ""}</div>`).join("");
       const groups = ATTRS.slice().sort((a, b) => cg.attrs[b] - cg.attrs[a]).map(a => { const rows = avail.filter(s => s.attrs[0] === a && suggRank(s.name) < 0 && !fightList.includes(s));
         return rows.length ? `<div class="gsh">${a.toUpperCase()} <span>${sgn(cg.attrs[a])}</span></div>${rows.map(row).join("")}` : ""; }).join("");
       const canFill = [...suggList, ...fightList].some(s => pickedIdx(s.name) < 0) && cg.skills.length < 8;
@@ -1970,7 +1980,7 @@ async function showGen() {
           <p>Put the skills you'll use most in the best slots. <b>★</b> marks skills suggested for your type, and <b>★ Fill suggested</b> fills the open slots for you. Make sure you take a way to fight (Ranged Weapons or Melee Weapon Fighting).</p>`) + `<div class="gtray"><div class="gtt">SKILLS ${cg.skills.length}/8</div><div class="gtip">${genMove != null ? "Now tap another slot to move it there (or swap)." : `👉 Tap a skill below to fill the next slot.${cg.skills.length ? "<br>Once a skill is in, you can <b>drag it</b> (or tap it) to another slot to move or swap it, or tap <b>✕</b> to take it out." : ""}`}</div>${tray}</div>
         <div class="gnote">Tap a skill to pick it. Total = attribute + slot level. Tap a filled slot (or drag it) to move it.${need ? ` ${cg.type}s must take ${cg.type === "Priest" ? "Prayer" : "Spellcasting"}.` : ""}</div>
         <div class="gtools"><input id="gq" class="gq" placeholder="Search skills…" value="${esc2(genQ)}">${canFill ? `<button id="gFill" class="sbtn" title="Put your type's suggested skills in the open slots, in order">★ Fill suggested</button>` : ""}</div>
-        <div id="gsl">${suggList.length ? `<div class="gsh">★ SUGGESTED FOR ${esc2(cg.type.toUpperCase())}</div>${suggNote ? `<div class="gsnote">${esc2(suggNote)}</div>` : ""}${suggList.map(row).join("")}` : ""}${fightList.length ? `<div class="gsh">⚔ EVERYONE: HOW YOU FIGHT</div><div class="gsnote2">Every character needs a way to shoot and hit back.</div>${fightList.map(row).join("")}` : ""}${groups}</div>
+        <div id="gsl">${suggList.length ? `<div class="gsh">★ SUGGESTED FOR ${esc2(cg.type.toUpperCase())}</div>${suggNote ? `<div class="gsnote">${esc2(suggNote)}</div>` : ""}${suggList.map(row).join("")}` : ""}${fightList.length ? `<div class="gsh">⚔ EVERYONE: HOW YOU FIGHT</div><div class="gsnote2">Every character needs a way to shoot and hit back.</div>${fightList.map(row).join("")}` : ""}${groups}${lockedRows ? `<div class="gsh">OTHER TYPES ONLY <span>ask your GM</span></div>${lockedRows}` : ""}</div>
         ${nav(stepWhy(2))}`);
       const addSkill = (n, lvl) => { const sk = list.find(x => x.name === n); if (!sk || cg.skills.length >= 8 || copiesOf(n).length >= maxOf(n)) return;
         const sp = suggSpecOf(n), spec = sp && !copiesOf(n).some(([c]) => c.spec === sp) ? sp : "";
@@ -1982,7 +1992,12 @@ async function showGen() {
       $("gq").oninput = () => { genQ = $("gq").value; filter(); };
       if ($("gFill")) $("gFill").onclick = () => { for (const s of [...suggList, ...fightList]) if (pickedIdx(s.name) < 0) addSkill(s.name); genTarget = null; genInfo = cg.skills.find(specMissing)?.base || genInfo; redraw(); };
       // the whole skill card is the button (except the option buttons, write-in box and ✕ inside it)
+      document.querySelectorAll("[data-askno]").forEach(b => b.onclick = (e) => { e.stopPropagation(); genAsk = ""; redraw(); });
+      document.querySelectorAll("[data-askyes]").forEach(b => b.onclick = (e) => { e.stopPropagation(); const n = b.dataset.askyes;
+        cg.gmOk = [...new Set([...(cg.gmOk || []), baseShort(n)])]; genAsk = "";
+        if (cg.skills.length < 8) { addSkill(n); genTarget = null; } genInfo = n; redraw(); });
       document.querySelectorAll("#gsl .gsr").forEach(card => card.onclick = (e) => { if (e.target.closest(".gopt, .ginh, input, select")) return;
+        if (card.dataset.lock) { genAsk = genAsk === card.dataset.row ? "" : card.dataset.row; return redraw(); }
         card.classList.add("tap"); const n = card.dataset.row, i = pickedIdx(n);
         if (i >= 0 && maxOf(n) > 1) { if (copiesOf(n).length < maxOf(n)) { addSkill(n); genTarget = null; } } // multi-pick skills: tapping again adds another copy; ✕ removes one
         else if (i >= 0) { cg.skills.splice(i, 1); genMove = null; if (genInfo === n) genInfo = ""; }
@@ -2050,9 +2065,24 @@ async function showGen() {
       <label class="gl">Your Google email <small>(optional: lets you view the sheet in Google Drive)</small><input id="gEmail" value="${esc2(cg.email)}" placeholder="you@gmail.com" inputmode="email"></label>
       <label class="gchk"><input type="checkbox" id="gXpOn" ${cg.xpOn ? "checked" : ""}> Start with XP (higher level)</label>
       ${cg.xpOn ? `<div class="mrow"><b class="gxp">${cg.xp} XP</b>${xpBtns}</div><div class="gnote">Goes into Current XP, to spend in Manage Character.</div>` : ""}
+      <div class="sec">YOUR PORTRAIT <small style="color:var(--dim);font-weight:400">optional, skip it if you like</small></div>
+      <div id="gPt" class="gptz"><input type="file" id="gPtF" accept="image/*" hidden>${genPic
+        ? `<div class="gptdone" style="justify-content:center;margin:0"><img src="${genPic.pog}" alt=""><div style="text-align:left"><b>Your portrait and pog</b><br><small>Saved when you tap CREATE CHARACTER. Reframe it later in Manage Character.</small><br><button id="gPtPick" class="sbtn" style="margin-top:4px">CHANGE</button> <button id="gPtSkip" class="sbtn" style="margin-top:4px">SKIP FOR NOW</button></div></div>`
+        : `<b>Drop a picture of your character here</b>, or <button id="gPtPick" class="sbtn">PICK A PICTURE</button><br><small>It becomes your portrait on the sheet and your pog (token) for the map. No picture yet? Skip it and add one later in Manage Character.</small>`}</div>
       <div class="sec">YOUR CHARACTER</div>
       ${await sheetPreview()}
       ${nav(finishWhy())}`);
+    { // portrait picker (Jake, Nov 26): kept in this browser tab only (pictures are too big to save in the draft)
+      const take = async (file) => { if (!file) return; if (!/^image\//.test(file.type)) { $("gerr").textContent = "That isn't a picture. Use a JPG or PNG."; return; }
+        try { const img = await loadImg(URL.createObjectURL(file)); genPic = { file, pog: drawPog(img, null, POG_STYLE, 256).toDataURL("image/png") }; showGen(); }
+        catch { $("gerr").textContent = "Chrome can't open that picture. Save it as a JPG or PNG and try again."; } };
+      $("gPtPick").onclick = () => $("gPtF").click();
+      $("gPtF").onchange = () => take($("gPtF").files[0]);
+      if ($("gPtSkip")) $("gPtSkip").onclick = () => { genPic = null; showGen(); };
+      const z = $("gPt");
+      z.ondragover = (e) => { e.preventDefault(); z.classList.add("over"); }; z.ondragleave = () => z.classList.remove("over");
+      z.ondrop = (e) => { e.preventDefault(); z.classList.remove("over"); take(e.dataTransfer.files[0]); };
+    }
     const recheck = () => { const w = finishWhy(); $("gerr").textContent = w; $("gMake").disabled = !!w; $("gNameTop").classList.toggle("need", !cg.name.trim()); };
     genRecheck = recheck; recheck();
     $("gEmail").oninput = () => { cg.email = $("gEmail").value.trim(); cgSave(); recheck(); };
@@ -2064,6 +2094,7 @@ async function showGen() {
       const notes = cg.type === "Priest" ? [`God: ${cg.god}`] : cg.type === "Mage" ? [`Major school: ${cg.major}`, `Minor school: ${cg.minor}`] : [];
       const body = { create: { name: cg.name.trim(), type: cg.type, power: cg.power || "", attrs: cg.attrs, email: cg.email, xp: cg.xpOn ? cg.xp : 0,
         skills: cg.skills.map(s => ({ name: s.name.trim(), attr: s.attr, level: s.level })),
+        gmOk: (cg.gmOk || []).filter(n => cg.skills.some(k => baseShort(k.base) === n)), // other types' skills the GM said yes to
         equip: cg.equip, spent: Math.min(1000, Math.max(0, +cg.spent || 0)), gear: cg.gear.split("\n").map(s => s.trim()).filter(Boolean), notes } };
       const r = await fetch(BRIDGE, { method: "POST", body: JSON.stringify({ code: store.get("ns.code"), campaign, ...body }) }).then(x => x.json()).catch(e => ({ ok: false, error: e.message }));
       sync(-1);
@@ -2072,8 +2103,38 @@ async function showGen() {
       cache.set(ck("chars"), null); cg = cgNew(); cgSave(); genQ = ""; genInfo = "";
       setSheetId(r.id);
       $("cg").innerHTML = `<div class="sec">DONE!</div><div class="grun"><div><b>${esc2(r.name)}</b> is in the New Scolos Characters folder${body.create.email ? ` and ${esc2(body.create.email)} can view it in Google Drive` : ""}.</div>${r.warn ? `<div class="err">${esc2(r.warn)}</div>` : ""}</div>
+        <div id="gPtOut"></div>
         <button id="gOpen" class="sbtn on" style="width:100%;margin-top:8px">OPEN MY NEW CHARACTER</button>`;
       $("gOpen").onclick = () => document.querySelector('.tab[data-t="sheet"]').click();
+      // Jake, Nov 26: portrait + pog right at the end of the Creator. Same Sheet Bridge calls as Manage Character → Portrait.
+      sheetVals = null; // the new character's sheet loads fresh when opened
+      const newId = r.id, newName = r.name, out = $("gPtOut");
+      const say = (cls, t) => { out.innerHTML = `<div class="${cls === "bad" ? "err" : "help"}" style="margin-top:6px">${t}</div>`; };
+      const pic = genPic; genPic = null;
+      const take = async (file) => {
+        say("", "Saving your picture and making your pog…"); sync(1);
+        try {
+          if (sheetId() !== newId) setSheetId(newId);
+          let bmp; try { bmp = await createImageBitmap(file); } catch { throw new Error("Chrome can't open that picture. Save it as a JPG or PNG and try again."); }
+          let full = PT_TYPES.includes(file.type) && file.size <= 8e6 ? { mime: file.type, data: await blobB64(file) } : null;
+          if (!full) { full = await ptEncode(bmp, 2400, file.type === "image/png" ? "image/png" : "image/jpeg", 0.92); if (full.size > 9e6) full = await ptEncode(bmp, 1600, "image/jpeg", 0.88); }
+          const small = await ptEncode(bmp, 400, "image/webp", 0.85);
+          const r1 = await bridgePost({ portrait: { full: { mime: full.mime, data: full.data }, small: { mime: small.mime, data: small.data } } }).catch(e => ({ ok: false, error: e.message }));
+          if (!r1.ok) throw new Error(ptBridgeMsg(r1.error || "Nothing to change."));
+          cache.set("ptt." + newId, r1.t); cache.set("pt." + newId, { t: r1.t, url: `data:${small.mime};base64,${small.data}` });
+          const cv = drawPog(await loadImg(`data:${full.mime};base64,${full.data}`), null, POG_STYLE, 512), url = cv.toDataURL("image/png");
+          const r2 = await bridgePost({ pog: url.split(",")[1] }).catch(e => ({ ok: false, error: e.message }));
+          if (!(r2.ok && r2.pogId)) { say("bad", "Portrait saved, but the pog didn't save. Make it in Manage Character → Portrait."); return; }
+          cache.set("pogid." + newId, r2.pogId);
+          out.innerHTML = `<div class="gptdone"><img src="${url}" alt=""><div><b>✓ Portrait and pog saved.</b><br><small>Centered for now. ✎ ADJUST CIRCLE in Manage Character reframes it.</small>
+            ${standalone ? "" : `<button id="gPog" class="sbtn" style="margin-top:6px">⬇ PUT MY POG ON THE TABLE</button>`}</div></div>`;
+          if ($("gPog")) $("gPog").onclick = async () => { $("gPog").disabled = true;
+            try { await pogDrop(r2.pogId, newName); $("gPog").textContent = "✓ ON THE TABLE (middle of your screen)"; }
+            catch (e) { $("gPog").disabled = false; say("bad", "Couldn't put it on the table: " + (e.message || e)); } };
+        } catch (e) { say("bad", "Couldn't save the picture: " + (e.message || e)); }
+        finally { sync(-1); }
+      };
+      if (pic) take(pic.file);
     };
     return bind();
   } catch (e) {

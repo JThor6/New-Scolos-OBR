@@ -48,11 +48,11 @@ function createCharacter(c, campaign) {
   if (skills.length !== 8 || skills.some(function (s) { return !s.name || A.indexOf(s.attr) < 0; })) throw new Error('Pick 8 skills, each with an attribute.');
   const lv = skills.map(function (s) { return s.level; }).sort().join(), want = START_LEVELS.slice().sort().join();
   if (lv !== want) throw new Error('Starting skill levels must be one +1, three 0, two -2 and two -3.');
-  if (skills.some(function (s) { return /^prayer/i.test(s.name); }) && type !== 'Priest') throw new Error('Prayer is for Priests only.');
-  if (skills.some(function (s) { return /^spellcasting/i.test(s.name); }) && type !== 'Mage') throw new Error('Spellcasting is for Mages only.');
-  const ONLY = { hacking: 'Hacker', telekinesis: 'Subject Zero', 'spirit tether': 'Revenant' }; // type-only skills (Nov 26: Hacking)
+  // type-only skills (Nov 26: Hacking). The player can still take one when their GM says yes: the Creator sends it in gmOk.
+  const ONLY = { prayer: 'Priest', spellcasting: 'Mage', hacking: 'Hacker', telekinesis: 'Subject Zero', 'spirit tether': 'Revenant' };
+  const gmOk = (c.gmOk || []).map(function (x) { return String(x).replace(/\s*\(.*$/, '').trim().toLowerCase(); });
   skills.forEach(function (s) { const k = String(s.name).replace(/\s*\(.*$/, '').trim().toLowerCase();
-    if (ONLY[k] && ONLY[k] !== type) throw new Error(s.name.replace(/\s*\(.*$/, '') + ' is for ' + ONLY[k] + 's only.'); });
+    if (ONLY[k] && ONLY[k] !== type && gmOk.indexOf(k) < 0) throw new Error(s.name.replace(/\s*\(.*$/, '') + ' is for ' + ONLY[k] + 's only (ask your GM).'); });
   const xp = Math.max(0, Math.min(1000, Math.round(Number(c.xp) || 0)));
   const email = String(c.email || '').trim();
   if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('That email does not look right.');
