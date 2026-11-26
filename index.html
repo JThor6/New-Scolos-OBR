@@ -2771,17 +2771,17 @@ function stasisBox() {
     <div id="stAsk" class="stask" hidden></div>
     <div id="stMsg" class="help" hidden></div></div>
     <div class="sec" style="margin-top:18px">NUKE SCREEN</div>
-    <div class="help">Wipes the board of characters: every character and monster token comes off this map, with its condition labels. Nothing else is touched: the map, mounts, props, drawings and notes all stay.</div>
+    <div class="help">Wipes the board of characters: every character, monster and mount token comes off this map, with its condition labels. Nothing else is touched: the map, props, drawings and notes all stay.</div>
     <button id="nukeGo" class="sbtn" style="width:100%">☢ NUKE SCREEN</button><div id="nukeAsk" class="stask" hidden></div><div id="nukeMsg" class="help" hidden></div>`;
 }
-// ☢ NUKE SCREEN (Jake, Nov 26): asks first, then deletes every token on the Character layer and what's attached to it. Nothing else.
+// ☢ NUKE SCREEN (Jake, Nov 26): asks first, then deletes every token on the Character and Mount layers and what's attached to them. Nothing else.
 function bindNuke() {
   const go = $("nukeGo"); if (!go) return;
   const ask = $("nukeAsk"), msg = $("nukeMsg"), say = (t) => { msg.hidden = !t; msg.textContent = t; };
   go.onclick = async () => {
     if (standalone) return say("Only works inside Owlbear Rodeo.");
     if (!(await OBR.scene.isReady())) return say("No map is open.");
-    const toks = await OBR.scene.items.getItems(i => i.layer === "CHARACTER");
+    const toks = await OBR.scene.items.getItems(i => (i.layer === "CHARACTER" || i.layer === "MOUNT"));
     if (!toks.length) return say("Nothing to nuke: no tokens on this map.");
     say(""); ask.hidden = false;
     ask.innerHTML = `<div><b>Are you sure?</b> This takes <b>${toks.length}</b> token${toks.length > 1 ? "s" : ""} off the map, with their labels.</div>
@@ -2789,7 +2789,7 @@ function bindNuke() {
     $("nukeNo").onclick = () => { ask.hidden = true; };
     $("nukeYes").onclick = async () => { ask.hidden = true; go.disabled = true;
       try {
-        const all = await OBR.scene.items.getItems(i => i.layer === "CHARACTER");
+        const all = await OBR.scene.items.getItems(i => (i.layer === "CHARACTER" || i.layer === "MOUNT"));
         const ids = new Set(all.map(i => i.id));
         const stuck = await OBR.scene.items.getItems(i => (i.attachedTo && ids.has(i.attachedTo)) || (i.metadata?.[MARK_ITEM]?.on && ids.has(i.metadata[MARK_ITEM].on)));
         stuck.forEach(i => ids.add(i.id));
