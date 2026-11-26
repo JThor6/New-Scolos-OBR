@@ -300,6 +300,13 @@ OBR.onReady(async () => {
   sdSave();
   window.addEventListener("storage", (e) => { if (e.key === "ns.sdShow" && e.newValue) openCard().catch(() => {}); }); // Δ on the DICE tab
   const isGM = (await OBR.player.getRole()) === "GM"; amGM = isGM;
+  // A player's PLACE POG that their own Owlbear couldn't add (the room doesn't let players add tokens, or it failed):
+  // the GM's screen adds it for them, still owned by that player so they can move it. Only their own pog picture.
+  OBR.broadcast.onMessage("com.newscolos.pogreq", async ({ data }) => {
+    if (!amGM) return; const it = data?.item;
+    if (!it || it.type !== "IMAGE" || it.layer !== "CHARACTER" || !/^https:\/\/lh3\.googleusercontent\.com\/d\/[\w-]+$/.test(it.image?.url || "")) return;
+    try { if ((await OBR.scene.items.getItems([it.id])).length) return; await OBR.scene.items.addItems([it]); } catch {}
+  });
   // Initiative: tell players to roll, and show the bar across the top while combat is on
   const BAR = "com.newscolos.initbar", LEFT = 545; // starts just past the New Scolos panel at L size, so it never overlaps (S or L)
   let barOpenedAt = 0, barCount = "", lastSid = (await OBR.room.getMetadata())[INIT]?.sid || "";

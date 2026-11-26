@@ -3664,13 +3664,26 @@ async function pogToOwlbear(blob, name) {
 // Drop a pog straight onto the map: pog files in Drive are shared by link, and Owlbear loads them from this
 // address (tested Nov 24 2026). Lands in the middle of the person's screen, snapped to the grid, one square big.
 const pogSrc = (id) => `https://lh3.googleusercontent.com/d/${id}`;
+// Players (Nov 26): if their own Owlbear can't add it (the room doesn't let players add tokens, or it silently didn't land),
+// the GM's screen adds it for them, owned by the player (background.html, "com.newscolos.pogreq").
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
 async function pogDrop(pogId, itemName) {
   if (!OBR.isReady) throw new Error("this only works inside Owlbear Rodeo");
+  if (!pogId) throw new Error("there's no pog yet. Tap MAKE POG first.");
+  if (!(await OBR.scene.isReady())) throw new Error("no map is open yet. Wait for the GM to open a scene.");
   const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
   let pos = await OBR.viewport.inverseTransformPoint({ x: vw / 2, y: vh / 2 });
   try { pos = await OBR.scene.grid.snapPosition(pos); } catch {}
-  await OBR.scene.items.addItems([buildImage({ url: pogSrc(pogId), mime: "image/png", width: 512, height: 512 }, { dpi: 512, offset: { x: 256, y: 256 } })
-    .name(itemName).plainText(itemName).textType("PLAIN").position(pos).layer("CHARACTER").build()]);
+  const item = buildImage({ url: pogSrc(pogId), mime: "image/png", width: 512, height: 512 }, { dpi: 512, offset: { x: 256, y: 256 } })
+    .name(itemName).plainText(itemName).textType("PLAIN").position(pos).layer("CHARACTER").build();
+  const landed = async () => { try { return (await OBR.scene.items.getItems([item.id])).length > 0; } catch { return false; } };
+  const gm = (await OBR.player.getRole()) === "GM";
+  const may = gm || await OBR.player.hasPermission("CHARACTER_CREATE").catch(() => true);
+  if (may) { try { await OBR.scene.items.addItems([item]); } catch {} for (let i = 0; i < 4; i++) { await sleep(250); if (await landed()) return; } }
+  if (gm) throw new Error("Owlbear didn't take it. Try again.");
+  await OBR.broadcast.sendMessage("com.newscolos.pogreq", { item }, { destination: "REMOTE" });
+  for (let i = 0; i < 24; i++) { await sleep(250); if (await landed()) return; }
+  throw new Error("this room doesn't let players add tokens, and the GM's Owlbear didn't place it either. The GM needs to be in the room (or turn on players adding Characters in the room settings).");
 }
 const obrNote = (t, kind = "INFO") => OBR.notification.show(t, kind).then(id => setTimeout(() => OBR.notification.close(id).catch(() => {}), 5000)).catch(() => {});
 
