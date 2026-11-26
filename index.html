@@ -620,7 +620,9 @@
   .infp { margin-top:4px; } .infp .gpn { display:flex; align-items:center; }
   .gtats { display:flex; flex-wrap:wrap; gap:3px; } .gtat.two { color:#c9c3e6; background:#1d1a2e; }
   .gadr span { display:block; } .gadr i { font-style:normal; font-weight:800; color:var(--dim); } .gadp { color:#ffc94d !important; font-weight:700; }
-  .gspec.on { border-color:var(--accent); } .gopt .gspec { flex:1 1 120px; min-width:0; }
+  .gspec.on { border-color:var(--accent); }
+  .gneed { margin:5px 0 3px; padding:5px 8px; border-left:3px solid #9d86ff; background:rgba(91,63,158,.22); border-radius:5px; color:#e6defa; font-size:12px; line-height:1.35; }
+  .gneed + .gopt .gspec:not(.on) { border-color:#9d86ff; } .gopt .gspec { flex:1 1 120px; min-width:0; }
   .gname.need { border-color:var(--minus); }
   .ibtn.mgrb { width:auto; padding:0 9px; font:800 12px system-ui; white-space:nowrap; display:inline-flex; align-items:center; gap:4px; }
   .cred { display:inline-block; margin-left:6px; padding:0 6px; border-radius:9px; background:rgba(187,153,255,.10); border:1px solid rgba(187,153,255,.30); color:#c9b6f5; font-weight:800; font-size:11px; vertical-align:1px; white-space:nowrap; }
@@ -1754,7 +1756,7 @@ function stepWhy(i) {
     const n = 8 - cg.skills.length; if (n > 0) return `Pick ${n} more skill${n === 1 ? "" : "s"}.`;
     if (!LEVEL_SLOTS.every(([, l, k]) => usedLvl(l) === k)) return "Fix the levels: one +1, three 0, two -2, two -3.";
     const need = reqSkill(); if (need && !cg.skills.some(s => need.test(s.base))) return `${cg.type}s must take ${cg.type === "Priest" ? "Prayer" : "Spellcasting"}.`;
-    const ns = cg.skills.find(specMissing); if (ns) return `Pick a specialty for ${ns.name} (in the list below).`;
+    const ns = cg.skills.find(specMissing); if (ns) return `Almost done: ${ns.name} needs one more thing. Pick which kind, or type your own.`;
     const seen = new Set(); for (const s of cg.skills) { const k = s.base + "|" + (s.spec || "").toLowerCase(); if (seen.has(k)) return `You have ${s.name} twice. Pick a different option for one.`; seen.add(k); }
     return cg.skills.every(s => s.name.trim()) ? "" : "Every skill needs a name.";
   }
@@ -1960,6 +1962,8 @@ async function showGen() {
           h += `<div class="${multi ? "ginst" : ""}">${multi ? `<div class="ginh"><small>${esc2(c.spec || "Pick one")} · ${slotLab(c.level)} slot = <b>${total(c)}</b></small><button class="mx" data-sx="${i}" title="Remove this one">✕</button></div>` : ""}`;
           if (sk.attrs.length > 1) h += `<div class="gopt"><small>Roll with</small>${sk.attrs.map(a => `<button class="sbtn ${a === c.attr ? "on" : ""}" data-sa="${i}" data-v="${a}">${a} ${sgn(cg.attrs[a])}</button>`).join("")}</div>`;
           if (needsSpec(sk.name)) { const own = c.spec && !(opts || []).includes(c.spec) ? c.spec : "";
+            // Jake, Nov 26: new players missed this. Say plainly what to do, right above the buttons and the box.
+            if (specMissing(c)) h += `<div class="gneed">▼ ${esc2(baseShort(sk.name))} needs one more thing: <b>which kind?</b> ${opts ? "Tap one of these, or type your own in the box." : "Type it in the box, then tap outside it."}</div>`;
             h += `<div class="gopt">${opts ? opts.map(o => `<button class="sbtn ${o === c.spec ? "on" : ""}" data-sp="${i}" data-v="${esc2(o)}" ${taken.has(o) ? "disabled" : ""}>${esc2(o)}</button>`).join("") : ""}
               <input class="gspec ${own ? "on" : ""}" data-spf="${i}" value="${esc2(own)}" placeholder="${opts ? "Or write your own" : "Your specialty, e.g. Botany"}"></div>`; }
           h += `</div>`;
@@ -1983,6 +1987,11 @@ async function showGen() {
         <div class="gtools"><input id="gq" class="gq" placeholder="Search skills…" value="${esc2(genQ)}">${canFill ? `<button id="gFill" class="sbtn" title="Put your type's suggested skills in the open slots, in order">★ Fill suggested</button>` : ""}</div>
         <div id="gsl">${suggList.length ? `<div class="gsh">★ SUGGESTED FOR ${esc2(cg.type.toUpperCase())}</div>${suggNote ? `<div class="gsnote">${esc2(suggNote)}</div>` : ""}${suggList.map(row).join("")}` : ""}${fightList.length ? `<div class="gsh">⚔ EVERYONE: HOW YOU FIGHT</div><div class="gsnote2">Every character needs a way to shoot and hit back.</div>${fightList.map(row).join("")}` : ""}${groups}${lockedRows ? `<div class="gsh">OTHER TYPES ONLY <span>ask your GM</span></div>${lockedRows}` : ""}</div>
         ${nav(stepWhy(2))}`);
+      { const ns = cg.skills.find(specMissing); // by the NEXT button: SHOW ME opens that skill and puts the cursor in its box
+        if (ns && $("gerr")) { $("gerr").insertAdjacentHTML("beforeend", ` <button id="gShowSpec" class="sbtn">SHOW ME</button>`);
+          $("gShowSpec").onclick = () => { genInfo = ns.base; genQ = ""; cgSave(); showGen(); setTimeout(() => {
+            const card = [...document.querySelectorAll("#gsl .gsr")].find(r => r.dataset.row === ns.base);
+            card?.scrollIntoView({ behavior: "smooth", block: "center" }); card?.querySelector(".gspec")?.focus({ preventScroll: true }); }, 50); }; } }
       const addSkill = (n, lvl) => { const sk = list.find(x => x.name === n); if (!sk || cg.skills.length >= 8 || copiesOf(n).length >= maxOf(n)) return;
         const sp = suggSpecOf(n), spec = sp && !copiesOf(n).some(([c]) => c.spec === sp) ? sp : "";
         cg.skills.push({ base: n, name: spec ? `${baseShort(n)} (${spec})` : baseShort(n), attr: sk.attrs[0], level: lvl ?? nextLvl() ?? -3, spec }); };
