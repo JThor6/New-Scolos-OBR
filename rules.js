@@ -10,10 +10,10 @@ async function bridgeGet(params) {
 export const MASTER = "1_cnTDLNHIsaVMAOkOKSKK0YawUHt38ZewW1o5-yWbhU";
 export const TYPES = ["Mercenary", "Hacker", "Revenant", "Subject Zero", "Wraith", "Mentalist", "Mage", "Priest"]; // easiest to hardest; the picker and REFERENCE list follow this order
 export const SECTIONS = [["Your Turn & Movement", "turn"], ["Attacking & Damage", "attack"], ["Combat Options", "tab:Combat Options"],
-  ["Skill List", "tab:Skill List"], ["Dice Odds", "odds"], ["The Gods", "gods"], ["Schools of Magic", "schools"], ["Spell Book", "spellbook"], ...TYPES.map(t => [t.trim(), "tab:" + t]), ["New Scolos Rules Work in Progress", "wip"]];
+  ["Skill List", "tab:Skill List"], ["Dice Odds", "odds"], ["Setting the Difficulty", "difficulty"], ["The Gods", "gods"], ["Schools of Magic", "schools"], ["Spell Book", "spellbook"], ...TYPES.map(t => [t.trim(), "tab:" + t]), ["New Scolos Rules Work in Progress", "wip"]];
 // REFERENCE is shown in these groups (tab and pop-out dropdown). "__rolls" is Roll History.
 export const REF_GROUPS = [
-  ["Playing", ["__rolls", "turn", "attack", "tab:Combat Options", "odds"]],
+  ["Playing", ["__rolls", "turn", "attack", "tab:Combat Options", "odds", "difficulty"]],
   ["Lists", ["tab:Skill List", "gods", "schools", "spellbook"]],
   ["Character Types", TYPES.map(t => "tab:" + t)],
   ["Draft Rules WIP", ["wip"]],
@@ -80,10 +80,16 @@ function outlineHtml(lines) {
 function col(values, letter, from, to) { const i = letter.charCodeAt(0) - 65; const out = []; for (let r = from; r <= to; r++) out.push([values[r - 1]?.[i] || ""]); return out; }
 const DICE_ODDS = "1wLo5GU3ONGhv8PvGhQopZzPBAJZZSzClj0-RnwlX8SE"; // "New Scolos Dice Odds" sheet in the character folder
 let oddsCache = null;
-async function oddsHtml() {
+async function oddsHtml(part = "odds") {
   if (!oddsCache) { const old = saved.get("odds"); if (old) { oddsCache = old; bridgeGet({ id: DICE_ODDS, tab: "Dice Odds" }).then(r => r.ok && saved.set("odds", r.values)).catch(() => {}); } else { const r = await bridgeGet({ id: DICE_ODDS, tab: "Dice Odds" }); if (!r.ok) throw new Error(r.error); oddsCache = r.values; saved.set("odds", r.values); } }
   const v = oddsCache, cell = (row, col) => String(v[row]?.[col] ?? "").trim();
   const hdr = v.findIndex(row => /^\s*your skill total\s*$/i.test(row[1] || "")); // the header cell itself, not the intro sentence
+  const diff = v.findIndex(row => /setting the difficulty/i.test(row[1] || ""));
+  if (part === "difficulty") { // its own REFERENCE entry (Jake, Nov 26)
+    if (diff < 0) return `<div class="rr err">Couldn't find Setting the difficulty in the Dice Odds sheet.</div>`;
+    let h = ""; for (let r = diff + 2; r < v.length && cell(r, 1); r++) h += `<div class="rr"><b>${esc2(cell(r, 1))} · ${esc2(cell(r, 2))}</b>${esc2(cell(r, 5))}</div>`;
+    return h || `<div class="rr">Nothing under Setting the difficulty yet.</div>`;
+  }
   let html = cell(2, 1) ? `<div class="rr">${esc2(cell(2, 1))}</div>` : "";
   if (hdr >= 0) {
     // header row: difficulties start in column C; find the last filled column
@@ -96,17 +102,13 @@ async function oddsHtml() {
       html += `</table></div>`;
     } else html += `<div class="rr err">Couldn't read the odds chart (found ${cols.length} columns, ${rows.length} rows).</div>`;
   } else html += `<div class="rr err">Couldn't find the odds chart in the Dice Odds sheet.</div>`;
-  const diff = v.findIndex(row => /setting the difficulty/i.test(row[1] || ""));
-  if (diff >= 0) {
-    html += `<div class="rh">Setting the difficulty</div>`;
-    for (let r = diff + 2; r < v.length && cell(r, 1); r++) html += `<div class="rr"><b>${esc2(cell(r, 1))} · ${esc2(cell(r, 2))}</b>${esc2(cell(r, 5))}</div>`;
-  }
   return html;
 }
 
 export async function sectionHtml(key) {
   if (key === "wip") return wipHtml();
   if (key === "odds") return oddsHtml();
+  if (key === "difficulty") return oddsHtml("difficulty");
   if (key.startsWith("tab:")) {
     const v = await getTab(key.slice(4));
     if (/^tab:mage\s*$/i.test(key)) { // the schools chart is a wide table: show it as one card per school
