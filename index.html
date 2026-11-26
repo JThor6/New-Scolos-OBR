@@ -48,6 +48,7 @@
   .gmsc h2 span { flex:1; } .gmsc h2 select { font:600 12px system-ui; background:#15172b; color:var(--ink); border:1px solid #444a66; border-radius:6px; padding:3px; max-width:60%; }
   .gmsc .sub { font-size:11px; font-weight:800; letter-spacing:.6px; color:var(--dim); margin:8px 0 4px; text-transform:uppercase; }
   .armq { color:#c9b8f5 !important; } .armred { background:#7a1f2a !important; border-color:#c0394a !important; color:#fff !important; font-weight:800 !important; }
+  .pogq { margin-left:8px; padding:3px 9px !important; font-size:11px !important; vertical-align:2px; } .pogq[hidden] { display:none; }
   .gmscond { display:flex; flex-wrap:wrap; align-items:center; gap:5px; padding:5px 0; border-bottom:1px solid rgba(255,255,255,.06); font-size:13px; }
   .gmscond b { color:#e2d8ff; margin-right:3px; } .gmscond small { color:#a99cd0; font-size:12px; }
   .ondot { width:8px; height:8px; padding:0 !important; border-radius:50%; background:#7ad39a !important; border:none !important; box-shadow:0 0 6px rgba(122,211,154,.6); } .gmscond span { padding:2px 8px; border-radius:8px; background:#2c2250; border:1px solid #4a3a78; color:#ddd5f3; font-weight:700; font-size:12px; }
@@ -1258,7 +1259,7 @@ function drawSheet() {
   const trained = chips(...L.trained, "skills"), untrained = chips(...L.untrained, "untrained");
   const copMaxT = V("H28");
   $("shbody").innerHTML = `
-    ${V("H16") ? "" : (deadSeen.set(sheetId(), false), "")}<div class="shead">${ptHead()}<div class="shn"><b>${esc2(V("C3") || "Unnamed")}${V("H16") ? ` <span class="deadtag">(DEAD)</span>` : ""}</b><small>${[V("C4"), V("F5") !== "" ? "Level " + V("F5") : ""].filter(Boolean).map(esc2).join(" · ")}${V("F7") !== "" ? `<span class="cred" title="Credits">¤ ${esc2((n => n == null ? V("F7") : n.toLocaleString("en-US"))(num(V("F7"))))} credits</span>` : ""}</small></div>
+    ${V("H16") ? "" : (deadSeen.set(sheetId(), false), "")}<div class="shead">${ptHead()}<div class="shn"><b>${esc2(V("C3") || "Unnamed")}${V("H16") ? ` <span class="deadtag">(DEAD)</span>` : ""}</b><button id="pogQuick" class="sbtn pogq" hidden title="Put your pog in the middle of your screen">⬇ PUT POG ON THE TABLE</button><small>${[V("C4"), V("F5") !== "" ? "Level " + V("F5") : ""].filter(Boolean).map(esc2).join(" · ")}${V("F7") !== "" ? `<span class="cred" title="Credits">¤ ${esc2((n => n == null ? V("F7") : n.toLocaleString("en-US"))(num(V("F7"))))} credits</span>` : ""}</small></div>
       <span class="shcol"><span class="shbtns"><button id="reload" class="ibtn" title="Reload from Google Sheet">↻</button><button id="mgr" class="ibtn mgrb" title="Manage character: XP, skills, gear, notes">⚙ Manage Character</button></span><button class="sref hist" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></span></div>
     <div id="ksbar" class="ksbar" hidden></div><div id="actbar" class="actbar" hidden></div><div id="cofxbar" class="cofxbar" hidden></div>
     <div class="stabrow"><div class="stab">ATTRIBUTES</div>${nbChips("p")}</div>
@@ -1288,7 +1289,7 @@ function drawSheet() {
     </div>
     <div id="sherr" class="err" hidden></div>
     ${isGM ? "" : `<div class="discw"><button id="disc" class="discb" title="Pick a different character">⇄ Switch character</button></div>`}`;
-  fillPowers(); bindInfo(); updateKS(); updateActive(); publishActive(); bindPt(); fxDraw();
+  fillPowers(); bindInfo(); updateKS(); updateActive(); publishActive(); bindPt(); pogQuick(); fxDraw();
   if ("BCDEFG".split("").some(c => V(c + "16"))) tip("wound", "You're hurt. Wound penalties are added to your rolls for you. HEAL moves wounds back to the left.");
   if (spellPk) { if (spellPk.id !== sheetId() || !/^mage$/i.test(V("C4").trim())) closeSpell(); else if (spellPk.sp !== V("F13")) { spellPk.sp = V("F13"); drawSpell(); } }
   document.querySelectorAll("#shbody .actarmx").forEach(b => b.onclick = (e) => { e.stopPropagation(); endActive(); });
@@ -3657,7 +3658,7 @@ function ptView(id, name) {
       const cv = drawPog(await loadImg(`data:${full.mime};base64,${full.data}`), full.frame, POG_STYLE, 512), url = cv.toDataURL("image/png");
       const s2 = await bridgePost({ pog: url.split(",")[1] }).catch(x => ({ ok: false, error: x.message }));
       if (!s2.ok || !s2.pogId) throw new Error(ptBridgeMsg(s2.error || "it didn't save"));
-      pogId = s2.pogId; if (ptP.id === id) { ptP.pogId = pogId; ptP.pogUrl = url; }
+      pogId = s2.pogId; cache.set("pogid." + id, pogId); if (ptP.id === id) { ptP.pogId = pogId; ptP.pogUrl = url; }
       say("ok", "✓ Pog made. Tap PLACE POG ON THE TABLE to drop it on the map.");
     } catch (e) { say("bad", "Couldn't make the pog: " + (e.message || e)); }
     pogBtns(); };
@@ -3733,6 +3734,23 @@ async function pogToOwlbear(blob, name) {
 // Drop a pog straight onto the map: pog files in Drive are shared by link, and Owlbear loads them from this
 // address (tested Nov 24 2026). Lands in the middle of the person's screen, snapped to the grid, one square big.
 const pogSrc = (id) => `https://lh3.googleusercontent.com/d/${id}`;
+// PUT POG ON THE TABLE beside the name (Jake, Nov 26): your own sheet only, shown while this character has a pog and no
+// token with their name is on the map. Gone as soon as one is there. The pog id is asked for once and kept.
+let pogQT = 0; const pogAsked = new Set(); // "no pog" is checked again once per session, in case one was made on another device
+async function pogQuick() {
+  const b = $("pogQuick"); if (!b || standalone || isGM || partyOn) return;
+  const id = sheetId(), name = V("C3").trim(); if (!id || !name) return;
+  let pid = cache.get("pogid." + id);
+  if (pid === undefined || pid === null || (!pid && !pogAsked.has(id))) { pogAsked.add(id); pid = ""; const r = await bridgeGet({ portraits: id }).catch(() => null); if (r?.ok) { pid = r.pog || ""; cache.set("pogid." + id, pid); } else return; }
+  if (ptP.id === id && ptP.pogId !== undefined && ptP.pogId !== pid) { pid = ptP.pogId || ""; cache.set("pogid." + id, pid); } // made or remade in Manage Character
+  let on = false; try { if (await OBR.scene.isReady()) on = (await OBR.scene.items.getItems(i => (i.layer === "CHARACTER" || i.layer === "MOUNT") && nm(i.name) === nm(name))).length > 0; else on = true; } catch { on = true; }
+  const b2 = $("pogQuick"); if (!b2 || sheetId() !== id) return;
+  b2.hidden = !pid || on;
+  b2.onclick = async () => { b2.disabled = true; b2.textContent = "PLACING…";
+    try { await pogDrop(pid, name); b2.hidden = true; } catch (e) { b2.textContent = "Didn't work: tap to retry"; b2.title = String(e?.message || e); }
+    b2.disabled = false; setTimeout(() => { if (b2.isConnected && !b2.hidden) b2.textContent = "⬇ PUT POG ON THE TABLE"; }, 3000); };
+}
+const pogQuickSoon = () => { clearTimeout(pogQT); pogQT = setTimeout(pogQuick, 300); };
 // Change name (Nov 26): the character's tokens on the map get the new name too. A player's Owlbear may not be allowed to
 // change tokens, so the GM's screen is asked as well (background.html, "com.newscolos.pogname").
 async function pogRename(from, to) {
@@ -3795,7 +3813,7 @@ async function ptPanelLoad(id, reload) {
       if (ptP.id !== id) return;
       if (!r.ok) { ptP.failed = true; if ($("ptpanel")) $("ptpanel").innerHTML = `<div class="ptmsg bad">Couldn't load the pictures. ${esc2(ptBridgeMsg(r.error))}</div>`; return; }
       ptP.pics = r.pics.map(p => ({ id: p.id, url: `data:${p.mime};base64,${p.data}`, f: p.f || null })); ptP.cur = r.cur; ptP.t = r.t;
-      if (r.pog !== undefined && r.pog !== ptP.pogId) { ptP.pogId = r.pog; ptP.pogUrl = ""; }
+      if (r.pog !== undefined && r.pog !== ptP.pogId) { ptP.pogId = r.pog; ptP.pogUrl = ""; cache.set("pogid." + ptP.id, r.pog || ""); }
       if (ptT(id) !== r.t) { ptStamp.set(id, r.t); cache.set("ptt." + id, r.t); ptMem.delete(id); cache.set("pt." + id, null); }
     }
     if (!ptP.pics.some(p => p.id === ptP.sel)) { ptP.sel = ptP.cur; ptP.f = null; ptP.dirty = false; ptP.edit = false; }
@@ -3877,7 +3895,7 @@ function bindPtPicButtons(el, p0) {
       const cv = drawPog(await loadImg(`data:${r.mime};base64,${r.data}`), p.f, POG_STYLE, 512);
       const url = cv.toDataURL("image/png"), name = (V("C3") || "Character").trim();
       const s2 = await bridgePost({ pog: url.split(",")[1] }).catch(x => ({ ok: false, error: x.message }));
-      if (s2.ok && s2.pogId) { ptP.pogId = s2.pogId; ptP.pogUrl = url; }
+      if (s2.ok && s2.pogId) { ptP.pogId = s2.pogId; ptP.pogUrl = url; cache.set("pogid." + sheetId(), s2.pogId); }
       ptP.msg = s2.ok && s2.pogId ? ["ok", "✓ Pog made and saved. Tap PUT ON THE TABLE to drop it on the map."] : ["bad", "Pog made, but it didn't save to Google Drive. " + ptBridgeMsg(s2.error || "Nothing to change.")];
     } catch (e) { ptP.msg = ["bad", "Couldn't make the pog: " + (e.message || e)]; }
     ptPanelDraw();
@@ -4614,6 +4632,7 @@ if (standalone) {
     if (isGM && !UPLINK) { const beat = () => store.set("ns.adAlive:" + OBR.room.id, String(Date.now())); beat(); setInterval(beat, 2000); }
     const readAct = (ps) => { partyAct = ps.map(p => p.metadata?.[ACT_MD]).filter(Boolean); if (partyOn && lastParty && $("shbody")) drawParty($("shbody"), lastParty); };
     readAct(await OBR.party.getPlayers()); OBR.party.onChange(readAct);
+    if (!isGM && !PARTYPOP && !UPLINK) { OBR.scene.items.onChange(() => pogQuickSoon()); OBR.scene.onReadyChange(() => pogQuickSoon()); }
     if (isGM) OBR.broadcast.onMessage("com.newscolos.sheetv", ({ data }) => {
       const id = data?.id, v = data?.v; if (!id || !Array.isArray(v) || !Array.isArray(lastParty)) return;
       const c = lastParty.find(x => x.id === id); if (!c) return;
