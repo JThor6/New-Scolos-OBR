@@ -1091,6 +1091,7 @@ const BRIDGE = "https://script.google.com/macros/s/AKfycbx5cjtXVGyFeoQx0EzJ-47gk
 function lsFree() { try { for (let i = localStorage.length - 1; i >= 0; i--) { const k = localStorage.key(i); if (/^ns\.cache\.(pt|ma)\./.test(k)) localStorage.removeItem(k); } } catch {} }
 function lsSet(k, v) { try { localStorage.setItem(k, v); return true; } catch { lsFree(); try { localStorage.setItem(k, v); return true; } catch { return false; } } }
 const store = { get: (k) => { try { return localStorage.getItem(k) || ""; } catch { return ""; } }, set: (k, v) => { lsSet(k, v); } };
+const TIPS_ON = false; // Jake, Nov 26: first-time tips are off for now (they got in the way). true brings them and the switch back.
 let isGM = false, sheetVals = null, busy = false;
 // Campaigns: the GM sets this room's campaign (a subfolder name in Drive) on the GM tab. "" = main campaign.
 // Everything per-character or per-encounter is remembered per campaign, so one player can be in two games.
@@ -1546,7 +1547,7 @@ function drawManager() {
     <div class="stab" id="ptsec">PORTRAIT</div>
     <div id="ptpanel"></div>
     <label class="ptsw"><input type="checkbox" id="ptHide" ${ptHidden() ? "checked" : ""}> Hide portraits on my screen</label>
-    <label class="ptsw"><input type="checkbox" id="tipsOn" ${store.get("ns.tipsOff") === "1" || (me && tipsRoom.includes(me)) ? "" : "checked"}> Show tips (a short hint the first time things happen)</label>
+    ${TIPS_ON ? `<label class="ptsw"><input type="checkbox" id="tipsOn" ${store.get("ns.tipsOff") === "1" || (me && tipsRoom.includes(me)) ? "" : "checked"}> Show tips (a short hint the first time things happen)</label>` : ""}
     <div class="mnote">Optional. Your character keeps every picture you upload (up to 12); tap one to pick it. Drop a picture anywhere on this panel to add it. Pictures are saved to the GM's Character Portraits folder in Google Drive. Hiding only changes your own screen; it doesn't delete anything.</div>
     <div class="stab">PRINT</div>
     <button id="pdfGo" class="sbtn" style="width:100%">⬇ EXPORT TO PDF</button>
@@ -4359,7 +4360,7 @@ const PARTY_POP = "com.newscolos.party";
 // "Show tips" in Manage Character turns them off for that Owlbear account in this room, so private / test windows stay quiet.
 const TIPS_MD = "com.newscolos.tipsoff"; // room: [player ids with tips off]
 let tipsRoom = [], tipT0 = Date.now();
-const tipsOff = () => standalone || isGM || PARTYPOP || UPLINK || store.get("ns.tipsOff") === "1" || (me && tipsRoom.includes(me));
+const tipsOff = () => !TIPS_ON || standalone || isGM || PARTYPOP || UPLINK || store.get("ns.tipsOff") === "1" || (me && tipsRoom.includes(me));
 async function tip(k, msg) {
   if (tipsOff() || store.get("ns.tip." + k)) return;
   store.set("ns.tip." + k, "1");
