@@ -3412,7 +3412,7 @@ function drawMonsters() {
     <div id="iStep" class="istep" hidden><button id="iPrev" class="sbtn" title="Previous turn">◀</button><span id="iRound"></span><button id="iNext" class="sbtn">NEXT TURN ▶</button></div>
     <div class="iadd"><input id="iName" placeholder="Add a name"><input id="iNum" placeholder="+0" inputmode="numeric"><button id="iNeg" class="sbtn negbtn" title="Flip to minus / plus">±</button><button id="iAdd" class="sbtn">ADD</button></div>
     <button id="iEnd" class="sbtn" style="width:100%;margin-top:5px">END COMBAT</button></div>
-    <div class="g2" style="margin-top:8px"><button id="monAll" class="sbtn" title="Every living monster with art that isn't on the map yet, in a grid in the middle of your screen">⬇ PUT ALL ON THE TABLE</button><button id="pcAll" class="sbtn" title="Every character with a pog who isn't on the map yet">⬇ PUT PARTY ON THE TABLE</button><button id="monRe" class="sbtn">↻ RELOAD MONSTERS</button></div>`;
+    <div class="g2" style="margin-top:8px"><button id="monAll" class="sbtn" title="Every living monster with art that isn't on the map yet, in a grid in the middle of your screen">⬇ PUT ALL MONSTERS ON THE TABLE</button><button id="pcAll" class="sbtn" title="Every character with a pog who isn't on the map yet">⬇ PUT PARTY ON THE TABLE</button><button id="monRe" class="sbtn">↻ RELOAD MONSTERS</button></div>`;
   const cards = [];
   const hdr = Math.max(0, v.findIndex(r => String(r?.[0] || "").trim().toLowerCase() === "name"));
   for (let row = hdr + 1; row < v.length; row++) {
