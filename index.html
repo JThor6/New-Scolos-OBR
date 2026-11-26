@@ -294,6 +294,7 @@
   .tbtns button:disabled { opacity:.4; cursor:default; }
   .tmsg { margin-top:5px; font-size:11px; color:#cfc6ee; }
   .tlast { max-height:260px; overflow:auto; margin-top:3px; }
+  .ibtn.shnext { background:rgba(91,63,158,.7); border-color:#9d86ff; color:#fff; font-weight:800; padding:0 10px; width:auto; }
   .tmon { margin-top:6px; border-top:1px solid #3a3558; padding-top:5px; }
   .tmh { font-size:10px; font-weight:800; letter-spacing:.6px; color:var(--dim); display:flex; gap:6px; align-items:center; } .tmh span { font-weight:600; letter-spacing:0; color:#e6c97a; text-transform:none; flex:1; }
   .tmh button { font:800 10px system-ui; padding:2px 6px; border-radius:5px; background:transparent; border:1px solid #4a4170; color:#cfc6ee; cursor:pointer; }
@@ -1345,7 +1346,7 @@ function drawSheet() {
   const copMaxT = V("H28");
   $("shbody").innerHTML = `
     ${V("H16") ? "" : (deadSeen.set(sheetId(), false), "")}<div class="shead">${ptHead()}<div class="shn"><b>${esc2(V("C3") || "Unnamed")}${V("H16") ? ` <span class="deadtag">(DEAD)</span>` : ""}</b><button id="pogQuick" class="sbtn pogq" hidden title="Put your pog in the middle of your screen">⬇ PUT POG ON THE TABLE</button><small>${[V("C4"), V("F5") !== "" ? "Level " + V("F5") : ""].filter(Boolean).map(esc2).join(" · ")}${V("F7") !== "" ? `<span class="cred" title="Credits">¤ ${esc2((n => n == null ? V("F7") : n.toLocaleString("en-US"))(num(V("F7"))))} credits</span>` : ""}</small></div>
-      <span class="shcol"><span class="shbtns"><button id="reload" class="ibtn" title="Reload from Google Sheet">↻</button><button id="mgr" class="ibtn mgrb" title="Manage character: XP, skills, gear, notes">⚙ Manage Character</button></span><button class="sref hist" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></span></div>
+      <span class="shcol"><span class="shbtns">${testOn() ? `<button id="shNext" class="ibtn shnext" title="Test mode: move the turn on">${(() => { const md = actMd || lastMd || {}, st = md[INIT]; return st?.open && st.cur && sameName(turnNames(md).cur || "", myChar()) ? "END TURN ▶" : "NEXT TURN ▶"; })()}</button>` : ""}<button id="reload" class="ibtn" title="Reload from Google Sheet">↻</button><button id="mgr" class="ibtn mgrb" title="Manage character: XP, skills, gear, notes">⚙ Manage Character</button></span><button class="sref hist" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></span></div>
     <div id="ksbar" class="ksbar" hidden></div><div id="actbar" class="actbar" hidden></div><div id="cofxbar" class="cofxbar" hidden></div>
     <div class="stabrow"><div class="stab">ATTRIBUTES</div>${nbChips("p")}</div>
     <div class="g5">${[["Adroitness", "C7"], ["Raw Str.", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att"><small class="inft" data-inf="at:${{ "Raw Str.": "Raw Strength" }[n] || n}" data-sec="attr">${n}</small><b>${esc2(V(c))}</b><button class="rd ra" data-m="${esc2(V(c))}" data-l="${{ "Raw Str.": "Raw Strength" }[n] || n}" data-b="${({ "Raw Str.": "Raw Strength" }[n] || n) + "|" + esc2(V(c))}" title="Roll ${n}">${ROLL_ICON}</button></div>`).join("")}
@@ -1375,6 +1376,8 @@ function drawSheet() {
     <div id="sherr" class="err" hidden></div>
     ${isGM ? "" : `<div class="discw"><button id="disc" class="discb" title="Pick a different character">⇄ Switch character</button></div>`}`;
   fillPowers(); bindInfo(); updateKS(); updateActive(); publishActive(); bindPt(); pogQuick(); fxDraw();
+  if ($("shNext")) $("shNext").onclick = async (e) => { e.stopPropagation(); const b = $("shNext"); if (b.disabled) return; b.disabled = true;
+    try { await initStep(1); } finally { setTimeout(() => { if (b.isConnected) b.disabled = false; }, 800); } };
   if ("BCDEFG".split("").some(c => V(c + "16"))) tip("wound", "You're hurt. Wound penalties are added to your rolls for you. HEAL moves wounds back to the left.");
   if (spellPk) { if (spellPk.id !== sheetId() || !/^mage$/i.test(V("C4").trim())) closeSpell(); else if (spellPk.sp !== V("F13")) { spellPk.sp = V("F13"); drawSpell(); } }
   document.querySelectorAll("#shbody .actarmx").forEach(b => b.onclick = (e) => { e.stopPropagation(); endActive(); });
