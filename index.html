@@ -337,7 +337,7 @@
   .initban button { background:#bb99ff; color:#000; border:0; border-radius:8px; font:800 13px system-ui; padding:6px 10px; cursor:pointer; }
   @keyframes spin { to { transform:rotate(360deg); } }
   .histdet { width:100%; margin:4px 0 2px; padding:4px; font-size:11px; font-weight:800; border:1px solid #3a3d55; border-radius:6px; background:var(--paper); color:var(--dim); cursor:pointer; }
-  .mcard { border:2px solid #000; outline:1px solid #444a66; border-radius:8px; background:var(--paper); padding:6px 8px 8px; margin-top:8px; }
+  .mcard { border:2px solid #000; outline:1px solid #444a66; border-radius:8px; background:var(--paper); padding:6px 8px 8px; margin-top:8px; scroll-margin-top:8px; }
   .mnext { display:block; width:calc(100% - 16px); margin:8px 8px 2px; padding:14px 0; border-radius:10px; border:2px solid #000; background:var(--accent); color:#000; font:900 20px system-ui; letter-spacing:1px; cursor:pointer; box-shadow:0 0 14px rgba(187,153,255,.45); }
   .mnext:active { transform:scale(.98); }
   /* the monster whose turn it is: loud enough to spot while scrolling (Jake, Nov 25) */
@@ -3367,6 +3367,7 @@ async function skipDeadTurn() {
     if (nx && !monDeadName(turnNames(m).cur)) await OBR.room.setMetadata({ [INIT]: nx });
   } catch {} finally { setTimeout(() => { skipping = false; }, 500); }
 }
+let turnScrolled = ""; // the turn whose card was last scrolled to the top
 function markTurn() {
   const st = initMd[INIT], cur = st?.open ? st.cur : "", who = cur ? turnNames(initMd).cur : "";
   const cards = [...document.querySelectorAll("#mo .mcard")];
@@ -3379,6 +3380,12 @@ function markTurn() {
       card.querySelector(".mnext").onclick = (e) => { e.stopPropagation(); initStep(1); }; }
     if (!t && btn) btn.remove();
   });
+  // Jake, Nov 26: when the turn moves to a monster, scroll its card to the top of the panel (once per turn, so the GM
+  // can still scroll away during it). Only while the GM tab is showing.
+  const key = on.length ? `${st.round}|${cur}|${st.sub || 0}` : "";
+  if (key && key !== turnScrolled && $("mo") && $("mo").offsetParent) { turnScrolled = key;
+    requestAnimationFrame(() => on[0].scrollIntoView({ block: "start", behavior: "smooth" })); }
+  else if (!key) turnScrolled = "";
 }
 function drawInitList() {
   const box = $("iList"); if (!box) return;
