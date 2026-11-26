@@ -50,6 +50,9 @@ function createCharacter(c, campaign) {
   if (lv !== want) throw new Error('Starting skill levels must be one +1, three 0, two -2 and two -3.');
   if (skills.some(function (s) { return /^prayer/i.test(s.name); }) && type !== 'Priest') throw new Error('Prayer is for Priests only.');
   if (skills.some(function (s) { return /^spellcasting/i.test(s.name); }) && type !== 'Mage') throw new Error('Spellcasting is for Mages only.');
+  const ONLY = { hacking: 'Hacker', telekinesis: 'Subject Zero', 'spirit tether': 'Revenant' }; // type-only skills (Nov 26: Hacking)
+  skills.forEach(function (s) { const k = String(s.name).replace(/\s*\(.*$/, '').trim().toLowerCase();
+    if (ONLY[k] && ONLY[k] !== type) throw new Error(s.name.replace(/\s*\(.*$/, '') + ' is for ' + ONLY[k] + 's only.'); });
   const xp = Math.max(0, Math.min(1000, Math.round(Number(c.xp) || 0)));
   const email = String(c.email || '').trim();
   if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error('That email does not look right.');

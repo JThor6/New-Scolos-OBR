@@ -1596,6 +1596,8 @@ function drawManager() {
   document.querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { const i = b.dataset.rm; mgrSave({ ["B" + i]: "", ["C" + i]: "", ["E" + i]: "" }); });
   $("skGo").onclick = () => {
     const name = $("skName").value.trim(); if (!name) return;
+    const only = { hacking: "Hacker", telekinesis: "Subject Zero", "spirit tether": "Revenant", prayer: "Priest", spellcasting: "Mage" }[name.replace(/\s*\(.*$/, "").trim().toLowerCase()];
+    if (only && only.toLowerCase() !== V("C4").trim().toLowerCase()) return err(`${tc(name)} is for ${only}s only.${/^hacking/i.test(name) ? " Everyday computers and gadgets are the Tech skill." : ""}`);
     const [from, to] = L.untrained; // new skills always start Untrained
     let row = 0; for (let i = from; i <= to; i++) if (!V("B" + i)) { row = i; break; }
     if (!row) return err("The Untrained skills list is full on the sheet.");
@@ -1904,7 +1906,10 @@ async function showGen() {
     if (cg.step === 2) {
       if (!genData.list || genData.type !== cg.type) genData = { list: await skillList(), info: cg.type ? await typeInfo(cg.type).catch(() => null) : null, type: cg.type };
       const { list, info } = genData;
-      const allowed = (n) => !(/^prayer/i.test(n) && cg.type !== "Priest") && !(/^spellcasting/i.test(n) && cg.type !== "Mage");
+      // type-only skills: Prayer, Spellcasting, plus any "(Type Restricted: Only X)" on the Skill List (Hacking, Telekinesis, Spirit Tether)
+      const allowed = (n) => { const m = String(n).match(/type restricted:\s*only\s+([^)]+)\)/i);
+        if (m) return m[1].trim().toLowerCase() === String(cg.type || "").toLowerCase();
+        return !(/^prayer/i.test(n) && cg.type !== "Priest") && !(/^spellcasting/i.test(n) && cg.type !== "Mage"); };
       const need = reqSkill();
       const sugg = String((info?.rows.find(([a]) => /^suggested skills/i.test(a)) || [])[1] || "").split(/[,;]/).map(s => s.replace(/\(.*?\)/g, "").trim().toLowerCase()).filter(Boolean);
       const rawSugg = String((info?.rows.find(([a]) => /^suggested skills/i.test(a)) || [])[1] || "").split(/[,;]/).map(x => x.trim()).filter(Boolean);
