@@ -47,6 +47,8 @@
   .gmsc h2 { position:sticky; top:0; z-index:2; margin:0 -10px 6px; padding:7px 10px; background:#15172280; backdrop-filter:blur(4px); font-family:'Bangers', Impact, sans-serif; font-weight:400; font-size:20px; letter-spacing:1px; color:#bb99ff; display:flex; align-items:center; gap:6px; }
   .gmsc h2 span { flex:1; } .gmsc h2 select { font:600 12px system-ui; background:#15172b; color:var(--ink); border:1px solid #444a66; border-radius:6px; padding:3px; max-width:60%; }
   .gmsc .sub { font-size:11px; font-weight:800; letter-spacing:.6px; color:var(--dim); margin:8px 0 4px; text-transform:uppercase; }
+  .gmscond { display:flex; flex-wrap:wrap; align-items:center; gap:5px; padding:5px 0; border-bottom:1px solid rgba(255,255,255,.06); font-size:13px; }
+  .gmscond b { color:#e2d8ff; margin-right:3px; } .gmscond span { padding:2px 8px; border-radius:8px; background:#2c2250; border:1px solid #4a3a78; color:#ddd5f3; font-weight:700; font-size:12px; }
   .gmsturn { font-size:13px; line-height:1.5; } .gmsturn b { color:#e2d8ff; }
   .sdbig { border:1px solid #444a66; border-radius:8px; padding:6px 8px; background:rgba(15,17,28,.55); }
   .sdnav { display:flex; align-items:center; gap:6px; margin:6px 0; } .sdnav span { flex:1; text-align:center; color:var(--dim); font-weight:700; font-size:12px; }
@@ -855,7 +857,7 @@ function render(rolls) {
   const html = `<button class="histdet">${histDetail ? "DETAILED ▲ (tap for simple)" : "SIMPLE ▼ (tap for detailed)"}</button>` +
     (rolls.length ? rolls.slice(0, LOG_MAX).map(line).join("") : `<div class="empty">No rolls yet.</div>`);
   // same list on the DICE tab and in REFERENCE → ROLL HISTORY
-  for (const el of [$("history"), $("refRolls"), $("gmsRolls")]) if (el) el.innerHTML = html;
+  for (const el of [$("history"), $("refRolls")]) if (el) el.innerHTML = html;
   if (GMS) try { gmsSd(); } catch {}
   document.querySelectorAll(".histdet").forEach(btn => btn.onclick = (e) => { e.preventDefault(); histDetail = !histDetail; try { localStorage.setItem("ns.histDetail", histDetail ? "on" : "off"); } catch {} render(lastRolls); });
 }
@@ -4409,7 +4411,7 @@ function gmsSetup() {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !standalone) OBR.modal.close(GMS_ID).catch(() => {}); });
   document.body.insertAdjacentHTML("beforeend", `
     <div class="gmsc"><h2><span>SUCCESS DELTA</span></h2><div id="gmsSd"><div class="empty">No results yet. Attacks and their defense rolls land here and stay.</div></div></div>
-    <div class="gmsc"><h2><span>RIGHT NOW</span></h2><div id="gmsTurn" class="gmsturn"></div><div class="sub">Combat Options in play</div><div id="gmsFx" class="cofxbar"><div class="empty">Nothing in play.</div></div><div class="sub">Roll History</div><div id="gmsRolls"><div class="empty">No rolls yet.</div></div></div>
+    <div class="gmsc"><h2><span>RIGHT NOW</span></h2><div id="gmsTurn" class="gmsturn"></div><div class="sub">Combat Options in play</div><div id="gmsFx" class="cofxbar"><div class="empty">Nothing in play.</div></div><div class="sub">Conditions</div><div id="gmsCond"><div class="empty">No conditions on the map.</div></div></div>
     <div class="gmsc"><h2><span>REFERENCE</span><select id="gmsPick"></select></h2><div id="gmsRef"><div class="rr">Loading…</div></div></div>`);
   const pick = $("gmsPick");
   pick.innerHTML = REF_GROUPS.map(([g, keys]) => `<optgroup label="${esc2(g)}">${keys.map(k => SECTIONS.find(x => x[1] === k)).filter(Boolean).map(([t, k]) => `<option value="${esc2(k)}">${esc2(t)}</option>`).join("")}</optgroup>`).join("");
@@ -4419,6 +4421,24 @@ function gmsSetup() {
   const first = SECTIONS.find(x => x[1] === store.get("ns.gmsRef"))?.[1] || pick.querySelector("option")?.value;
   if (first) show(first);
   gmsTurn();
+  // Conditions (Jake, Nov 26): every condition label on the map, by token. Dead is left out (easy to see on the GM tab).
+  if (!standalone) OBR.onReady(async () => { gmsCond(); OBR.scene.items.onChange(() => gmsCondSoon()); OBR.scene.onReadyChange(() => gmsCond()); });
+}
+let gmsCondT = 0; const gmsCondSoon = () => { clearTimeout(gmsCondT); gmsCondT = setTimeout(gmsCond, 250); };
+async function gmsCond() {
+  const box = $("gmsCond"); if (!box) return;
+  try {
+    if (!(await OBR.scene.isReady())) { box.innerHTML = `<div class="empty">No map open.</div>`; return; }
+    const marks = await OBR.scene.items.getItems(i => !!i.metadata?.[MARK_ITEM]?.on);
+    const live = marks.filter(m => m.metadata[MARK_ITEM].text !== DEFAULT_MARKS[0]);
+    const toks = live.length ? await OBR.scene.items.getItems([...new Set(live.map(m => m.metadata[MARK_ITEM].on))]) : [];
+    const by = new Map();
+    for (const m of live) { const t = toks.find(x => x.id === m.metadata[MARK_ITEM].on); if (!t) continue;
+      const n = String(t.name || "Token").trim(); if (!by.has(n)) by.set(n, new Set()); by.get(n).add(m.metadata[MARK_ITEM].text); }
+    box.innerHTML = by.size ? [...by].sort((a, b) => a[0].localeCompare(b[0])).map(([n, set]) =>
+      `<div class="gmscond"><b>${esc2(n)}</b>${[...set].map(t => `<span>${esc2(t)}</span>`).join("")}</div>`).join("")
+      : `<div class="empty">No conditions on the map.</div>`;
+  } catch (e) { box.innerHTML = `<div class="err">Couldn't read the map: ${esc2(e?.message || e)}</div>`; }
 }
 function gmsTurn() {
   const el = $("gmsTurn"); if (!el) return;
