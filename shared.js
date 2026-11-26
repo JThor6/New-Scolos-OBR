@@ -17,11 +17,13 @@ export function allRolls(metadata) {
 export const POWER_CARDS = {
   "bullet stop": { c: "bs", n: "Bullet Stop", t: "BULLET STOP ACTIVATED", s: "Allies within 10 ft: +2 Armor Bonus for a turn" },
   "avatar": { c: "av", n: "Avatar", t: "AVATAR", s: "Becomes living magic: +1 Armor, +1 Spellcasting" },
-  "flash forward": { c: "ff", t: "FLASH FORWARD", s: "One reroll today: theirs, or anyone who hears their warning" },
+  "flash forward": { c: "ff", t: "FLASH FORWARD", s: "Sees it coming: one forced reroll every round (three a scene out of combat)" },
   "disappear completely": { c: "wr", t: "VANISHED", s: "Gone from sight" },
   "mind over matter": { c: "mm", t: "MIND OVER MATTER", s: "The world starts to float" },
   "spirit walk": { c: "rv", t: "SPIRIT WALK", s: "The body falls still. Something cold moves through the walls" },
-  "corpse walk": { c: "rv", t: "CORPSE WALK", s: "The dead get back up" },
+  "corpse walk": { c: "rv", t: "CORPSE WALK", s: "The dead get back up, and they don't feel pain" },
+  "steady hold": { c: "mm", t: "STEADY HOLD", s: "Something huge stops dead in the air" },
+  "hijack": { c: "dp", t: "HIJACK", s: "The tech in the room just changed sides" },
   // daily powers with no roll and nothing that stays on: a card so the table knows it was used
   "kill shot": { c: "ksa", t: "KILL SHOT ARMED", s: "Next attack: +, +, +, +" },
   "hive link": { c: "hv", t: "HIVE LINK", s: "The crew is linked mind to mind" },

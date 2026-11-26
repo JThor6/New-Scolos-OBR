@@ -255,6 +255,7 @@
   .ptop b { font-size:15px; } .ptop small { color:var(--dim); font-size:11px; flex:1; }
   .ppw { font-size:9px; font-weight:800; padding:2px 5px; border-radius:4px; background:var(--plus); color:#000; }
   .ppw.u { background:#555b75; color:var(--ink); }
+  .ppw + .ppw { margin-left:3px; }
   .ptpop { display:flex; justify-content:flex-end; margin-top:4px; }
   .ptpop button { display:flex; align-items:center; gap:5px; padding:4px 9px; font-size:11px; font-weight:800; letter-spacing:.5px; color:var(--dim); background:transparent; border:1px solid #3a3f58; border-radius:6px; cursor:pointer; }
   .ptpop button:hover { color:#f1f3f9; border-color:#6b7394; }
@@ -645,6 +646,10 @@
   #sh .g2b.g2p { grid-template-columns:1fr calc((100% - 4px) / 7 + 4px) auto; } /* Priest/Mage: power | Used today | points */
   #sh .g2b > .fld.c { display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding:3px 0 6px; }
   #sh .g2b > .fld.c .chk { margin:auto 0; } /* centered in the space under the label */
+  #sh .g2b > .fld.c .uses { display:flex; flex-direction:column; align-items:center; gap:2px; margin:auto 0; }
+  #sh .g2b > .fld.c .uses span { font-size:8px; letter-spacing:.04em; text-transform:uppercase; color:var(--dim); line-height:1; }
+  #sh .g2b > .fld.c .uses .chk { margin:0 0 3px; }
+  .pwb.pwu { opacity:.55; }
   #sh .att.dp { display:flex; flex-direction:column; align-items:center; justify-content:flex-start; padding:4px 0 5px; border-width:3px; }
   #sh .att.dp b.egg { display:flex; justify-content:center; line-height:1; color:#f1f3f9; }
   #sh .att.dp b.egg .skull { width:30px; height:30px; filter:drop-shadow(0 0 5px rgba(255,70,60,.75)) drop-shadow(0 1px 1px #000); }
@@ -874,11 +879,13 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
     if (st?.open && store.get("ns.initDone") !== st.sid) { initSid = st.sid; label = "Adroitness · Initiative"; }
   }
   const ks = !whoName && ksArmed() && KS_ATTACK.test(String(label || ""));
-  if (ks) { label = "KILL SHOT · " + label; setKS(false); fillPowers(); setTimeout(() => markPowerUsed(), 0); }
+  if (ks) { label = "KILL SHOT · " + label; setKS(false); fillPowers(); setTimeout(() => markPowerUsed("combat"), 0); }
   // A power that's on can change the roll: Avatar's +1 Spellcasting, the Wraith's unseen first strike (+1, then they reappear)
   const ad = !whoName ? actDef() : null;
   if (ad?.skill && ad.skill[0].test(label)) { m += ad.skill[1]; label = `${label} · ${ad.t} +${ad.skill[1]}`; }
-  if (ad?.strike && KS_ATTACK.test(label)) { m += ad.strike; label = `FROM THE SHADOWS · ${label} +${ad.strike} unseen`; setTimeout(() => endActive("You strike and reappear."), 0); }
+  const aa = !whoName ? actGet() : null;
+  if (ad?.strike && ad.keep && KS_ATTACK.test(label) && !aa?.st) { m += ad.strike; label = `${ad.t} · ${label} +${ad.strike} risen`; setActive(aa.n, { ...aa, st: 1 }); setTimeout(() => updateActive(), 0); } // Corpse Walk: first attack after rising only, the power keeps going
+  else if (ad?.strike && !ad.keep && KS_ATTACK.test(label)) { m += ad.strike; label = `FROM THE SHADOWS · ${label} +${ad.strike} unseen`; setTimeout(() => endActive("You strike and reappear."), 0); }
   if (nb) label = `${label || "Roll"} · +${nb} bonus`;
   const dice = ks ? [1, 1, 1, 1] : real || [rollDie(), rollDie(), rollDie(), rollDie()];
   if (real) label = (String(label || "Roll").slice(0, 46) + " · analog").trim(); // rolled with physical dice, typed in
@@ -964,7 +971,7 @@ function handOptions() {
     const e = POWER_ROLLS[name.toLowerCase().trim()]; if (!e || typeof e !== "object") continue;
     const add = (list, start, fl) => (list || []).forEach((r, i) => { const pm = powerMod(r.k); if (!pm) return;
       out.push({ k: `p:${name}:${start ? "s" : "f"}:${fl || ""}:${i}`, n: `${name}: ${r.t}${pm.un ? " (untrained)" : ""}`, m: pm.m + (r.x || 0), g: "Extraordinary Power",
-        pw: true, start, off: start ? powerUsed() : !powerUsed(), br: r.x ? "" : pm.br,
+        pw: true, kind: kindOf(name), start, off: start ? powerUsed(kindOf(name)) : !powerUsed(kindOf(name)), br: r.x ? "" : pm.br,
         label: `⚡ ${name} · ${fl ? fl + " (" + (r.l || r.k) + ")" : r.l || r.k}${r.x ? ` ${r.x}` : ""}${pm.un ? " untrained" : ""}` }); });
     add(e.act, true); add(e.alt, true); add(e.follow, false, e.fl);
   }
@@ -994,7 +1001,7 @@ function drawHand() {
     <label>What did you roll?</label>
     ${groups.map(g => `<div class="hgrp">${esc2(g)}</div><div class="hchips">${opts.filter(x => x.g === g).map(x => `<button class="hchip ${x.k === hand.pick ? "on" : ""}" data-k="${esc2(x.k)}" ${x.off ? "disabled" : ""}><span>${esc2(x.k === "other" ? "Something else" : x.n)}${x.off ? `<small>${x.start ? "used today" : "use the power first"}</small>` : ""}</span>${x.m != null ? `<b>${x.m >= 0 ? "+" : ""}${x.m}</b>` : ""}</button>`).join("")}</div>`).join("")}
     ${hand.pick === "other" ? `<label>Modifier</label><input id="hMod" inputmode="numeric" value="${esc2(hand.mod)}" placeholder="0">` : ""}
-    ${sheetVals && !isGM && hand.pick === "other" ? `<label class="hpw"><input type="checkbox" id="hPw" ${hand.pw ? "checked" : ""} ${powerUsed() && !hand.pw ? "disabled" : ""}> Extraordinary Power roll${powerUsed() ? " (already used today)" : " (checks Used Today)"}</label>` : ""}
+    ${sheetVals && !isGM && hand.pick === "other" ? `<label class="hpw"><input type="checkbox" id="hPw" ${hand.pw ? "checked" : ""} ${powerUsed() && !hand.pw ? "disabled" : ""}> Combat power roll${powerUsed() ? " (already used today)" : " (checks Combat Used Today)"}</label>` : ""}
     ${send}`;
   box.querySelectorAll(".hchip").forEach(b => b.onclick = () => { hand.pick = hand.pick === b.dataset.k ? "" : b.dataset.k; if (hand.pick === "other") hand.mod = "0"; drawHand(); });
   if ($("hMod")) $("hMod").oninput = () => { hand.mod = $("hMod").value; drawHand(); const el = $("hMod"); el.focus(); el.setSelectionRange(el.value.length, el.value.length); };
@@ -1011,7 +1018,7 @@ function drawHand() {
     const mod = o.m != null ? o.m : (parseInt(String(hand.mod).replace("−", "-"), 10) || 0);
     setRollBusy(true);
     if (!isGM && sheetId() && !standalone) { await loadSheet(true).catch(() => {}); } // last check for wounds marked on the sheet
-    try { await doQuickRoll(mod, label, "", sheetVals && !isGM ? sheetPen() : 0, o.br || "", [...hand.dice]); if (pwOther || (o.pw && o.start)) markPowerUsed(); if (o.pw) fillPowers(); }
+    try { await doQuickRoll(mod, label, "", sheetVals && !isGM ? sheetPen() : 0, o.br || "", [...hand.dice]); if (pwOther || (o.pw && o.start)) markPowerUsed(o.kind || "combat"); if (o.pw) fillPowers(); }
     finally { setTimeout(() => setRollBusy(false), 1500); }
     // stay open for the next roll: clear the dice and the pick, keep "Something else"'s modifier out of the way
     hand = { dice: [0, 0, 0, 0], set: [false, false, false, false], pick: "", mod: "0", pw: false, sent: true }; drawHand();
@@ -1188,7 +1195,7 @@ function drawSheet() {
   }
   const notes = []; for (let i = L.notes[0]; i <= L.notes[1]; i++) if (V(L.nc + i)) notes.push(V(L.nc + i));
   const opts = list(coSlots());
-  const used = V("F6").toUpperCase() === "TRUE";
+  const used = V("F6").toUpperCase() === "TRUE", usedU = V("F8").toUpperCase() === "TRUE";
   const lines = (items) => items.map(esc2).join("<br>");
   const trained = chips(...L.trained, "skills"), untrained = chips(...L.untrained, "untrained");
   const copMaxT = V("H28");
@@ -1196,7 +1203,7 @@ function drawSheet() {
       <div><span class="welrd">${ROLL_ICON}</span> Tap the dice button on any attribute or skill to roll it. Everyone sees the roll.</div>
       <div>Tap any <i>underlined</i> word to see what it means.</div>
       <div><i>Portrait</i> (optional): tap the round + beside your name, or drop a picture on your sheet.</div>
-      <div><i>Extraordinary Power:</i> tap a power's name for its rules and its button. The button uses the power and checks the Used Today box. Any rolls you need while the power is running are the buttons under it.</div>
+      <div><i>Extraordinary Power:</i> each day you get one combat use and one utility use (Priests and Mages: one daily power). Tap a power's name for its rules and its button. The button uses the power and checks the matching Used Today box. Any rolls you need while the power is running are the buttons under it.</div>
       <div><i>${esc2((V("C4") || "Type").trim().toUpperCase())} RULES</i> (in the power box) and <i>Skill List</i> (by SKILLS) open your rules beside the map.</div>
       <div><i>Vitality Track:</i> tap a box to mark a wound; HEAL moves them left. A Critical Wound or worse gives -1 to every roll. The sheet automatically calculates that into your rolls, so you don't have to.</div>
       <div><i>Roll History</i> (under Manage Character) shows the table's rolls.</div>
@@ -1213,7 +1220,7 @@ function drawSheet() {
     <div class="stab">VITALITY TRACK</div><button id="heal" class="healb" title="Heal one step: every wound moves one box left; the leftmost Light Wound goes away. Dead stays until you uncheck it." ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}>✚ HEAL 1 STEP</button><span class="healn"><button id="healGo" class="healb" title="Heal that many steps: every wound moves that many boxes left. Dead stays until you uncheck it." ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}>✚ HEAL STEPS</button><button id="healDn" class="healb hstep" title="One less step" ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}>−</button><input id="healN" type="number" min="1" max="6" inputmode="numeric" placeholder="#" value="${esc2(healNVal)}" title="How many steps to heal" ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}><button id="healUp" class="healb hstep" title="One more step" ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}>+</button></span>${(healUndo.get(sheetId()) || []).length ? `<button id="healUndo" class="healb undo" title="Put the vitality track back the way it was before the last heal">↶ UNDO (${healUndo.get(sheetId()).length})</button>` : ""}${"BCDEFGH".split("").some(c => V(c + "16")) ? `<button id="healClr" class="healb clr" title="Full heal: clear every wound on the vitality track, Dead too. Tap twice to confirm.">✚ FULL HEAL</button>` : ""}
     <div class="vit">${["B", "C", "D", "E", "F", "G", "H"].map((c, i) => { const t = V(c + "15"); const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<button class="box ${V(c + "16") ? "x" : ""}" data-w="${i}"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk ${V(c + "16") ? "x" : ""}">${V(c + "16") ? "✕" : ""}</span></button>`; }).join("")}</div>
     <div class="g2b ${ptInEP() ? "g2p" : ""}"><div class="fld"><div class="epl"><div class="ephd"><small>Extraordinary Power</small>${typeRefBtn()}</div><div id="pwname">${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div>${/^priest$/i.test(V("C4").trim()) ? `<button id="smite" class="pwroll" ${(parseInt(V("F13")) || 0) < 2 ? "disabled" : ""} title="${(parseInt(V("F13")) || 0) < 2 ? "Smite costs 2 invocations: not enough left" : "Prayer against the target's Adroitness. Damage = Success Delta + 4. Takes 2 invocations off by itself"}">⚔<span>Smite: roll Prayer (2 inv.)</span></button>` : ""}</div></div>
-      <div class="fld c"><small>Used Today</small><button id="pw" class="chk ${used ? "x" : ""}">${used ? "✕" : ""}</button></div>${ptInEP() ? `
+      <div class="fld c"><small>Used Today</small>${hasUtility() ? `<div class="uses"><span>Combat</span><button id="pw" class="chk ${used ? "x" : ""}" title="Combat use spent today">${used ? "✕" : ""}</button><span>Utility</span><button id="pwu" class="chk ${usedU ? "x" : ""}" title="Utility use spent today">${usedU ? "✕" : ""}</button></div>` : `<button id="pw" class="chk ${used ? "x" : ""}">${used ? "✕" : ""}</button>`}</div>${ptInEP() ? `
       <div class="fld c epp"><small>${esc2(V("E13"))}${ptMaxV() ? ` <span>/ ${esc2(ptMaxV())}</span>` : ""}</small>${ptCtl()}${/^priest$/i.test(V("C4").trim()) ? `<button class="sref epref" data-k="gods" title="Open The Gods beside the map">${REF_SVG}The Gods</button>` : /^mage$/i.test(V("C4").trim()) ? `<button class="sref epref" data-k="schools" title="Open Schools of Magic beside the map">${REF_SVG}Schools</button>` : ""}${ptMaxV() ? `<button id="ptfill" class="ptfill" title="Fill back up to ${esc2(ptMaxV())} (after a long rest). Asks first">↻ refill</button>` : ""}</div>` : ""}</div>
     <div id="pwd" class="gpow pwd" hidden></div>
     ${V("E13") && !ptInEP() ? `<div class="g2">${ptMaxV() ? F(esc2(/\d/.test(V("G13")) || !V("G13") ? "Max " + V("E13") : V("G13")), ptMaxV()) : ""}<div class="fld"><small>${esc2(V("E13"))}</small>${ptCtl()}</div></div>` : ""}
@@ -1273,6 +1280,7 @@ function drawSheet() {
     if (!b.classList.contains("arm")) { b.style.minWidth = b.offsetWidth + "px"; b.classList.add("arm"); b.textContent = "SURE?"; armT = setTimeout(() => { if (b.isConnected) { b.classList.remove("arm"); b.textContent = "✚ FULL HEAL"; } }, 4000); return; }
     clearTimeout(armT); await clearTrack(); }; }
   $("pw").onclick = () => save({ power: !used }, () => setCell("F6", used ? "FALSE" : "TRUE"));
+  if ($("pwu")) $("pwu").onclick = () => save({ utility: !usedU }, () => setCell("F8", usedU ? "FALSE" : "TRUE"));
   const copMax = parseInt(V("H28")); const cop = (d) => { let n = Math.max(0, (parseInt(V("H29")) || 0) + d); if (!isNaN(copMax)) n = Math.min(n, copMax); if (String(n) === (V("H29") || "0")) return; if (d > 0 && !busy) announceCop(isNaN(copMax) ? null : copMax - n, isNaN(copMax) ? null : copMax); save({ copSpent: n }, () => setCell("H29", String(n))); };
   // the sheet keeps COP *spent* (H29); the counter shows points LEFT, so − uses a point and + gives one back
   $("copm").onclick = () => cop(1); $("copp").onclick = () => cop(-1);
@@ -1304,17 +1312,19 @@ function mgrSave(cells, done) {
   save({ cells }, () => { for (const [k, v] of Object.entries(cells)) setCell(k, String(v)); // show it right away
     setCell("F5", String(levelOf(xpSpent()))); setCell("F12", String(attrLeft())); done && done(); });
 }
-// Manage Character: Combat Options. You may know half your level (rounded down); swap by removing one and adding another.
+// Manage Character: Combat Options. Jake, Nov 25: options known = COP points, on a slow ladder:
+// level 1: 1, level 4: 2, level 10: 3, level 20: 4 (level 0 has none). Swap by removing one and adding another.
+const copLadder = (lvl) => lvl >= 20 ? 4 : lvl >= 10 ? 3 : lvl >= 4 ? 2 : lvl >= 1 ? 1 : 0;
 async function drawMgrCombat(err) {
   const box = $("mco"); if (!box) return;
-  const slots = coSlots(), have = slots.map(V).filter(Boolean), lvl = num(V("F5")) ?? levelOf(xpSpent()), max = Math.floor(lvl / 2);
+  const slots = coSlots(), have = slots.map(V).filter(Boolean), lvl = num(V("F5")) ?? levelOf(xpSpent()), max = copLadder(lvl);
   let all = [];
   try { for (const v of await getTab("Combat Options")) { const n = String(v[2] || "").trim(); if (n && /^\d+$/.test(String(v[1] || "").trim())) all.push([n, String(v[3] || "").replace(/^\*/, "").trim()]); } } catch {}
   if (!$("mco")) return;
   const strip = (x) => x.replace(/\s*\([^)]*\)\s*$/, "").trim().toLowerCase();
   const open = all.filter(([n]) => !have.some(h => strip(h) === n.toLowerCase()));
   const room = Math.min(max, slots.length) - have.length;
-  box.innerHTML = `<div class="mnote" style="color:var(--dim)">You can know <b>${max}</b> (half your level, rounded down). You have <b>${have.length}</b>.${max > slots.length ? ` The sheet only has room for ${slots.length}.` : ""}</div>
+  box.innerHTML = `<div class="mnote" style="color:var(--dim)">You can know <b>${max}</b> at level ${lvl} (level 1: 1, level 4: 2, level 10: 3, level 20: 4). You have <b>${have.length}</b>.${max > slots.length ? ` The sheet only has room for ${slots.length}.` : ""}</div>
     ${have.map((h, i) => { const d = (all.find(([n]) => n.toLowerCase() === strip(h)) || [])[1] || ""; return `<div class="mli mco1"><span><b>${esc2(h)}</b>${d ? `<small>${esc2(d)}</small>` : ""}</span><button class="mx" data-cox="${i}" title="Remove">✕</button></div>`; }).join("") || `<div class="empty" style="padding:4px">None yet.</div>`}
     ${room > 0 ? `<div class="mrow"><select id="coPick"><option value="">Add a combat option…</option>${open.map(([n]) => `<option>${esc2(n)}</option>`).join("")}</select><button id="coGo" class="sbtn">ADD</button></div><div id="coDesc" class="mnote" style="color:var(--ink)"></div>`
       : have.length >= max ? `<div class="mnote" style="color:var(--dim)">To swap one, remove it first, then add the new one.</div>` : ""}`;
@@ -1484,13 +1494,19 @@ async function skillList() { // [{name, attrs:[...], desc}] from the Master's Sk
   }
   return out;
 }
+// A power's heading on a type tab: "Extraordinary Power: combat (once per day)", "Extraordinary Power: utility (...)",
+// or "Meltdown option (...)" (Bullet Stop, which spends the combat use instead of Meltdown)
+const PW_HEAD = /^extraordinary power|^meltdown option/i;
 async function typeInfo(type) { // rundown rows, first Extraordinary Power, gods (Priest) and schools (Mage)
   const tab = TYPES.find(x => x.trim() === type) || type; // match tab names loosely in case a stray space sneaks into a tab name
   const v = rows(await getTab(tab)), info = { rows: [], power: "", powers: [], gods: [], schools: [] };
   let mode = "", pw = null;
   for (const [a, b, c] of v) {
     // each Extraordinary Power with its rules underneath (stops at the example or the next section)
-    if (/^extraordinary power/i.test(a) && b) { pw = { name: b, rules: [] }; info.powers.push(pw); if (!info.power) info.power = b; continue; }
+    if (PW_HEAD.test(a) && b) { pw = { name: b, rules: [] }; info.powers.push(pw); if (!info.power) info.power = b; continue; }
+    // "Part of Ghost in the Machine (no extra use)": Sleeper Code's rules go under that power, not as a power of its own
+    const part = /^part of (.+?)\s*\(/i.exec(a);
+    if (part && b) { pw = info.powers.find(p => p.name.toLowerCase() === part[1].toLowerCase()) || pw; if (pw) pw.rules.push([b.toUpperCase() + " (part of it, no extra use)", ""]); continue; }
     if (pw) {
       if (/^example/i.test(a) || (a && a === a.toUpperCase() && /[A-Z]/.test(a))) pw = null;
       else { if (a || b) pw.rules.push([a, b]); continue; }
@@ -1949,14 +1965,16 @@ function updateKS() {
 const ACTIVE = {
   "bullet stop": { t: "BULLET STOP ACTIVE", x: "Debris orbits you: +2 Armor Bonus for the rest of this combat. Allies within 10 ft get +2 Armor Bonus until your next turn.", until: "combat", armor: 2 },
   "avatar": { t: "AVATAR", x: "You are your major school until the scene ends: +1 Armor Bonus and +1 Spellcasting (added to your Spellcasting rolls).", until: "manual", armor: 1, skill: [/spellcasting/i, 1] },
-  // Jake, Nov 25: one reroll per day (not per round); the Mentalist can give it to anyone who can hear their warning
-  "flash forward": { t: "FLASH FORWARD", x: "You see a few seconds ahead. One reroll today: after any roll, you reroll it, or shout a warning and anyone who can hear you rerolls theirs. The new roll stands. Tap ✕ once it's used.", until: "manual" },
+  // Jake, Nov 25 (final): in combat, one reroll every round until the fight ends; out of combat, three rerolls for the scene.
+  // Any roll: your own, an ally's, or force an enemy to reroll. The new roll stands.
+  "flash forward": { t: "FLASH FORWARD", x: "You see a few seconds ahead. After any roll (yours, an ally's or an enemy's), force a reroll. The new roll stands. In combat: one reroll every round until the fight ends. Out of combat: three rerolls for the scene.", until: "manual", reroll: true, scene: 3 },
   "disappear completely": { t: "VANISHED", x: "Gone from eyes and cameras. Sound, smell and touch still give you away. Your next attack from the sheet gets +1 (unseen) and brings you back. Taking damage brings you back too.", until: "combat", strike: 1, hurt: true },
-  "mind over matter": { t: "MIND OVER MATTER", x: "Holding it: you can't attack or use skills. Big feats need an Intellect roll (in the power box).", until: "manual", hold: true },
+  "mind over matter": { t: "MIND OVER MATTER", x: "Holding it: you can't attack or use skills. Willing allies and loose objects only. Big feats need a Telekinesis roll (in the power box).", until: "manual", hold: true },
+  "steady hold": { t: "STEADY HOLD", x: "Holding something big still for the scene. Anything huge needs a Telekinesis roll (in the power box).", until: "manual" },
   "spirit walk": { t: "SPIRIT WALK", x: "Your spirit is out for about ten minutes. Your body lies limp and helpless, so the crew has to guard it. Any damage to it snaps you back.", until: "manual", hurt: true },
   "hive link": { t: "HIVE LINK", x: "The crew is linked mind to mind for the scene: talk silently at any distance. In combat, the linked crew can all act on the best initiative in the group. If one of you is knocked out, everyone feels it.", until: "manual" },
   "death mark": { t: "DEATH MARK", x: "You sense your target's direction and rough distance until your next night's sleep. Your first attack on them ignores armour (only the first). They feel watched.", until: "manual" },
-  "corpse walk": { t: "CORPSE WALK", x: "Your body is wisps. You're in the corpse for the scene: your skills and attributes, its body. Dead eyes, so it's no disguise.", until: "manual" },
+  "corpse walk": { t: "CORPSE WALK", x: "You're in the corpse for the scene: your skills and attributes, its body. Wounds go on the corpse, not you, and it ignores wound penalties until it reaches Dead. Its first attack after rising gets +2. When it's destroyed, a death burst hits everyone next to it (Damage Bonus +3), and you reform asleep beside it.", until: "manual", strike: 2, keep: true },
 };
 for (const [k, d] of Object.entries(ACTIVE)) d.c = POWER_CARDS[k]?.c || "bs";
 const actKey = () => ck("ns.active." + sheetId());
@@ -1988,18 +2006,25 @@ function endActive(note) {
 function updateActive() {
   const bar = $("actbar"); if (!bar) return;
   let a = actGet();
-  if (a && !powerUsed() && ACTIVE[a.n].until !== "combat") { setActive(""); a = null; } // New Day ends the scene-long ones; combat ones last until the combat ends
+  if (a && !powerUsed(kindOf(a.n)) && ACTIVE[a.n].until !== "combat") { setActive(""); a = null; } // New Day ends the scene-long ones; combat ones last until the combat ends
   const d = a && ACTIVE[a.n];
   bar.className = "actbar " + (d ? d.c : ""); bar.hidden = !d;
   document.querySelectorAll("#shbody .skc").forEach(b => { const l = b.querySelector(".rd")?.dataset.l || "";
-    b.classList.toggle("acthold", !!d?.hold); b.classList.toggle("actstrike", !!d?.strike && KS_ATTACK.test(l));
+    b.classList.toggle("acthold", !!d?.hold); b.classList.toggle("actstrike", !!d?.strike && !(d.keep && a?.st) && KS_ATTACK.test(l));
     const has = b.querySelector(".actb"), want = d?.skill && d.skill[0].test(l);
     if (want && !has) b.querySelector("b")?.insertAdjacentHTML("afterend", `<i class="actb" title="${esc2(d.t)}">+${d.skill[1]}</i>`); else if (!want && has) has.remove(); });
   if (!d) { bar.innerHTML = ""; return; }
   const st = actMd?.[INIT], rnd = st?.open ? String(st.round || 1) : "x", rr = !!d.reroll && a.fr === rnd;
-  bar.innerHTML = `<span><b>${esc2(d.t)}</b><br>${esc2(d.x)}${d.reroll ? `<br><button class="actrr ${rr ? "on" : ""}">${rr ? `Reroll used${rnd !== "x" ? ` (round ${rnd})` : ""}. Tap to undo` : `Mark this round's reroll used`}</button>` : ""}</span><button class="actx" title="End it">✕</button>`;
+  // Out of combat, a power with "scene" gives that many rerolls for the scene (a.sl = how many are spent)
+  const sceneLeft = d.scene ? Math.max(0, d.scene - (a.sl || 0)) : 0, outC = rnd === "x" && !!d.scene;
+  const rrBtn = !d.reroll ? "" : outC
+    ? `<br><button class="actrr ${sceneLeft ? "" : "on"}" ${sceneLeft ? "" : "disabled"}>${sceneLeft ? `Use a reroll (${sceneLeft} of ${d.scene} left this scene)` : "No rerolls left this scene"}</button>${a.sl ? ` <button class="actrr actun">Undo</button>` : ""}`
+    : `<br><button class="actrr ${rr ? "on" : ""}">${rr ? `Reroll used (round ${rnd}). Tap to undo` : `Use this round's reroll`}</button>`;
+  bar.innerHTML = `<span><b>${esc2(d.t)}</b><br>${esc2(d.x)}${rrBtn}</span><button class="actx" title="End it">✕</button>`;
   bar.querySelector(".actx").onclick = () => endActive();
-  const rb = bar.querySelector(".actrr"); if (rb) rb.onclick = () => { setActive(a.n, { ...a, fr: rr ? "" : rnd }); updateActive(); };
+  const rb = bar.querySelector(".actrr:not(.actun)");
+  if (rb) rb.onclick = () => { if (outC) { if (!sceneLeft) return; setActive(a.n, { ...a, sl: (a.sl || 0) + 1 }); } else setActive(a.n, { ...a, fr: rr ? "" : rnd }); updateActive(); };
+  const ub = bar.querySelector(".actun"); if (ub) ub.onclick = () => { setActive(a.n, { ...a, sl: Math.max(0, (a.sl || 0) - 1) }); updateActive(); };
 }
 function actSync(md) {
   actMd = md; const a = actGet(); if (!a) return; const d = ACTIVE[a.n], st = md?.[INIT];
@@ -2028,11 +2053,16 @@ const POWER_ROLLS = {
   "kill shot": "arm", // arms Kill Shot: the next attack roll from the sheet comes up +, +, +, +
   "ghost in the machine": { act: [{ k: "Hacking", t: "Get in: roll Hacking" }], fn: "Inside, doing something the system would fight?", fl: "Once inside", follow: [{ k: "Hacking", t: "Roll Hacking (same difficulty)" }] },
   "last rites": { fn: "Rebooting something huge, like a warship or war mech?", fl: "Big reboot", follow: [{ k: "Hacking", t: "Roll Hacking" }] },
-  "spirit walk": { fn: "Going past 100 yards?", fl: "Tether", follow: [{ k: "Intellect", t: "Tether: roll Intellect" }, { k: "Raw Strength", t: "Tether: roll Raw Strength" }] },
-  "corpse walk": { fn: "Corpse past 100 yards?", fl: "Tether", follow: [{ k: "Intellect", t: "Tether: roll Intellect" }, { k: "Raw Strength", t: "Tether: roll Raw Strength" }] },
+  // Jake, Nov 25: tethers roll the Revenant's core skill, Spirit Tether (difficulty +2 / +4 / +6 / +8 past 100 / 200 / 300 / 400 yd)
+  "spirit walk": { fn: "Going past 100 yards? (+2 past 100 yd, +4 past 200, +6 past 300, +8 past 400)", fl: "Tether", follow: [{ k: "Spirit Tether", t: "Tether: roll Spirit Tether" }] },
+  "corpse walk": { fn: "Corpse past 100 yards? (+2 past 100 yd, +4 past 200, +6 past 300, +8 past 400)", fl: "Tether", follow: [{ k: "Spirit Tether", t: "Tether: roll Spirit Tether" }] },
   // alt: another way to start the power, under its own prompt line (rolling it uses the power, same as act)
-  "meltdown": { act: [{ k: "Intellect", t: "Meltdown: roll Intellect" }], an: "Shockwave hitting everyone within 10 ft? That's pushing it:", alt: [{ k: "Intellect", x: -2, t: "Expanded Shockwave: roll Intellect", l: "Expanded Shockwave (10 ft)" }] },
-  "mind over matter": { fn: "Something big, like flying the crew, tearing a wall open, or moving anyone who doesn't want to be moved?", fl: "Big feat", follow: [{ k: "Intellect", t: "Big feat: roll Intellect" }] },
+  // Jake, Nov 25: Subject Zero rolls its core skill, Telekinesis (difficulty +2 / +4 / +6 / +8 by size)
+  "meltdown": { act: [{ k: "Telekinesis", t: "Meltdown: roll Telekinesis" }], an: "Shockwave hitting everyone within 10 ft? That's pushing it:", alt: [{ k: "Telekinesis", x: -2, t: "Expanded Shockwave: roll Telekinesis", l: "Expanded Shockwave (10 ft)" }] },
+  "mind over matter": { fn: "Something big, like flying the whole crew or tearing a wall open?", fl: "Big feat", follow: [{ k: "Telekinesis", t: "Big feat: roll Telekinesis" }] },
+  "steady hold": { fn: "Something huge, like a building section or a docked ship?", fl: "Big feat", follow: [{ k: "Telekinesis", t: "Big feat: roll Telekinesis" }] },
+  // Hacker's combat power: pick one. Burn their gear / Take the sentry roll Hacking; Overclock the crew is a Use (no roll)
+  "hijack": { act: [{ k: "Hacking", t: "Burn their gear: roll Hacking (vs their Intellect)", l: "Burn their gear (Hacking)" }, { k: "Hacking", t: "Take the sentry: roll Hacking", l: "Take the sentry (Hacking)" }], use: "Or, no roll:", ut: "Overclock the crew: +2 Damage Bonus for one round" },
   "disappear completely": { fn: "Near enemies, or they're searching?", fl: "Stay quiet", follow: [{ k: "Sneak", t: "Stay quiet: roll Sneak" }] },
   "borrowed face": { fn: "Someone who knows them is testing you?", fl: "Pass the test", follow: [{ k: "Acting / Impersonation", t: "Pass the test: roll Acting / Impersonation" }] },
   "mind touch": { fn: "Planting a feeling?", fl: "Plant a feeling", follow: [{ k: "Insight", t: "Plant a feeling: roll Insight" }, { k: "Insight", x: -2, t: "Pushing it, whole room: Insight -2", l: "Pushing it" }] },
@@ -2050,20 +2080,28 @@ function powerMod(k) {
   const a = SKILL_ATTR[k]; if (a) return { m: (num(V(ATTR_CELL[a])) ?? 0) - 4, br: "", un: true };
   return null;
 }
-const SKILL_ATTR = { "Streetwise": "Charm", "Hacking": "Intellect", "Insight": "Intellect", "Sneak": "Adroitness", "Acting / Impersonation": "Charm" };
+const SKILL_ATTR = { "Streetwise": "Charm", "Hacking": "Intellect", "Insight": "Intellect", "Sneak": "Adroitness", "Acting / Impersonation": "Charm", "Telekinesis": "Intellect", "Spirit Tether": "Intellect" };
 // Using a power ticks "Used today" (F6) on its own. Tries again for a few seconds if another save is still going.
 // pwPending covers the moment between the click and the sheet saving, so a second click can't use it again.
-let pwPending = false;
-const powerUsed = () => pwPending || V("F6").toUpperCase() === "TRUE";
-function markPowerUsed(tries = 0) {
-  if (V("F6").toUpperCase() === "TRUE" || !sheetVals) { pwPending = false; return; }
-  pwPending = true;
-  if (busy) { if (tries < 10) setTimeout(() => markPowerUsed(tries + 1), 600); else pwPending = false; return; }
-  save({ power: true }, () => { setCell("F6", "TRUE"); pwPending = false; });
+// Two daily uses (Jake, Nov 25): one combat use (F6) and one utility use (F8). Priests and Mages only have the combat one.
+// Each power's kind comes from its heading on the type tab ("Extraordinary Power: combat ..." / "...: utility ...").
+const USE_CELL = { combat: "F6", utility: "F8" }, USE_KEY = { combat: "power", utility: "utility" };
+let myKinds = {}; // power name (lowercase) -> "combat" | "utility"
+const kindOf = (name) => myKinds[String(name || "").toLowerCase().trim()] || (/^(kill shot|death mark|flash forward|corpse walk|meltdown|bullet stop|hijack|avatar|commune)$/i.test(String(name || "").trim()) ? "combat" : "utility");
+const hasUtility = () => !/^(priest|mage)$/i.test(V("C4").trim());
+const pwPending = { combat: false, utility: false };
+const powerUsed = (kind = "combat") => pwPending[kind] || V(USE_CELL[kind]).toUpperCase() === "TRUE";
+function markPowerUsed(kind = "combat", tries = 0) {
+  if (typeof kind !== "string") kind = "combat";
+  if (V(USE_CELL[kind]).toUpperCase() === "TRUE" || !sheetVals) { pwPending[kind] = false; return; }
+  pwPending[kind] = true;
+  if (busy) { if (tries < 10) setTimeout(() => markPowerUsed(kind, tries + 1), 600); else pwPending[kind] = false; return; }
+  save({ [USE_KEY[kind]]: true }, () => { setCell(USE_CELL[kind], "TRUE"); pwPending[kind] = false; });
 }
 function powerRollBtns(name) {
-  const key = String(name).toLowerCase().trim(), e = POWER_ROLLS[key] || {}, on = powerUsed();
-  const usedNote = on ? `<div class="pwused">✕ Already used today. Check with your GM before using it again.</div>` : "";
+  const key = String(name).toLowerCase().trim(), e = POWER_ROLLS[key] || {}, kind = kindOf(name), on = powerUsed(kind);
+  const kl = hasUtility() ? (kind === "utility" ? "utility" : "combat") : "daily";
+  const usedNote = on ? `<div class="pwused">✕ Your ${kl} use is already spent today. Check with your GM before using it again.</div>` : `<div class="pwtn">${hasUtility() ? (kind === "utility" ? "Utility power: uses today's utility use (shared with your other utility power)." : "Combat power: uses today's combat use. Works out of combat too.") : "Your one daily power. Works in or out of combat."}</div>`;
   const btn = (r, cls, dis, lbl) => { const pm = powerMod(r.k);
     if (!pm) return `<div class="pwmiss">${esc2(r.k)} isn't on your sheet. Ask your GM.</div>`;
     const tot = pm.m + (r.x || 0);
@@ -2071,9 +2109,9 @@ function powerRollBtns(name) {
   if (e === "arm") return `<div class="pwrolls">${usedNote}<button class="pwroll ksarm ${ksArmed() ? "on" : ""}" ${on && !ksArmed() ? "disabled" : ""}><span>${ksArmed() ? "Kill Shot is armed. Tap to cancel" : "Arm Kill Shot: your next attack roll is +, +, +, +"}</span></button></div>`;
   if (e === "aura") { const a = actGet()?.n === "bullet stop"; // Jake, Nov 24: using Bullet Stop always gives the +2 Armor Bonus
     return `<div class="pwrolls">${usedNote}<button class="pwroll bsaura ${a ? "on" : ""}" ${on && !a ? "disabled" : ""}>⚡<span>${a ? "Bullet Stop is on: +2 Armor Bonus. Tap to end it" : on ? "Used Today" : "Use Bullet Stop: +2 Armor Bonus until the combat ends (checks Used Today)"}</span></button>` +
-      `<div class="pwtn">Use it on your turn. It doesn't take your action, so you can still fight. The +2 ends when the GM ends the combat, or with ✕.</div></div>`; }
-  const start = e.act ? e.act.map(r => btn(r, "", on)).join("")
-    : `<button class="pwroll pwuse" data-act="${ACTIVE[key] ? esc2(key) : ""}" data-k="${esc2(key)}" data-n="${esc2(name)}" ${on ? "disabled" : ""}>⚡<span>${on ? (actGet()?.n === key ? "On now. End it with ✕ on the bar" : "Used Today") : `Use ${esc2(name)}: checks Used Today`}</span></button>`;
+      `<div class="pwtn">Use it on your turn. It doesn't take your action, so you can still fight. The +2 ends when the GM ends the combat, or with ✕. Using Bullet Stop spends your Meltdown for today.</div></div>`; }
+  const useBtn = (lbl) => `<button class="pwroll pwuse" data-act="${ACTIVE[key] ? esc2(key) : ""}" data-k="${esc2(key)}" data-n="${esc2(name)}" ${on ? "disabled" : ""}>⚡<span>${on ? (actGet()?.n === key ? "On now. End it with ✕ on the bar" : "Used Today") : lbl || `Use ${esc2(name)}: checks Used Today`}</span></button>`;
+  const start = e.act ? e.act.map(r => btn(r, "", on)).join("") + (e.use ? `<div class="pwtn">${esc2(e.use)}</div>` + useBtn(esc2(e.ut)) : "") : useBtn();
   const alt = e.alt ? `<div class="pwtn">${esc2(e.an)}</div>` + e.alt.map(r => btn(r, "", on)).join("") : "";
   const follow = e.follow ? `<div class="pwtn">${esc2(e.fn)} ${on ? "Roll it here:" : "These rolls unlock once you use it."}</div>` + e.follow.map(r => btn(r, "pwtether", !on, e.fl)).join("") : "";
   return `<div class="pwrolls">${usedNote}${start}${alt}${follow}</div>`;
@@ -2089,13 +2127,14 @@ async function fillPowers() {
     for (const row of v) {
       const b = String(row[1] || "").trim(), c = String(row[2] || "").trim();
       if (/^always on/i.test(b)) { const name = b.replace(/^always on/i, "").replace(/\([^)]*\)/g, "").replace(/^[\s:]+/, "").trim(); always.push({ name, text: c }); }
-      else if (/^extraordinary power/i.test(b) && c) { const name = c.replace(/\s*\((once|one) per day\)\s*/ig, " ").trim(); daily.push({ name, rules: info?.powers.find(p => p.name === c)?.rules || [] }); }
+      else if (PW_HEAD.test(b) && c) { const name = c.replace(/\s*\((once|one) per day\)\s*/ig, " ").trim(); daily.push({ name, kind: /utility/i.test(b) ? "utility" : "combat", rules: info?.powers.find(p => p.name === c)?.rules || [] }); }
     }
-    myDaily = daily.map(x => x.name); drawHand();
+    myDaily = daily.map(x => x.name); myKinds = Object.fromEntries(daily.map(x => [x.name.toLowerCase(), x.kind])); drawHand();
     if (!$("pwlist")) return;
+    const grp = (lbl, kind) => { const xs = daily.map((x, i) => [x, i]).filter(([x]) => x.kind === kind); return xs.length ? `<div><span>${lbl}:</span> ${xs.map(([x, i]) => `<button class="pwb ${pwOpen === "d" + i ? "on" : ""} ${powerUsed(kind) ? "pwu" : ""}" data-pk="d${i}">${esc2(x.name)}</button>`).join(" · ")}</div>` : ""; };
     $("pwlist").innerHTML =
       (always.length ? `<div><span>ALWAYS ON:</span> ${always.map((x, i) => x.name ? `<button class="pwb ${pwOpen === "a" + i ? "on" : ""}" data-pk="a${i}">${esc2(x.name)}</button>` : esc2(x.text)).join(", ")}</div>` : "") +
-      (daily.length ? `<div><span>DAILY:</span> ${daily.map((x, i) => `<button class="pwb ${pwOpen === "d" + i ? "on" : ""}" data-pk="d${i}">${esc2(x.name)}</button>`).join(" · ")}</div>` : "");
+      (hasUtility() ? grp("COMBAT", "combat") + grp("UTILITY (pick one)", "utility") : grp("DAILY", "combat") + grp("DAILY", "utility"));
     // the DAILY line already names the power, so drop the separate name line (kept only if the type has no list)
     if ($("pwname") && (always.length || daily.length)) $("pwname").hidden = true;
     const show = () => {
@@ -2107,18 +2146,19 @@ async function fillPowers() {
       box.innerHTML = `<div class="gpn">${k[0] === "a" ? "Always on · " : "⚡ "}${esc2(x.name)}<button class="pwx" title="Close">✕</button></div>` +
         (k[0] === "a" ? `<div>${esc2(x.text)}</div>` : (x.rules.map(([a, b]) => `<div>${a ? `<b>${esc2(a)}:</b> ` : ""}${esc2(b)}</div>`).join("") || `<div>No details on the type tab.</div>`) + powerRollBtns(x.name));
       box.querySelector(".pwx").onclick = () => { pwOpen = ""; show(); };
-      box.querySelectorAll(".ksarm").forEach(b => b.onclick = (e) => { e.stopPropagation(); if (powerUsed() && !ksArmed()) return; const arming = !ksArmed(); setKS(arming); if (arming) announcePower("kill shot", "Kill Shot"); show(); });
+      const kd = x.kind || "combat";
+      box.querySelectorAll(".ksarm").forEach(b => b.onclick = (e) => { e.stopPropagation(); if (powerUsed(kd) && !ksArmed()) return; const arming = !ksArmed(); setKS(arming); if (arming) announcePower("kill shot", "Kill Shot"); show(); });
       box.querySelectorAll(".bsaura").forEach(b => b.onclick = (e) => { e.stopPropagation();
         if (actGet()?.n === "bullet stop") return endActive();
-        if (powerUsed()) return;
-        markPowerUsed(); startActive("bullet stop"); drawSheet(); });
-      box.querySelectorAll(".pwuse").forEach(b => b.onclick = (e) => { e.stopPropagation(); if (powerUsed()) return; markPowerUsed();
+        if (powerUsed(kd)) return;
+        markPowerUsed(kd); startActive("bullet stop"); drawSheet(); });
+      box.querySelectorAll(".pwuse").forEach(b => b.onclick = (e) => { e.stopPropagation(); if (powerUsed(kd)) return; markPowerUsed(kd);
         if (b.dataset.act) { startActive(b.dataset.act); drawSheet(); } else { announcePower(b.dataset.k, b.dataset.n); show(); } }); // every daily gets a table card
-      box.querySelectorAll(".pwtether").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (rollBusy || !powerUsed()) return; await quickRoll(b.dataset.m, b.dataset.l, "", b.dataset.b); });
-      box.querySelectorAll(".pwroll:not(.ksarm):not(.pwuse):not(.pwtether):not(.bsaura)").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (rollBusy || powerUsed()) return;
+      box.querySelectorAll(".pwtether").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (rollBusy || !powerUsed(kd)) return; await quickRoll(b.dataset.m, b.dataset.l, "", b.dataset.b); });
+      box.querySelectorAll(".pwroll:not(.ksarm):not(.pwuse):not(.pwtether):not(.bsaura)").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (rollBusy || powerUsed(kd)) return;
         // once per day: lock every power button right away so a second click can't roll it again
         box.querySelectorAll(".pwroll").forEach(x => x.disabled = true);
-        markPowerUsed();
+        markPowerUsed(kd);
         await quickRoll(b.dataset.m, b.dataset.l, "", b.dataset.b); show(); });
     };
     document.querySelectorAll(".pwb").forEach(b => b.onclick = () => { pwOpen = pwOpen === b.dataset.pk ? "" : b.dataset.pk; show(); });
@@ -2344,10 +2384,12 @@ function bindStasis() {
     };
   };
 }
-// New Day / Refill COP for every character in this room's campaign. Tap once, then tap again to confirm.
+// New Day / Fill COP / Empty COP for every character in this room's campaign. Tap once, then tap again to confirm.
+// Jake, Nov 25: COP is 0 at the start of each day; a fight starting (CALL FOR INITIATIVE) fills everyone to full;
+// unspent points stay after the fight; New Day empties them back to 0.
 function gmTools() {
-  return `<div class="sec" style="margin-top:2px">TABLE</div><div class="g2" style="margin-bottom:4px">
-    <button id="gmDay" class="sbtn">☀ NEW DAY</button><button id="gmCop" class="sbtn">⚡ REFILL COP</button></div>
+  return `<div class="sec" style="margin-top:2px">TABLE</div><div class="g3" style="margin-bottom:4px;grid-template-columns:1fr 1fr 1fr">
+    <button id="gmDay" class="sbtn" title="Combat and utility uses back, invocations / spell points refilled, everyone's COP back to 0">☀ NEW DAY</button><button id="gmCop" class="sbtn" title="Everyone's COP to full (CALL FOR INITIATIVE does this too)">⚡ FILL COP</button><button id="gmCop0" class="sbtn" title="Everyone's COP to 0">○ EMPTY COP</button></div>
     <button id="gmTgt" class="sbtn" style="width:100%;margin-bottom:4px" title="Off: whoever rolls Adroitness next defends (fast). On: select the target token(s) on the map before you roll a monster's attack, and only they defend. Just for you.">TARGET LOCK: …</button>
     <div id="gmMsg" class="help" hidden></div>`;
 }
@@ -2378,19 +2420,24 @@ function bindGmTools() {
     b.dataset.armed = "1"; b.textContent = "TAP AGAIN TO CONFIRM";
     setTimeout(() => { if (b.dataset.armed) { delete b.dataset.armed; b.textContent = label; } }, 4000);
   }; };
-  // New Day: daily power back, and Priests / Mages get their invocations / spell points refilled to max (Jake, Nov 25)
+  // New Day: combat and utility uses back, Priests / Mages get their invocations / spell points refilled to max,
+  // and everyone's COP goes to 0 (H29 spent = H28 max) until the next fight starts (Jake, Nov 25)
   arm($("gmDay"), "☀ NEW DAY", () => gmAll("New day", (v) => {
     const out = [];
     if (/^true$/i.test(String(v[5]?.[5] ?? "").trim())) out.push({ power: false });
+    if (/^true$/i.test(String(v[7]?.[5] ?? "").trim())) out.push({ utility: false });
     const max = ptMaxOf(v), now = parseInt(String(v[12]?.[5] ?? "")) || 0;
     if (/^(priest|mage)$/i.test(String(v[3]?.[2] ?? "").trim()) && max != null && now !== max) out.push({ points: max });
+    const cm = copEmpty(v); if (cm) out.push(cm);
     return out.length ? out : null;
-  }, (v, b) => { for (const one of b) { if (one.power === false) v[5][5] = "FALSE"; if (one.points != null) { v[12] = v[12] || []; v[12][5] = String(one.points); } } }));
-  arm($("gmCop"), "⚡ REFILL COP", () => gmAll("Refill COP", (v) => {
-    const now = parseInt(String(v[28]?.[7] ?? "")) || 0; // H29 is COP spent: refilling sets it back to 0
-    return now === 0 ? null : { copSpent: 0 };
-  }, (v, b) => { v[28] = v[28] || []; v[28][7] = String(b.copSpent); }));
+  }, (v, b) => { for (const one of b) { if (one.power === false) v[5][5] = "FALSE"; if (one.utility === false) { v[7] = v[7] || []; v[7][5] = "FALSE"; } if (one.points != null) { v[12] = v[12] || []; v[12][5] = String(one.points); } if (one.copSpent != null) { v[28] = v[28] || []; v[28][7] = String(one.copSpent); } } }));
+  arm($("gmCop"), "⚡ FILL COP", () => fillAllCop());
+  arm($("gmCop0"), "○ EMPTY COP", () => gmAll("Empty COP", copEmpty, (v, b) => { v[28] = v[28] || []; v[28][7] = String(b.copSpent); }));
 }
+// H28 = COP max, H29 = COP spent. Empty = spent set to max (0 left). Fill = spent back to 0.
+const copEmpty = (v) => { const max = parseInt(String(v[27]?.[7] ?? "")); const now = parseInt(String(v[28]?.[7] ?? "")) || 0; return isNaN(max) || now === max ? null : { copSpent: max }; };
+const fillAllCop = (label = "Fill COP") => gmAll(label, (v) => (parseInt(String(v[28]?.[7] ?? "")) || 0) === 0 ? null : { copSpent: 0 },
+  (v, b) => { v[28] = v[28] || []; v[28][7] = String(b.copSpent); });
 async function gmAll(label, change, local) {
   const msg = $("gmMsg"); const say = (t) => { if (!msg) return; msg.hidden = false; msg.textContent = t; };
   say(`${label}: checking characters…`); sync(1);
@@ -2780,7 +2827,7 @@ function drawMonsters() {
   $("monAll").onclick = monDropAll;
   $("iPrev").onclick = () => initStep(-1); $("iNext").onclick = () => initStep(1);
   $("iCall").onclick = async () => { const b = $("iCall"); b.disabled = true; b.textContent = "⚔ CALLING…";
-    try { await callInitiative(); if (autoMon()) await rollMonsterInit(); b.textContent = "✓ INITIATIVE CALLED"; OBR.notification.show("⚔ Initiative called. Players' next Adroitness roll counts.", "SUCCESS").then(id => setTimeout(() => OBR.notification.close(id).catch(() => {}), 4000)).catch(() => {}); }
+    try { await callInitiative(); fillAllCop("Fight started: COP to full").catch(() => {}); if (autoMon()) await rollMonsterInit(); b.textContent = "✓ INITIATIVE CALLED"; OBR.notification.show("⚔ Initiative called. Players' next Adroitness roll counts.", "SUCCESS").then(id => setTimeout(() => OBR.notification.close(id).catch(() => {}), 4000)).catch(() => {}); }
     catch { b.textContent = "Didn't go through, tap again"; }
     setTimeout(() => { if ($("iCall")) { $("iCall").disabled = false; $("iCall").textContent = "⚔ CALL FOR INITIATIVE"; } }, 2500); }; $("iMon").onclick = rollMonsterInit; $("iEnd").onclick = () => { // two taps: the first asks, the second (within 4 s) ends combat
     const b = $("iEnd");
@@ -3450,9 +3497,9 @@ function drawParty(body, chars) {
       const marks = "BCDEFGH".split("").map(c => !!cell(v, c + "16"));
       const worst = marks.lastIndexOf(true);
       const status = worst < 0 ? "Unhurt" : cell(v, "BCDEFGH"[worst] + "15").replace(/^\S+\s+/, "");
-      const used = cell(v, "F6").toUpperCase() === "TRUE";
+      const used = cell(v, "F6").toUpperCase() === "TRUE", usedU = cell(v, "F8").toUpperCase() === "TRUE", hasU = !/^(priest|mage)$/i.test(cell(v, "C4"));
       return `<div class="pcard">
-        <div class="ptop">${ptIcon(c.id, cell(v, "C3"))}<b>${esc2(cell(v, "C3"))}</b>${isGM && ptT(c.id) ? `<button class="pogb" data-pog="${esc2(c.id)}" data-n="${esc2(cell(v, "C3"))}" title="Add this character's pog to your Owlbear characters">◎ POG</button>` : ""}<small>${esc2(cell(v, "C4"))}</small><span class="ppw ${used ? "u" : ""}">${used ? "POWER USED" : "POWER READY"}</span></div>
+        <div class="ptop">${ptIcon(c.id, cell(v, "C3"))}<b>${esc2(cell(v, "C3"))}</b>${isGM && ptT(c.id) ? `<button class="pogb" data-pog="${esc2(c.id)}" data-n="${esc2(cell(v, "C3"))}" title="Add this character's pog to your Owlbear characters">◎ POG</button>` : ""}<small>${esc2(cell(v, "C4"))}</small>${hasU ? `<span class="ppw ${used ? "u" : ""}">${used ? "COMBAT USED" : "COMBAT READY"}</span><span class="ppw ${usedU ? "u" : ""}">${usedU ? "UTILITY USED" : "UTILITY READY"}</span>` : `<span class="ppw ${used ? "u" : ""}">${used ? "POWER USED" : "POWER READY"}</span>`}</div>
         ${isGM ? gmStrip(v, cell) : ""}${actBadge(cell(v, "C3"))}<div class="pvit">${marks.map((m, i) => `<i><small>${["LW", "LW", "LW", "MW", "CW", "KO", "D"][i]}</small><span class="${m ? "x" : ""}"></span></i>`).join("")}<em class="${worst >= 4 ? "bad" : ""}">${esc2(status)}</em></div>
       </div>`;
     }).join("") : `<div class="empty">No characters found.</div>`);

@@ -62,7 +62,7 @@ function createCharacter(c, campaign) {
   const text = function (v) { v = String(v == null ? '' : v); return /^[=@+\-]/.test(v) && isNaN(Number(v)) ? "'" + v : v; };
   sh.getRange('C3').setValue(text(name)); sh.getRange('C4').setValue(type); sh.getRange('C5').setValue(text(c.power || ''));
   A.forEach(function (a, i) { sh.getRange('C' + (7 + i)).setValue(Math.round(Number(c.attrs[a]))); });
-  sh.getRange('F3').setValue(xp); sh.getRange('F4').setValue(0); sh.getRange('F6').setValue(false); sh.getRange('F7').setValue(1000 - Math.max(0, Math.min(1000, Math.round(Number(c.spent) || 0)))); sh.getRange('F10').setValue(0);
+  sh.getRange('F3').setValue(xp); sh.getRange('F4').setValue(0); sh.getRange('F6').setValue(false); sh.getRange('F8').setValue(false); sh.getRange('F7').setValue(1000 - Math.max(0, Math.min(1000, Math.round(Number(c.spent) || 0)))); sh.getRange('F10').setValue(0);
   // skills, best first, into the Trained Skills rows
   const col = sh.getRange('B1:B60').getDisplayValues().map(function (r) { return String(r[0]).trim().toLowerCase(); });
   const tr = col.indexOf('trained skills') + 1;
@@ -84,7 +84,7 @@ function createCharacter(c, campaign) {
   (c.notes || []).slice(0, 100).forEach(function (n, i) { sh.getRange('G' + (inv + 1 + i)).setValue(text(String(n).slice(0, 300))); });
   // Priest invocations / Mage spell points (max follows level)
   if (type === 'Priest') sh.getRange('E13:H13').setValues([['Invocations', 2, 'Max Invocations', '=2+ROUNDDOWN(F5/2)']]);
-  else if (type === 'Mage') sh.getRange('E13:H13').setValues([['Spell Points', 3, 'Max Spell Points', '=3+ROUNDDOWN(F5/2)']]);
+  else if (type === 'Mage') sh.getRange('E13:H13').setValues([['Spell Points', 6, 'Max Spell Points', '=6+ROUNDDOWN(F5/2)']]); // Jake, Nov 25: 6 + half level
   else sh.getRange('E13:H13').clearContent();
   // keep only this character's type tab
   ss.getSheets().forEach(function (s) { const t = s.getName().trim(); if (TYPE_TABS.indexOf(t) >= 0 && t !== type) ss.deleteSheet(s); });
@@ -147,7 +147,8 @@ function moveToStasis(id) {
 }
 
 const WOUND_CELLS = ['B16', 'C16', 'D16', 'E16', 'F16', 'G16', 'H16'];
-const POWER_CELL = 'F6';
+const POWER_CELL = 'F6'; // combat use
+const UTILITY_CELL = 'F8'; // utility use
 const COP_SPENT_CELL = 'H29';
 const POINTS_LABEL_CELL = 'E13'; // says "Invocations" or "Spell Points" when the character has them
 const POINTS_CELL = 'F13';
@@ -652,7 +653,7 @@ function doGet(e) {
   }
 }
 
-// POST body (text/plain JSON): {code, id, wound: 0-6, on: true/false} or {code, id, power: true/false} or {code, id, copSpent: n} or {code, id, points: n}
+// POST body (text/plain JSON): {code, id, wound: 0-6, on: true/false} or {code, id, power: true/false} or {code, id, utility: true/false} or {code, id, copSpent: n} or {code, id, points: n}
 function doPost(e) {
   try {
     const b = JSON.parse(e.postData.contents);
@@ -712,6 +713,11 @@ function doPost(e) {
       sh.getRange(cell).setValue(b.on ? 'X' : '');
     } else if (b.power !== undefined) {
       sh.getRange(POWER_CELL).setValue(!!b.power);
+    } else if (b.utility !== undefined) { // Jake, Nov 25: second daily, the utility use (F8). Older sheets get the label and checkbox here
+      const u = sh.getRange(UTILITY_CELL);
+      if (!String(sh.getRange('E8').getDisplayValue()).trim()) sh.getRange('E8').setValue('Utility Power Used Today');
+      if (!u.getDataValidation()) u.insertCheckboxes();
+      u.setValue(!!b.utility);
     } else if (b.points !== undefined) { // Invocations (Priest) or Spell Points (Mage), F13
       if (!String(sh.getRange(POINTS_LABEL_CELL).getDisplayValue()).trim()) throw new Error('This character has no invocations or spell points.');
       const n = Math.max(0, Math.min(50, Math.round(Number(b.points) || 0)));
