@@ -493,6 +493,15 @@
   .gtools { display:flex; gap:5px; align-items:center; margin-top:6px; } .gtools .gq { margin:0; flex:1; min-width:0; } .gtools .sbtn { white-space:nowrap; font-size:11px; padding:5px 7px; }
   .gsh { font-size:10px; font-weight:800; letter-spacing:.5px; color:var(--dim); margin:8px 2px 3px; } .gsh span { color:var(--ink); }
   .gsr { display:flex; flex-wrap:wrap; align-items:stretch; background:var(--paper); border:1.5px solid #444a66; border-radius:7px; margin-top:3px; }
+  .gbig { display:flex; gap:10px; margin:8px 0; padding:9px 10px; border:1px solid #3a3558; border-radius:10px; background:rgba(25,22,42,.55); }
+  .gbig.need { border-color:#9d86ff; box-shadow:0 0 0 1px rgba(157,134,255,.35); } .gbig.ok .gbn { background:rgba(91,63,158,.8); color:#fff; }
+  .gbn { flex:none; width:26px; height:26px; border-radius:50%; border:2px solid #6b4fb8; display:flex; align-items:center; justify-content:center; font:800 13px system-ui; color:#c7b6ff; }
+  .gbb { flex:1; min-width:0; } .gbb > b { font-family:'Bangers', Impact, sans-serif; font-weight:400; font-size:18px; letter-spacing:1px; color:#e2d8ff; } .gbb > small { color:var(--dim); }
+  .gnamebig { width:100%; margin-top:6px; font-size:18px; font-weight:700; padding:9px 10px; border:2px solid #6b4fb8; }
+  .gbb .gptz { margin-top:6px; }
+  .gcirc { display:flex; gap:12px; flex-wrap:wrap; align-items:flex-start; justify-content:center; text-align:left; }
+  .gcirc .ptedc { width:180px; height:180px; } .gcircr { flex:1 1 180px; display:flex; flex-direction:column; gap:6px; }
+  .gpogrow { display:flex; align-items:center; gap:8px; font-size:11px; color:var(--dim); } .gpogrow img { width:56px; height:56px; }
   .gptz { border:2px dashed #4a4170; border-radius:10px; padding:12px; text-align:center; color:var(--dim); font-size:12px; line-height:1.5; } .gptz.over { border-color:var(--accent); background:rgba(91,63,158,.2); } .gptz b { color:var(--ink); }
   .gptdone { display:flex; gap:10px; align-items:center; margin-top:8px; font-size:12px; } .gptdone img { width:84px; height:84px; flex:none; }
   .gsr.glock { opacity:.55; } .gsr.glock:hover, .gsr.glock:has(.gask) { opacity:1; } .gask .gmeta { color:#d9ccff; }
@@ -1829,7 +1838,7 @@ async function showGen() {
     bindFirstTime();
     if ($("gHelpT")) $("gHelpT").onclick = () => { store.set("ns.genHelpHide", ""); store.set("ns.genHelpOff", ""); showGen(); };
     document.querySelectorAll("[data-helpoff]").forEach(b => b.onclick = () => { store.set("ns.genHelpHide", "1"); showGen(); });
-    $("gNameTop").oninput = () => { cg.name = $("gNameTop").value; cgSave(); if (genRecheck) genRecheck();
+    $("gNameTop").oninput = () => { cg.name = $("gNameTop").value; cgSave(); if ($("gNameBig")) { $("gNameBig").value = cg.name; $("gStepName").className = "gbig " + (cg.name.trim() ? "ok" : "need"); } if (genRecheck) genRecheck();
       const pv = document.querySelector(".shp .shn b"); if (pv) pv.textContent = cg.name.trim() || "Unnamed"; }; // keep the sheet preview in step
     $("gBack").onclick = () => go(-1); if ($("gNext")) $("gNext").onclick = () => go(1);
     document.querySelectorAll("[data-go]").forEach(b => b.onclick = () => { if (+b.dataset.go === cg.step) return; cg.step = +b.dataset.go; cgSave(); showGen(); });
@@ -2068,30 +2077,65 @@ async function showGen() {
     if (!cg.email && store.get("ns.email")) { cg.email = store.get("ns.email"); cgSave(); }
     const finishWhy = () => { for (let j = 0; j < 4; j++) { const w = stepWhy(j); if (w) return `Step ${j + 1} (${GSTEPS[j]}) isn't done: ${w}`; }
       if (cg.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(cg.email)) return "That email doesn't look right.";
-      return cg.name.trim() ? "" : "Give your character a name (box at the top)."; };
+      return cg.name.trim() ? "" : "Give your character a name (step 1 above)."; };
     const xpBtns = [-10, -1, 1, 10].map(d => `<button class="sbtn" data-xp="${d}">${d > 0 ? "+" : ""}${d}</button>`).join("");
-    put(bar + firstTime("Last step", `<p>Make sure your character has a name (box at the top). Optional: put in your Google email if you'd like to see your sheet in Google Drive too (view only; all changes happen here in the extension).</p>
+    put(bar + firstTime("Last step", `<p><b>1.</b> Name your character. <b>2.</b> Add a picture if you have one, and frame your face in the circle: that's your portrait and your pog for the map. <b>3.</b> Extras are optional (your Google email lets you view the sheet in Google Drive).</p>
           <p>Leave "Start with XP" off unless your GM tells you to start at a higher level. Check the preview, then tap <b>CREATE CHARACTER</b>. After that, pick your character on the CHARACTER SHEET tab.</p>`) + `<div class="sec">FINISH</div>
-      <label class="gl">Your Google email <small>(optional: lets you view the sheet in Google Drive)</small><input id="gEmail" value="${esc2(cg.email)}" placeholder="you@gmail.com" inputmode="email"></label>
-      <label class="gchk"><input type="checkbox" id="gXpOn" ${cg.xpOn ? "checked" : ""}> Start with XP (higher level)</label>
-      ${cg.xpOn ? `<div class="mrow"><b class="gxp">${cg.xp} XP</b>${xpBtns}</div><div class="gnote">Goes into Current XP, to spend in Manage Character.</div>` : ""}
-      <div class="sec">YOUR PORTRAIT <small style="color:var(--dim);font-weight:400">optional, skip it if you like</small></div>
-      <div id="gPt" class="gptz"><input type="file" id="gPtF" accept="image/*" hidden>${genPic
-        ? `<div class="gptdone" style="justify-content:center;margin:0"><img src="${genPic.pog}" alt=""><div style="text-align:left"><b>Your portrait and pog</b><br><small>Saved when you tap CREATE CHARACTER. Reframe it later in Manage Character.</small><br><button id="gPtPick" class="sbtn" style="margin-top:4px">CHANGE</button> <button id="gPtSkip" class="sbtn" style="margin-top:4px">SKIP FOR NOW</button></div></div>`
-        : `<b>Drop a picture of your character here</b>, or <button id="gPtPick" class="sbtn">PICK A PICTURE</button><br><small>It becomes your portrait on the sheet and your pog (token) for the map. No picture yet? Skip it and add one later in Manage Character.</small>`}</div>
+      <div class="gbig ${cg.name.trim() ? "ok" : "need"}" id="gStepName"><div class="gbn">1</div><div class="gbb"><b>NAME YOUR CHARACTER</b>
+        <input id="gNameBig" class="gnamebig" value="${esc2(cg.name)}" maxlength="60" placeholder="Type your character's name"></div></div>
+      <div class="gbig ${genPic ? "ok" : ""}"><div class="gbn">2</div><div class="gbb"><b>ADD A PICTURE</b> <small>optional, you can skip it</small>
+        <div id="gPt" class="gptz"><input type="file" id="gPtF" accept="image/*" hidden>${genPic
+        ? `<div class="gcirc"><div class="ptedc" id="gCirc"><img src="${genPic.url}" alt=""></div>
+             <div class="gcircr"><div class="gneed" style="margin-top:0"><b>Frame your face in the circle.</b> Drag the picture to move it, zoom with the slider${matchMedia("(pointer:fine)").matches ? " or mouse wheel" : ""}.</div>
+             <div class="ptzoom"><button class="sbtn" data-gz="-1" title="Zoom out">−</button><input type="range" id="gZoom" min="1" max="5" step="0.01" value="${genPic.f.z}"><button class="sbtn" data-gz="1" title="Zoom in">+</button></div>
+             <div class="gpogrow"><img id="gPogPv" src="${genPic.pog}" alt=""><small>Your pog (token) for the map</small></div>
+             <div class="ptbtns"><button id="gPtPick" class="sbtn">CHANGE PICTURE</button><button id="gPtSkip" class="sbtn">SKIP FOR NOW</button></div></div></div>`
+        : `<b>Drop a picture of your character here</b>, or <button id="gPtPick" class="sbtn">PICK A PICTURE</button><br><small>It becomes your portrait on the sheet and your pog (token) for the map. No picture yet? Skip it and add one later in Manage Character.</small>`}</div></div></div>
+      <div class="gbig"><div class="gbn">3</div><div class="gbb"><b>EXTRAS</b> <small>optional</small>
+        <label class="gl">Your Google email <small>(lets you view the sheet in Google Drive)</small><input id="gEmail" value="${esc2(cg.email)}" placeholder="you@gmail.com" inputmode="email"></label>
+        <label class="gchk"><input type="checkbox" id="gXpOn" ${cg.xpOn ? "checked" : ""}> Start with XP (only if your GM says so)</label>
+        ${cg.xpOn ? `<div class="mrow"><b class="gxp">${cg.xp} XP</b>${xpBtns}</div><div class="gnote">Goes into Current XP, to spend in Manage Character.</div>` : ""}</div></div>
       <div class="sec">YOUR CHARACTER</div>
       ${await sheetPreview()}
       ${nav(finishWhy())}`);
-    { // portrait picker (Jake, Nov 26): kept in this browser tab only (pictures are too big to save in the draft)
+    { // big name box (Jake, Nov 26): same as the box at the top
+      const nb = $("gNameBig");
+      nb.oninput = () => { cg.name = nb.value; cgSave(); if ($("gNameTop")) $("gNameTop").value = nb.value; $("gStepName").className = "gbig " + (cg.name.trim() ? "ok" : "need"); genRecheck?.(); };
+      if (!cg.name.trim() && !genPic) setTimeout(() => nb.focus({ preventScroll: true }), 50);
+    }
+    { // picture (Jake, Nov 26): kept in this browser tab only (too big for the draft). Picking one opens the circle right away.
       const take = async (file) => { if (!file) return; if (!/^image\//.test(file.type)) { $("gerr").textContent = "That isn't a picture. Use a JPG or PNG."; return; }
-        try { const img = await loadImg(URL.createObjectURL(file)); genPic = { file, pog: drawPog(img, null, POG_STYLE, 256).toDataURL("image/png") }; showGen(); }
+        try { const url = URL.createObjectURL(file), img = await loadImg(url), f = { z: 1, x: 50, y: 50 };
+          if (genPic?.url) URL.revokeObjectURL(genPic.url);
+          genPic = { file, url, img, f, pog: drawPog(img, f, POG_STYLE, 256).toDataURL("image/png") }; await showGen();
+          document.querySelector(".gcirc")?.scrollIntoView({ behavior: "smooth", block: "center" }); }
         catch { $("gerr").textContent = "Chrome can't open that picture. Save it as a JPG or PNG and try again."; } };
-      $("gPtPick").onclick = () => $("gPtF").click();
+      $("gPtPick").onclick = (e) => { e.stopPropagation(); $("gPtF").click(); };
       $("gPtF").onchange = () => take($("gPtF").files[0]);
-      if ($("gPtSkip")) $("gPtSkip").onclick = () => { genPic = null; showGen(); };
+      if ($("gPtSkip")) $("gPtSkip").onclick = () => { if (genPic?.url) URL.revokeObjectURL(genPic.url); genPic = null; showGen(); };
       const z = $("gPt");
       z.ondragover = (e) => { e.preventDefault(); z.classList.add("over"); }; z.ondragleave = () => z.classList.remove("over");
       z.ondrop = (e) => { e.preventDefault(); z.classList.remove("over"); take(e.dataTransfer.files[0]); };
+      const c = $("gCirc");
+      if (c && genPic) { // the circle editor, same feel as Manage Character → ADJUST CIRCLE
+        const im = c.querySelector("img"), f = genPic.f, rng = $("gZoom");
+        let pt = 0; const pog = () => { clearTimeout(pt); pt = setTimeout(() => { genPic.pog = drawPog(genPic.img, f, POG_STYLE, 256).toDataURL("image/png"); if ($("gPogPv")) $("gPogPv").src = genPic.pog; }, 120); };
+        const draw = () => { rng.value = f.z; ptPlace(im, f); };
+        const zoom = (v) => { f.z = Math.min(5, Math.max(1, Math.round(v * 100) / 100)); draw(); pog(); };
+        draw();
+        rng.oninput = () => zoom(+rng.value);
+        document.querySelectorAll("[data-gz]").forEach(b => b.onclick = () => zoom(f.z * (+b.dataset.gz > 0 ? 1.15 : 1 / 1.15)));
+        c.addEventListener("wheel", (e) => { e.preventDefault(); zoom(f.z * (e.deltaY < 0 ? 1.08 : 1 / 1.08)); }, { passive: false });
+        let drag = null;
+        c.onpointerdown = (e) => { drag = { x: e.clientX, y: e.clientY }; c.setPointerCapture(e.pointerId); };
+        c.onpointermove = (e) => { if (!drag) return;
+          const dx = e.clientX - drag.x, dy = e.clientY - drag.y; drag = { x: e.clientX, y: e.clientY };
+          const C = c.clientWidth, W = im.offsetWidth, H = im.offsetHeight; let moved = false;
+          if (W > C + 0.5 && dx) { f.x = Math.min(100, Math.max(0, f.x + dx / (C - W) * 100)); moved = true; }
+          if (H > C + 0.5 && dy) { f.y = Math.min(100, Math.max(0, f.y + dy / (C - H) * 100)); moved = true; }
+          if (moved) draw(); };
+        c.onpointerup = c.onpointercancel = () => { if (drag) pog(); drag = null; };
+      }
     }
     const recheck = () => { const w = finishWhy(); $("gerr").textContent = w; $("gMake").disabled = !!w; $("gNameTop").classList.toggle("need", !cg.name.trim()); };
     genRecheck = recheck; recheck();
@@ -2131,12 +2175,14 @@ async function showGen() {
           const small = await ptEncode(bmp, 400, "image/webp", 0.85);
           const r1 = await bridgePost({ portrait: { full: { mime: full.mime, data: full.data }, small: { mime: small.mime, data: small.data } } }).catch(e => ({ ok: false, error: e.message }));
           if (!r1.ok) throw new Error(ptBridgeMsg(r1.error || "Nothing to change."));
-          cache.set("ptt." + newId, r1.t); cache.set("pt." + newId, { t: r1.t, url: `data:${small.mime};base64,${small.data}` });
-          const cv = drawPog(await loadImg(`data:${full.mime};base64,${full.data}`), null, POG_STYLE, 512), url = cv.toDataURL("image/png");
+          const fr = pic.f || { z: 1, x: 50, y: 50 }; let fSaved = null;
+          if (r1.pic && (fr.z !== 1 || fr.x !== 50 || fr.y !== 50)) { const r3 = await bridgePost({ portraitFrame: r1.pic, frame: fr }).catch(() => null); if (r3?.ok) { fSaved = r3.f || fr; r1.t = r3.t || r1.t; } }
+          cache.set("ptt." + newId, r1.t); cache.set("pt." + newId, { t: r1.t, url: `data:${small.mime};base64,${small.data}`, f: fSaved || undefined });
+          const cv = drawPog(await loadImg(`data:${full.mime};base64,${full.data}`), fr, POG_STYLE, 512), url = cv.toDataURL("image/png");
           const r2 = await bridgePost({ pog: url.split(",")[1] }).catch(e => ({ ok: false, error: e.message }));
           if (!(r2.ok && r2.pogId)) { say("bad", "Portrait saved, but the pog didn't save. Make it in Manage Character → Portrait."); return; }
           cache.set("pogid." + newId, r2.pogId);
-          out.innerHTML = `<div class="gptdone"><img src="${url}" alt=""><div><b>✓ Portrait and pog saved.</b><br><small>Centered for now. ✎ ADJUST CIRCLE in Manage Character reframes it.</small>
+          out.innerHTML = `<div class="gptdone"><img src="${url}" alt=""><div><b>✓ Portrait and pog saved.</b><br><small>✎ ADJUST CIRCLE in Manage Character reframes it any time.</small>
             ${standalone ? "" : `<button id="gPog" class="sbtn" style="margin-top:6px">⬇ PUT MY POG ON THE TABLE</button>`}</div></div>`;
           if ($("gPog")) $("gPog").onclick = async () => { $("gPog").disabled = true;
             try { await pogDrop(r2.pogId, newName); $("gPog").textContent = "✓ ON THE TABLE (middle of your screen)"; }
