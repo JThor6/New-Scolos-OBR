@@ -3269,7 +3269,7 @@ function drawMonsters() {
     // the last wound box (D) also flips the DEAD button to match
     if (col === 19 && !!(monVals[row - 1] || [])[19] !== on) await monSet(row, 20, on);
     // DEAD turned off: take the Dead label off its tokens (auto damage on or off); the wound boxes stay as they are
-    if (col === 20 && !on) { const r = monVals[row - 1] || []; if (r[0]) applyCond(String(r[0]).trim(), adOn() && !!String(r[17] ?? "").trim(), false); return; }
+    if (col === 20 && !on) { const r = monVals[row - 1] || []; if (r[0]) applyCond(String(r[0]).trim(), adOn() && !isMook(r) && !!String(r[17] ?? "").trim(), false); return; }
     monCond(row);
   });
 }
@@ -4289,8 +4289,10 @@ async function applyCond(name, ko, dead) {
   } catch {}
 }
 // A monster card's KO / Dead state -> its tokens
+// Mooks (Nov 26 fix): their KO box comes pre-marked, so it never means Unconscious. A mook is up or Dead, nothing between.
+const isMook = (r) => /\b(mook|minion)s?\b/i.test(String(r?.[0] ?? "") + " " + String(r?.[2] ?? ""));
 function monCond(row) { const r = (monVals || [])[row - 1] || [], on = (i) => !!String(r[i] ?? "").trim() && !/^false$/i.test(String(r[i]));
-  if (adOn() && r[0]) applyCond(String(r[0]).trim(), on(17), on(19)); }
+  if (adOn() && r[0]) applyCond(String(r[0]).trim(), on(17) && !isMook(r), on(19)); }
 // Mooks / minions: MW, CW and KO come pre-marked (D stays empty), so any hit past their 3 Light boxes kills them
 let premarking = false;
 async function premarkMooks() {
