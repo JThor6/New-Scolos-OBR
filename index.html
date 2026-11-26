@@ -2829,9 +2829,9 @@ function drawMonsters() {
   $("monAll").onclick = monDropAll;
   $("iPrev").onclick = () => initStep(-1); $("iNext").onclick = () => initStep(1);
   $("iCall").onclick = async () => { const b = $("iCall"); b.disabled = true; b.textContent = "⚔ CALLING…";
-    try { await callInitiative(); fillAllCop("Fight started: COP to full").catch(() => {}); if (autoMon()) await rollMonsterInit(); b.textContent = "✓ INITIATIVE CALLED"; OBR.notification.show("⚔ Initiative called. Players' next Adroitness roll counts.", "SUCCESS").then(id => setTimeout(() => OBR.notification.close(id).catch(() => {}), 4000)).catch(() => {}); }
+    try { await startFight(); if (autoMon()) await rollMonsterInit(); b.textContent = "✓ INITIATIVE CALLED"; }
     catch { b.textContent = "Didn't go through, tap again"; }
-    setTimeout(() => { if ($("iCall")) { $("iCall").disabled = false; $("iCall").textContent = "⚔ CALL FOR INITIATIVE"; } }, 2500); }; $("iMon").onclick = rollMonsterInit; $("iEnd").onclick = () => { // two taps: the first asks, the second (within 4 s) ends combat
+    setTimeout(() => { if ($("iCall")) { $("iCall").disabled = false; $("iCall").textContent = "⚔ CALL FOR INITIATIVE"; } }, 2500); }; $("iMon").onclick = async () => { const b = $("iMon"); if (b.disabled) return; b.disabled = true; try { await rollMonsterInit(); } finally { setTimeout(() => { if ($("iMon")) b.disabled = false; }, 1200); } }; $("iEnd").onclick = () => { // two taps: the first asks, the second (within 4 s) ends combat
     const b = $("iEnd");
     if (b.dataset.arm) { delete b.dataset.arm; b.textContent = "END COMBAT"; return endInitiative(); }
     b.dataset.arm = "1"; b.textContent = "TAP AGAIN TO END COMBAT";
@@ -2992,9 +2992,18 @@ async function endInitiative() {
   const s = (await OBR.room.getMetadata())[INIT]; if (s) await OBR.room.setMetadata({ [INIT]: { ...s, open: false } });
 }
 // Each monster group rolls once (4 dice + the first living member's Adroitness) and stays together in the order
+// Starting a fight the same way from either button: new initiative (players' next Adroitness roll counts, their banner and
+// pop-up show), everyone's COP filled to full, and the "initiative called" note for the GM.
+async function startFight() {
+  await callInitiative(); fillAllCop("Fight started: COP to full").catch(() => {});
+  OBR.notification.show("⚔ Initiative called. Players' next Adroitness roll counts.", "SUCCESS").then(id => setTimeout(() => OBR.notification.close(id).catch(() => {}), 4000)).catch(() => {});
+}
+// Jake, Nov 25: ROLL MONSTERS with no fight going (or only a stale one: called over 3 minutes ago and turns never started)
+// starts a real one, exactly like CALL FOR INITIATIVE, so players' rolls get entered. Mid-fight it just adds the monsters.
 async function rollMonsterInit() {
   const md = await OBR.room.getMetadata(), st = md[INIT];
-  if (!st?.open) await callInitiative();
+  const stale = st?.open && !st.cur && Date.now() - (st.at || 0) > 3 * 60e3;
+  if (!st?.open || stale) { if (stale) await OBR.room.setMetadata({ [INIT]: { ...st, open: false } }); await startFight(); }
   const sid = (await OBR.room.getMetadata())[INIT].sid;
   const have = new Set(((await OBR.room.getMetadata())[INIT + "/m"] || []).filter(e => e.sid === sid).map(e => e.id));
   const v = monVals || [], c = (row, i) => String(v[row]?.[i] ?? "").trim();
@@ -3023,7 +3032,7 @@ async function rollMonsterInit() {
 async function addInitEntry() {
   const name = $("iName").value.trim(), num = parseInt($("iNum").value.replace("−", "-").replace("+", ""), 10);
   if (!name || isNaN(num)) return;
-  const md = await OBR.room.getMetadata(); if (!md[INIT]?.open) await callInitiative();
+  const md = await OBR.room.getMetadata(); if (!md[INIT]?.open) await startFight();
   const sid = (await OBR.room.getMetadata())[INIT].sid, cur = (await OBR.room.getMetadata())[INIT + "/m"] || [];
   await OBR.room.setMetadata({ [INIT + "/m"]: [...cur.filter(e => e.sid === sid), { id: "x:" + crypto.randomUUID().slice(0, 6), sid, name, total: num, adr: 0, pc: false, r: Math.random() }] });
   $("iName").value = ""; $("iNum").value = "";
