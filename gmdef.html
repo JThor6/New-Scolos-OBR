@@ -32,14 +32,18 @@
   const close = () => { if (OBR.isAvailable) OBR.popover.close(ID).catch(() => {}); };
   $("x").onclick = () => { const w = get("ns.sd:" + room, {}).wait; if (w) try { localStorage.setItem("ns.gmDefHide", w.id); } catch {} close(); };
   function draw() {
-    const w = get("ns.sd:" + room, {}).wait, mons = get("ns.monLive", []), party = get("ns.partyLive", []);
+    const w = get("ns.sd:" + room, {}).wait, mons = get("ns.monLive", []);
+    // party members only get buttons in the GM's test mode (Jake, Nov 26); otherwise players roll their own defense
+    const test = (() => { try { return localStorage.getItem("ns.testMode") === "1"; } catch { return false; } })();
+    const partyAll = get("ns.partyLive", []), party = test ? partyAll : [];
     // who could be defending: monsters (a player's attack), or for the GM's own attacks whichever side the attacker isn't on
-    const atkIsPc = party.some(n => sameName(n, w?.att || ""));
+    const atkIsPc = partyAll.some(n => sameName(n, w?.att || ""));
     const live = !own ? mons : w?.tg?.length ? [...mons, ...party] : atkIsPc ? mons : party;
     if (!w || Date.now() - w.at0 > 3 * 60e3 || (w.defs || []).length >= (w.n || 1)) return close();
     // monsters that can defend: the targets (Target Lock), or every living monster if nothing was targeted
     const sg = (n) => n > 0 ? "+" + n : String(n), at = w.dfa || "Adroitness";
     // the monster list comes from the GM tab; if it hasn't loaded in this browser yet, offer to open it instead of vanishing
+    if (!live.length && own && !test) return close(); // a monster attacking players, not in test mode: the players defend
     if (!live.length && own && !atkIsPc) { $("t").innerHTML = `<span class="h">🛡 ROLL ${esc((w.dfa || "Adroitness").toUpperCase())}</span><b>${esc(w.att)}</b> attacks`; if (lastKey !== "__np") { lastKey = "__np"; $("bs").innerHTML = `<button id="og">Open the panel's Party view</button>`; $("og").onclick = async () => { try { await OBR.action.open(); } catch {} }; } return; }
     if (!live.length) { $("t").innerHTML = `<span class="h">🛡 ROLL ${esc(at.toUpperCase())}</span><b>${esc(w.att)}</b> ${w.sp ? "casts" : "attacks"} ${sg(w.at)}`;
       if (lastKey === "__none") return; lastKey = "__none";
@@ -64,7 +68,7 @@
   // grow or shrink the bar to fit all the buttons
   function fitH() { requestAnimationFrame(() => { const h = Math.min(400, Math.ceil(document.querySelector(".p").scrollHeight) + 2);
     if (OBR.isAvailable && h !== fitH.h) { fitH.h = h; OBR.popover.setHeight(ID, h).catch(() => {}); } }); }
-  window.addEventListener("storage", (e) => { if (e.key === "ns.sd:" + room || e.key === "ns.monLive" || e.key === "ns.partyLive") draw(); });
+  window.addEventListener("storage", (e) => { if (e.key === "ns.sd:" + room || e.key === "ns.monLive" || e.key === "ns.partyLive" || e.key === "ns.testMode") draw(); });
   setInterval(draw, 3000);
   if (OBR.isAvailable) OBR.onReady(() => { room = room || OBR.room.id; draw(); }); else draw();
 </script></body></html>
