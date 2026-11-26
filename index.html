@@ -301,6 +301,11 @@
   .tmr button b { color:#c7b6ff; } .tmb { display:inline-flex; flex-wrap:wrap; gap:4px; margin-left:auto; }
   .tmr button.ttg.on { background:rgba(91,63,158,.75); border-color:#b9a6ff; color:#fff; } .tmr button.hot { background:rgba(91,63,158,.7); border-color:#9d86ff; }
   .tmr button:disabled { opacity:.5; }
+  .tmr.turn { outline:1px solid #b9a6ff; border-radius:6px; background:rgba(91,63,158,.25); padding:2px 4px; }
+  .tmturn { padding:10px; border:1px solid #6b5fa8; border-radius:10px; background:rgba(30,26,52,.8); }
+  .tmturn .tmth { font-family:'Bangers', Impact, sans-serif; font-size:24px; letter-spacing:1px; color:#e2d8ff; margin-bottom:6px; }
+  .tmturn .tmon { border:0; padding:0; } .tmturn .tmr button, .tmturn .tmb button { font-size:13px; padding:6px 10px; }
+  .tmnext { width:100%; margin-top:12px; padding:9px; font:800 14px system-ui; border-radius:8px; cursor:pointer; background:rgba(91,63,158,.6); border:1px solid #9d86ff; color:#fff; }
   .tban { position:sticky; top:0; z-index:5; display:flex; flex-direction:column; gap:4px; padding:4px 0; background:linear-gradient(#222639 70%, transparent); }
   .tban[hidden] { display:none; } .tbrow { display:flex; gap:4px; } .tbrow button { flex:1; }
   .tban button { width:100%; padding:9px 10px; border-radius:8px; cursor:pointer; font:800 14px system-ui; letter-spacing:.5px; color:#f0eaff; background:rgba(91,63,158,.55); border:1px solid #9d86ff; display:flex; flex-wrap:wrap; align-items:baseline; justify-content:center; gap:4px 10px; }
@@ -4252,7 +4257,7 @@ function testBarHtml() {
 }
 function testBarUpdate() {
   const el = $("tstat"); if (!el) return;
-  try { testMonDraw(); } catch {}
+  try { testMonDraw(); testFollow(); testTurnDraw(true); } catch {}
   const md = actMd || lastMd || {}, st = md[INIT], w = sdWait(), t = st?.open ? turnNames(md) : null;
   const need = st?.open ? (lastParty || []).filter(c => !initEntries(md).some(e => e.pc && sameName(e.name, pCell(c.values, "C3")))).length : 0;
   const defs = w ? (lastParty || []).filter(c => canDefend(w, pCell(c.values, "C3"))).length : 0;
@@ -4323,33 +4328,78 @@ function testMonDraw() {
   const box = $("tmon"); if (!box || !testOn()) return;
   if (!monVals && monId() && !tmonLoading) { tmonLoading = true;
     bridgeGet({ id: monId(), tab: "Extension Tracker" }).then(r => { if (r?.ok) monVals = r.values; }).catch(() => {}).finally(() => { tmonLoading = false; testMonDraw(); }); }
+  const v = monVals || [];
+  const on = (n) => testTgt.some(t => sameName(t, n)) ? "on" : "";
+  const mons = tmonRows();
+  const h = `<div class="tmh">TARGETS <span>${testTgt.length ? esc2(testTgt.join(", ")) : "none: tap ◎ to aim attacks"}</span>${testTgt.length ? `<button data-tclr="1">CLEAR</button>` : ""}</div>
+    <div class="tmr tparty"><small>Party:</small>${(lastParty || []).map(ch => pCell(ch.values, "C3")).filter(Boolean).map(n => `<button class="ttg ${on(n)}" data-tg="${esc2(n)}">◎ ${esc2(n)}</button>`).join("")}</div>
+    <div class="tmh" style="margin-top:6px">MONSTERS <span>${monId() ? (v.length ? "" : "loading…") : "pick an encounter on the GM tab"}</span></div>${mons}`;
+  if (box.dataset.h === h) return; box.dataset.h = h; box.innerHTML = h; bindTmon(box);
+}
+// one row per living monster (only: just that one, for the monster's turn in the middle of the GM screen)
+function tmonRows(only) {
   const v = monVals || [], c = (row, i) => String(v[row]?.[i] ?? "").trim(), w = sdWait(), sg = (x) => (x > 0 ? "+" : "") + x;
   const hdr = Math.max(0, v.findIndex(r => String(r?.[0] || "").trim().toLowerCase() === "name"));
   const on = (n) => testTgt.some(t => sameName(t, n)) ? "on" : "";
   let mons = "";
   for (let row = hdr + 1; row < v.length; row++) {
     const name = c(row, 0); if (!name || /^(true|x|yes|dead)$/i.test(c(row, 19))) continue;
+    if (only && !sameName(name, only)) continue;
     const mook = /\b(mook|minion)s?\b/i.test(name + " " + c(row, 2)), pen = !mook && [16, 17].some(i => c(row, i)) ? -1 : 0;
     const wi = [12, 13, 14, 15, 16, 17, 18].map(i => !!c(row, i)).lastIndexOf(true), hurt = wi >= 0 ? ["LW", "LW", "LW", "MW", "CW", "KO", "D"][wi] : "";
     const adr = num(c(row, 4)) ?? 0, cs = esc2(JSON.stringify({ db: c(row, 8), ab: c(row, 10) }));
     const atks = monAttacks(c(row, 7), c(row, 8)).filter(a => a.val).map(a => `<button data-mr="${esc2(a.val)}" data-ml="${esc2(a.name ? "Attack · " + a.name : "Attack")}" data-mn="${esc2(name)}" data-mp="${pen}" data-mc="${esc2(JSON.stringify({ db: a.off, ab: c(row, 10) }))}">⚔ ${esc2(a.name || "Attack")} <b>${sg((num(a.val) ?? 0) + pen)}</b></button>`).join("");
     const canDef = w && canDefend(w, name), da = defAttr(w), dv = num(c(row, { Adroitness: 4, "Raw Strength": 3, Intellect: 5, Charm: 6 }[da] ?? 4)) ?? adr;
-    mons += `<div class="tmr"><button class="ttg ${on(name)}" data-tg="${esc2(name)}" title="Target ${esc2(name)}">◎ ${esc2(name)}</button><small>ARM ${esc2(c(row, 10) || "0")}${hurt ? ` · ${hurt}` : ""}${pen ? " · wounded -1" : ""}</small>
+    mons += `<div class="tmr ${turnNow && sameName(turnNow, name) ? "turn" : ""}" data-mrow="${esc2(name)}"><button class="ttg ${on(name)}" data-tg="${esc2(name)}" title="Target ${esc2(name)}">◎ ${esc2(name)}</button><small>ARM ${esc2(c(row, 10) || "0")}${hurt ? ` · ${hurt}` : ""}${pen ? " · wounded -1" : ""}</small>
       <span class="tmb">${atks}<button class="${canDef ? "hot" : ""}" data-mr="${dv}" data-ml="${esc2(da)}" data-mn="${esc2(name)}" data-mp="${pen}" data-mc="${cs}">🛡 ${esc2(da === "Adroitness" ? "Defend" : da)} <b>${sg(dv + pen)}</b></button></span></div>`;
   }
-  const party = (lastParty || []).map(ch => pCell(ch.values, "C3")).filter(Boolean).map(n => `<button class="ttg ${on(n)}" data-tg="${esc2(n)}">◎ ${esc2(n)}</button>`).join("");
-  const h = `<div class="tmh">TARGETS <span>${testTgt.length ? esc2(testTgt.join(", ")) : "none: tap ◎ to aim attacks"}</span>${testTgt.length ? `<button data-tclr="1">CLEAR</button>` : ""}</div>
-    <div class="tmr tparty"><small>Party:</small>${party}</div>
-    <div class="tmh" style="margin-top:6px">MONSTERS <span>${monId() ? (v.length ? "" : "loading…") : "pick an encounter on the GM tab"}</span></div>${mons}`;
-  if (box.dataset.h === h) return; box.dataset.h = h; box.innerHTML = h;
+  return mons;
+}
+function bindTmon(box) {
   box.querySelectorAll("[data-tg]").forEach(b => b.onclick = (e) => { e.stopPropagation(); const n = b.dataset.tg;
-    testTgt = testTgt.some(t => sameName(t, n)) ? testTgt.filter(t => !sameName(t, n)) : [...testTgt, n]; testMonDraw(); });
-  box.querySelectorAll("[data-tclr]").forEach(b => b.onclick = (e) => { e.stopPropagation(); testTgt = []; testMonDraw(); });
+    testTgt = testTgt.some(t => sameName(t, n)) ? testTgt.filter(t => !sameName(t, n)) : [...testTgt, n]; testMonDraw(); testTurnDraw(true); });
+  box.querySelectorAll("[data-tclr]").forEach(b => b.onclick = (e) => { e.stopPropagation(); testTgt = []; testMonDraw(); testTurnDraw(true); });
   box.querySelectorAll("[data-mr]").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (b.disabled) return; b.disabled = true;
     await rollQ; // wait for any party rolls in line
     for (let i = 0; i < 30 && rollBusy; i++) await new Promise(r => setTimeout(r, 100));
     try { await quickRoll(b.dataset.mr, b.dataset.ml, b.dataset.mn, "", parseInt(b.dataset.mp) || 0, JSON.parse(b.dataset.mc || "{}")); }
     finally { setTimeout(() => { if (b.isConnected) b.disabled = false; }, 1500); } });
+}
+
+// Follow the turn (Jake, Nov 26): in test mode, when the turn moves, the Party view goes to whoever's up. A party member's
+// full sheet opens in the middle of the GM screen (in the panel / pop-out, their card opens with its rolls); on a monster's
+// turn the middle shows that monster: its attacks, defend and the targets to pick.
+let turnNow = "", turnKey = "";
+function testFollow() {
+  if (!testOn()) return;
+  const md = actMd || lastMd || {}, st = md[INIT];
+  const cur = st?.open && st.cur ? turnNames(md).cur || "" : "", key = cur ? `${st.sid}|${st.round || 1}|${st.cur}|${st.sub || 0}` : "";
+  turnNow = cur;
+  if (key === turnKey) return; turnKey = key; if (!cur) return;
+  const ch = (lastParty || []).find(c => sameName(pCell(c.values, "C3"), cur));
+  if (ch) {
+    if (testSplit()) { if (sheetOverride !== ch.id) testOpen(ch.id); }
+    else if (ptyOpen !== ch.id) { const card = document.querySelector(`.pcard[data-cid="${CSS.escape(ch.id)}"]`); if (card) { ptyOpen = ""; card.querySelector(".ptn")?.click(); card.scrollIntoView({ behavior: "smooth", block: "start" }); } }
+  } else if (testSplit()) testTurnDraw();
+  else document.querySelector(`#tmon [data-mrow="${CSS.escape(cur)}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+// the monster whose turn it is, in the middle of the GM screen
+function testTurnDraw(refresh) {
+  if (!testSplit() || !$("tside")) return;
+  const cur = turnNow; if (!cur || (lastParty || []).some(c => sameName(pCell(c.values, "C3"), cur))) return;
+  if (refresh && !$("tside").querySelector(".tmturn")) return;
+  const rows = tmonRows(cur);
+  if (!refresh) { sheetOverride = ""; sheetVals = null; ptyOpen = ""; }
+  document.querySelectorAll("#tlist .pcard[data-cid]").forEach(k => k.classList.remove("open"));
+  const on = (n) => testTgt.some(t => sameName(t, n)) ? "on" : "";
+  const html = `<div class="tmturn"><div class="tmth">▶ ${esc2(cur.toUpperCase())}'S TURN</div>
+    ${rows ? `<div class="tmon">${rows}</div>` : `<div class="empty">${esc2(cur)} isn't on the GM tab's encounter (added by hand?). Roll for it on the GM tab, or NEXT TURN.</div>`}
+    <div class="tmh" style="margin-top:10px">ATTACK WHO? <span>${testTgt.length ? esc2(testTgt.join(", ")) : "tap a name"}</span></div>
+    <div class="tmr">${(lastParty || []).map(ch => pCell(ch.values, "C3")).filter(Boolean).map(n => `<button class="ttg ${on(n)}" data-tg="${esc2(n)}">◎ ${esc2(n)}</button>`).join("")}${testTgt.length ? `<button data-tclr="1">CLEAR</button>` : ""}</div>
+    <button class="tmnext" data-tnext="1">DONE · NEXT TURN ▶</button></div>`;
+  const h = html, side = $("tside"); if (side.dataset.h === h && side.querySelector(".tmturn")) return; side.dataset.h = h; side.innerHTML = h;
+  bindTmon($("tside"));
+  $("tside").querySelector("[data-tnext]").onclick = (e) => { e.stopPropagation(); initStep(1).catch(() => {}); };
 }
 // switching test mode on or off: redraw the Party view (and on the GM screen, the columns)
 function testApply() {
@@ -4367,7 +4417,7 @@ async function testList() {
 function testOpen(id) {
   ptyOpen = id; sheetOverride = id; mgrOn = false; partyOn = false;
   document.querySelectorAll("#tlist .pcard[data-cid]").forEach(k => k.classList.toggle("open", k.dataset.cid === id));
-  $("tside").innerHTML = `<div id="shbody"></div>`; sheetVals = null; loadSheet();
+  $("tside").dataset.h = ""; $("tside").innerHTML = `<div id="shbody"></div>`; sheetVals = null; loadSheet();
 }
 // keep the list fresh while a sheet is open beside it (wounds, powers used, COP)
 setInterval(() => { if (testSplit() && $("tlist") && !rollBusy) characterSheets().then(ch => { if (testSplit() && $("tlist")) drawParty($("tlist"), ch); }).catch(() => {}); }, 20e3);
