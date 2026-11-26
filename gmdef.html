@@ -27,14 +27,19 @@
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const get = (k, d) => { try { return JSON.parse(localStorage.getItem(k) || "null") ?? d; } catch { return d; } };
   let room = new URLSearchParams(location.search).get("room") || "", lastKey = "";
+  const own = new URLSearchParams(location.search).get("own") === "1"; // the GM's own attack: party members can be the defenders too
   const close = () => { if (OBR.isAvailable) OBR.popover.close(ID).catch(() => {}); };
   $("x").onclick = () => { const w = get("ns.sd:" + room, {}).wait; if (w) try { localStorage.setItem("ns.gmDefHide", w.id); } catch {} close(); };
   function draw() {
-    const w = get("ns.sd:" + room, {}).wait, live = get("ns.monLive", []);
+    const w = get("ns.sd:" + room, {}).wait, mons = get("ns.monLive", []), party = get("ns.partyLive", []);
+    // who could be defending: monsters (a player's attack), or for the GM's own attacks whichever side the attacker isn't on
+    const atkIsPc = party.some(n => sameName(n, w?.att || ""));
+    const live = !own ? mons : w?.tg?.length ? [...mons, ...party] : atkIsPc ? mons : party;
     if (!w || Date.now() - w.at0 > 3 * 60e3 || (w.defs || []).length >= (w.n || 1)) return close();
     // monsters that can defend: the targets (Target Lock), or every living monster if nothing was targeted
     const sg = (n) => n > 0 ? "+" + n : String(n), at = w.dfa || "Adroitness";
     // the monster list comes from the GM tab; if it hasn't loaded in this browser yet, offer to open it instead of vanishing
+    if (!live.length && own && !atkIsPc) { $("t").innerHTML = `<span class="h">🛡 ROLL ${esc((w.dfa || "Adroitness").toUpperCase())}</span><b>${esc(w.att)}</b> attacks`; if (lastKey !== "__np") { lastKey = "__np"; $("bs").innerHTML = `<button id="og">Open the panel's Party view</button>`; $("og").onclick = async () => { try { await OBR.action.open(); } catch {} }; } return; }
     if (!live.length) { $("t").innerHTML = `<span class="h">🛡 ROLL ${esc(at.toUpperCase())}</span><b>${esc(w.att)}</b> ${w.sp ? "casts" : "attacks"} ${sg(w.at)}`;
       if (lastKey === "__none") return; lastKey = "__none";
       $("bs").innerHTML = `<button id="og" title="Your monsters load from the GM tab">Open the GM tab</button>`;
@@ -47,13 +52,14 @@
     $("bs").innerHTML = can.map(n => `<button data-n="${esc(n)}" title="Roll ${esc(n)}'s ${esc(at)} to defend">🛡 ${esc(n)}</button>`).join("");
     $("bs").querySelectorAll("button").forEach(b => b.onclick = () => {
       b.disabled = true; const ts = Date.now();
-      try { localStorage.setItem("ns.monDefReq", JSON.stringify({ ts, n: b.dataset.n })); } catch {}
-      // the GM's New Scolos panel does the roll; if it's closed, open it (it picks the request up when the monsters load)
-      setTimeout(async () => { if (localStorage.getItem("ns.monDefDone") !== String(ts)) { try { await OBR.action.open(); } catch {} } }, 1200);
+      const pc = party.some(n => sameName(n, b.dataset.n)), k = pc ? "pcDef" : "monDef";
+      try { localStorage.setItem(`ns.${k}Req`, JSON.stringify({ ts, n: b.dataset.n })); } catch {}
+      // the GM's New Scolos panel does the roll; if it's closed, open it (it picks the request up when it loads)
+      setTimeout(async () => { if (localStorage.getItem(`ns.${k}Done`) !== String(ts)) { try { await OBR.action.open(); } catch {} } }, 1200);
       setTimeout(() => { if (b.isConnected) b.disabled = false; }, 4000);
     });
   }
-  window.addEventListener("storage", (e) => { if (e.key === "ns.sd:" + room || e.key === "ns.monLive") draw(); });
+  window.addEventListener("storage", (e) => { if (e.key === "ns.sd:" + room || e.key === "ns.monLive" || e.key === "ns.partyLive") draw(); });
   setInterval(draw, 3000);
   if (OBR.isAvailable) OBR.onReady(() => { room = room || OBR.room.id; draw(); }); else draw();
 </script></body></html>

@@ -222,17 +222,20 @@ async function initPop(sid) {
 // GM only: a slim "defend with" bar at the top of the map when a player's attack waits on a monster (Jake, Nov 25).
 // gmdef.html works out which monsters can defend and closes itself once they have.
 async function gmDefPop(a) {
-  if (!amGM || a.pid === myId) return; // the GM's own (monster) attacks are defended by players
+  if (!amGM) return;
+  // Jake, Nov 26: the GM's own attacks too (a monster attacking a party member the GM is running, or a party member the GM
+  // rolled for attacking a monster), so the defend buttons are always there when the GM plays both sides
   const url = new URL("go.html", location.href); url.searchParams.set("p", "gmdef"); url.searchParams.set("room", OBR.room.id);
+  if (a.pid === myId) url.searchParams.set("own", "1");
   const ref = new URLSearchParams(location.search).get("obrref"); if (ref) url.searchParams.set("obrref", ref);
   const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight(); let left = 0;
   try { if (await OBR.action.isOpen()) left = ((await OBR.action.getWidth()) || 520) + 40; } catch {}
   const w = Math.max(340, Math.min(700, vw - left - 40));
   await OBR.popover.close("com.newscolos.gmdef").catch(() => {});
-  // Jake, Nov 26: big and low, in the middle of the map just above the roll cards, where the mouse usually is
+  // Jake, Nov 26: big and low, on the left just beside the panel, above where the Success Delta card lands
   await OBR.popover.open({ id: "com.newscolos.gmdef", url: url.href, width: w, height: 84,
-    anchorReference: "POSITION", anchorPosition: { left: Math.round(left + (vw - left) / 2), top: Math.max(140, vh - 200) },
-    anchorOrigin: { horizontal: "CENTER", vertical: "BOTTOM" }, transformOrigin: { horizontal: "CENTER", vertical: "BOTTOM" },
+    anchorReference: "POSITION", anchorPosition: { left: Math.round(left + 16), top: Math.max(140, vh - 200) },
+    anchorOrigin: { horizontal: "LEFT", vertical: "BOTTOM" }, transformOrigin: { horizontal: "LEFT", vertical: "BOTTOM" },
     disableClickAway: true, hidePaper: true });
 }
 // ✕ on a waiting attack, and − / + defenders, come in through room metadata so every screen follows
