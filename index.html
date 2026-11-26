@@ -567,14 +567,9 @@
   .spgo:hover:not(:disabled) { background:color-mix(in srgb, var(--sa) 24%, #2c1d4f); } .spgo:disabled { opacity:.45; cursor:default; }
   .spchk { display:flex; align-items:center; gap:6px; margin-top:5px; font-size:12px; color:#ddd5f3; cursor:pointer; }
   .spnote { font-size:11px; color:#9d92c2; margin-top:5px; line-height:1.4; }
-  .welc { position:relative; margin:2px 0 8px; padding:7px 30px 7px 10px; border-left:3px solid #5b3f9e; border-radius:6px; background:rgba(60,38,110,.45); font-size:12px; line-height:1.5; color:#ddd5f3; }
   .istep { display:flex; align-items:center; gap:5px; margin-top:5px; } .istep[hidden] { display:none; }
   .istep #iNext { flex:1; min-height:68px; font-size:20px; } .istep #iPrev { width:60px; min-height:68px; flex:none; font-size:20px; }
   #iCall, #iOrd, #iEnd { min-height:52px; font-size:15px; } .istep span { font-size:11px; font-weight:700; color:var(--dim); white-space:nowrap; }
-  .welc i { font-style:normal; font-weight:700; color:#c9b8f5; }
-  .welc .wel1, .welc.wel1 { font-family:'Bangers', Impact, sans-serif; font-size:17px; letter-spacing:1px; color:#c7b6ff; }
-  .welc b { display:block; color:#bb99ff; font-size:10px; letter-spacing:.6px; margin-bottom:2px; }
-  .welrd { display:inline-flex; align-items:center; justify-content:center; width:22px; height:18px; vertical-align:-4px; border-radius:4px; background:rgba(187,153,255,.25); color:#bb99ff; } .welrd svg { width:14px; height:14px; }
   #welx { position:absolute; top:5px; right:5px; width:22px; height:22px; border-radius:5px; border:1px solid #5b3f9e; background:transparent; color:#ddd5f3; cursor:pointer; font-weight:800; }
   .discw { text-align:center; margin:18px 0 6px; } .discb { background:none; border:none; color:var(--dim); font-size:11px; font-weight:700; cursor:pointer; text-decoration:underline dotted; text-underline-offset:3px; } .discb:hover { color:var(--accent); }
   .cob:hover, .cob.ion { color:var(--accent); }
@@ -1136,8 +1131,8 @@ async function pickCharacter(msg) {
   let list;
   try { list = await characterSheets(); }
   catch (e) { if (/code/i.test(e.message)) store.set("ns.code", ""); return connectForm(e.message); }
-  $("sh").innerHTML = `<div class="welc" style="padding-right:10px"><span class="wel1" style="display:block">Welcome to the New Scolos Manager</span>Everything for the game lives here: your sheet, dice, rules and the map.<br>New here? Make a character in the <i>CHARACTER CREATOR</i> tab. Already have one? Tap your name below.</div><div class="sec">WHICH CHARACTER IS YOURS?</div>
-    <div class="help">Tap your character.</div>
+  $("sh").innerHTML = `<div class="sec">WHICH CHARACTER IS YOURS?</div>
+    <div class="help">Tap your character. New here? Make one in the <i>CHARACTER CREATOR</i> tab.</div>
     ${list.map(c => `<button class="histbtn pickc" data-id="${c.id}">${esc2(c.name)}</button>`).join("") || `<div class="empty">No characters found. Ask your GM.</div>`}
     <div class="err" ${msg ? "" : "hidden"}>${esc2(msg || "")}</div>
     <button id="chcode" class="sbtn" style="margin-top:10px">Use a different table code</button>`;
@@ -1262,7 +1257,7 @@ function drawSheet() {
   const lines = (items) => items.map(esc2).join("<br>");
   const trained = chips(...L.trained, "skills"), untrained = chips(...L.untrained, "untrained");
   const copMaxT = V("H28");
-  $("shbody").innerHTML = `${store.get("ns.welcomeOff3") ? "" : `<div class="welc wel1"><button id="welx" title="Got it, hide this">✕</button>Welcome to the New Scolos Manager</div>`}
+  $("shbody").innerHTML = `
     ${V("H16") ? "" : (deadSeen.set(sheetId(), false), "")}<div class="shead">${ptHead()}<div class="shn"><b>${esc2(V("C3") || "Unnamed")}${V("H16") ? ` <span class="deadtag">(DEAD)</span>` : ""}</b><small>${[V("C4"), V("F5") !== "" ? "Level " + V("F5") : ""].filter(Boolean).map(esc2).join(" · ")}${V("F7") !== "" ? `<span class="cred" title="Credits">¤ ${esc2((n => n == null ? V("F7") : n.toLocaleString("en-US"))(num(V("F7"))))} credits</span>` : ""}</small></div>
       <span class="shcol"><span class="shbtns"><button id="reload" class="ibtn" title="Reload from Google Sheet">↻</button><button id="mgr" class="ibtn mgrb" title="Manage character: XP, skills, gear, notes">⚙ Manage Character</button></span><button class="sref hist" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></span></div>
     <div id="ksbar" class="ksbar" hidden></div><div id="actbar" class="actbar" hidden></div><div id="cofxbar" class="cofxbar" hidden></div>
@@ -1315,7 +1310,6 @@ function drawSheet() {
   document.querySelectorAll("#shbody details.dr").forEach(d => d.ontoggle = () => { drawOpen[d.dataset.k] = d.open; });
   $("reload").onclick = () => loadSheet();
   $("mgr").onclick = () => { mgrOn = true; drawSheet(); };
-  if ($("welx")) $("welx").onclick = () => { store.set("ns.welcomeOff3", "1"); $("welx").parentElement.remove(); };
   if ($("disc")) $("disc").onclick = () => { setSheetId(""); pickCharacter(); };
   // The 3 Light Wound boxes always fill left to right (Heal slides wounds left): tapping any empty one marks the leftmost
   // empty one, tapping a marked one clears the rightmost marked one. Medium and up stay exactly where you tap.
