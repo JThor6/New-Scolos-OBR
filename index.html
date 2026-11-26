@@ -4267,7 +4267,7 @@ function testBarHtml() {
     <div class="tbtns" style="margin-top:4px"><button data-t="heal1" title="Every character: each wound moves one box left">✚ HEAL EVERYONE 1 STEP</button><button data-t="healall" title="Every character: all wounds off (Dead stays)">✚ FULL HEAL EVERYONE</button>
     <button data-t="cop" title="Everyone's COP to full">⚡ FILL COP</button><button data-t="day" title="Powers back, invocations / spell points refilled, COP to 0">☀ NEW DAY</button>
     <button data-t="tgt" title="Target Lock: attacks go at the tokens you select">TARGET LOCK: ${tgtOn() ? "ON" : "OFF"}</button></div>
-    <div class="tmsg" id="tmsg" hidden></div><div class="tmon" id="tmon"></div>${GMS ? `<div class="tmh" style="margin-top:8px">LATEST ROLLS <span>hits and damage show here too</span></div><div id="tlast" class="tlast"></div>` : ""}</div>`;
+    <div class="tmsg" id="tmsg" hidden></div><div class="tmon" id="tmon"></div></div>`; // (LATEST ROLLS list removed, Jake Nov 26: Roll History is in REFERENCE)
 }
 function testLast() { const el = $("tlast"); if (!el) return;
   const h = (lastRolls || []).slice(0, 8).map(r => rollLine(r, false)).join("") || `<div class="empty" style="padding:4px 0">No rolls yet.</div>`;
