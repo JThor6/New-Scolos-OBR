@@ -950,14 +950,15 @@ async function quickRoll(modText, label, whoName, br = "", monPen = 0, cs = null
 }
 async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = null, cs = null) {
   let m = (parseInt(String(modText).replace("−", "-"), 10) || 0) + pen;
-  const nbK = whoName ? "mon:" + whoName : "p", nb = standalone ? 0 : nbGet(nbK); // NEXT ROLL +1 / +2 (used up here)
+  const nbK = whoName ? "mon:" + whoName : proxy ? "pc:" + proxy.id : "p", nb = standalone ? 0 : nbGet(nbK); // NEXT ROLL +1 / +2 (used up here)
   if (nb) { m += nb; store.set("ns.nb." + nbK, ""); setTimeout(nbDraw, 0); }
   // If the GM called for initiative, a player's next Adroitness roll is their initiative
   let initSid = "";
   if (!standalone && !whoName && label === "Adroitness") {
     const md0 = await OBR.room.getMetadata(), st = md0[INIT];
-    if (proxy) { // the GM rolling for a character: their initiative, once, unless their player already rolled it
-      if (st?.open && md0[`${INIT}/p/pc-${proxy.id}`]?.sid !== st.sid && !initEntries(md0).some(e => e.pc && sameName(e.name, proxy.name))) { initSid = st.sid; label = "Adroitness · Initiative"; } }
+    const ip = initProxy();
+    if (ip) { // the GM rolling for a character (Party card or their open sheet): their initiative, once, unless their player already rolled it
+      if (st?.open && md0[`${INIT}/p/pc-${ip.id}`]?.sid !== st.sid && !initEntries(md0).some(e => e.pc && sameName(e.name, ip.name))) { initSid = st.sid; label = "Adroitness · Initiative"; } }
     else if (st?.open && store.get("ns.initDone") !== st.sid) { initSid = st.sid; label = "Adroitness · Initiative"; }
   }
   const ks = !whoName && !proxy && ksArmed() && KS_ATTACK.test(String(label || ""));
@@ -1013,7 +1014,7 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
   if (initSid) {
     // Write it, read it back, and try up to 3 times (Jake, Nov 25: once in a while a player's roll didn't make the bar).
     // Only marked done once it's really in the room, so the banner / pop-up stay up to roll again if it never lands.
-    const px = proxy, name = String(sheetVals?.[2]?.[2] || "").trim() || who, k = px ? `${INIT}/p/pc-${px.id}` : `${INIT}/p/${me}`;
+    const px = initProxy(), name = String(sheetVals?.[2]?.[2] || "").trim() || who, k = px ? `${INIT}/p/pc-${px.id}` : `${INIT}/p/${me}`;
     const entry = { id: px ? "pc-" + px.id : me, sid: initSid, name, total: r.total, adr: m, pc: true, r: Math.random() };
     let landed = false;
     for (let t = 0; t < 3 && !landed; t++) {
@@ -1133,7 +1134,8 @@ let isGM = false, sheetVals = null, busy = false;
 const CAMP = "com.newscolos.campaign";
 let campaign = "";
 const ck = (k) => campaign ? `${k}@${campaign}` : k;
-const sheetId = () => store.get(ck("ns.sheetId"));
+let sheetOverride = ""; // Party pop-out / GM screen: the sheet the GM opened there (the main panel keeps its own choice)
+const sheetId = () => sheetOverride || store.get(ck("ns.sheetId"));
 const setSheetId = (v) => store.set(ck("ns.sheetId"), v);
 const esc2 = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const V = (a1) => { const m = a1.match(/^([A-L])(\d+)$/); const row = sheetVals?.[+m[2] - 1] || []; return String(row[m[1].charCodeAt(0) - 65] ?? "").trim(); };
@@ -4184,7 +4186,9 @@ let lastParty = null;
 // rest, Success Delta and initiative. So the GM can run an encounter from Party view, or roll for a player who stepped
 // away. Each card also shows DEFEND (an attack is waiting and they can defend) and ROLL INITIATIVE (a fight was called
 // and they haven't rolled). Works in the panel, the Party pop-out and the GM screen.
-let ptyOpen = "", proxy = null; // proxy: the character the GM is rolling for, while that roll is made
+let ptyOpen = "", proxy = null;
+// whose initiative a GM's Adroitness roll is: the Party card being rolled for, or the character sheet the GM has open
+const initProxy = () => proxy || (isGM && sheetVals && sheetId() && sheetId() !== "__party" ? { id: sheetId(), name: myChar() } : null); // proxy: the character the GM is rolling for, while that roll is made
 const pCell = (v, a1) => { const m = a1.match(/^([A-L])(\d+)$/); return String(v?.[+m[2] - 1]?.[m[1].charCodeAt(0) - 65] ?? "").trim(); };
 function partySkills(v) {
   const col = (r) => String(v[r - 1]?.[1] ?? "").trim();
@@ -4204,15 +4208,24 @@ function partyRollsHtml(c) {
   const sk = partySkills(v).map(k => btn(k.t, k.n, k.n, k.br, k.atk ? "atk" : "")).join("");
   return `<div class="prh">ROLL FOR ${esc2(name.toUpperCase())}${pen ? ` <span style="color:#ff8f8f">(wounded ${pen})</span>` : ""}</div>
     <div class="prh">ATTRIBUTES</div><div class="prg">${at}</div>
-    <div class="prh">SKILLS ${sk ? "· attacks first" : ""}</div><div class="prg">${sk || `<small style="color:var(--dim)">No skills on the sheet.</small>`}</div>`;
+    <div class="prh">SKILLS ${sk ? "· attacks first" : ""}</div><div class="prg">${sk || `<small style="color:var(--dim)">No skills on the sheet.</small>`}</div>
+    <button data-open="1" style="width:100%;margin-top:6px;justify-content:center" title="Their whole sheet: Extraordinary Powers, Combat Options, spells, wounds. Everything acts as ${esc2(name)}">OPEN FULL SHEET: powers, Combat Options, spells</button>`;
 }
-async function rollAs(c, mod, label, br = "") {
-  if (rollBusy || !c?.values) return;
-  const keep = sheetVals; setRollBusy(true);
-  sheetVals = c.values; proxy = { id: c.id, name: pCell(c.values, "C3") };
-  try { await doQuickRoll(mod, label, null, sheetPen(), br); }
-  catch (e) { obrNote("Couldn't roll: " + (e.message || e), "ERROR"); }
-  finally { sheetVals = keep; proxy = null; setTimeout(() => setRollBusy(false), 1200); }
+// GM rolls for characters go in a line, one after another (Nov 26: tapping ROLL INITIATIVE on three cards quickly used to
+// drop the second and third taps while the first was still landing)
+let rollQ = Promise.resolve();
+function rollAs(c, mod, label, br = "") {
+  const go = async () => {
+    if (!c?.values) return;
+    for (let i = 0; i < 30 && rollBusy; i++) await new Promise(r => setTimeout(r, 100)); // a roll from the sheet still landing
+    const keep = sheetVals; setRollBusy(true);
+    sheetVals = c.values; proxy = { id: c.id, name: pCell(c.values, "C3") };
+    try { await doQuickRoll(mod, label, null, sheetPen(), br); }
+    catch (e) { obrNote("Couldn't roll: " + (e.message || e), "ERROR"); }
+    finally { sheetVals = keep; proxy = null; await new Promise(r => setTimeout(r, 350)); setRollBusy(false); }
+  };
+  rollQ = rollQ.then(go, go);
+  return rollQ;
 }
 function partyStrips() {
   if (!isGM || !lastParty) return;
@@ -4229,8 +4242,21 @@ function partyStrips() {
   });
 }
 function bindRollBtns(root, c) {
-  root.querySelectorAll("button[data-rm]").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (rollBusy) return;
-    b.disabled = true; try { await rollAs(c, b.dataset.rm, b.dataset.rl, b.dataset.rb || ""); } finally { setTimeout(() => { if (b.isConnected) b.disabled = false; }, 1300); } });
+  root.querySelectorAll("button[data-rm]").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (b.disabled) return;
+    b.disabled = true; try { await rollAs(c, b.dataset.rm, b.dataset.rl, b.dataset.rb || ""); } finally { if (b.isConnected) b.disabled = false; } });
+  root.querySelectorAll("button[data-open]").forEach(b => b.onclick = (e) => { e.stopPropagation(); gmOpenSheet(c.id); });
+}
+// OPEN FULL SHEET: the character's whole sheet, so the GM can use their powers, Combat Options, spells, Smite, wounds...
+// Everything on it acts as that character. In the panel it's the same as picking them in the dropdown; in the Party
+// pop-out and the GM screen it opens there, with ◀ BACK TO PARTY.
+function gmOpenSheet(id) {
+  if (PARTYPOP) {
+    sheetOverride = id; partyOn = false; mgrOn = false;
+    $("sh").innerHTML = `<button id="popBack" class="sbtn" style="width:100%;margin:2px 0 6px">◀ BACK TO PARTY</button><div id="shbody"></div>`;
+    $("popBack").onclick = () => { sheetOverride = ""; sheetVals = null; $("sh").innerHTML = ""; showParty(); };
+    return loadSheet();
+  }
+  setSheetId(id); if ($("pick")) $("pick").value = id; loadSheet();
 }
 function bindPartyRolls(body) {
   body.querySelectorAll(".pcard[data-cid]").forEach(card => {
