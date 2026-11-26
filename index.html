@@ -2129,9 +2129,9 @@ const CO = {
   "attack twice": { roll: "atk", two: -1, s: "Two attacks. The second needs a second weapon and gets -1." },
   "auto flank": { roll: "atk", x: 1, s: "Slips into a flanking spot and attacks with +1." },
   "charge": { roll: "melee", x: 1, s: "Double move in a straight line, then a melee attack at +1." },
-  "create optical illusion double": { s: "Until their next turn, each attack on them has a 50/50 chance to hit the double.", fx: { end: "turn", t: "OPTICAL DOUBLE", x: "Each attack on them: flip a coin. Tails, it hits the double and misses.", coin: 1 } },
+  "create optical illusion double": { s: "Until their next turn, each attack on them has a 50/50 chance to hit the double.", fx: { end: "turn", t: "OPTICAL DOUBLE", x: "Each attack on them flips a coin by itself. Tails: it hits the double and misses.", coin: 1 } },
   "defend a friend": { s: "They and chosen allies within 10 ft get +1 Adroitness until their next turn.", fx: { end: "turn", ally: "many", self: 1, on: "adroit", v: 1, t: "DEFEND A FRIEND", x: "+1 on Adroitness rolls" } },
-  "destroy armor": { s: "Auto hit, no damage. The target's Armor Bonus is -1 for the rest of the combat.", fx: { end: "combat", foe: 1, t: "ARMOR DESTROYED", x: "Armor Bonus -1 for the rest of the combat" } },
+  "destroy armor": { s: "Auto hit, no damage. The target's Armor Bonus is -1 for the rest of the combat.", fx: { end: "combat", foe: 1, arm: -1, t: "ARMOR DESTROYED", x: "Armor Bonus -1 for the rest of the combat (counted in Success Delta)" } },
   "encourage": { s: "One player gets +1 on all their rolls until the encourager's next turn.", fx: { end: "turn", ally: "one", self: 1, on: "all", v: 1, t: "ENCOURAGED", x: "+1 on all rolls" } },
   "exchange places": { s: "Swaps places with an ally. Uses their movement, not their attack." },
   "exploding hit": { roll: "atk", s: "If it hits, the damage also lands on chosen targets within 5 ft, at -1." },
@@ -2269,7 +2269,7 @@ async function fxAdd(nm, fx, to) {
   const n = fx.grab ? 1 + Math.max(0, num(V("C8")) ?? 0) : fx.n || 0;
   const e = { id: crypto.randomUUID().slice(0, 6), by: myChar(), o: nm, t: fx.t, x: fx.x, end: fx.end, to: to.slice(0, 6), ts: Date.now(),
     sid: open ? st.sid : "", r0: open ? st.round || 1 : 0, c0: open ? st.cur || "" : "" };
-  if (n) e.n = n; if (fx.on) { e.on = fx.on; e.v = fx.v; } if (fx.vs) { e.vs = 1; e.v = fx.v; } if (fx.dmg) e.dmg = fx.dmg; if (fx.coin) e.coin = 1;
+  if (n) e.n = n; if (fx.on) { e.on = fx.on; e.v = fx.v; } if (fx.vs) { e.vs = 1; e.v = fx.v; } if (fx.dmg) e.dmg = fx.dmg; if (fx.coin) e.coin = 1; if (fx.arm) e.arm = fx.arm;
   const same = (a) => a.o === e.o && sameName(a.by, e.by) && [...a.to].sort().join("|").toLowerCase() === [...e.to].sort().join("|").toLowerCase();
   await fxWrite(l => [...l.filter(a => !same(a)), e]); // using the same option again on the same people refreshes it instead of stacking
 }
@@ -2279,25 +2279,38 @@ const fxMine = (e, who) => (e.to || []).some(t => sameName(t, who));
 function fxApply(r, whoName) {
   const list = fxList(); if (!list.length) return;
   const add = (v, t) => { r.mod += v; r.total += v; r.label = `${r.label} · ${t} ${v > 0 ? "+" : ""}${v}`.slice(0, 80); };
+  // Jake, Nov 26: the same option never adds up (two Encourages on Raxx = +1, not +2)
+  const seen = new Set(), once = (e) => { const k = e.o + "|" + (e.on || e.vs || e.arm || e.dmg); if (seen.has(k)) return false; seen.add(k); return true; };
+  // out of a fight, a bonus that would last "until your next turn" is used up by its first roll (Jake, Nov 26)
+  const used = (e, who) => { if (e.sid || e.end !== "turn") return; const left = (e.to || []).filter(t => !sameName(t, who));
+    fxWrite(l => left.length ? l.map(a => a.id === e.id ? { ...a, to: left } : a) : l.filter(a => a.id !== e.id)).catch(() => {}); };
+  const defense = /^adroitness/i.test(r.label) && !/initiative/i.test(r.label);
   if (!whoName) { const me2 = myChar(); if (!me2) return;
     for (const e of list) {
-      if (e.on === "adroit" && fxMine(e, me2) && /^adroitness/i.test(r.label) && !/initiative/i.test(r.label)) add(e.v, e.o);
-      if (e.on === "all" && fxMine(e, me2)) add(e.v, e.o);
-      if (e.vs && r.atk && (r.tg || []).some(n => fxMine(e, n))) add(e.v, "Marked");
+      if (e.on === "adroit" && fxMine(e, me2) && defense && once(e)) { add(e.v, e.o); used(e, me2); }
+      if (e.on === "all" && fxMine(e, me2) && once(e)) { add(e.v, e.o); used(e, me2); }
+      if (e.vs && r.atk && (r.tg || []).some(n => fxMine(e, n)) && once(e)) { add(e.v, "Marked"); if (!e.sid) fxEnd(e.id); }
+      // Optical Illusion Double: defending while an attack waits flips the coin by itself; tails = the attack hits the double
+      if (e.coin && sameName(e.by, me2) && defense && sdWaitSafe() && once(e)) {
+        const tails = (crypto.getRandomValues(new Uint8Array(1))[0] & 1) === 1;
+        if (tails) r.dbl = 1; r.label = `${r.label} · Double: ${tails ? "tails, it hits the double!" : "heads, the real one"}`.slice(0, 80); }
     }
-  } else if (r.atk) {
+  } else {
     for (const e of list) {
-      if (e.on === "atk" && fxMine(e, whoName)) add(e.v, e.o);
-      if (e.dmg && fxMine(e, whoName) && r.db != null) { r.db += e.dmg; r.label = `${r.label} · ${e.o} ${e.dmg} damage`.slice(0, 80); fxEnd(e.id); }
+      if (!fxMine(e, whoName)) continue;
+      if (r.atk && e.on === "atk" && once(e)) { add(e.v, e.o); used(e, whoName); }
+      if (r.atk && e.dmg && r.db != null && once(e)) { r.db += e.dmg; r.label = `${r.label} · ${e.o} ${e.dmg} damage`.slice(0, 80); fxEnd(e.id); }
+      if (e.arm && r.ab != null && once(e)) r.ab = Math.max(0, r.ab + e.arm); // Destroy Armor: counts when this monster defends
     }
   }
 }
+const sdWaitSafe = () => { try { return !!sdWait(); } catch { return false; } };
 // Strips: on the sheet, the effects you used or that are on you (Marked shows for everyone); the GM tab lists them all
 function fxLine(e, mine) {
   const st = fxMd?.[INIT], rnd = e.end === "rounds" && e.sid && st?.open ? ` · round ${Math.min(e.n, (st.round || 1) - e.r0 + 1)} of ${e.n}` : e.end === "rounds" ? ` · ${e.n} rounds` : "";
   const until = e.end === "turn" ? (e.sid ? ` · until ${esc2(e.by)}'s next turn` : " · until their next turn (✕ when done)") : e.end === "combat" ? " · rest of the combat" : "";
   const on = (e.to || []).length ? ` <span class="fxto">on ${esc2(e.to.join(", "))}</span>` : "";
-  return `<div class="fxl"><span><b>${esc2(e.t)}</b>${on}<br>${esc2(e.x)}<small>${esc2(e.o)} by ${esc2(e.by)}${rnd}${until}</small>${e.coin && mine ? `<button class="sbtn fxcoin" data-id="${e.id}">Attacked? Flip the coin</button>` : ""}</span>${mine || isGM ? `<button class="fxx" data-id="${e.id}" title="End it">✕</button>` : ""}</div>`;
+  return `<div class="fxl"><span><b>${esc2(e.t)}</b>${on}<br>${esc2(e.x)}<small>${esc2(e.o)} by ${esc2(e.by)}${rnd}${until}</small></span>${mine || isGM ? `<button class="fxx" data-id="${e.id}" title="End it">✕</button>` : ""}</div>`;
 }
 function fxDraw() {
   const me2 = myChar(), list = fxList();
@@ -2309,12 +2322,21 @@ function fxDraw() {
   const g = $("gmFx");
   if (g) { g.hidden = !list.length; g.innerHTML = list.length ? `<div class="sec">COMBAT OPTIONS IN PLAY</div>` + list.map(e => fxLine(e, false)).join("") : ""; }
   document.querySelectorAll(".fxx").forEach(b => b.onclick = (e) => { e.stopPropagation(); b.disabled = true; fxEnd(b.dataset.id); });
-  document.querySelectorAll(".fxcoin").forEach(b => b.onclick = (e) => { e.stopPropagation(); if (b.disabled) return; b.disabled = true; setTimeout(() => { if (b.isConnected) b.disabled = false; }, 1500);
-    const heads = (crypto.getRandomValues(new Uint8Array(1))[0] & 1) === 0;
-    announceCop(null, null, "Optical Double", heads ? "Heads: the attack goes at the real one." : "Tails: it hits the double. The attack misses!", true); });
+}
+// Acid Touch (Jake, Nov 26): with Auto Damage on, the GM's panel marks 1 more wound (lightest open box) on the target at the
+// start of each of the next 3 rounds, with a card for the table. Never twice for the same round (remembered in this browser).
+async function acidTick(md) {
+  if (standalone || !isGM || PARTYPOP || UPLINK || !adSince(md)) return;
+  const st = md?.[INIT]; if (!st?.open) return; const rnd = st.round || 1;
+  for (const e of (Array.isArray(md[COFX]) ? md[COFX] : [])) {
+    const n = e.n || 3; if (String(e.o || "").toLowerCase() !== "acid touch" || e.sid !== st.sid || !(rnd > e.r0 && rnd <= e.r0 + n)) continue;
+    const k = "ns.acid:" + e.id + ":" + rnd; if (store.get(k)) continue; store.set(k, "1");
+    for (const name of e.to || []) { await applyWound(name, 1).catch(() => "");
+      announceCop(null, null, "Acid Touch", `${name}: 1 more wound (round ${rnd - e.r0} of ${n})`, true); }
+  }
 }
 function fxSync(md) {
-  fxMd = md; fxDraw();
+  fxMd = md; fxDraw(); acidTick(md).catch(() => {});
   // the GM's panel tidies the list: anything that has ended is taken off
   if (isGM && Array.isArray(md?.[COFX]) && md[COFX].length !== fxList(md).length) fxWrite(l => l).catch(() => {});
 }

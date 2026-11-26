@@ -54,11 +54,11 @@ export const BONUS_NAME = { melee: "Melee", ranged: "Ranged", offense: "Offense"
 // One Success Delta in plain words, used by the table card and Roll History.
 // e: { att, def, at, dt, delta, db?, dbk?, sp?, ab? }
 export function sdResult(e) {
-  const hit = e.delta >= 0, known = e.db != null;
+  const hit = e.delta >= 0 && !e.dbl, known = e.db != null; // dbl: the attack hit an Optical Illusion Double
   const dmg = hit && known ? e.delta + e.db - (e.ab ?? 0) : null;
   const w = dmg != null ? woundFor(dmg) : 0;
-  const headline = !hit ? "Miss" : dmg == null ? "Hit" : w ? WOUND_STEPS[w - 1].n : "Armor holds";
-  const sub = !hit ? `${e.def} beats the attack by ${-e.delta}` : dmg == null ? `Add the ${e.dbk === "power" ? "power's" : "spell's"} Damage Bonus, then subtract the Armor Bonus`
+  const headline = e.dbl ? "Hit the double!" : !hit ? "Miss" : dmg == null ? "Hit" : w ? WOUND_STEPS[w - 1].n : "Armor holds";
+  const sub = e.dbl ? `It was ${e.def}'s illusion double. The attack misses` : !hit ? `${e.def} beats the attack by ${-e.delta}` : dmg == null ? `Add the ${e.dbk === "power" ? "power's" : "spell's"} Damage Bonus, then subtract the Armor Bonus`
     : w ? `${dmg} damage on the Vitality Track` : "Hit, but no damage gets through";
   return { hit, known, dmg, w, headline, sub, tie: e.delta === 0 };
 }

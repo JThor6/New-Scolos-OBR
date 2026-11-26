@@ -121,6 +121,7 @@ async function makeDelta(a, d) {
     att: nameOf(a), def: nameOf(d), at: a.total, dt: d.total, delta: a.total - d.total };
   if (a.db != null) { e.db = a.db; if (a.dbk) e.dbk = a.dbk; } else if (a.pwd) e.dbk = "power"; else if (a.sp) { e.sp = 1; e.dbk = "spell"; }
   if (d.ab != null) e.ab = d.ab;
+  if (d.dbl) e.dbl = 1; // Optical Illusion Double: tails, the attack hit the double
   seenIds.add(e.id);
   addResult(e);
   // saved under its own key (…/rolls/<player>~sd), so it can never collide with the panel saving that player's next roll
