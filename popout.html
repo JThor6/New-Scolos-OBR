@@ -55,8 +55,9 @@
 <script type="module">
 import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
 import { SECTIONS, REF_GROUPS, sectionHtml, esc2 } from "./rules.js";
-import { allRolls, rollLine, ROLL_CSS, rollLog, LOG_MAX } from "./shared.js";
-document.head.insertAdjacentHTML("beforeend", `<style>${ROLL_CSS}</style>`);
+import { allRolls, rollLine, ROLL_CSS, rollLog, LOG_MAX, clearBtn, bindClear, CLEAR_CSS } from "./shared.js";
+document.head.insertAdjacentHTML("beforeend", `<style>${ROLL_CSS}${CLEAR_CSS}</style>`);
+let gm = false; // the GM gets a CLEAR HISTORY button
 // Roll History is one of the choices here too (live: new rolls show up as they happen)
 const ALL = [["Roll History", "__rolls"], ...SECTIONS];
 let rolls = [], cur = "";
@@ -64,13 +65,15 @@ const detail = () => { try { return localStorage.getItem("ns.histDetail") === "o
 function drawRolls() {
   if (cur !== "__rolls") return;
   const d = detail(), m = document.getElementById("m");
-  m.innerHTML = `<button id="det" class="histdet">${d ? "DETAILED ▲ (tap for simple)" : "SIMPLE ▼ (tap for detailed)"}</button>` +
+  m.innerHTML = `<div style="display:flex;gap:6px;align-items:center"><button id="det" class="histdet" style="flex:1">${d ? "DETAILED ▲ (tap for simple)" : "SIMPLE ▼ (tap for detailed)"}</button>${gm ? clearBtn("rs", "CLEAR HISTORY") : ""}</div>` +
     (rolls.length ? rolls.slice(0, LOG_MAX).map(r => rollLine(r, d)).join("") : `<div class="empty">No rolls yet.</div>`);
   document.getElementById("det").onclick = () => { try { localStorage.setItem("ns.histDetail", d ? "off" : "on"); } catch {} drawRolls(); };
+  if (gm) bindClear(m, OBR);
 }
 window.addEventListener("storage", (e) => { if (e.key === "ns.histDetail") drawRolls(); });
 window.addEventListener("storage", (e) => { try { if (e.key && e.key.startsWith("ns.rollLog@") && OBR.room.id && e.key === "ns.rollLog@" + OBR.room.id) { rolls = rollLog(OBR.room.id, []); drawRolls(); } } catch {} });
 if (OBR.isAvailable) OBR.onReady(async () => {
+  gm = (await OBR.player.getRole()) === "GM";
   rolls = rollLog(OBR.room.id, allRolls(await OBR.room.getMetadata())); drawRolls();
   OBR.room.onMetadataChange((md) => { rolls = rollLog(OBR.room.id, allRolls(md)); drawRolls(); });
 });

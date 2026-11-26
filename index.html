@@ -780,8 +780,8 @@
 </main>
 <script type="module">
 import OBR, { buildImage, buildImageUpload, buildLabel } from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
-import { NS, KEEP, rollKey, allRolls, fmt, INIT, initEntries, rollLine, ROLL_CSS, rollLog, LOG_MAX, POWER_CARDS, sameName, sdResult, MARK_ITEM, DEFAULT_MARKS, initMove, turnNames } from "./shared.js";
-document.head.insertAdjacentHTML("beforeend", `<style>${ROLL_CSS}</style>`);
+import { NS, KEEP, rollKey, allRolls, clearBtn, bindClear, CLEAR_CSS, fmt, INIT, initEntries, rollLine, ROLL_CSS, rollLog, LOG_MAX, POWER_CARDS, sameName, sdResult, MARK_ITEM, DEFAULT_MARKS, initMove, turnNames } from "./shared.js";
+document.head.insertAdjacentHTML("beforeend", `<style>${ROLL_CSS}${CLEAR_CSS}</style>`);
 import { TYPES, SECTIONS, REF_GROUPS, getTab, sectionHtml } from "./rules.js";
 
 const $ = (id) => document.getElementById(id);
@@ -854,11 +854,12 @@ window.addEventListener("storage", (e) => { try { if (!standalone && e.key && e.
 let lastRolls = [];
 function render(rolls) {
   lastRolls = rolls;
-  const html = `<button class="histdet">${histDetail ? "DETAILED ▲ (tap for simple)" : "SIMPLE ▼ (tap for detailed)"}</button>` +
+  const html = `<div style="display:flex;gap:6px;align-items:center"><button class="histdet" style="flex:1">${histDetail ? "DETAILED ▲ (tap for simple)" : "SIMPLE ▼ (tap for detailed)"}</button>${isGM && !standalone ? clearBtn("rs", "CLEAR HISTORY") : ""}</div>` +
     (rolls.length ? rolls.slice(0, LOG_MAX).map(line).join("") : `<div class="empty">No rolls yet.</div>`);
   // same list on the DICE tab and in REFERENCE → ROLL HISTORY
   for (const el of [$("history"), $("refRolls")]) if (el) el.innerHTML = html;
   if (GMS) try { gmsSd(); gmsRolls(); } catch {}
+  if (!standalone) bindClear(document, OBR, () => { gmsSdId = ""; });
   document.querySelectorAll(".histdet").forEach(btn => btn.onclick = (e) => { e.preventDefault(); histDetail = !histDetail; try { localStorage.setItem("ns.histDetail", histDetail ? "on" : "off"); } catch {} render(lastRolls); });
 }
 // Δ: bring back the Success Delta card (background.html opens it; ‹ › on it pages through the results)
@@ -4567,9 +4568,10 @@ function gmsSetup() {
   $("ptyx").onclick = () => standalone ? window.close() : OBR.modal.close(GMS_ID).catch(() => {});
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !standalone) OBR.modal.close(GMS_ID).catch(() => {}); });
   document.body.insertAdjacentHTML("beforeend", `
-    <div class="gmsc"><h2><span>SUCCESS DELTA</span></h2><div id="gmsSd"><div class="empty">No results yet. Attacks and their defense rolls land here and stay.</div></div></div>
-    <div class="gmsc"><h2><span>RIGHT NOW</span></h2><div id="gmsTurn" class="gmsturn"></div><div class="sub">Combat Options in play</div><div id="gmsFx" class="cofxbar"><div class="empty">Nothing in play.</div></div><div class="sub">Conditions</div><div id="gmsCond"><div class="empty">No conditions on the map.</div></div><div class="sub">At the Table</div><div id="gmsOn"><div class="empty">Checking…</div></div><div class="sub">Dice Rolls</div><div id="gmsRolls"><div class="empty">No rolls yet.</div></div></div>
+    <div class="gmsc"><h2><span>SUCCESS DELTA</span>${clearBtn("s")}</h2><div id="gmsSd"><div class="empty">No results yet. Attacks and their defense rolls land here and stay.</div></div></div>
+    <div class="gmsc"><h2><span>RIGHT NOW</span></h2><div id="gmsTurn" class="gmsturn"></div><div class="sub">Combat Options in play</div><div id="gmsFx" class="cofxbar"><div class="empty">Nothing in play.</div></div><div class="sub">Conditions</div><div id="gmsCond"><div class="empty">No conditions on the map.</div></div><div class="sub">At the Table</div><div id="gmsOn"><div class="empty">Checking…</div></div><div class="sub" style="display:flex;align-items:center">Dice Rolls<span style="margin-left:auto">${clearBtn("r")}</span></div><div id="gmsRolls"><div class="empty">No rolls yet.</div></div></div>
     <div class="gmsc"><h2><span>REFERENCE</span><select id="gmsPick"></select></h2><div id="gmsRef"><div class="rr">Loading…</div></div></div>`);
+  if (!standalone) bindClear(document, OBR, () => { gmsSdId = ""; });
   const pick = $("gmsPick");
   pick.innerHTML = REF_GROUPS.map(([g, keys]) => `<optgroup label="${esc2(g)}">${keys.map(k => SECTIONS.find(x => x[1] === k)).filter(Boolean).map(([t, k]) => `<option value="${esc2(k)}">${esc2(t)}</option>`).join("")}</optgroup>`).join("");
   const show = async (k) => { pick.value = k; store.set("ns.gmsRef", k); const m = $("gmsRef"); m.innerHTML = `<div class="rr">Loading…</div>`;

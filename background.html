@@ -1,7 +1,7 @@
 <!doctype html><html><head><meta charset="utf-8"></head><body>
 <script type="module">
 import OBR, { buildShape } from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
-import { allRolls, INIT, initEntries, markList, rollLog, rollKey, KEEP, sameName, sdResult, turnNames } from "./shared.js";
+import { allRolls, CLEARED, INIT, initEntries, markList, rollLog, rollKey, KEEP, sameName, sdResult, turnNames } from "./shared.js";
 // Runs all session, even when the dice panel is closed.
 // Shows rolls as small cards at the bottom middle of the map. Up to 8 at once (two rows of 4, middle cards first),
 // so when everyone rolls together (initiative) the whole table's results are visible.
@@ -407,6 +407,8 @@ OBR.onReady(async () => {
   rollLog(OBR.room.id, allRolls(await OBR.room.getMetadata()));
   OBR.room.onMetadataChange((md) => {
     rollLog(OBR.room.id, allRolls(md));
+    { const c = md[CLEARED]; // GM cleared the Success Delta history: the card's ‹ › list empties too
+      if (c?.s && sd.list.some(e => (e.ts || 0) <= c.s)) { sd.list = sd.list.filter(e => (e.ts || 0) > c.s); sdSave(); openCard().catch(() => {}); } }
     initUpdate(md);
     drawRings(md);
     sdMeta(md);

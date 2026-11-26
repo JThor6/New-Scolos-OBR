@@ -5,12 +5,42 @@ export const KEEP = 10; // rolls kept per player (room metadata is capped at ~16
 
 export function rollKey(playerId) { return `${NS}/rolls/${playerId}`; }
 
+// GM SCREEN's CLEAR buttons (Jake, Nov 26) put a time here for the whole room: { r: rolls cleared at, s: Success Deltas cleared at }
+export const CLEARED = `${NS}/cleared`;
+const clrKey = (roomId) => "ns.rollClr@" + (roomId || "local");
+export const isCleared = (r, c) => !!c && (r?.sd ? (r.ts || 0) <= (c.s || 0) : (r.ts || 0) <= (c.r || 0));
+// GM-only CLEAR button (Jake, Nov 26): k "r" = rolls, "s" = Success Delta results, "rs" = both. Tap, then ARE YOU SURE? within 4 s.
+// Clears it for everyone in the room: a time mark in room metadata (every browser drops older entries from its own log) and
+// the saved rolls in the room are emptied too.
+export const clearBtn = (k, label = "CLEAR") => `<button class="gmsclr" data-clr="${k}" data-lab="${label}" title="Clears it for everyone at the table">${label}</button>`;
+export const CLEAR_CSS = `.gmsclr { font:800 11px system-ui; letter-spacing:.5px; background:rgba(40,36,64,.8); border:1px solid #4a4170; color:#b9aee0; border-radius:6px; padding:3px 8px; cursor:pointer; }
+  .gmsclr.armed { background:rgba(91,63,158,.75); border-color:#9d86ff; color:#f0eaff; } .gmsclr:disabled { opacity:.6; cursor:default; }`;
+export function bindClear(root, OBR, after) {
+  root.querySelectorAll(".gmsclr").forEach(b => { if (b._bound) return; b._bound = 1; b.onclick = async (ev) => {
+    ev.preventDefault(); ev.stopPropagation();
+    const k = b.dataset.clr, lab = b.dataset.lab || "CLEAR";
+    if (!b.dataset.armed) { b.dataset.armed = "1"; b.textContent = "ARE YOU SURE?"; b.classList.add("armed");
+      clearTimeout(b._t); b._t = setTimeout(() => { delete b.dataset.armed; b.textContent = lab; b.classList.remove("armed"); }, 4000); return; }
+    clearTimeout(b._t); delete b.dataset.armed; b.classList.remove("armed"); b.disabled = true; b.textContent = "CLEARING…";
+    try {
+      const md = await OBR.room.getMetadata(), now = Date.now(), c = { ...(md[CLEARED] || {}) };
+      if (k.includes("r")) c.r = now; if (k.includes("s")) c.s = now;
+      const upd = { [CLEARED]: c };
+      for (const key of Object.keys(md)) if (key.startsWith(`${NS}/rolls/`) && Array.isArray(md[key]) && (key.endsWith("~sd") ? k.includes("s") : k.includes("r"))) upd[key] = null;
+      await OBR.room.setMetadata(upd);
+      b.textContent = "✓ CLEARED"; after?.(k);
+    } catch { b.textContent = "DIDN'T CLEAR"; }
+    setTimeout(() => { b.disabled = false; b.textContent = lab; }, 2000);
+  }; });
+}
 export function allRolls(metadata) {
-  const out = [];
+  const out = [], c = metadata?.[CLEARED] || null;
   for (const [k, v] of Object.entries(metadata || {})) {
-    if (k.startsWith(`${NS}/rolls/`) && Array.isArray(v)) out.push(...v);
+    if (k.startsWith(`${NS}/rolls/`) && Array.isArray(v)) out.push(...v.filter(r => !isCleared(r, c)));
   }
-  return out.sort((a, b) => b.ts - a.ts);
+  out.sort((a, b) => b.ts - a.ts);
+  out.clr = c; // rollLog uses it to clear this browser's own log too
+  return out;
 }
 
 // Table cards for powers that stay on (c: the look, t: card title, s: line under it)
@@ -225,7 +255,11 @@ export function rollLog(roomId, roomRolls) {
   const key = "ns.rollLog@" + (roomId || "local");
   let log = [];
   try { log = JSON.parse(localStorage.getItem(key) || "[]"); if (!Array.isArray(log)) log = []; } catch { log = []; }
-  const ids = new Set(log.map(r => r.id)); let added = false;
+  // the GM cleared the history: drop what's older than that from this browser's log as well
+  let c = roomRolls?.clr; try { if (c) localStorage.setItem(clrKey(roomId), JSON.stringify(c)); else c = JSON.parse(localStorage.getItem(clrKey(roomId)) || "null"); } catch {}
+  let added = false;
+  if (c) { const n = log.length; log = log.filter(r => !isCleared(r, c)); if (log.length !== n) added = true; roomRolls = (roomRolls || []).filter(r => !isCleared(r, c)); }
+  const ids = new Set(log.map(r => r.id));
   for (const r of roomRolls || []) if (r?.id && !ids.has(r.id)) { log.push(r); ids.add(r.id); added = true; }
   log.sort((a, b) => b.ts - a.ts); log = log.slice(0, LOG_MAX);
   if (added) try { localStorage.setItem(key, JSON.stringify(log)); } catch {}
