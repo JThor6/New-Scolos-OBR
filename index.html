@@ -3900,8 +3900,15 @@ const pogSrc = (id) => `https://lh3.googleusercontent.com/d/${id}`;
 // PUT POG ON THE TABLE beside the name (Jake, Nov 26): your own sheet only, shown while this character has a pog and no
 // token with their name is on the map. Gone as soon as one is there. The pog id is asked for once and kept.
 let pogQT = 0; const pogAsked = new Set(); // "no pog" is checked again once per session, in case one was made on another device
+// GM (Nov 26): on the Party cards, ⬇ PUT POG ON THE TABLE shows only for characters with no token on the map
+async function partyPogVis() {
+  const bs = [...document.querySelectorAll(".pogt")]; if (!bs.length || standalone) return;
+  let names = null; try { if (await OBR.scene.isReady()) names = new Set((await OBR.scene.items.getItems(i => i.layer === "CHARACTER" || i.layer === "MOUNT")).map(i => nm(i.name))); } catch {}
+  for (const b of bs) b.hidden = !names || names.has(nm(b.dataset.n));
+}
+// your own sheet (players), or the sheet the GM has open: the button beside the name
 async function pogQuick() {
-  const b = $("pogQuick"); if (!b || standalone || isGM || partyOn) return;
+  const b = $("pogQuick"); if (!b || standalone || partyOn) return;
   const id = sheetId(), name = V("C3").trim(); if (!id || !name) return;
   let pid = cache.get("pogid." + id);
   if (pid === undefined || pid === null || (!pid && !pogAsked.has(id))) { pogAsked.add(id); pid = ""; const r = await bridgeGet({ portraits: id }).catch(() => null); if (r?.ok) { pid = r.pog || ""; cache.set("pogid." + id, pid); } else return; }
@@ -3914,6 +3921,7 @@ async function pogQuick() {
     b2.disabled = false; setTimeout(() => { if (b2.isConnected && !b2.hidden) b2.textContent = "⬇ PUT POG ON THE TABLE"; }, 3000); };
 }
 const pogQuickSoon = () => { clearTimeout(pogQT); pogQT = setTimeout(pogQuick, 300); };
+let partyPogT = 0; const partyPogSoon = () => { clearTimeout(partyPogT); partyPogT = setTimeout(partyPogVis, 300); };
 // Change name (Nov 26): the character's tokens on the map get the new name too. A player's Owlbear may not be allowed to
 // change tokens, so the GM's screen is asked as well (background.html, "com.newscolos.pogname").
 async function pogRename(from, to) {
@@ -4186,13 +4194,14 @@ function drawParty(body, chars) {
       const status = worst < 0 ? "Unhurt" : cell(v, "BCDEFGH"[worst] + "15").replace(/^\S+\s+/, "");
       const used = cell(v, "F6").toUpperCase() === "TRUE", usedU = cell(v, "F8").toUpperCase() === "TRUE", hasU = !/^(priest|mage)$/i.test(cell(v, "C4"));
       return `<div class="pcard">
-        <div class="ptop">${ptIcon(c.id, cell(v, "C3"))}<b>${esc2(cell(v, "C3"))}</b>${isGM && ptT(c.id) ? `<button class="pogb" data-pog="${esc2(c.id)}" data-n="${esc2(cell(v, "C3"))}" title="Add this character's pog to your Owlbear characters">◎ POG</button><button class="pogb pogt" data-pt="${esc2(c.id)}" title="Put this character's pog on the map (middle of your screen)">⬇ TABLE</button>` : ""}<small>${esc2(cell(v, "C4"))}</small>${hasU ? `<span class="ppw ${used ? "u" : ""}">${used ? "COMBAT USED" : "COMBAT READY"}</span><span class="ppw ${usedU ? "u" : ""}">${usedU ? "UTILITY USED" : "UTILITY READY"}</span>` : `<span class="ppw ${used ? "u" : ""}">${used ? "POWER USED" : "POWER READY"}</span>`}</div>
+        <div class="ptop">${ptIcon(c.id, cell(v, "C3"))}<b>${esc2(cell(v, "C3"))}</b>${isGM && ptT(c.id) ? `<button class="pogb" data-pog="${esc2(c.id)}" data-n="${esc2(cell(v, "C3"))}" title="Add this character's pog to your Owlbear characters">◎ POG</button><button class="pogb pogt" data-pt="${esc2(c.id)}" data-n="${esc2(cell(v, "C3"))}" hidden title="Put this character's pog on the map (middle of your screen). Only shows while they aren't on the map.">⬇ PUT POG ON THE TABLE</button>` : ""}<small>${esc2(cell(v, "C4"))}</small>${hasU ? `<span class="ppw ${used ? "u" : ""}">${used ? "COMBAT USED" : "COMBAT READY"}</span><span class="ppw ${usedU ? "u" : ""}">${usedU ? "UTILITY USED" : "UTILITY READY"}</span>` : `<span class="ppw ${used ? "u" : ""}">${used ? "POWER USED" : "POWER READY"}</span>`}</div>
         ${isGM ? gmStrip(v, cell) : ""}${actBadge(cell(v, "C3"))}<div class="pvit">${marks.map((m, i) => `<i><small>${["LW", "LW", "LW", "MW", "CW", "KO", "D"][i]}</small><span class="${m ? "x" : ""}"></span></i>`).join("")}<em class="${worst >= 4 ? "bad" : ""}">${esc2(status)}</em></div>
       </div>`;
     }).join("") : `<div class="empty">No characters found.</div>`);
     if ($("ptyPop")) $("ptyPop").onclick = popParty;
     if ($("ptyDrop")) $("ptyDrop").onclick = async () => { const b = $("ptyDrop"); b.disabled = true; try { await partyDrop(); } finally { b.disabled = false; } };
-    body.querySelectorAll(".pogt").forEach(b => b.onclick = async (e) => { e.stopPropagation(); b.disabled = true; try { await partyDrop(b.dataset.pt); } finally { b.disabled = false; } });
+    body.querySelectorAll(".pogt").forEach(b => b.onclick = async (e) => { e.stopPropagation(); b.disabled = true; try { await partyDrop(b.dataset.pt); } finally { b.disabled = false; partyPogVis(); } });
+    partyPogVis();
     fillPts(body);
     body.querySelectorAll(".pti").forEach(b => b.onclick = () => ptView(b.dataset.ptv, b.dataset.n, false));
     body.querySelectorAll(".pogb:not(.pogt)").forEach(b => b.onclick = async () => {
@@ -4798,7 +4807,7 @@ if (standalone) {
     if (isGM && !UPLINK) { const beat = () => store.set("ns.adAlive:" + OBR.room.id, String(Date.now())); beat(); setInterval(beat, 2000); }
     const readAct = (ps) => { partyAct = ps.map(p => p.metadata?.[ACT_MD]).filter(Boolean); if (partyOn && lastParty && $("shbody")) drawParty($("shbody"), lastParty); };
     readAct(await OBR.party.getPlayers()); OBR.party.onChange(readAct);
-    if (!isGM && !PARTYPOP && !UPLINK) { OBR.scene.items.onChange(() => pogQuickSoon()); OBR.scene.onReadyChange(() => pogQuickSoon()); }
+    if (!UPLINK) { OBR.scene.items.onChange(() => { pogQuickSoon(); partyPogSoon(); }); OBR.scene.onReadyChange(() => { pogQuickSoon(); partyPogSoon(); }); }
     if (isGM) OBR.broadcast.onMessage("com.newscolos.sheetv", ({ data }) => {
       const id = data?.id, v = data?.v; if (!id || !Array.isArray(v) || !Array.isArray(lastParty)) return;
       const c = lastParty.find(x => x.id === id); if (!c) return;
