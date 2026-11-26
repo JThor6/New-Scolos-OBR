@@ -5,14 +5,15 @@
      One button per monster that can defend; tapping it rolls that monster's Adroitness from the GM tab.
      Deep purple and quiet, like DEFEND!. Goes away by itself once the defense is rolled or the attack is dropped. */
   html, body { margin:0; background:transparent; overflow:hidden; font-family:system-ui, sans-serif; }
-  .p { box-sizing:border-box; height:100vh; display:flex; align-items:center; gap:8px; padding:6px 8px 6px 12px;
+  /* Nov 26: buttons wrap onto more rows and the bar grows to fit, so every defender shows (it used to scroll sideways) */
+  .p { box-sizing:border-box; min-height:100vh; display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; padding:6px 8px 6px 12px;
     background:linear-gradient(135deg, rgba(40,22,64,.95), rgba(26,14,40,.95)); border:1px solid #4a3a78; border-radius:12px;
     box-shadow:0 2px 10px rgba(0,0,0,.4); color:#d9ccf5; animation:in .2s ease-out; }
-  .t { flex:none; max-width:38%; font-size:13px; font-weight:700; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .t { flex:1 1 200px; max-width:none; font-size:13px; font-weight:700; line-height:1.25; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .t b { color:#fff; } .t small { display:block; font-size:10.5px; color:#a597cc; font-weight:700; }
-  .bs { flex:1; min-width:0; display:flex; gap:6px; overflow-x:auto; scrollbar-width:thin; padding:2px 0; }
+  .bs { flex:1 1 100%; order:3; min-width:0; display:flex; flex-wrap:wrap; gap:6px; padding:2px 0; }
   .t .h { display:block; font:800 17px system-ui; letter-spacing:.8px; color:#e6dcff; }
-  .bs button { flex:none; padding:13px 18px; border-radius:10px; border:1px solid #6a4fa0; background:#3b2563; color:#f1e9ff;
+  .bs button { flex:1 1 150px; padding:11px 14px; border-radius:10px; border:1px solid #6a4fa0; background:#3b2563; color:#f1e9ff;
     font:800 16px system-ui; cursor:pointer; white-space:nowrap; }
   .bs button:hover { background:#4a2f7a; } .bs button:disabled { opacity:.55; cursor:default; }
   .x { flex:none; width:26px; height:26px; border-radius:7px; border:1px solid #3a3058; background:transparent; color:#8f84b0; font:800 13px system-ui; cursor:pointer; }
@@ -50,6 +51,7 @@
     $("t").innerHTML = `<span class="h">🛡 ROLL ${esc(at.toUpperCase())}</span><b>${esc(w.att)}</b> ${w.sp ? "casts" : "attacks"} ${sg(w.at)}<small>${w.tg?.length ? "Target:" : "No target picked: who defends?"}</small>`;
     const key = can.join("|"); if (key === lastKey) return; lastKey = key;
     $("bs").innerHTML = can.map(n => `<button data-n="${esc(n)}" title="Roll ${esc(n)}'s ${esc(at)} to defend">🛡 ${esc(n)}</button>`).join("");
+    fitH();
     $("bs").querySelectorAll("button").forEach(b => b.onclick = () => {
       b.disabled = true; const ts = Date.now();
       const pc = party.some(n => sameName(n, b.dataset.n)), k = pc ? "pcDef" : "monDef";
@@ -59,6 +61,9 @@
       setTimeout(() => { if (b.isConnected) b.disabled = false; }, 4000);
     });
   }
+  // grow or shrink the bar to fit all the buttons
+  function fitH() { requestAnimationFrame(() => { const h = Math.min(400, Math.ceil(document.querySelector(".p").scrollHeight) + 2);
+    if (OBR.isAvailable && h !== fitH.h) { fitH.h = h; OBR.popover.setHeight(ID, h).catch(() => {}); } }); }
   window.addEventListener("storage", (e) => { if (e.key === "ns.sd:" + room || e.key === "ns.monLive" || e.key === "ns.partyLive") draw(); });
   setInterval(draw, 3000);
   if (OBR.isAvailable) OBR.onReady(() => { room = room || OBR.room.id; draw(); }); else draw();
