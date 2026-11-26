@@ -293,6 +293,12 @@
   .tbtns button { font:800 11px system-ui; letter-spacing:.4px; padding:5px 8px; border-radius:6px; cursor:pointer; background:rgba(40,36,64,.9); border:1px solid #4a4170; color:#e6defa; }
   .tbtns button:disabled { opacity:.4; cursor:default; }
   .tmsg { margin-top:5px; font-size:11px; color:#cfc6ee; }
+  .tban { position:sticky; top:0; z-index:5; display:flex; flex-direction:column; gap:4px; padding:4px 0; background:linear-gradient(#222639 70%, transparent); }
+  .tban[hidden] { display:none; }
+  .tban button { width:100%; padding:9px 10px; border-radius:8px; cursor:pointer; font:800 14px system-ui; letter-spacing:.5px; color:#f0eaff; background:rgba(91,63,158,.55); border:1px solid #9d86ff; display:flex; flex-wrap:wrap; align-items:baseline; justify-content:center; gap:4px 10px; }
+  .tban button.pc { background:rgba(110,80,190,.75); box-shadow:0 0 10px rgba(157,134,255,.45); }
+  .tban button small { font-weight:600; font-size:11px; color:#d6ccf5; }
+  .pcard.turn { outline:2px solid #b9a6ff; box-shadow:0 0 12px rgba(157,134,255,.45); }
   /* test mode (Jake, Nov 26): only Party (list + the open sheet) and RIGHT NOW on the right; Success Delta and Reference hide */
   body.gms.gmtest { grid-template-columns:minmax(700px,3fr) minmax(280px,1fr); }
   body.gms.gmtest #gmsRefCol, body.gms.gmtest #gmsSdCol { display:none !important; }
@@ -4238,6 +4244,18 @@ function testBarUpdate() {
   const defs = w ? (lastParty || []).filter(c => canDefend(w, pCell(c.values, "C3"))).length : 0;
   el.innerHTML = st?.open ? `Round <b>${esc2(String(st.round || 1))}</b> · Turn: <b>${esc2(t?.cur || "not started")}</b>${t?.deck ? ` · On deck: ${esc2(t.deck)}` : ""}${need ? ` · <span class="tneed">${need} still to roll initiative</span>` : ""}${w ? ` · <span class="tneed">${esc2(w.att)} is attacking${defs ? `: ${defs} can defend` : ""}</span>` : ""}`
     : `No fight going.${w ? ` <span class="tneed">${esc2(w.att)} is attacking${defs ? `: ${defs} can defend` : ""}</span>` : ""}`;
+  // the banner on top: whatever needs doing right now, as one big button (Jake, Nov 26)
+  const ban = $("tban");
+  if (ban) { const cur = t?.cur || "", pc = cur && (lastParty || []).some(c => sameName(pCell(c.values, "C3"), cur));
+    let h = "";
+    if (need) h += `<button data-tb="init">⚔ ROLL PARTY INITIATIVE <small>${need} still to roll</small></button>`;
+    if (defs) h += `<button data-tb="def">🛡 DEFEND vs ${esc2(w.att)} <small>${defs} can defend</small></button>`;
+    if (st?.open && st.cur) h += `<button data-tb="next" class="${pc ? "pc" : ""}">${pc ? `▶ ${esc2(cur.toUpperCase())}'S TURN · <b>END TURN</b>` : `${esc2(cur)}'s turn · <b>NEXT TURN ▶</b>`}${t?.deck ? `<small>next up: ${esc2(t.deck)}</small>` : ""}</button>`;
+    else if (st?.open && !need) h += `<button data-tb="next">Everyone's rolled · <b>START TURNS ▶</b></button>`;
+    if (ban.dataset.h !== h) { ban.dataset.h = h; ban.innerHTML = h; ban.hidden = !h;
+      ban.querySelectorAll("button[data-tb]").forEach(x => x.onclick = (e) => { e.stopPropagation(); document.querySelector(`#tbar [data-t="${x.dataset.tb}"]`)?.click(); }); }
+    document.querySelectorAll(".pcard[data-cid]").forEach(k => { const c = (lastParty || []).find(x => x.id === k.dataset.cid);
+      k.classList.toggle("turn", !!(pc && c && sameName(pCell(c.values, "C3"), cur))); }); }
   const b = (k) => document.querySelector(`#tbar [data-t="${k}"]`);
   if (b("init")) b("init").disabled = !need; if (b("def")) b("def").disabled = !defs;
   for (const k of ["prev", "next", "end"]) if (b(k)) b(k).disabled = !st?.open;
@@ -4412,7 +4430,7 @@ function drawParty(body, chars) {
   lastParty = chars;
   {
     const cell = (v, a1) => { const m = a1.match(/^([A-L])(\d+)$/); return String(v[+m[2] - 1]?.[m[1].charCodeAt(0) - 65] ?? "").trim(); };
-    const popBtn = (isGM ? `<div class="ptpop">${PARTYPOP ? "" : `<button id="ptyPop" title="Pop the Party overview out beside the map (only you see it)">${PTY_POP_ICON} POP OUT</button>`}<button id="ptyDrop" title="Every character with a pog who isn't on the map yet, in the middle of your screen">⬇ PUT PARTY ON THE TABLE</button><button id="ptyTest" class="${testOn() ? "on" : ""}" title="Test mode: run the whole party yourself (initiative, defense, turns${GMS ? ", and each character's full sheet beside the list" : ""})">TEST MODE: ${testOn() ? "ON" : "OFF"}</button></div>${testOn() ? testBarHtml() : ""}` : "");
+    const popBtn = (isGM && testOn() ? `<div class="tban" id="tban" hidden></div>` : "") + (isGM ? `<div class="ptpop">${PARTYPOP ? "" : `<button id="ptyPop" title="Pop the Party overview out beside the map (only you see it)">${PTY_POP_ICON} POP OUT</button>`}<button id="ptyDrop" title="Every character with a pog who isn't on the map yet, in the middle of your screen">⬇ PUT PARTY ON THE TABLE</button><button id="ptyTest" class="${testOn() ? "on" : ""}" title="Test mode: run the whole party yourself (initiative, defense, turns${GMS ? ", and each character's full sheet beside the list" : ""})">TEST MODE: ${testOn() ? "ON" : "OFF"}</button></div>${testOn() ? testBarHtml() : ""}` : "");
     body.innerHTML = popBtn + (chars.length ? chars.map(c => { const v = c.values;
       const marks = "BCDEFGH".split("").map(c => !!cell(v, c + "16"));
       const worst = marks.lastIndexOf(true);
