@@ -555,6 +555,7 @@
   .istep #iNext { flex:1; min-height:68px; font-size:20px; } .istep #iPrev { width:60px; min-height:68px; flex:none; font-size:20px; }
   #iCall, #iMon, #iEnd { min-height:52px; font-size:15px; } .istep span { font-size:11px; font-weight:700; color:var(--dim); white-space:nowrap; }
   .welc i { font-style:normal; font-weight:700; color:#c9b8f5; }
+  .welc.wel1 { font-family:'Bangers', Impact, sans-serif; font-size:17px; letter-spacing:1px; color:#c7b6ff; }
   .welc b { display:block; color:#bb99ff; font-size:10px; letter-spacing:.6px; margin-bottom:2px; }
   .welrd { display:inline-flex; align-items:center; justify-content:center; width:22px; height:18px; vertical-align:-4px; border-radius:4px; background:rgba(187,153,255,.25); color:#bb99ff; } .welrd svg { width:14px; height:14px; }
   #welx { position:absolute; top:5px; right:5px; width:22px; height:22px; border-radius:5px; border:1px solid #5b3f9e; background:transparent; color:#ddd5f3; cursor:pointer; font-weight:800; }
@@ -1113,7 +1114,7 @@ async function pickCharacter(msg) {
   let list;
   try { list = await characterSheets(); }
   catch (e) { if (/code/i.test(e.message)) store.set("ns.code", ""); return connectForm(e.message); }
-  $("sh").innerHTML = `<div class="sec">WHICH CHARACTER IS YOURS?</div>
+  $("sh").innerHTML = `<div class="welc wel1" style="padding-right:10px">Welcome to the New Scolos Manager</div><div class="sec">WHICH CHARACTER IS YOURS?</div>
     <div class="help">Tap your character.</div>
     ${list.map(c => `<button class="histbtn pickc" data-id="${c.id}">${esc2(c.name)}</button>`).join("") || `<div class="empty">No characters found. Ask your GM.</div>`}
     <div class="err" ${msg ? "" : "hidden"}>${esc2(msg || "")}</div>
@@ -1239,16 +1240,7 @@ function drawSheet() {
   const lines = (items) => items.map(esc2).join("<br>");
   const trained = chips(...L.trained, "skills"), untrained = chips(...L.untrained, "untrained");
   const copMaxT = V("H28");
-  $("shbody").innerHTML = `${store.get("ns.welcomeOff2") ? "" : `<div class="welc"><button id="welx" title="Got it, hide this">✕</button><b>WELCOME TO THE TABLE</b>
-      <div><span class="welrd">${ROLL_ICON}</span> Tap the dice button on any attribute or skill to roll it. Everyone sees the roll.</div>
-      <div>Tap any <i>underlined</i> word to see what it means.</div>
-      <div><i>Portrait</i> (optional): tap the round + beside your name, or drop a picture on your sheet.</div>
-      <div><i>Extraordinary Power:</i> each day you get one combat use and one utility use (Priests and Mages: one daily power). Tap a power's name for its rules and its button. The button uses the power and checks the matching Used Today box. Any rolls you need while the power is running are the buttons under it.</div>
-      <div><i>${esc2((V("C4") || "Type").trim().toUpperCase())} RULES</i> (in the power box) and <i>Skill List</i> (by SKILLS) open your rules beside the map.</div>
-      <div><i>Vitality Track:</i> tap a box to mark a wound; HEAL moves them left. A Critical Wound or worse gives -1 to every roll. The sheet automatically calculates that into your rolls, so you don't have to.</div>
-      <div><i>Roll History</i> (under Manage Character) shows the table's rolls.</div>
-      <div><i>Manage Character</i> is where you spend XP and credits, change gear, write notes and export a PDF.</div>
-      <div>Tap ✕ to hide this. It won't come back.</div></div>`}
+  $("shbody").innerHTML = `${store.get("ns.welcomeOff3") ? "" : `<div class="welc wel1"><button id="welx" title="Got it, hide this">✕</button>Welcome to the New Scolos Manager</div>`}
     ${V("H16") ? "" : (deadSeen.set(sheetId(), false), "")}<div class="shead">${ptHead()}<div class="shn"><b>${esc2(V("C3") || "Unnamed")}${V("H16") ? ` <span class="deadtag">(DEAD)</span>` : ""}</b><small>${[V("C4"), V("F5") !== "" ? "Level " + V("F5") : ""].filter(Boolean).map(esc2).join(" · ")}${V("F7") !== "" ? `<span class="cred" title="Credits">¤ ${esc2((n => n == null ? V("F7") : n.toLocaleString("en-US"))(num(V("F7"))))} credits</span>` : ""}</small></div>
       <span class="shcol"><span class="shbtns"><button id="reload" class="ibtn" title="Reload from Google Sheet">↻</button><button id="mgr" class="ibtn mgrb" title="Manage character: XP, skills, gear, notes">⚙ Manage Character</button></span><button class="sref hist" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></span></div>
     <div id="ksbar" class="ksbar" hidden></div><div id="actbar" class="actbar" hidden></div><div id="cofxbar" class="cofxbar" hidden></div>
@@ -1300,7 +1292,7 @@ function drawSheet() {
   document.querySelectorAll("#shbody details.dr").forEach(d => d.ontoggle = () => { drawOpen[d.dataset.k] = d.open; });
   $("reload").onclick = () => loadSheet();
   $("mgr").onclick = () => { mgrOn = true; drawSheet(); };
-  if ($("welx")) $("welx").onclick = () => { store.set("ns.welcomeOff2", "1"); $("welx").parentElement.remove(); };
+  if ($("welx")) $("welx").onclick = () => { store.set("ns.welcomeOff3", "1"); $("welx").parentElement.remove(); };
   if ($("disc")) $("disc").onclick = () => { setSheetId(""); pickCharacter(); };
   // The 3 Light Wound boxes always fill left to right (Heal slides wounds left): tapping any empty one marks the leftmost
   // empty one, tapping a marked one clears the rightmost marked one. Medium and up stay exactly where you tap.
@@ -2096,7 +2088,6 @@ function bindInfo() {
     const key = infOpen, h = await infoHtml(key); if (key !== infOpen) return;
     p.hidden = false; p.innerHTML = h.replace("</div>", `<button class="pwx" title="Close">✕</button></div>`);
     p.querySelector(".pwx").onclick = () => { infOpen = ""; show(); };
-    // Combat Options: spend the option's 1 COP right from its description
     // Combat Options: the option's own buttons (it spends its 1 COP itself), like the daily power buttons
     if (inBox && $("copp")) { const nm = key.slice(3), bh = await coPanelHtml(nm); if (key !== infOpen || !p.isConnected) return;
       p.insertAdjacentHTML("beforeend", bh); bindCoPanel(p, nm); }
@@ -2262,7 +2253,8 @@ async function fxAdd(nm, fx, to) {
   const e = { id: crypto.randomUUID().slice(0, 6), by: myChar(), o: nm, t: fx.t, x: fx.x, end: fx.end, to: to.slice(0, 6), ts: Date.now(),
     sid: open ? st.sid : "", r0: open ? st.round || 1 : 0, c0: open ? st.cur || "" : "" };
   if (n) e.n = n; if (fx.on) { e.on = fx.on; e.v = fx.v; } if (fx.vs) { e.vs = 1; e.v = fx.v; } if (fx.dmg) e.dmg = fx.dmg; if (fx.coin) e.coin = 1;
-  await fxWrite(l => [...l, e]);
+  const same = (a) => a.o === e.o && sameName(a.by, e.by) && [...a.to].sort().join("|").toLowerCase() === [...e.to].sort().join("|").toLowerCase();
+  await fxWrite(l => [...l.filter(a => !same(a)), e]); // using the same option again on the same people refreshes it instead of stacking
 }
 const fxEnd = (id) => fxWrite(l => l.filter(e => e.id !== id)).catch(() => {});
 const fxMine = (e, who) => (e.to || []).some(t => sameName(t, who));
@@ -3856,7 +3848,8 @@ function gmStrip(v, cell) {
   const out = [];
   if (adr != null) out.push(chip("ADR", sg(adr), "def", "Adroitness: what they defend with"));
   if (arm != null) out.push(chip("ARMOR", sg(arm + extra) + (extra ? `<i>+${extra}</i>` : ""), "def" + (extra ? " pwr" : ""), extra ? `Armor Bonus ${sg(arm)}, plus ${extra} from ${ACTIVE[pw.n]?.t || "a power"}` : "Armor Bonus"));
-  if (copMax) out.push(chip("COP", `${cop ?? 0}/${copMax}`, (cop ?? 0) <= 0 ? "empty" : "", "Combat Option Points left"));
+  // H29 is points SPENT (since Nov 25), so left = max - spent
+  if (copMax) { const cl = Math.max(0, copMax - (cop ?? 0)); out.push(chip("COP", `${cl}/${copMax}`, cl <= 0 ? "empty" : "", "Combat Option Points left")); }
   const pt = /mage/i.test(type) ? "SP" : /priest/i.test(type) ? "INV" : "";
   if (pt && (pts != null || ptsMax != null)) out.push(chip(pt, `${pts ?? 0}${ptsMax != null ? "/" + ptsMax : ""}`, (pts ?? 0) <= 0 ? "empty" : "", pt === "SP" ? "Spell Points left" : "Invocations left"));
   out.push(chip("¤", (cred ?? 0).toLocaleString("en-US"), "cred", "Credits"));
