@@ -4937,7 +4937,7 @@ async function gmsOnline() {
 }
 function gmsRolls() {
   const box = $("gmsRolls"); if (!box) return;
-  const rolls = (lastRolls || []).filter(r => !r.sd).slice(0, 40);
+  const rolls = (lastRolls || []).filter(r => !r.sd || testOn()).slice(0, 40); // test mode hides the Success Delta column, so the results show here
   box.innerHTML = rolls.length ? rolls.map(r => rollLine(r, false)).join("") : `<div class="empty">No rolls yet.</div>`;
   gmsOnline(); // the character names come from the rolls
 }
