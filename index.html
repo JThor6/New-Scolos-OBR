@@ -37,7 +37,7 @@
   body.upl #dice > *:not(#hand):not(#uplhead) { display:none !important; }
   body.pty > header, body.pty nav, body.pty #initban, body.pty #defban, body.pty section:not(#sheet) { display:none !important; }
   body.pty #sheet { display:block !important; padding-top:0; }
-  body.pty .ptpop { display:none; }
+  body.pty #ptyPop { display:none; }
   /* GM SCREEN: full window, solid, four columns */
   html.gmsh, html.gmsh body { background:#191c2a !important; }
   body.gms { zoom:0.9; height:calc(100vh / 0.9); overflow:hidden; display:grid; grid-template-columns:minmax(300px,1.15fr) minmax(280px,1fr) minmax(260px,.95fr) minmax(280px,1fr); gap:10px; padding:10px; }
@@ -275,7 +275,7 @@
   .ppw { font-size:9px; font-weight:800; padding:2px 5px; border-radius:4px; background:var(--plus); color:#000; }
   .ppw.u { background:#555b75; color:var(--ink); }
   .ppw + .ppw { margin-left:3px; }
-  .ptpop { display:flex; justify-content:flex-end; margin-top:4px; }
+  .ptpop { display:flex; justify-content:flex-end; gap:6px; margin-top:4px; }
   .ptpop button { display:flex; align-items:center; gap:5px; padding:4px 9px; font-size:11px; font-weight:800; letter-spacing:.5px; color:var(--dim); background:transparent; border:1px solid #3a3f58; border-radius:6px; cursor:pointer; }
   .ptpop button:hover { color:#f1f3f9; border-color:#6b7394; }
   /* GM strip on Party cards: small labelled numbers, defense first */
@@ -3273,6 +3273,43 @@ function monPogAdjust(k, name) {
   };
 }
 function monArtErr(m) { const note = OBR.notification?.show; if (note) OBR.notification.show(m, "ERROR").catch(() => {}); else alert(m); }
+// ⬇ PUT PARTY ON THE TABLE (GM, Jake, Nov 26): every character in this room's campaign that has a pog and isn't on the map
+// yet (by name), in a row in the middle of the GM's screen, snapped to the grid. One name = one character's pog.
+async function pogIdsFor(ids) {
+  const r = await bridgeGet({ pogids: ids.join(",") }).catch(e => ({ ok: false, error: e.message }));
+  if (r.ok && r.pogs) return r.pogs;
+  // Sheet Bridge not updated yet: ask one character at a time (slower, same answer)
+  const out = {};
+  for (const id of ids) { const g = await bridgeGet({ portraits: id }).catch(() => null); if (g?.ok && g.pog) out[id] = g.pog; }
+  return out;
+}
+async function partyDrop(only) {
+  const note = (t, k = "INFO") => obrNote(t, k);
+  try {
+    if (!OBR.isReady) throw new Error("this only works inside Owlbear Rodeo");
+    if (!(await OBR.scene.isReady())) throw new Error("no map is open yet");
+    let chars = cache.get(ck("chars"));
+    if (!chars?.length) chars = await characterSheets();
+    const cell = (v, a1) => { const m = a1.match(/^([A-L])(\d+)$/); return String(v[+m[2] - 1]?.[m[1].charCodeAt(0) - 65] ?? "").trim(); };
+    const list = chars.map(c => ({ id: c.id, name: cell(c.values, "C3") })).filter(c => c.name && (!only || c.id === only));
+    const onMap = (await OBR.scene.items.getItems(i => i.type === "IMAGE")).map(i => String(i.name || ""));
+    const off = list.filter(c => !onMap.some(n => sameName(n, c.name)));
+    if (!off.length) return note(only ? `${list[0]?.name || "That character"} is already on the map.` : "Every character is already on the map.", "WARNING");
+    const pogs = await pogIdsFor(off.map(c => c.id));
+    const want = off.filter(c => pogs[c.id]), none = off.filter(c => !pogs[c.id]).map(c => c.name);
+    if (!want.length) return note(`No pog yet for ${none.join(", ")}. Players make one in Manage Character → Portrait.`, "WARNING");
+    const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight(), dpi = await OBR.scene.grid.getDpi();
+    const c = await OBR.viewport.inverseTransformPoint({ x: vw / 2, y: vh / 2 });
+    const items = [];
+    for (let i = 0; i < want.length; i++) {
+      let pos = { x: c.x + (i - (want.length - 1) / 2) * dpi, y: c.y };
+      try { pos = await OBR.scene.grid.snapPosition(pos); } catch {}
+      items.push(buildImage({ url: pogSrc(pogs[want[i].id]), mime: "image/png", width: 512, height: 512 }, { dpi: 512, offset: { x: 256, y: 256 } }).name(want[i].name).plainText(want[i].name).textType("PLAIN").position(pos).layer("CHARACTER").build());
+    }
+    await OBR.scene.items.addItems(items);
+    note(`✓ ${want.map(w => w.name).join(", ")} on the table${none.length ? `. No pog yet: ${none.join(", ")}` : ""}.`, "SUCCESS");
+  } catch (e) { note("Couldn't put them on the table: " + (e.message || e), "ERROR"); }
+}
 // ⬇ PUT ALL ON THE TABLE: one token per living monster card that has art and isn't on the map yet (by name),
 // laid out in rows of 5 around the middle of the GM's screen, snapped to the grid.
 async function monDropAll() {
@@ -3355,7 +3392,7 @@ function drawMonsters() {
     <div id="iStep" class="istep" hidden><button id="iPrev" class="sbtn" title="Previous turn">◀</button><span id="iRound"></span><button id="iNext" class="sbtn">NEXT TURN ▶</button></div>
     <div class="iadd"><input id="iName" placeholder="Add a name"><input id="iNum" placeholder="+0" inputmode="numeric"><button id="iNeg" class="sbtn negbtn" title="Flip to minus / plus">±</button><button id="iAdd" class="sbtn">ADD</button></div>
     <button id="iEnd" class="sbtn" style="width:100%;margin-top:5px">END COMBAT</button></div>
-    <div class="g2" style="margin-top:8px"><button id="monAll" class="sbtn" title="Every living monster with art that isn't on the map yet, in a grid in the middle of your screen">⬇ PUT ALL ON THE TABLE</button><button id="monRe" class="sbtn">↻ RELOAD MONSTERS</button></div>`;
+    <div class="g2" style="margin-top:8px"><button id="monAll" class="sbtn" title="Every living monster with art that isn't on the map yet, in a grid in the middle of your screen">⬇ PUT ALL ON THE TABLE</button><button id="pcAll" class="sbtn" title="Every character with a pog who isn't on the map yet">⬇ PUT PARTY ON THE TABLE</button><button id="monRe" class="sbtn">↻ RELOAD MONSTERS</button></div>`;
   const cards = [];
   const hdr = Math.max(0, v.findIndex(r => String(r?.[0] || "").trim().toLowerCase() === "name"));
   for (let row = hdr + 1; row < v.length; row++) {
@@ -3400,6 +3437,7 @@ function drawMonsters() {
   bindMonArt();
   $("monRe").onclick = () => { monArtChecked.clear(); showMonsters(); };
   $("monAll").onclick = monDropAll;
+  if ($("pcAll")) $("pcAll").onclick = async () => { $("pcAll").disabled = true; try { await partyDrop(); } finally { if ($("pcAll")) $("pcAll").disabled = false; } };
   $("iPrev").onclick = () => initStep(-1); $("iNext").onclick = () => initStep(1);
   // Jake, Nov 26: left = a fight (initiative, COP to full, monsters roll). Right = initiative order only (out of combat).
   // Both use the same bar, turns, NEXT TURN and END. Players' next Adroitness roll counts either way.
@@ -4138,21 +4176,23 @@ function drawParty(body, chars) {
   lastParty = chars;
   {
     const cell = (v, a1) => { const m = a1.match(/^([A-L])(\d+)$/); return String(v[+m[2] - 1]?.[m[1].charCodeAt(0) - 65] ?? "").trim(); };
-    const popBtn = isGM && !PARTYPOP ? `<div class="ptpop"><button id="ptyPop" title="Pop the Party overview out beside the map (only you see it)">${PTY_POP_ICON} POP OUT</button></div>` : "";
+    const popBtn = (isGM ? `<div class="ptpop">${PARTYPOP ? "" : `<button id="ptyPop" title="Pop the Party overview out beside the map (only you see it)">${PTY_POP_ICON} POP OUT</button>`}<button id="ptyDrop" title="Every character with a pog who isn't on the map yet, in the middle of your screen">⬇ PUT PARTY ON THE TABLE</button></div>` : "");
     body.innerHTML = popBtn + (chars.length ? chars.map(c => { const v = c.values;
       const marks = "BCDEFGH".split("").map(c => !!cell(v, c + "16"));
       const worst = marks.lastIndexOf(true);
       const status = worst < 0 ? "Unhurt" : cell(v, "BCDEFGH"[worst] + "15").replace(/^\S+\s+/, "");
       const used = cell(v, "F6").toUpperCase() === "TRUE", usedU = cell(v, "F8").toUpperCase() === "TRUE", hasU = !/^(priest|mage)$/i.test(cell(v, "C4"));
       return `<div class="pcard">
-        <div class="ptop">${ptIcon(c.id, cell(v, "C3"))}<b>${esc2(cell(v, "C3"))}</b>${isGM && ptT(c.id) ? `<button class="pogb" data-pog="${esc2(c.id)}" data-n="${esc2(cell(v, "C3"))}" title="Add this character's pog to your Owlbear characters">◎ POG</button>` : ""}<small>${esc2(cell(v, "C4"))}</small>${hasU ? `<span class="ppw ${used ? "u" : ""}">${used ? "COMBAT USED" : "COMBAT READY"}</span><span class="ppw ${usedU ? "u" : ""}">${usedU ? "UTILITY USED" : "UTILITY READY"}</span>` : `<span class="ppw ${used ? "u" : ""}">${used ? "POWER USED" : "POWER READY"}</span>`}</div>
+        <div class="ptop">${ptIcon(c.id, cell(v, "C3"))}<b>${esc2(cell(v, "C3"))}</b>${isGM && ptT(c.id) ? `<button class="pogb" data-pog="${esc2(c.id)}" data-n="${esc2(cell(v, "C3"))}" title="Add this character's pog to your Owlbear characters">◎ POG</button><button class="pogb pogt" data-pt="${esc2(c.id)}" title="Put this character's pog on the map (middle of your screen)">⬇ TABLE</button>` : ""}<small>${esc2(cell(v, "C4"))}</small>${hasU ? `<span class="ppw ${used ? "u" : ""}">${used ? "COMBAT USED" : "COMBAT READY"}</span><span class="ppw ${usedU ? "u" : ""}">${usedU ? "UTILITY USED" : "UTILITY READY"}</span>` : `<span class="ppw ${used ? "u" : ""}">${used ? "POWER USED" : "POWER READY"}</span>`}</div>
         ${isGM ? gmStrip(v, cell) : ""}${actBadge(cell(v, "C3"))}<div class="pvit">${marks.map((m, i) => `<i><small>${["LW", "LW", "LW", "MW", "CW", "KO", "D"][i]}</small><span class="${m ? "x" : ""}"></span></i>`).join("")}<em class="${worst >= 4 ? "bad" : ""}">${esc2(status)}</em></div>
       </div>`;
     }).join("") : `<div class="empty">No characters found.</div>`);
     if ($("ptyPop")) $("ptyPop").onclick = popParty;
+    if ($("ptyDrop")) $("ptyDrop").onclick = async () => { const b = $("ptyDrop"); b.disabled = true; try { await partyDrop(); } finally { b.disabled = false; } };
+    body.querySelectorAll(".pogt").forEach(b => b.onclick = async (e) => { e.stopPropagation(); b.disabled = true; try { await partyDrop(b.dataset.pt); } finally { b.disabled = false; } });
     fillPts(body);
     body.querySelectorAll(".pti").forEach(b => b.onclick = () => ptView(b.dataset.ptv, b.dataset.n, false));
-    body.querySelectorAll(".pogb").forEach(b => b.onclick = async () => {
+    body.querySelectorAll(".pogb:not(.pogt)").forEach(b => b.onclick = async () => {
       const note = (t, k = "INFO") => { OBR.notification.show(t, k).then(id => setTimeout(() => OBR.notification.close(id).catch(() => {}), 5000)).catch(() => {}); };
       b.disabled = true; b.textContent = "…";
       try {

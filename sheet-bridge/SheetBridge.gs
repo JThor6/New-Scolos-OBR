@@ -437,6 +437,14 @@ function savePog(id, data) {
     return { ok: true, name: f.getName(), pogId: f.getId() };
   } finally { lock.releaseLock(); }
 }
+// GM: PUT PARTY ON THE TABLE (Nov 26): the pog file of each character, so the GM's Owlbear can drop them on the map
+function getPogIds(ids) {
+  const out = {};
+  ids.slice(0, 30).forEach(function (id) { id = String(id || '').trim(); if (!id) return;
+    const info = portraitInfo(id), f = info && info.pog && liveFile(info.pog);
+    if (f) out[id] = info.pog; }); // pogs are shared view-only by link when they're saved
+  return { ok: true, pogs: out };
+}
 function getPog(id) {
   const info = portraitInfo(id), f = info && info.pog && liveFile(info.pog);
   if (!f) return { ok: true, none: true };
@@ -643,6 +651,7 @@ function doGet(e) {
     if (p.portrait) return json(getPortrait(p.portrait, !!p.full, p.pic || ''));
     if (p.portraits) return json(getGallery(p.portraits));
     if (p.pog) return json(getPog(p.pog));
+    if (p.pogids) return json(getPogIds(String(p.pogids).split(',')));
     if (p.monart) return json(getMonArt(p.monart, p.have));
     if (p.monpog) return json(getMonPog(p.monpog));
     if (p.monfull) return json(getMonFull(p.monfull));
