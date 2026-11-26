@@ -293,6 +293,7 @@
   .tbtns button { font:800 11px system-ui; letter-spacing:.4px; padding:5px 8px; border-radius:6px; cursor:pointer; background:rgba(40,36,64,.9); border:1px solid #4a4170; color:#e6defa; }
   .tbtns button:disabled { opacity:.4; cursor:default; }
   .tmsg { margin-top:5px; font-size:11px; color:#cfc6ee; }
+  .tlast { max-height:260px; overflow:auto; margin-top:3px; }
   .tmon { margin-top:6px; border-top:1px solid #3a3558; padding-top:5px; }
   .tmh { font-size:10px; font-weight:800; letter-spacing:.6px; color:var(--dim); display:flex; gap:6px; align-items:center; } .tmh span { font-weight:600; letter-spacing:0; color:#e6c97a; text-transform:none; flex:1; }
   .tmh button { font:800 10px system-ui; padding:2px 6px; border-radius:5px; background:transparent; border:1px solid #4a4170; color:#cfc6ee; cursor:pointer; }
@@ -313,8 +314,9 @@
   .tban button small { font-weight:600; font-size:11px; color:#d6ccf5; }
   .pcard.turn { outline:2px solid #b9a6ff; box-shadow:0 0 12px rgba(157,134,255,.45); }
   /* test mode (Jake, Nov 26): only Party (list + the open sheet) and RIGHT NOW on the right; Success Delta and Reference hide */
-  body.gms.gmtest { grid-template-columns:minmax(700px,3fr) minmax(280px,1fr); }
-  body.gms.gmtest #gmsRefCol, body.gms.gmtest #gmsSdCol { display:none !important; }
+  /* test mode (Jake, Nov 26): the Party column takes the whole screen (list + the open sheet); the latest rolls show in the list */
+  body.gms.gmtest { grid-template-columns:1fr; }
+  body.gms.gmtest > .gmsc { display:none !important; }
   .tsplit { display:grid; grid-template-columns:minmax(260px,.85fr) minmax(340px,1.35fr); gap:10px; align-items:start; }
   .tsplit > div { min-width:0; } #tside { position:sticky; top:0; max-height:calc(100vh / 0.9 - 70px); overflow:auto; }
   .tsidehelp { padding:30px 10px; text-align:center; }
@@ -915,7 +917,7 @@ function render(rolls) {
     (rolls.length ? rolls.slice(0, LOG_MAX).map(line).join("") : `<div class="empty">No rolls yet.</div>`);
   // same list on the DICE tab and in REFERENCE → ROLL HISTORY
   for (const el of [$("history"), $("refRolls")]) if (el) el.innerHTML = html;
-  if (GMS) try { gmsSd(); gmsRolls(); } catch {}
+  if (GMS) try { gmsSd(); gmsRolls(); testLast(); } catch {}
   if (!standalone) bindClear(document, OBR, () => { gmsSdId = ""; });
   document.querySelectorAll(".histdet").forEach(btn => btn.onclick = (e) => { e.preventDefault(); histDetail = !histDetail; try { localStorage.setItem("ns.histDetail", histDetail ? "on" : "off"); } catch {} render(lastRolls); });
 }
@@ -4253,10 +4255,14 @@ function testBarHtml() {
     <div class="tbtns" style="margin-top:4px"><button data-t="heal1" title="Every character: each wound moves one box left">✚ HEAL EVERYONE 1 STEP</button><button data-t="healall" title="Every character: all wounds off (Dead stays)">✚ FULL HEAL EVERYONE</button>
     <button data-t="cop" title="Everyone's COP to full">⚡ FILL COP</button><button data-t="day" title="Powers back, invocations / spell points refilled, COP to 0">☀ NEW DAY</button>
     <button data-t="tgt" title="Target Lock: attacks go at the tokens you select">TARGET LOCK: ${tgtOn() ? "ON" : "OFF"}</button></div>
-    <div class="tmsg" id="tmsg" hidden></div><div class="tmon" id="tmon"></div></div>`;
+    <div class="tmsg" id="tmsg" hidden></div><div class="tmon" id="tmon"></div>${GMS ? `<div class="tmh" style="margin-top:8px">LATEST ROLLS <span>hits and damage show here too</span></div><div id="tlast" class="tlast"></div>` : ""}</div>`;
 }
+function testLast() { const el = $("tlast"); if (!el) return;
+  const h = (lastRolls || []).slice(0, 8).map(r => rollLine(r, false)).join("") || `<div class="empty" style="padding:4px 0">No rolls yet.</div>`;
+  if (el.dataset.h !== h) { el.dataset.h = h; el.innerHTML = h; } }
 function testBarUpdate() {
   const el = $("tstat"); if (!el) return;
+  testLast();
   try { testMonDraw(); testFollow(); testTurnDraw(true); } catch {}
   const md = actMd || lastMd || {}, st = md[INIT], w = sdWait(), t = st?.open ? turnNames(md) : null;
   const need = st?.open ? (lastParty || []).filter(c => !initEntries(md).some(e => e.pc && sameName(e.name, pCell(c.values, "C3")))).length : 0;
