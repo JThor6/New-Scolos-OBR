@@ -567,7 +567,7 @@
   .welc { position:relative; margin:2px 0 8px; padding:7px 30px 7px 10px; border-left:3px solid #5b3f9e; border-radius:6px; background:rgba(60,38,110,.45); font-size:12px; line-height:1.5; color:#ddd5f3; }
   .istep { display:flex; align-items:center; gap:5px; margin-top:5px; } .istep[hidden] { display:none; }
   .istep #iNext { flex:1; min-height:68px; font-size:20px; } .istep #iPrev { width:60px; min-height:68px; flex:none; font-size:20px; }
-  #iCall, #iMon, #iEnd { min-height:52px; font-size:15px; } .istep span { font-size:11px; font-weight:700; color:var(--dim); white-space:nowrap; }
+  #iCall, #iOrd, #iEnd { min-height:52px; font-size:15px; } .istep span { font-size:11px; font-weight:700; color:var(--dim); white-space:nowrap; }
   .welc i { font-style:normal; font-weight:700; color:#c9b8f5; }
   .welc .wel1, .welc.wel1 { font-family:'Bangers', Impact, sans-serif; font-size:17px; letter-spacing:1px; color:#c7b6ff; }
   .welc b { display:block; color:#bb99ff; font-size:10px; letter-spacing:.6px; margin-bottom:2px; }
@@ -3182,7 +3182,7 @@ function drawMonsters() {
   const v = monVals || [], c = (row, i) => String(v[row]?.[i] ?? "").trim();
   // INITIATIVE, then the tools in order of use (Jake, Nov 25). Auto-roll monsters moved to the bottom, under AUTO DAMAGE.
   let html = `<div class="initbox"><div class="sec initsec">INITIATIVE<span class="inittools"><span id="gmHealW" style="display:inline-flex;align-items:center;gap:6px"><button id="gmHeal" class="sref hist" title="Clear every wound and Dead on every monster in this encounter (asks first)">✚ Clear monster wounds</button></span><button id="gmClr" class="sref hist" title="Take every condition (Dead, Unconscious, your own) off every token on this map">✕ Clear conditions</button><button id="gmPty" class="sref hist" title="Pop the Party view out beside the map (tap again to close it)">${REF_SVG}Party</button><button class="sref hist" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></span></div>
-    <div class="g2"><button id="iCall" class="sbtn">⚔ CALL FOR INITIATIVE</button><button id="iMon" class="sbtn">🎲 ROLL MONSTERS</button></div>
+    <div class="g2"><button id="iCall" class="sbtn" title="Start a fight: new initiative, everyone's COP to full, and the monsters roll">⚔ CALL FOR INITIATIVE &amp; ROLL MONSTERS</button><button id="iOrd" class="sbtn" title="Initiative order only, no monsters and no COP (out of combat: a chase, a race, who acts first)">CALL FOR INITIATIVE</button></div>
     <div id="iList"></div>
     <div id="iStep" class="istep" hidden><button id="iPrev" class="sbtn" title="Previous turn">◀</button><span id="iRound"></span><button id="iNext" class="sbtn">NEXT TURN ▶</button></div>
     <div class="iadd"><input id="iName" placeholder="Add a name"><input id="iNum" placeholder="+0" inputmode="numeric"><button id="iNeg" class="sbtn negbtn" title="Flip to minus / plus">±</button><button id="iAdd" class="sbtn">ADD</button></div>
@@ -3233,10 +3233,15 @@ function drawMonsters() {
   $("monRe").onclick = () => { monArtChecked.clear(); showMonsters(); };
   $("monAll").onclick = monDropAll;
   $("iPrev").onclick = () => initStep(-1); $("iNext").onclick = () => initStep(1);
-  $("iCall").onclick = async () => { const b = $("iCall"); b.disabled = true; b.textContent = "⚔ CALLING…";
-    try { await startFight(); if (autoMon()) await rollMonsterInit(true); b.textContent = "✓ INITIATIVE CALLED"; }
-    catch { b.textContent = "Didn't go through, tap again"; }
-    setTimeout(() => { if ($("iCall")) { $("iCall").disabled = false; $("iCall").textContent = "⚔ CALL FOR INITIATIVE"; } }, 2500); }; $("iMon").onclick = async () => { const b = $("iMon"); if (b.disabled) return; b.disabled = true; try { await rollMonsterInit(); } catch (e) { gmNote("ROLL MONSTERS didn't work: " + (e?.message || e), "ERROR"); } finally { setTimeout(() => { if ($("iMon")) b.disabled = false; }, 1200); } }; $("iEnd").onclick = () => { // two taps: the first asks, the second (within 4 s) ends combat
+  // Jake, Nov 26: left = a fight (initiative, COP to full, monsters roll). Right = initiative order only (out of combat).
+  // Both use the same bar, turns, NEXT TURN and END. Players' next Adroitness roll counts either way.
+  const iBtn = (id, label, go) => { $(id).onclick = async () => { const b = $(id); if (b.disabled) return; b.disabled = true; b.textContent = "⚔ CALLING…";
+    try { await go(); b.textContent = "✓ CALLED"; } catch (e) { b.textContent = "Didn't go through, tap again"; gmNote("Initiative didn't go through: " + (e?.message || e), "ERROR"); }
+    setTimeout(() => { if ($(id)) { $(id).disabled = false; $(id).innerHTML = label; } }, 2500); }; };
+  iBtn("iCall", "⚔ CALL FOR INITIATIVE &amp; ROLL MONSTERS", async () => { await startFight(); await rollMonsterInit(); });
+  iBtn("iOrd", "CALL FOR INITIATIVE", async () => { await callInitiative();
+    gmNote("⚔ Initiative called (no monsters, no COP). Players' next Adroitness roll counts.", "SUCCESS"); });
+  $("iEnd").onclick = () => { // two taps: the first asks, the second (within 4 s) ends combat
     const b = $("iEnd");
     if (b.dataset.arm) { delete b.dataset.arm; b.textContent = "END COMBAT"; return endInitiative(); }
     b.dataset.arm = "1"; b.textContent = "TAP AGAIN TO END COMBAT";
@@ -3403,23 +3408,11 @@ async function startFight() {
   await callInitiative(); fillAllCop("Fight started: COP to full").catch(() => {});
   OBR.notification.show("⚔ Initiative called. Players' next Adroitness roll counts.", "SUCCESS").then(id => setTimeout(() => OBR.notification.close(id).catch(() => {}), 4000)).catch(() => {});
 }
-// Jake, Nov 25: ROLL MONSTERS with no fight going (or only a stale one: called over 3 minutes ago and turns never started)
-// starts a real one, exactly like CALL FOR INITIATIVE, so players' rolls get entered. Mid-fight it just adds the monsters.
-// Nov 26: a fight left running whose monsters have ALL rolled already counts as over too (an old fight nobody ended),
-// so the tap starts a new one instead of doing nothing. Every outcome says what happened.
 const gmNote = (t, k = "INFO") => OBR.notification.show(t, k).then(id => setTimeout(() => OBR.notification.close(id).catch(() => {}), 4000)).catch(() => {});
-async function rollMonsterInit(quiet) {
+// Each monster group rolls once into the fight that's on (CALL FOR INITIATIVE & ROLL MONSTERS starts it first)
+async function rollMonsterInit() {
   const v = monVals || [], c = (row, i) => String(v[row]?.[i] ?? "").trim();
-  if (!v.length) { gmNote("No monsters loaded. Open an encounter on the GM tab first.", "WARNING"); return; }
-  const md = await OBR.room.getMetadata(), st = md[INIT];
-  const groupIds = new Set(); { const h = Math.max(0, v.findIndex(r => String(r?.[0] || "").trim().toLowerCase() === "name"));
-    for (let row = h + 1; row < v.length; row++) if (c(row, 0) && !/^(true|x|yes|dead)$/i.test(c(row, 19))) groupIds.add("m:" + (c(row, 1) || c(row, 0))); }
-  const inFight = new Set((md[INIT + "/m"] || []).filter(e => e.sid === st?.sid).map(e => e.id));
-  const stale = st?.open && !st.cur && Date.now() - (st.at || 0) > 3 * 60e3;
-  const done = st?.open && groupIds.size > 0 && [...groupIds].every(id => inFight.has(id)); // every monster already rolled in it
-  let fresh = false;
-  // quiet = from CALL FOR INITIATIVE, which already set up the fight: never restart it
-  if (!st?.open || stale || (done && !quiet)) { if (st?.open) await OBR.room.setMetadata({ [INIT]: { ...st, open: false } }); await startFight(); fresh = true; }
+  if (!v.length) { gmNote("Fight started, but no monsters are loaded. Open an encounter on the GM tab, then add them by hand or call again.", "WARNING"); return; }
   const sid = (await OBR.room.getMetadata())[INIT].sid;
   const have = new Set(((await OBR.room.getMetadata())[INIT + "/m"] || []).filter(e => e.sid === sid).map(e => e.id));
   const hdr = Math.max(0, v.findIndex(r => String(r?.[0] || "").trim().toLowerCase() === "name"));
@@ -3442,7 +3435,6 @@ async function rollMonsterInit(quiet) {
   }
   const cur = (await OBR.room.getMetadata())[INIT + "/m"] || [];
   await OBR.room.setMetadata({ [INIT + "/m"]: [...cur.filter(e => e.sid === sid), ...add] });
-  if (!quiet && !fresh) gmNote(add.length ? `🎲 ${add.length} monster group${add.length > 1 ? "s" : ""} added to the fight.` : "Every monster has already rolled.");
 }
 // Add a late arrival by hand (monster or anyone), with their initiative number
 async function addInitEntry() {
@@ -4219,12 +4211,9 @@ function adBox() {
   const on = !!adOn();
   return `<div class="sec" style="margin-top:10px">AUTO DAMAGE</div><button id="adBtn" class="sbtn ${on ? "on" : ""}" style="width:100%">AUTO DAMAGE: ${on ? "ON" : "OFF"}</button>
     ${on ? `<div class="help" id="adLast">${esc2(adLast())}</div>` : ""}
-    <div class="help">${on ? "Hits mark wounds on sheets and monster cards by themselves; KO and Dead go on the tokens. Anyone can untick a box to fix a mistake. Keep this panel open during fights." : "Off: players and the GM mark wounds by hand."}</div>
-    <div class="sec" style="margin-top:10px">AUTO-ROLL MONSTERS</div><button id="gmAuto" class="sbtn ${autoMon() ? "on" : ""}" style="width:100%">AUTO-ROLL MONSTERS: ${autoMon() ? "ON" : "OFF"}</button>
-    <div class="help">${autoMon() ? "CALL FOR INITIATIVE also rolls the monsters." : "Off: tap ROLL MONSTERS yourself after calling initiative."}</div>`;
+    <div class="help">${on ? "Hits mark wounds on sheets and monster cards by themselves; KO and Dead go on the tokens. Anyone can untick a box to fix a mistake. Keep this panel open during fights." : "Off: players and the GM mark wounds by hand."}</div>`;
 }
 function bindAd() {
-  if ($("gmAuto")) $("gmAuto").onclick = () => { store.set("ns.autoMon", autoMon() ? "0" : "1"); drawMonsters(); };
   if ($("adBtn")) $("adBtn").onclick = async () => {
   const on = !adOn(); await OBR.room.setMetadata({ [AUTOD]: on ? Date.now() : 0 }).catch(() => {});
   lastMd = await OBR.room.getMetadata(); drawMonsters(); }; }
