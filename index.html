@@ -293,8 +293,9 @@
   .tbtns button { font:800 11px system-ui; letter-spacing:.4px; padding:5px 8px; border-radius:6px; cursor:pointer; background:rgba(40,36,64,.9); border:1px solid #4a4170; color:#e6defa; }
   .tbtns button:disabled { opacity:.4; cursor:default; }
   .tmsg { margin-top:5px; font-size:11px; color:#cfc6ee; }
-  body.gms.gmtest { grid-template-columns:minmax(620px,2.3fr) minmax(260px,1fr) minmax(260px,1fr); }
-  body.gms.gmtest #gmsRefCol { display:none !important; }
+  /* test mode (Jake, Nov 26): only Party (list + the open sheet) and RIGHT NOW on the right; Success Delta and Reference hide */
+  body.gms.gmtest { grid-template-columns:minmax(700px,3fr) minmax(280px,1fr); }
+  body.gms.gmtest #gmsRefCol, body.gms.gmtest #gmsSdCol { display:none !important; }
   .tsplit { display:grid; grid-template-columns:minmax(260px,.85fr) minmax(340px,1.35fr); gap:10px; align-items:start; }
   .tsplit > div { min-width:0; } #tside { position:sticky; top:0; max-height:calc(100vh / 0.9 - 70px); overflow:auto; }
   .tsidehelp { padding:30px 10px; text-align:center; }
@@ -4907,7 +4908,7 @@ function gmsSetup() {
   $("ptyx").onclick = () => standalone ? window.close() : OBR.modal.close(GMS_ID).catch(() => {});
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !standalone) OBR.modal.close(GMS_ID).catch(() => {}); });
   document.body.insertAdjacentHTML("beforeend", `
-    <div class="gmsc"><h2><span>SUCCESS DELTA</span>${clearBtn("s")}</h2><div id="gmsSd"><div class="empty">No results yet. Attacks and their defense rolls land here and stay.</div></div></div>
+    <div class="gmsc" id="gmsSdCol"><h2><span>SUCCESS DELTA</span>${clearBtn("s")}</h2><div id="gmsSd"><div class="empty">No results yet. Attacks and their defense rolls land here and stay.</div></div></div>
     <div class="gmsc"><h2><span>RIGHT NOW</span></h2><div id="gmsTurn" class="gmsturn"></div><div class="sub">Combat Options in play</div><div id="gmsFx" class="cofxbar"><div class="empty">Nothing in play.</div></div><div class="sub">Conditions</div><div id="gmsCond"><div class="empty">No conditions on the map.</div></div><div class="sub">At the Table</div><div id="gmsOn"><div class="empty">Checking…</div></div><div class="sub" style="display:flex;align-items:center">Dice Rolls<span style="margin-left:auto">${clearBtn("r")}</span></div><div id="gmsRolls"><div class="empty">No rolls yet.</div></div></div>
     <div class="gmsc" id="gmsRefCol"><h2><span>REFERENCE</span><select id="gmsPick"></select></h2><div id="gmsRef"><div class="rr">Loading…</div></div></div>`);
   if (!standalone) bindClear(document, OBR, () => { gmsSdId = ""; });
