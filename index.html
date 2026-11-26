@@ -47,6 +47,7 @@
   .gmsc h2 { position:sticky; top:0; z-index:2; margin:0 -10px 6px; padding:7px 10px; background:#15172280; backdrop-filter:blur(4px); font-family:'Bangers', Impact, sans-serif; font-weight:400; font-size:20px; letter-spacing:1px; color:#bb99ff; display:flex; align-items:center; gap:6px; }
   .gmsc h2 span { flex:1; } .gmsc h2 select { font:600 12px system-ui; background:#15172b; color:var(--ink); border:1px solid #444a66; border-radius:6px; padding:3px; max-width:60%; }
   .gmsc .sub { font-size:11px; font-weight:800; letter-spacing:.6px; color:var(--dim); margin:8px 0 4px; text-transform:uppercase; }
+  .armq { color:#c9b8f5 !important; } .armred { background:#7a1f2a !important; border-color:#c0394a !important; color:#fff !important; font-weight:800 !important; }
   .gmscond { display:flex; flex-wrap:wrap; align-items:center; gap:5px; padding:5px 0; border-bottom:1px solid rgba(255,255,255,.06); font-size:13px; }
   .gmscond b { color:#e2d8ff; margin-right:3px; } .gmscond small { color:#a99cd0; font-size:12px; }
   .ondot { width:8px; height:8px; padding:0 !important; border-radius:50%; background:#7ad39a !important; border:none !important; box-shadow:0 0 6px rgba(122,211,154,.6); } .gmscond span { padding:2px 8px; border-radius:8px; background:#2c2250; border:1px solid #4a3a78; color:#ddd5f3; font-weight:700; font-size:12px; }
@@ -2594,9 +2595,7 @@ function typeRefBtn() {
 }
 document.addEventListener("click", (e) => { const b = e.target.closest(".tref, .sref"); if (!b) return; e.preventDefault(); e.stopPropagation();
   if (b.id === "gmPty") return popParty(); // GM tab: pop out the Party view
-  if (b.id === "gmHeal") return healAskMon();
-  if (b.id === "gmHealY") return healAllMon();
-  if (b.id === "gmHealN") return healResetMon();
+  if (b.id === "gmHeal") return armed(b, "Sure? Tap again to clear all") ? healAllMon() : undefined;
   if (b.id === "gmClr") return clearConds(b); // GM tab: sweep every condition off the map (asks first)
   // only buttons that name a section open the REFERENCE pop-out. Before (Nov 25), a quick second tap on Clear monster
   // wounds landed on its "Clear all monster wounds?" / "Clearing…" text, which opened REFERENCE with nothing picked.
@@ -2770,35 +2769,34 @@ function stasisBox() {
     <div class="encpick"><small>CHARACTER</small><select id="stSel"><option value="">Pick a character…</option>${
       stList.map(c => `<option value="${esc2(c.id)}">${esc2(c.name)}</option>`).join("")}</select></div>
     <button id="stGo" class="sbtn" style="width:100%">MOVE TO STASIS</button>
-    <div id="stAsk" class="stask" hidden></div>
     <div id="stMsg" class="help" hidden></div></div>
     <div class="sec" style="margin-top:18px">NUKE SCREEN</div>
     <div class="help">Wipes the board of characters: every character, monster and mount token comes off this map, with its condition labels. Nothing else is touched: the map, props, drawings and notes all stay.</div>
-    <button id="nukeGo" class="sbtn" style="width:100%">☢ NUKE SCREEN</button><div id="nukeAsk" class="stask" hidden></div><div id="nukeMsg" class="help" hidden></div>`;
+    <button id="nukeGo" class="sbtn" style="width:100%">☢ NUKE SCREEN</button><div id="nukeMsg" class="help" hidden></div>`;
 }
-// ☢ NUKE SCREEN (Jake, Nov 26): asks first, then deletes every token on the Character and Mount layers and what's attached to them. Nothing else.
+// ☢ NUKE SCREEN (Jake, Nov 26): the button itself turns red and asks; a second tap deletes every token on the Character and
+// Mount layers and what's attached to them. Nothing else.
 function bindNuke() {
   const go = $("nukeGo"); if (!go) return;
-  const ask = $("nukeAsk"), msg = $("nukeMsg"), say = (t) => { msg.hidden = !t; msg.textContent = t; };
+  const msg = $("nukeMsg"), say = (t) => { msg.hidden = !t; msg.textContent = t; };
   go.onclick = async () => {
     if (standalone) return say("Only works inside Owlbear Rodeo.");
-    if (!(await OBR.scene.isReady())) return say("No map is open.");
-    const toks = await OBR.scene.items.getItems(i => (i.layer === "CHARACTER" || i.layer === "MOUNT"));
-    if (!toks.length) return say("Nothing to nuke: no tokens on this map.");
-    say(""); ask.hidden = false;
-    ask.innerHTML = `<div><b>Are you sure?</b> This takes <b>${toks.length}</b> token${toks.length > 1 ? "s" : ""} off the map, with their labels.</div>
-      <div class="g2" style="margin-top:6px"><button id="nukeNo" class="sbtn">CANCEL</button><button id="nukeYes" class="sbtn stbad">YES, NUKE IT</button></div>`;
-    $("nukeNo").onclick = () => { ask.hidden = true; };
-    $("nukeYes").onclick = async () => { ask.hidden = true; go.disabled = true;
-      try {
-        const all = await OBR.scene.items.getItems(i => (i.layer === "CHARACTER" || i.layer === "MOUNT"));
-        const ids = new Set(all.map(i => i.id));
-        const stuck = await OBR.scene.items.getItems(i => (i.attachedTo && ids.has(i.attachedTo)) || (i.metadata?.[MARK_ITEM]?.on && ids.has(i.metadata[MARK_ITEM].on)));
-        stuck.forEach(i => ids.add(i.id));
-        await OBR.scene.items.deleteItems([...ids]);
-        say(`☢ Board wiped: ${all.length} token${all.length > 1 ? "s" : ""} gone.`);
-      } catch (e) { say("Didn't go through: " + (e?.message || e)); }
-      go.disabled = false; };
+    if (go.dataset.armed !== "1") {
+      if (!(await OBR.scene.isReady())) return say("No map is open.");
+      const n = (await OBR.scene.items.getItems(i => i.layer === "CHARACTER" || i.layer === "MOUNT")).length;
+      if (!n) return say("Nothing to nuke: no tokens on this map.");
+      say(""); armed(go, `☢ ARE YOU SURE? TAP AGAIN (${n} token${n > 1 ? "s" : ""})`, true); return;
+    }
+    armed(go); go.disabled = true;
+    try {
+      const all = await OBR.scene.items.getItems(i => i.layer === "CHARACTER" || i.layer === "MOUNT");
+      const ids = new Set(all.map(i => i.id));
+      const stuck = await OBR.scene.items.getItems(i => (i.attachedTo && ids.has(i.attachedTo)) || (i.metadata?.[MARK_ITEM]?.on && ids.has(i.metadata[MARK_ITEM].on)));
+      stuck.forEach(i => ids.add(i.id));
+      await OBR.scene.items.deleteItems([...ids]);
+      go.textContent = `☢ Board wiped: ${all.length} gone`;
+    } catch (e) { go.textContent = "Didn't go through"; say(String(e?.message || e)); }
+    go.disabled = false; unarm(go);
   };
 }
 async function refreshStList() {
@@ -2814,17 +2812,15 @@ async function refreshStList() {
 }
 function bindStasis() {
   const go = $("stGo"); if (!go) return;
-  const ask = $("stAsk"), msg = $("stMsg"), say = (t) => { msg.hidden = false; msg.textContent = t; };
-  $("stSel").onchange = () => { ask.hidden = true; msg.hidden = true; };
-  go.onclick = () => {
+  const msg = $("stMsg"), say = (t) => { msg.hidden = false; msg.textContent = t; };
+  $("stSel").onchange = () => { msg.hidden = true; if (go.dataset.armed === "1") { armed(go); go.innerHTML = "MOVE TO STASIS"; } };
+  go.onclick = async () => {
     const id = $("stSel").value, c = stList.find(x => x.id === id);
     if (!c) return say("Pick a character first.");
-    msg.hidden = true; ask.hidden = false;
-    ask.innerHTML = `<div><b>Are you sure?</b> Move <b>${esc2(c.name)}</b> to Stasis? It goes into your private folder: players lose all access, and only you can bring it back.</div>
-      <div class="g2" style="margin-top:6px"><button id="stNo" class="sbtn">CANCEL</button><button id="stYes" class="sbtn stbad">YES, MOVE IT</button></div>`;
-    $("stNo").onclick = () => { ask.hidden = true; };
-    $("stYes").onclick = async () => {
-      ask.hidden = true; go.disabled = true; say(`Moving ${c.name}…`); sync(1);
+    msg.hidden = true;
+    if (!armed(go, `Sure? Tap again to move ${c.name}`)) return;
+    {
+      go.disabled = true; say(`Moving ${c.name}…`); sync(1);
       const r = await bridgePost({ stasis: 1, id }).catch(e => ({ ok: false, error: e.message }));
       sync(-1); go.disabled = false;
       if (!r.ok) return say(`Didn't move ${c.name}: ${/failed to fetch/i.test(r.error || "") ? "the Sheet Bridge didn't answer. It may need redeploying (see the project notes)." : r.error === "Nothing to change." ? "the Sheet Bridge needs redeploying first (see the project notes)." : r.error}`);
@@ -4216,6 +4212,15 @@ setInterval(() => { if (!standalone) updateDefBanner(); }, 5000);
 // CALL FOR INITIATIVE also rolls the monsters (ON unless the GM switched it off; saved in this browser)
 const autoMon = () => store.get("ns.autoMon") !== "0";
 // GM tab: "✕ Clear conditions": first tap asks, second tap (within 4 s) removes every condition label on this map
+// GM tab rule (Jake, Nov 26): anything that asks first asks on the SAME button: first tap turns it into "Sure? Tap again",
+// a second tap within 4 s does it. No Yes / No boxes, nothing that pops up underneath. red = the button goes red (Nuke).
+function armed(b, sure, red) {
+  if (b.dataset.armed === "1") { clearTimeout(+b.dataset.armT); b.dataset.armed = ""; b.classList.remove("armred", "armq"); if (b.dataset.label) b.innerHTML = b.dataset.label; return true; }
+  const label = b.innerHTML; b.dataset.armed = "1"; b.style.minWidth = b.offsetWidth + "px"; b.textContent = sure; b.classList.add(red ? "armred" : "armq");
+  b.dataset.armT = String(setTimeout(() => { if (b.isConnected && b.dataset.armed === "1") { b.dataset.armed = ""; b.innerHTML = label; b.classList.remove("armred", "armq"); } }, 4000));
+  b.dataset.label = label; return false;
+}
+const unarm = (b, after, ms = 2500) => setTimeout(() => { if (b.isConnected && b.dataset.label) b.innerHTML = b.dataset.label; }, ms);
 async function clearConds(b) {
   if (b.dataset.armed !== "1") { b.dataset.armed = "1"; b.textContent = "Sure? Tap again to clear all"; b.style.color = "#c9b8f5";
     setTimeout(() => { if (b.isConnected && b.dataset.armed === "1") { b.dataset.armed = ""; b.textContent = "✕ Clear conditions"; b.style.color = ""; } }, 4000); return; }
@@ -4226,13 +4231,14 @@ async function clearConds(b) {
   catch { b.textContent = "Couldn't clear (is a map open?)"; }
   setTimeout(() => { if (b.isConnected) b.textContent = "✕ Clear conditions"; }, 2500);
 }
-// GM tab: clear every wound box and Dead on every monster in this encounter (asks Yes / No first).
+// GM tab: clear every wound box and Dead on every monster in this encounter (tap twice). The panel doesn't move.
 // Their Dead / Unconscious labels come off the tokens too; mooks get their pre-marked boxes back.
-const HEAL_BTN = `<button id="gmHeal" class="sref hist" title="Clear every wound and Dead on every monster in this encounter (asks first)">✚ Clear monster wounds</button>`;
+// redraw the GM tab without the panel jumping (the GM stays exactly where they were)
+function keepScroll(fn) { const el = $("mo") ? scrollParent($("mo")) : document.scrollingElement, y = el?.scrollTop ?? 0;
+  const r = fn(); const back = () => { if (el) el.scrollTop = y; }; back(); requestAnimationFrame(back); if (r?.then) r.then(back, back); return r; }
+const HEAL_BTN = `<button id="gmHeal" class="sref hist" title="Clear every wound and Dead on every monster in this encounter (tap twice)">✚ Clear monster wounds</button>`;
 function healResetMon(msg) { const w = $("gmHealW"); if (!w) return; w.innerHTML = msg ? `<span class="hstat">${esc2(msg)}</span>` : HEAL_BTN;
   if (msg) setTimeout(() => { const x = $("gmHealW"); if (x) x.innerHTML = HEAL_BTN; }, 2500); }
-function healAskMon() { const w = $("gmHealW"); if (!w) return;
-  w.innerHTML = `<span class="hstat" style="color:#c9b8f5">Clear all monster wounds?</span><button id="gmHealY" class="sref hist" style="color:#c9b8f5;font-weight:800">YES</button><button id="gmHealN" class="sref hist" style="font-weight:800">NO</button>`; }
 async function healAllMon() {
   const w = $("gmHealW"); if (w) w.innerHTML = `<span class="hstat">Clearing…</span>`;
   try {
@@ -4253,7 +4259,7 @@ async function healAllMon() {
       applyCond(String(r[0]).trim(), false, false);
     }
     if (!jobs.length) { healResetMon("No wounds to clear"); return; }
-    drawMonsters(); sync(1);
+    keepScroll(drawMonsters); sync(1);
     const post = ([row, col, val]) => fetch(BRIDGE, { method: "POST", body: JSON.stringify({ code: store.get("ns.code"), id: monId(), tracker: 1, row, col, on: val }) })
       .then(x => x.json()).catch(e => ({ ok: false, error: e.message }));
     let bad = 0;
@@ -4262,7 +4268,7 @@ async function healAllMon() {
       bad += res.filter(r => !r.ok).length;
     }
     sync(-1);
-    if (bad) { monVals = JSON.parse(before); showMonsters(); healResetMon(`${bad} box${bad === 1 ? "" : "es"} didn't save. Reloaded the cards`); return; }
+    if (bad) { monVals = JSON.parse(before); keepScroll(showMonsters); healResetMon(`${bad} box${bad === 1 ? "" : "es"} didn't save. Reloaded the cards`); return; }
     cache.set("mon." + monId(), monVals); syncDeadGroups();
     healResetMon(`✓ Cleared ${n} monster${n === 1 ? "" : "s"}`);
   } catch { healResetMon("Couldn't clear all of them. Check the cards"); }
