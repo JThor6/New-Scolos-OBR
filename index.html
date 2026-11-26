@@ -2635,7 +2635,7 @@ async function setTrack(now) { // write a whole vitality track (7 true/false), o
   }
   busy = false; writeGen++;
   const bad = res.find(r => !r.ok);
-  if (!bad) { cols.forEach((c, i) => setCell(c + "16", now[i] ? "X" : "")); const dp = res[res.length - 1].dp; if (dp != null) setCell("C12", dp); cache.set("sheet." + sheetId(), sheetVals); setTimeout(() => loadSheet(true), 1500); return true; }
+  if (!bad) { cols.forEach((c, i) => setCell(c + "16", now[i] ? "X" : "")); const dp = res[res.length - 1].dp; if (dp != null) setCell("C12", dp); cache.set("sheet." + sheetId(), sheetVals); sheetPush(); setTimeout(() => loadSheet(true), 1500); return true; }
   sheetVals = JSON.parse(before); drawSheet(); loadSheet(true); // re-read so the sheet shows whatever did save
   $("sherr").hidden = false; $("sherr").textContent = "Vitality track didn't fully save: " + (bad.error || "unknown error");
   return false;
@@ -2643,13 +2643,19 @@ async function setTrack(now) { // write a whole vitality track (7 true/false), o
 function setCell(a1, v) { const m = a1.match(/^([A-L])(\d+)$/); sheetVals[+m[2] - 1][m[1].charCodeAt(0) - 65] = v; }
 
 let writeGen = 0; // bumped on every save so older sheet reads are ignored
+// Live Party (Nov 26): every change on a sheet goes straight to the GM's Party views by broadcast (top 30 rows: everything
+// the Party card shows), so they don't wait for the 30-second Google refresh. Sent again once Google's formulas come back.
+function sheetPush() {
+  if (standalone || isGM || !sheetVals || !sheetId()) return;
+  OBR.broadcast.sendMessage("com.newscolos.sheetv", { id: sheetId(), v: sheetVals.slice(0, 30) }, { destination: "REMOTE" }).catch(() => {});
+}
 async function save(body, apply) {
   if (busy) return; busy = true; writeGen++;
   const before = JSON.stringify(sheetVals);
-  apply(); drawSheet(); // show it right away
+  apply(); drawSheet(); sheetPush(); // show it right away, here and on the GM's screen
   const r = await bridgePost(body).catch(e => ({ ok: false, error: e.message }));
   busy = false; writeGen++;
-  if (r.ok) { if (r.dp != null) { setCell("C12", r.dp); drawSheet(); } loadSheet(true); return; } // re-read so the sheet's own formulas (like Damage Penalty) show up
+  if (r.ok) { if (r.dp != null) { setCell("C12", r.dp); drawSheet(); } loadSheet(true).then(sheetPush).catch(() => {}); return; } // re-read so the sheet's own formulas (like Damage Penalty) show up
   if (!r.ok) {
     sheetVals = JSON.parse(before);
     // wrong code: ask for it again right away instead of failing every save
@@ -2667,15 +2673,16 @@ setInterval(() => { if ($("sheet").hidden || busy || !$("shbody") || mgrOn) retu
 
 // Only real characters: a Main Sheet titled "New Scolos Character Sheet" with a name filled in, and not the Master file
 async function characterSheets() {
+  const one = async (id) => { const r = await bridgeGet({ id }).catch(() => null);
+    if (!r || !r.ok) return null;
+    notePt(id, r);
+    const v = r.values, title = String(v[1]?.[1] || "").trim(), name = String(v[2]?.[2] || "").trim();
+    return /character sheet/i.test(title) && name ? { id, name, values: v } : null; };
+  // the sheets we already know start loading at once, alongside the list (one Google round trip saved)
+  const early = new Map((cache.get(ck("chars")) || []).map(c => [c.id, one(c.id)]));
   const list = await bridgeGet({ list: 1 });
   if (!list.ok) throw new Error(list.error);
-  const all = await Promise.all(list.sheets.filter(f => !/master/i.test(f.name)).map(async f => {
-    const r = await bridgeGet({ id: f.id }).catch(() => null);
-    if (!r || !r.ok) return null;
-    notePt(f.id, r);
-    const v = r.values, title = String(v[1]?.[1] || "").trim(), name = String(v[2]?.[2] || "").trim();
-    return /character sheet/i.test(title) && name ? { id: f.id, name, values: v } : null;
-  }));
+  const all = await Promise.all(list.sheets.filter(f => !/master/i.test(f.name)).map(f => early.get(f.id) || one(f.id)));
   const out = all.filter(Boolean).sort((a, b) => a.name.localeCompare(b.name));
   cache.set(ck("chars"), out);
   for (const c of out) cache.set("sheet." + c.id, c.values);
@@ -4494,6 +4501,13 @@ if (standalone) {
     if (isGM && !UPLINK) { const beat = () => store.set("ns.adAlive:" + OBR.room.id, String(Date.now())); beat(); setInterval(beat, 2000); }
     const readAct = (ps) => { partyAct = ps.map(p => p.metadata?.[ACT_MD]).filter(Boolean); if (partyOn && lastParty && $("shbody")) drawParty($("shbody"), lastParty); };
     readAct(await OBR.party.getPlayers()); OBR.party.onChange(readAct);
+    if (isGM) OBR.broadcast.onMessage("com.newscolos.sheetv", ({ data }) => {
+      const id = data?.id, v = data?.v; if (!id || !Array.isArray(v) || !Array.isArray(lastParty)) return;
+      const c = lastParty.find(x => x.id === id); if (!c) return;
+      c.values = [...v, ...(c.values || []).slice(v.length)]; c.name = String(v[2]?.[2] || c.name).trim() || c.name;
+      cache.set(ck("chars"), lastParty); cache.set("sheet." + id, c.values);
+      if (partyOn && $("shbody")) drawParty($("shbody"), lastParty);
+    });
   });
 }
 </script>
