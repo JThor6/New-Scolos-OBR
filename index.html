@@ -2727,12 +2727,12 @@ async function showMonsters() {
   refreshEncList();
   refreshCampList();
   refreshStList();
-  if (!monId()) { box.innerHTML = pickers() + `<div class="empty">No encounters in the "${esc2(campaign)}" campaign yet. Put encounter sheets in the "${esc2(campaign)}" folder inside New Scolos Game Master Files.</div>` + stasisBox(); bindPicker(); return; }
-  if (saved) { monVals = saved; drawMonsters(); } else { box.innerHTML = pickers() + `<div class="empty">Loading monsters…</div>` + stasisBox(); bindPicker(); }
+  if (!monId()) { box.innerHTML = pickers() + `<div class="empty">No encounters in the "${esc2(campaign)}" campaign yet. Put encounter sheets in the "${esc2(campaign)}" folder inside New Scolos Game Master Files.</div>` + stasisBox(); bindPicker(); bindStasis(); bindNuke(); return; }
+  if (saved) { monVals = saved; drawMonsters(); } else { box.innerHTML = pickers() + `<div class="empty">Loading monsters…</div>` + stasisBox(); bindPicker(); bindStasis(); bindNuke(); }
   sync(1);
   const r = await bridgeGet({ id: monId(), tab: "Extension Tracker" }).catch(e => ({ ok: false, error: e.message }));
   sync(-1);
-  if (!r.ok) { if (!saved) box.innerHTML = `${pickers()}<div class="err">Couldn't load monsters: ${esc2(r.error)}</div>` + stasisBox(); bindPicker(); return; }
+  if (!r.ok) { if (!saved) box.innerHTML = `${pickers()}<div class="err">Couldn't load monsters: ${esc2(r.error)}</div>` + stasisBox(); bindPicker(); bindStasis(); bindNuke(); return; }
   cache.set("mon." + monId(), r.values);
   if (JSON.stringify(r.values) !== JSON.stringify(monVals)) { monVals = r.values; drawMonsters(); }
   premarkMooks();
@@ -2771,17 +2771,17 @@ function stasisBox() {
     <div id="stAsk" class="stask" hidden></div>
     <div id="stMsg" class="help" hidden></div></div>
     <div class="sec" style="margin-top:18px">NUKE SCREEN</div>
-    <div class="help">Wipes the board: every token (characters, monsters, mounts) and everything stuck to them, like condition labels, comes off this map. The map itself, props, drawings and notes stay.</div>
+    <div class="help">Wipes the board of characters: every character and monster token comes off this map, with its condition labels. Nothing else is touched: the map, mounts, props, drawings and notes all stay.</div>
     <button id="nukeGo" class="sbtn" style="width:100%">☢ NUKE SCREEN</button><div id="nukeAsk" class="stask" hidden></div><div id="nukeMsg" class="help" hidden></div>`;
 }
-// ☢ NUKE SCREEN (Jake, Nov 26): asks first, then deletes every token on this scene and whatever is attached to them
+// ☢ NUKE SCREEN (Jake, Nov 26): asks first, then deletes every token on the Character layer and what's attached to it. Nothing else.
 function bindNuke() {
   const go = $("nukeGo"); if (!go) return;
   const ask = $("nukeAsk"), msg = $("nukeMsg"), say = (t) => { msg.hidden = !t; msg.textContent = t; };
   go.onclick = async () => {
     if (standalone) return say("Only works inside Owlbear Rodeo.");
     if (!(await OBR.scene.isReady())) return say("No map is open.");
-    const toks = await OBR.scene.items.getItems(i => i.layer === "CHARACTER" || i.layer === "MOUNT");
+    const toks = await OBR.scene.items.getItems(i => i.layer === "CHARACTER");
     if (!toks.length) return say("Nothing to nuke: no tokens on this map.");
     say(""); ask.hidden = false;
     ask.innerHTML = `<div><b>Are you sure?</b> This takes <b>${toks.length}</b> token${toks.length > 1 ? "s" : ""} off the map, with their labels.</div>
@@ -2789,7 +2789,7 @@ function bindNuke() {
     $("nukeNo").onclick = () => { ask.hidden = true; };
     $("nukeYes").onclick = async () => { ask.hidden = true; go.disabled = true;
       try {
-        const all = await OBR.scene.items.getItems(i => i.layer === "CHARACTER" || i.layer === "MOUNT");
+        const all = await OBR.scene.items.getItems(i => i.layer === "CHARACTER");
         const ids = new Set(all.map(i => i.id));
         const stuck = await OBR.scene.items.getItems(i => (i.attachedTo && ids.has(i.attachedTo)) || (i.metadata?.[MARK_ITEM]?.on && ids.has(i.metadata[MARK_ITEM].on)));
         stuck.forEach(i => ids.add(i.id));
