@@ -302,6 +302,16 @@ OBR.onReady(async () => {
   const isGM = (await OBR.player.getRole()) === "GM"; amGM = isGM;
   // A player's PLACE POG that their own Owlbear couldn't add (the room doesn't let players add tokens, or it failed):
   // the GM's screen adds it for them, still owned by that player so they can move it. Only their own pog picture.
+  // A player's initiative roll, sent straight to the GM too: if this screen's copy of the room doesn't have it (a live update
+  // got lost), write it back in, so the bar and the GM tab show it without a reload
+  OBR.broadcast.onMessage("com.newscolos.initroll", async ({ data }) => {
+    if (!amGM) return; const k = String(data?.k || ""), e = data?.entry;
+    if (!k.startsWith(INIT + "/p/") || !e || typeof e.total !== "number" || !e.sid) return;
+    try { const md = await OBR.room.getMetadata(); if (md[INIT]?.sid !== e.sid) return; // an old fight
+      const have = md[k]; if (have?.sid === e.sid && have.total === e.total && have.gm) return; // already confirmed
+      // written with a GM stamp so the value changes: every screen (the GM's bar and tab too) gets a fresh update and redraws
+      await OBR.room.setMetadata({ [k]: { ...e, gm: Date.now() } }); } catch {}
+  });
   OBR.broadcast.onMessage("com.newscolos.pogreq", async ({ data }) => {
     if (!amGM) return; const it = data?.item;
     if (!it || it.type !== "IMAGE" || it.layer !== "CHARACTER" || !/^https:\/\/lh3\.googleusercontent\.com\/d\/[\w-]+$/.test(it.image?.url || "")) return;

@@ -893,7 +893,7 @@ async function saveRoll(r) {
     // Room storage is small (~16 kB): drop roll lists from players who haven't rolled in 2 days (old devices, guests)
     const stale = {}, cutoff = Date.now() - 2 * 864e5;
     for (const [k, v] of Object.entries(md)) {
-      if (k !== key && k.startsWith(NS + "/rolls/") && !(Array.isArray(v) && v.some(x => x.ts > cutoff))) stale[k] = undefined;
+      if (k !== key && k.startsWith(NS + "/rolls/") && !(Array.isArray(v) && v.some(x => x.ts > cutoff))) stale[k] = null; // null deletes (undefined is dropped and did nothing)
     }
     await OBR.room.setMetadata({ ...stale, [key]: [r, ...mine].slice(0, KEEP) });
     return "";
@@ -989,6 +989,9 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
       try { await OBR.room.setMetadata({ [k]: entry }); const md = await OBR.room.getMetadata(); landed = md[k]?.sid === initSid && md[k]?.total === r.total;
         if (md[INIT]?.sid !== initSid) break; } catch {} // the GM called a new initiative in the meantime: this roll is for the old one
     }
+    // Also hand it straight to the GM's screen: Owlbear sometimes drops the live update there (seen Nov 26, it only showed
+    // after the GM reloaded), and the GM's screen writes it back into the room if it's missing (background.html, initroll)
+    if (landed) OBR.broadcast.sendMessage("com.newscolos.initroll", { k, entry }, { destination: "REMOTE" }).catch(() => {});
     if (landed) store.set("ns.initDone", initSid);
     else OBR.notification.show("⚔ Your initiative didn't reach the bar. Roll Adroitness again.", "WARNING").catch(() => {});
     updateInitBanner();
