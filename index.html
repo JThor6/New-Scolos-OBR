@@ -286,6 +286,18 @@
   .prl .prg { display:flex; flex-wrap:wrap; gap:4px; } .prl button.atk { border-color:#6b5fa8; }
   .prl button:disabled, .pstrip button:disabled { opacity:.5; cursor:default; }
   .ptyhead-solid { margin-left:auto; margin-right:6px; }
+  .ptpop { flex-wrap:wrap; } .ptpop button.on { color:#f0eaff; border-color:#9d86ff; background:rgba(91,63,158,.55); }
+  .tbar { margin:6px 0 4px; padding:6px 8px; border:1px solid #4a4170; border-radius:8px; background:rgba(30,26,52,.75); }
+  .tstat { font-size:12px; color:#cfc6ee; margin-bottom:5px; line-height:1.4; } .tstat b { color:#fff; } .tneed { color:#e6c97a; font-weight:700; }
+  .tbtns { display:flex; flex-wrap:wrap; gap:4px; }
+  .tbtns button { font:800 11px system-ui; letter-spacing:.4px; padding:5px 8px; border-radius:6px; cursor:pointer; background:rgba(40,36,64,.9); border:1px solid #4a4170; color:#e6defa; }
+  .tbtns button:disabled { opacity:.4; cursor:default; }
+  .tmsg { margin-top:5px; font-size:11px; color:#cfc6ee; }
+  body.gms.gmtest { grid-template-columns:minmax(620px,2.3fr) minmax(260px,1fr) minmax(260px,1fr); }
+  body.gms.gmtest #gmsRefCol { display:none !important; }
+  .tsplit { display:grid; grid-template-columns:minmax(260px,.85fr) minmax(340px,1.35fr); gap:10px; align-items:start; }
+  .tsplit > div { min-width:0; } #tside { position:sticky; top:0; max-height:calc(100vh / 0.9 - 70px); overflow:auto; }
+  .tsidehelp { padding:30px 10px; text-align:center; }
   .ppw { font-size:9px; font-weight:800; padding:2px 5px; border-radius:4px; background:var(--plus); color:#000; }
   .ppw.u { background:#555b75; color:var(--ink); }
   .ppw + .ppw { margin-left:3px; }
@@ -3020,15 +3032,7 @@ function bindGmTools() {
   }; };
   // New Day: combat and utility uses back, Priests / Mages get their invocations / spell points refilled to max,
   // and everyone's COP goes to 0 (H29 spent = H28 max) until the next fight starts (Jake, Nov 25)
-  arm($("gmDay"), "☀ NEW DAY", () => gmAll("New day", (v) => {
-    const out = [];
-    if (/^true$/i.test(String(v[5]?.[5] ?? "").trim())) out.push({ power: false });
-    if (/^true$/i.test(String(v[7]?.[5] ?? "").trim())) out.push({ utility: false });
-    const max = ptMaxOf(v), now = parseInt(String(v[12]?.[5] ?? "")) || 0;
-    if (/^(priest|mage)$/i.test(String(v[3]?.[2] ?? "").trim()) && max != null && now !== max) out.push({ points: max });
-    const cm = copEmpty(v); if (cm) out.push(cm);
-    return out.length ? out : null;
-  }, (v, b) => { for (const one of b) { if (one.power === false) v[5][5] = "FALSE"; if (one.utility === false) { v[7] = v[7] || []; v[7][5] = "FALSE"; } if (one.points != null) { v[12] = v[12] || []; v[12][5] = String(one.points); } if (one.copSpent != null) { v[28] = v[28] || []; v[28][7] = String(one.copSpent); } } }));
+  arm($("gmDay"), "☀ NEW DAY", () => newDayAll());
   arm($("gmCop"), "⚡ FILL COP", () => fillAllCop());
   arm($("gmCop0"), "○ EMPTY COP", () => gmAll("Empty COP", copEmpty, (v, b) => { v[28] = v[28] || []; v[28][7] = String(b.copSpent); }));
 }
@@ -3036,8 +3040,24 @@ function bindGmTools() {
 const copEmpty = (v) => { const max = parseInt(String(v[27]?.[7] ?? "")); const now = parseInt(String(v[28]?.[7] ?? "")) || 0; return isNaN(max) || now === max ? null : { copSpent: max }; };
 const fillAllCop = (label = "Fill COP") => gmAll(label, (v) => (parseInt(String(v[28]?.[7] ?? "")) || 0) === 0 ? null : { copSpent: 0 },
   (v, b) => { v[28] = v[28] || []; v[28][7] = String(b.copSpent); });
+// Healing for the whole party (test mode): one step left for everyone, or every wound off (Dead stays: uncheck it by hand)
+const trackOf = (v) => "BCDEFGH".split("").map((c, i) => !!String(v[15]?.[i + 1] ?? "").trim());
+const healAll = (full) => gmAll(full ? "Heal everyone" : "Heal 1 step", (v) => { const was = trackOf(v), six = was.slice(0, 6);
+    const now = (full ? Array(6).fill(false) : six.slice(1).concat(false)).concat(was[6]);
+    return now.some((x, i) => x !== was[i]) ? { track: now } : null; },
+  (v, b) => { v[15] = v[15] || []; b.track.forEach((on, i) => v[15][i + 1] = on ? "X" : ""); });
+// New Day for everyone in the campaign (GM tab and the Party view's test mode)
+const newDayAll = () => gmAll("New day", (v) => {
+  const out = [];
+  if (/^true$/i.test(String(v[5]?.[5] ?? "").trim())) out.push({ power: false });
+  if (/^true$/i.test(String(v[7]?.[5] ?? "").trim())) out.push({ utility: false });
+  const max = ptMaxOf(v), now = parseInt(String(v[12]?.[5] ?? "")) || 0;
+  if (/^(priest|mage)$/i.test(String(v[3]?.[2] ?? "").trim()) && max != null && now !== max) out.push({ points: max });
+  const cm = copEmpty(v); if (cm) out.push(cm);
+  return out.length ? out : null;
+}, (v, b) => { for (const one of b) { if (one.power === false) v[5][5] = "FALSE"; if (one.utility === false) { v[7] = v[7] || []; v[7][5] = "FALSE"; } if (one.points != null) { v[12] = v[12] || []; v[12][5] = String(one.points); } if (one.copSpent != null) { v[28] = v[28] || []; v[28][7] = String(one.copSpent); } } });
 async function gmAll(label, change, local) {
-  const msg = $("gmMsg"); const say = (t) => { if (!msg) return; msg.hidden = false; msg.textContent = t; };
+  const msg = $("gmMsg"); const say = (t) => { if (msg) { msg.hidden = false; msg.textContent = t; } const tm = $("tmsg"); if (tm) { tm.hidden = false; tm.textContent = t; } };
   say(`${label}: checking characters…`); sync(1);
   try {
     const chars = await characterSheets();
@@ -4167,6 +4187,7 @@ document.addEventListener("dragover", (e) => { if ([...(e.dataTransfer?.types ||
 document.addEventListener("drop", (e) => { if ([...(e.dataTransfer?.types || [])].includes("Files")) e.preventDefault(); });
 
 async function showParty() {
+  if (testSplit()) return testList();
   partyOn = true;
   const body = $("shbody") || ($("sh").insertAdjacentHTML("beforeend", `<div id="shbody"></div>`), $("shbody"));
   const saved = cache.get(ck("chars"));
@@ -4181,6 +4202,88 @@ async function showParty() {
   finally { sync(-1); }
 }
 let lastParty = null;
+
+// ---------------- TEST MODE (GM, Jake, Nov 26) ----------------
+// A switch on the Party view for playtesting: the GM runs every character. Adds a bar of fight buttons (start the fight,
+// roll everyone's initiative, defend for every targeted character, turns, end combat). On the GM screen it also hides
+// REFERENCE, makes the Party column twice as wide, and opens the tapped character's full sheet beside the list, so their
+// powers, Combat Options, spells and wounds are all one tap away. Remembered in this browser.
+const testOn = () => isGM && store.get("ns.testMode") === "1";
+const testSplit = () => GMS && testOn();
+function testBarHtml() {
+  return `<div class="tbar" id="tbar"><div class="tstat" id="tstat"></div><div class="tbtns">
+    <button data-t="fight" title="New initiative and everyone's COP to full${monVals?.length ? ", monsters roll" : ""}">⚔ START FIGHT</button>
+    <button data-t="init" title="Roll Adroitness initiative for every character who hasn't rolled">ROLL PARTY INITIATIVE</button>
+    <button data-t="def" title="An attack is waiting: roll defense for every character who can defend">DEFEND ALL TARGETED</button>
+    <button data-t="prev" title="Back one turn">◀ TURN</button><button data-t="next" title="Next turn">NEXT TURN ▶</button>
+    <button data-t="end" title="Tap twice">END COMBAT</button></div>
+    <div class="tbtns" style="margin-top:4px"><button data-t="heal1" title="Every character: each wound moves one box left">✚ HEAL EVERYONE 1 STEP</button><button data-t="healall" title="Every character: all wounds off (Dead stays)">✚ FULL HEAL EVERYONE</button>
+    <button data-t="cop" title="Everyone's COP to full">⚡ FILL COP</button><button data-t="day" title="Powers back, invocations / spell points refilled, COP to 0">☀ NEW DAY</button>
+    <button data-t="tgt" title="Target Lock: attacks go at the tokens you select">TARGET LOCK: ${tgtOn() ? "ON" : "OFF"}</button></div>
+    <div class="tmsg" id="tmsg" hidden></div></div>`;
+}
+function testBarUpdate() {
+  const el = $("tstat"); if (!el) return;
+  const md = actMd || lastMd || {}, st = md[INIT], w = sdWait(), t = st?.open ? turnNames(md) : null;
+  const need = st?.open ? (lastParty || []).filter(c => !initEntries(md).some(e => e.pc && sameName(e.name, pCell(c.values, "C3")))).length : 0;
+  const defs = w ? (lastParty || []).filter(c => canDefend(w, pCell(c.values, "C3"))).length : 0;
+  el.innerHTML = st?.open ? `Round <b>${esc2(String(st.round || 1))}</b> · Turn: <b>${esc2(t?.cur || "not started")}</b>${t?.deck ? ` · On deck: ${esc2(t.deck)}` : ""}${need ? ` · <span class="tneed">${need} still to roll initiative</span>` : ""}${w ? ` · <span class="tneed">${esc2(w.att)} is attacking${defs ? `: ${defs} can defend` : ""}</span>` : ""}`
+    : `No fight going.${w ? ` <span class="tneed">${esc2(w.att)} is attacking${defs ? `: ${defs} can defend` : ""}</span>` : ""}`;
+  const b = (k) => document.querySelector(`#tbar [data-t="${k}"]`);
+  if (b("init")) b("init").disabled = !need; if (b("def")) b("def").disabled = !defs;
+  for (const k of ["prev", "next", "end"]) if (b(k)) b(k).disabled = !st?.open;
+}
+function bindTestBar(body) {
+  const tg = body.querySelector("#ptyTest") || $("ptyTest");
+  if (tg) tg.onclick = () => { store.set("ns.testMode", testOn() ? "" : "1"); testApply(); };
+  const bar = body.querySelector("#tbar"); if (!bar) return;
+  bar.querySelectorAll("button[data-t]").forEach(b => b.onclick = async (e) => { e.stopPropagation(); const k = b.dataset.t;
+    if ((k === "healall" || k === "day") && !b.dataset.arm) { const lab = b.textContent; b.dataset.arm = "1"; b.textContent = "TAP AGAIN TO CONFIRM";
+      setTimeout(() => { if (b.dataset.arm) { delete b.dataset.arm; b.textContent = lab; } }, 4000); b.dataset.lab = lab; return; }
+    if (b.dataset.arm) { delete b.dataset.arm; b.textContent = b.dataset.lab || b.textContent; }
+    if (k === "end") { if (!b.dataset.arm) { b.dataset.arm = "1"; b.textContent = "TAP AGAIN TO END"; setTimeout(() => { delete b.dataset.arm; b.textContent = "END COMBAT"; }, 4000); return; }
+      delete b.dataset.arm; b.textContent = "END COMBAT"; return endInitiative().catch(() => {}); }
+    b.disabled = true;
+    try {
+      if (k === "fight") { await startFight(); if (monVals?.length) await rollMonsterInit(); }
+      else if (k === "prev" || k === "next") await initStep(k === "next" ? 1 : -1);
+      else if (k === "heal1" || k === "healall") { await healAll(k === "healall"); afterGmAll(); }
+      else if (k === "cop") { await fillAllCop(); afterGmAll(); }
+      else if (k === "day") { await newDayAll(); afterGmAll(); }
+      else if (k === "tgt") { flipTgt(); b.textContent = "TARGET LOCK: " + (tgtOn() ? "ON" : "OFF"); }
+      else if (k === "init") { const md = await OBR.room.getMetadata(), have = initEntries(md);
+        for (const c of lastParty || []) { const n = pCell(c.values, "C3");
+          if (!have.some(x => x.pc && sameName(x.name, n))) await rollAs(c, num(pCell(c.values, "C7")) ?? 0, "Adroitness"); } }
+      else if (k === "def") { const w = sdWait(); if (w) { const a = defAttr(w);
+        for (const c of lastParty || []) { const n = pCell(c.values, "C3"); if (!canDefend(sdWait() || w, n)) continue;
+          await rollAs(c, num(pCell(c.values, ATTR_CELL[a] || "C7")) ?? 0, a + " · Defense"); } } }
+    } catch (x) { obrNote("Didn't go through: " + (x?.message || x), "ERROR"); }
+    finally { b.disabled = false; testBarUpdate(); } });
+  testBarUpdate();
+}
+// after a party-wide change: redraw the list and any open sheet with the new values
+function afterGmAll() { const ch = cache.get(ck("chars")); if (ch && $("tlist")) drawParty($("tlist"), ch); else if (partyOn) showParty();
+  if (sheetOverride || (!partyOn && sheetVals)) loadSheet(true); }
+// switching test mode on or off: redraw the Party view (and on the GM screen, the columns)
+function testApply() {
+  if (GMS) { document.body.classList.toggle("gmtest", testOn()); if (!testOn()) { sheetOverride = ""; sheetVals = null; } $("sh").innerHTML = ""; return showParty(); }
+  if (partyOn) return showParty();
+}
+// GM screen, test mode: the party list on the left of the column, the opened character's full sheet on the right
+async function testList() {
+  partyOn = false;
+  if (!$("tlist")) $("sh").innerHTML = `<div class="tsplit"><div id="tlist"></div><div id="tside">${sheetOverride ? `<div id="shbody"></div>` : `<div class="empty tsidehelp">Tap a character to run them here: every roll, their Extraordinary Powers, Combat Options, spells and wounds.</div>`}</div></div>`;
+  const body = $("tlist"), saved = lastParty || cache.get(ck("chars"));
+  if (saved?.length) drawParty(body, saved); else body.innerHTML = `<div class="empty">Loading party…</div>`;
+  try { const chars = await characterSheets(); if (testSplit() && $("tlist")) drawParty($("tlist"), chars); } catch (e) { if (!saved?.length) body.innerHTML = `<div class="err">Couldn't load the party: ${esc2(e.message || e)}</div>`; }
+}
+function testOpen(id) {
+  ptyOpen = id; sheetOverride = id; mgrOn = false; partyOn = false;
+  document.querySelectorAll("#tlist .pcard[data-cid]").forEach(k => k.classList.toggle("open", k.dataset.cid === id));
+  $("tside").innerHTML = `<div id="shbody"></div>`; sheetVals = null; loadSheet();
+}
+// keep the list fresh while a sheet is open beside it (wounds, powers used, COP)
+setInterval(() => { if (testSplit() && $("tlist") && !rollBusy) characterSheets().then(ch => { if (testSplit() && $("tlist")) drawParty($("tlist"), ch); }).catch(() => {}); }, 20e3);
 // ---------------- GM: ROLL FOR A CHARACTER (Jake, Nov 26) ----------------
 // Tap a Party card (GM only) to open every roll that character has: attributes and skills (attacks first). The roll goes
 // out exactly as if their player rolled it from their own sheet: wound penalty, armor, damage bonus, Encourage and the
@@ -4230,6 +4333,7 @@ function rollAs(c, mod, label, br = "") {
 }
 function partyStrips() {
   if (!isGM || !lastParty) return;
+  testBarUpdate();
   const md = actMd || lastMd || {}, st = md[INIT], w = sdWait(), have = st?.open ? initEntries(md) : [];
   document.querySelectorAll(".pstrip[data-ps]").forEach(el => {
     const c = lastParty.find(x => x.id === el.dataset.ps); if (!c) return;
@@ -4263,6 +4367,7 @@ function bindPartyRolls(body) {
   body.querySelectorAll(".pcard[data-cid]").forEach(card => {
     const c = (lastParty || []).find(x => x.id === card.dataset.cid); if (!c) return;
     card.onclick = (e) => { if (e.target.closest("button, a, input, .prl, .pti")) return;
+      if (testSplit()) return testOpen(c.id);
       ptyOpen = ptyOpen === c.id ? "" : c.id;
       body.querySelectorAll(".pcard[data-cid]").forEach(k => { const on = k.dataset.cid === ptyOpen, pr = k.querySelector(".prl");
         k.classList.toggle("open", on); if (!pr) return; pr.hidden = !on;
@@ -4298,7 +4403,7 @@ function drawParty(body, chars) {
   lastParty = chars;
   {
     const cell = (v, a1) => { const m = a1.match(/^([A-L])(\d+)$/); return String(v[+m[2] - 1]?.[m[1].charCodeAt(0) - 65] ?? "").trim(); };
-    const popBtn = (isGM ? `<div class="ptpop">${PARTYPOP ? "" : `<button id="ptyPop" title="Pop the Party overview out beside the map (only you see it)">${PTY_POP_ICON} POP OUT</button>`}<button id="ptyDrop" title="Every character with a pog who isn't on the map yet, in the middle of your screen">⬇ PUT PARTY ON THE TABLE</button></div>` : "");
+    const popBtn = (isGM ? `<div class="ptpop">${PARTYPOP ? "" : `<button id="ptyPop" title="Pop the Party overview out beside the map (only you see it)">${PTY_POP_ICON} POP OUT</button>`}<button id="ptyDrop" title="Every character with a pog who isn't on the map yet, in the middle of your screen">⬇ PUT PARTY ON THE TABLE</button><button id="ptyTest" class="${testOn() ? "on" : ""}" title="Test mode: run the whole party yourself (initiative, defense, turns${GMS ? ", and each character's full sheet beside the list" : ""})">TEST MODE: ${testOn() ? "ON" : "OFF"}</button></div>${testOn() ? testBarHtml() : ""}` : "");
     body.innerHTML = popBtn + (chars.length ? chars.map(c => { const v = c.values;
       const marks = "BCDEFGH".split("").map(c => !!cell(v, c + "16"));
       const worst = marks.lastIndexOf(true);
@@ -4312,7 +4417,7 @@ function drawParty(body, chars) {
         ${isGM ? `<div class="pstrip" data-ps="${esc2(c.id)}"></div><div class="prl" data-pr="${esc2(c.id)}" ${ptyOpen === c.id ? "" : "hidden"}>${ptyOpen === c.id ? partyRollsHtml(c) : ""}</div>` : ""}
       </div>`;
     }).join("") : `<div class="empty">No characters found.</div>`);
-    if (isGM) bindPartyRolls(body);
+    if (isGM) { bindPartyRolls(body); bindTestBar(body); }
     if ($("ptyPop")) $("ptyPop").onclick = popParty;
     if ($("ptyDrop")) $("ptyDrop").onclick = async () => { const b = $("ptyDrop"); b.disabled = true; try { await partyDrop(); } finally { b.disabled = false; } };
     body.querySelectorAll(".pogt").forEach(b => b.onclick = async (e) => { e.stopPropagation(); b.disabled = true; try { await partyDrop(b.dataset.pt); } finally { b.disabled = false; partyPogVis(); } });
@@ -4788,6 +4893,7 @@ async function openGms() {
 let gmsSdId = ""; // the Success Delta result being looked at ("" = always the newest)
 function gmsSetup() {
   document.documentElement.classList.add("gmsh"); document.body.classList.add("gms");
+  if (store.get("ns.testMode") === "1") document.body.classList.add("gmtest"); // GM-only screen; the Party view checks the role again
   const hb = document.querySelector("#ptyhead b"); if (hb) hb.textContent = "PARTY";
   $("ptyx").title = "Close the GM screen";
   $("ptyx").onclick = () => standalone ? window.close() : OBR.modal.close(GMS_ID).catch(() => {});
@@ -4795,7 +4901,7 @@ function gmsSetup() {
   document.body.insertAdjacentHTML("beforeend", `
     <div class="gmsc"><h2><span>SUCCESS DELTA</span>${clearBtn("s")}</h2><div id="gmsSd"><div class="empty">No results yet. Attacks and their defense rolls land here and stay.</div></div></div>
     <div class="gmsc"><h2><span>RIGHT NOW</span></h2><div id="gmsTurn" class="gmsturn"></div><div class="sub">Combat Options in play</div><div id="gmsFx" class="cofxbar"><div class="empty">Nothing in play.</div></div><div class="sub">Conditions</div><div id="gmsCond"><div class="empty">No conditions on the map.</div></div><div class="sub">At the Table</div><div id="gmsOn"><div class="empty">Checking…</div></div><div class="sub" style="display:flex;align-items:center">Dice Rolls<span style="margin-left:auto">${clearBtn("r")}</span></div><div id="gmsRolls"><div class="empty">No rolls yet.</div></div></div>
-    <div class="gmsc"><h2><span>REFERENCE</span><select id="gmsPick"></select></h2><div id="gmsRef"><div class="rr">Loading…</div></div></div>`);
+    <div class="gmsc" id="gmsRefCol"><h2><span>REFERENCE</span><select id="gmsPick"></select></h2><div id="gmsRef"><div class="rr">Loading…</div></div></div>`);
   if (!standalone) bindClear(document, OBR, () => { gmsSdId = ""; });
   const pick = $("gmsPick");
   pick.innerHTML = REF_GROUPS.map(([g, keys]) => `<optgroup label="${esc2(g)}">${keys.map(k => SECTIONS.find(x => x[1] === k)).filter(Boolean).map(([t, k]) => `<option value="${esc2(k)}">${esc2(t)}</option>`).join("")}</optgroup>`).join("");
