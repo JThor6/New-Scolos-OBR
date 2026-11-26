@@ -684,10 +684,12 @@ function doPost(e) {
       const old = String(rs.getRange('C3').getDisplayValue()).trim().replace(/[\\/:*?"<>|]/g, '').slice(0, 60);
       rs.getRange('C3').setValue(/^[=@+\-]/.test(name) ? "'" + name : name);
       DriveApp.getFileById(b.id).setName(name);
-      // the pog and portrait files carry the name too ("<Name> - Pog.png", "<Name> - Portrait 2.jpg"): swap the old name for the new
+      // the pog and portrait files carry the name too ("<Name> - Pog.png", "<Name> - Portrait 2.jpg"). Whatever name is in
+      // front of " - Pog" / " - Portrait" gets replaced, so files left with an older name (an earlier rename) are fixed too.
       const safe = name.replace(/[\\/:*?"<>|]/g, '').slice(0, 60), info = portraitInfo(b.id);
-      if (old && info) [info.pog].concat(info.pics.map(function (p) { return p.full; }), info.pics.map(function (p) { return p.small; })).forEach(function (fid) {
-        try { const f = fid && DriveApp.getFileById(fid); if (f && f.getName().indexOf(old + ' - ') === 0) f.setName(safe + f.getName().slice(old.length)); } catch (e) {}
+      if (info) [info.pog].concat(info.pics.map(function (p) { return p.full; }), info.pics.map(function (p) { return p.small; })).forEach(function (fid) {
+        try { const f = fid && DriveApp.getFileById(fid); if (!f) return; const n = f.getName(), k = n.search(/ - (Pog|Portrait)\b/);
+          if (k > 0 && n.slice(0, k) !== safe) f.setName(safe + n.slice(k)); } catch (e) {}
       });
       return json({ ok: true, name: name, old: old });
     }

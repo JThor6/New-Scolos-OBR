@@ -1613,7 +1613,7 @@ function drawManager() {
   // Change name (Jake, Nov 26): the sheet's name (C3) and the Google file's name, through the Sheet Bridge
   const nmSay = (t, bad) => { const m = $("nmMsg"); if (!m) return; m.hidden = !t; m.textContent = t; m.style.color = bad ? "#f08a8a" : "var(--dim)"; };
   const nmGo = async () => { const name = $("nmNew").value.replace(/\s+/g, " ").trim();
-    if (!name) return nmSay("Type a name.", true); if (name === V("C3").trim()) return nmSay("That's already the name.");
+    if (!name) return nmSay("Type a name.", true); // the same name again still goes through: it fixes the pog / portrait file names
     if (!(await whenFree())) return nmSay("Still saving something else. Tap again in a moment.", true);
     $("nmGo").disabled = true; nmSay("Saving the new name…"); busy = true;
     const r = await bridgePost({ rename: name }).catch(e => ({ ok: false, error: e.message }));
