@@ -2117,6 +2117,8 @@ function powerRollBtns(name) {
   return `<div class="pwrolls">${usedNote}${start}${alt}${follow}</div>`;
 }
 let pwOpen = ""; // which power's rules are open under the Extraordinary Power box (kept across refreshes)
+// A type tab or the Skill List changed in the Master since this browser last saw it: redraw the sheet with the new version
+window.addEventListener("ns-tab", (e) => { if (e.detail !== "Main Sheet" && sheetVals && $("shbody") && !mgrOn) drawSheet(); });
 async function fillPowers() {
   const type = V("C4").trim().toLowerCase();
   const tab = TYPES.find(t => t.trim().toLowerCase() === type);
@@ -2127,7 +2129,7 @@ async function fillPowers() {
     for (const row of v) {
       const b = String(row[1] || "").trim(), c = String(row[2] || "").trim();
       if (/^always on/i.test(b)) { const name = b.replace(/^always on/i, "").replace(/\([^)]*\)/g, "").replace(/^[\s:]+/, "").trim(); always.push({ name, text: c }); }
-      else if (PW_HEAD.test(b) && c) { const name = c.replace(/\s*\((once|one) per day\)\s*/ig, " ").trim(); daily.push({ name, kind: /utility/i.test(b) ? "utility" : "combat", rules: info?.powers.find(p => p.name === c)?.rules || [] }); }
+      else if (PW_HEAD.test(b) && c) { const name = c.replace(/\s*\((once|one) per day\)\s*/ig, " ").trim(); daily.push({ name, kind: /utility/i.test(b) ? "utility" : /combat|meltdown option/i.test(b) ? "combat" : kindOf(name), rules: info?.powers.find(p => p.name === c)?.rules || [] }); }
     }
     myDaily = daily.map(x => x.name); myKinds = Object.fromEntries(daily.map(x => [x.name.toLowerCase(), x.kind])); drawHand();
     if (!$("pwlist")) return;

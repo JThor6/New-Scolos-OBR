@@ -27,7 +27,11 @@ const saved = {
 async function fetchTab(id, tab, key) {
   const r = await bridgeGet(tab ? { id, tab } : { id });
   if (!r.ok) throw new Error(r.error);
-  saved.set(key, r.values); tabCache[key] = r.values; return r.values;
+  const changed = JSON.stringify(saved.get(key)) !== JSON.stringify(r.values);
+  saved.set(key, r.values); tabCache[key] = r.values;
+  // the saved copy was out of date (Jake changed the Master): tell the page so it redraws with the new rules right away
+  if (changed) try { window.dispatchEvent(new CustomEvent("ns-tab", { detail: key })); } catch {}
+  return r.values;
 }
 export async function getTab(tab) {
   if (tabCache[tab]) return tabCache[tab];
