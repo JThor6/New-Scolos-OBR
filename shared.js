@@ -137,7 +137,7 @@ export function rollLine(r, histDetail) {
   if (r.bs) r = { ...r, ap: "bullet stop" }; // the first Bullet Stop cards (Nov 24) used their own flag
   if (r.ap) { const pc = powerCard(r.ap, r.label);
     return `<div class="hl ap ${pc.c}">${head0(r, time, esc)}<div class="hr"><span class="hlbl">⚡ ${esc(pc.t)}${pc.s ? `: ${esc(pc.s)}` : ""}</span></div></div>`; }
-  if (r.cop) return `<div class="hl cop">${head0(r, time, esc)}<div class="hr"><span class="hlbl">⚔ Used a Combat Option Point</span><span class="tot">${r.max != null ? `${r.total}/${r.max}` : ""}</span></div></div>`;
+  if (r.cop) return `<div class="hl cop">${head0(r, time, esc)}<div class="hr"><span class="hlbl">⚔ ${r.con ? `${esc(r.con)}${r.cos ? `: ${esc(r.cos)}` : ""}` : "Used a Combat Option Point"}</span><span class="tot">${r.max != null ? `${r.total}/${r.max}` : ""}</span></div></div>`;
   const dice = `<span class="dice hd">${r.dice.map(d => `<div class="${cls(d)}">${face(d)}</div>`).join("")}</span>`;
   const head = `<div class="hn">${esc(r.char || r.who)}${r.char ? ` <span class="pn">${esc(r.who)}</span>` : ""} <span class="t">${time}</span>${wtag}</div>`;
   const xc = r.ks ? " ks" : r.pw || /^⚡/.test(label) ? " pw" : "";

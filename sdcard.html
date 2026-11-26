@@ -188,7 +188,7 @@
   let revealT = 0;
   function show() {
     const ra = Number(state().revealAt) || 0;
-    if (Date.now() < ra) { if (!$("t").innerHTML) document.body.style.visibility = "hidden";
+    if (Date.now() < ra) { if (!document.getElementById("t").innerHTML) document.body.style.visibility = "hidden";
       clearTimeout(revealT); revealT = setTimeout(show, ra - Date.now() + 30); return; }
     document.body.style.visibility = ""; render();
   }

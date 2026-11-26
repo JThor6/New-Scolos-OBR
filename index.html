@@ -607,6 +607,12 @@
   .gname.need { border-color:var(--minus); }
   .ibtn.mgrb { width:auto; padding:0 9px; font:800 12px system-ui; white-space:nowrap; display:inline-flex; align-items:center; gap:4px; }
   .cred { display:inline-block; margin-left:6px; padding:0 6px; border-radius:9px; background:rgba(187,153,255,.10); border:1px solid rgba(187,153,255,.30); color:#c9b6f5; font-weight:800; font-size:11px; vertical-align:1px; white-space:nowrap; }
+  .cofxbar { display:flex; flex-direction:column; gap:4px; margin:4px 0 8px; } .cofxbar[hidden] { display:none; }
+  .fxl { display:flex; gap:8px; align-items:flex-start; padding:5px 8px; border:1px solid #3f6f8f; border-left:3px solid #4f8fb5; border-radius:7px; background:rgba(20,45,70,.5); color:#dbe9f5; font-size:12px; line-height:1.35; }
+  .fxl > span { flex:1; min-width:0; overflow-wrap:anywhere; } .fxl b { color:#9fd0ee; letter-spacing:.5px; } .fxl small { display:block; color:#8fa9c0; font-size:11px; } .fxl .fxto { color:#cfe3f2; font-weight:700; }
+  .fxl .fxx { flex:none; background:none; border:1px solid #5a7d96; border-radius:5px; color:#b9cfe0; cursor:pointer; font-weight:800; width:22px; height:22px; padding:0; }
+  .fxl .fxcoin { margin-top:4px; }
+  .coal { display:flex; flex-wrap:wrap; gap:4px; } .coal .coa { padding:3px 8px; font-size:12px; } .coal .coa.on { background:rgba(91,63,158,.7); border-color:#9d86ff; color:#f0eaff; }
   .cowrap { display:flex; flex-wrap:wrap; gap:4px 10px; align-items:flex-start; } .cowrap .copl { flex:0 1 auto; }
   .codesc { flex:1 1 150px; min-width:0; border-left:3px solid #5b3f9e; border-radius:6px; background:rgba(60,38,110,.45); color:#ddd5f3; padding:4px 6px 6px 9px; font-size:12px; line-height:1.35; white-space:normal; }
   .codesc .gpn { display:flex; align-items:center; font-size:13px; color:#bb99ff; } .codesc div { white-space:normal; }
@@ -875,7 +881,6 @@ async function saveRoll(r) {
     }
     await OBR.room.setMetadata({ ...stale, [key]: [r, ...mine].slice(0, KEEP) });
     return "";
-    return "";
   } catch (e) { return "Roll didn't reach the table: " + (e?.message || e); }
 }
 
@@ -933,7 +938,7 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
     const melt = /^⚡\s*meltdown/i.test(r.label);
     if (/^smite\b/i.test(r.label)) { r.atk = 1; r.db = 4; r.dbk = "smite"; } // Smite: Damage = Delta + 4
     else if (KS_ATTACK.test(r.label) || /spellcast/i.test(r.label) || melt) { r.atk = 1;
-      const mel = /melee|martial/i.test(r.label), rng = /ranged|unconventional/i.test(r.label);
+      const spc = /spellcast/i.test(r.label), mel = !spc && W_MEL.test(r.label), rng = !spc && !mel && W_RNG.test(r.label); // a spell named "Blade Storm" is still a spell
       const db = melt ? null : mel ? num(V("H23")) : rng ? num(V("H24")) : null;
       if (db != null) { r.db = db; r.dbk = mel ? "melee" : "ranged"; } else if (melt) r.pwd = 1; else if (/spellcast/i.test(r.label)) r.sp = 1; }
   } else if (cs) { // a monster card: Attack uses its Offense, and its Armor counts when it defends
@@ -951,6 +956,7 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
       if (names.length) r.tg = [...new Set(names)].slice(0, 12); else r.notg = 1; // Target Lock on, nothing picked: the card says so
     } } catch {}
   }
+  if (!standalone) try { fxApply(r, whoName); } catch {} // lasting Combat Options: Encourage, Defend a Friend, Marked, Weaken
   if (br) { const [at, av, sr] = String(br).split("|"); r.at = String(at || "").trim().slice(0, 14); r.av = String(av || "").trim(); if (sr !== undefined) r.sr = String(sr).trim(); }
   // the always-running background page shows it in the bottom-right roll cards
   try { localStorage.setItem("ns.toastReq", JSON.stringify(r)); } catch {}
@@ -974,11 +980,13 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
 }
 
 // Spending a Combat Option Point pops a card at the bottom for the whole table, like a roll, and goes in Roll History
-async function announceCop(left, max) {
+// con: the Combat Option's name, cos: what it does (short). nocp: a follow-up card that didn't spend a point (the coin flip).
+async function announceCop(left, max, con = "", cos = "", nocp = false) {
   if (standalone) return;
   const who = await OBR.player.getName();
-  const r = { id: crypto.randomUUID().slice(0, 8), pid: me || "local", who, cop: 1, label: "Combat Option Point", dice: [], mod: 0, total: left ?? 0, ts: Date.now() };
+  const r = { id: crypto.randomUUID().slice(0, 8), pid: me || "local", who, cop: 1, label: String(con || "Combat Option Point").slice(0, 40), dice: [], mod: 0, total: left ?? 0, ts: Date.now() };
   if (max != null) r.max = max;
+  if (con) r.con = String(con).slice(0, 40); if (cos) r.cos = String(cos).slice(0, 90); if (nocp) r.nocp = 1;
   if (myChar()) r.char = myChar();
   try { localStorage.setItem("ns.toastReq", JSON.stringify(r)); } catch {}
   saveRoll(r);
@@ -1243,7 +1251,7 @@ function drawSheet() {
       <div>Tap ✕ to hide this. It won't come back.</div></div>`}
     ${V("H16") ? "" : (deadSeen.set(sheetId(), false), "")}<div class="shead">${ptHead()}<div class="shn"><b>${esc2(V("C3") || "Unnamed")}${V("H16") ? ` <span class="deadtag">(DEAD)</span>` : ""}</b><small>${[V("C4"), V("F5") !== "" ? "Level " + V("F5") : ""].filter(Boolean).map(esc2).join(" · ")}${V("F7") !== "" ? `<span class="cred" title="Credits">¤ ${esc2((n => n == null ? V("F7") : n.toLocaleString("en-US"))(num(V("F7"))))} credits</span>` : ""}</small></div>
       <span class="shcol"><span class="shbtns"><button id="reload" class="ibtn" title="Reload from Google Sheet">↻</button><button id="mgr" class="ibtn mgrb" title="Manage character: XP, skills, gear, notes">⚙ Manage Character</button></span><button class="sref hist" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></span></div>
-    <div id="ksbar" class="ksbar" hidden></div><div id="actbar" class="actbar" hidden></div>
+    <div id="ksbar" class="ksbar" hidden></div><div id="actbar" class="actbar" hidden></div><div id="cofxbar" class="cofxbar" hidden></div>
     <div class="stabrow"><div class="stab">ATTRIBUTES</div>${nbChips("p")}</div>
     <div class="g5">${[["Adroitness", "C7"], ["Raw Str.", "C8"], ["Intellect", "C9"], ["Charm", "C10"]].map(([n, c]) => `<div class="att"><small class="inft" data-inf="at:${{ "Raw Str.": "Raw Strength" }[n] || n}" data-sec="attr">${n}</small><b>${esc2(V(c))}</b><button class="rd ra" data-m="${esc2(V(c))}" data-l="${{ "Raw Str.": "Raw Strength" }[n] || n}" data-b="${({ "Raw Str.": "Raw Strength" }[n] || n) + "|" + esc2(V(c))}" title="Roll ${n}">${ROLL_ICON}</button></div>`).join("")}
       <!-- Easter egg: the 9+ DEAD box marked turns Dmg Pen. into a skull and crossbones -->
@@ -1271,7 +1279,7 @@ function drawSheet() {
     </div>
     <div id="sherr" class="err" hidden></div>
     ${isGM ? "" : `<div class="discw"><button id="disc" class="discb" title="Pick a different character">⇄ Switch character</button></div>`}`;
-  fillPowers(); bindInfo(); updateKS(); updateActive(); publishActive(); bindPt();
+  fillPowers(); bindInfo(); updateKS(); updateActive(); publishActive(); bindPt(); fxDraw();
   if (spellPk) { if (spellPk.id !== sheetId() || !/^mage$/i.test(V("C4").trim())) closeSpell(); else if (spellPk.sp !== V("F13")) { spellPk.sp = V("F13"); drawSpell(); } }
   document.querySelectorAll("#shbody .actarmx").forEach(b => b.onclick = (e) => { e.stopPropagation(); endActive(); });
   document.querySelectorAll("#shbody .rd").forEach(b => b.onclick = (e) => { e.stopPropagation();
@@ -1317,7 +1325,11 @@ function drawSheet() {
     clearTimeout(armT); await clearTrack(); }; }
   $("pw").onclick = () => save({ power: !used }, () => setCell("F6", used ? "FALSE" : "TRUE"));
   if ($("pwu")) $("pwu").onclick = () => save({ utility: !usedU }, () => setCell("F8", usedU ? "FALSE" : "TRUE"));
-  const copMax = parseInt(V("H28")); const cop = (d) => { let n = Math.max(0, (parseInt(V("H29")) || 0) + d); if (!isNaN(copMax)) n = Math.min(n, copMax); if (String(n) === (V("H29") || "0")) return; if (d > 0 && !busy) announceCop(isNaN(copMax) ? null : copMax - n, isNaN(copMax) ? null : copMax); save({ copSpent: n }, () => setCell("H29", String(n))); };
+  const copMax = parseInt(V("H28")); const cop = async (d) => {
+    if (d > 0) { const g = await spendCop(); if (g) announceCop(g.left, g.max); return; } // − uses a point (waits for any other save, never dropped)
+    if (copPending || !(await whenFree())) return;
+    let n = Math.max(0, (parseInt(V("H29")) || 0) + d); if (!isNaN(copMax)) n = Math.min(n, copMax); if (String(n) === (V("H29") || "0")) return;
+    save({ copSpent: n }, () => setCell("H29", String(n))); };
   // the sheet keeps COP *spent* (H29); the counter shows points LEFT, so − uses a point and + gives one back
   $("copm").onclick = () => cop(1); $("copp").onclick = () => cop(-1);
   if ($("ptm")) { const pts = (d) => { let n = Math.max(0, (parseInt(V("F13")) || 0) + d); const ptMax = parseInt(ptMaxV()); if (!isNaN(ptMax)) n = Math.min(n, ptMax); if (String(n) === (V("F13") || "0")) return; save({ points: n }, () => setCell("F13", String(n))); };
@@ -2085,19 +2097,222 @@ function bindInfo() {
     p.hidden = false; p.innerHTML = h.replace("</div>", `<button class="pwx" title="Close">✕</button></div>`);
     p.querySelector(".pwx").onclick = () => { infOpen = ""; show(); };
     // Combat Options: spend the option's 1 COP right from its description
-    if (inBox && $("copp")) {
-      const max = parseInt(V("H28")), spent = parseInt(V("H29")) || 0, left = isNaN(max) ? null : Math.max(0, max - spent);
-      p.insertAdjacentHTML("beforeend", `<button class="copuse" ${left === 0 ? "disabled" : ""}>${left === 0 ? "No COP left" : `Use it: spend 1 COP${left != null ? ` (${left} left)` : ""}`}</button>`);
-      p.querySelector(".copuse").onclick = () => { $("copm").click(); };
-    }
+    // Combat Options: the option's own buttons (it spends its 1 COP itself), like the daily power buttons
+    if (inBox && $("copp")) { const nm = key.slice(3), bh = await coPanelHtml(nm); if (key !== infOpen || !p.isConnected) return;
+      p.insertAdjacentHTML("beforeend", bh); bindCoPanel(p, nm); }
   };
   document.querySelectorAll("#shbody [data-inf]").forEach(e => e.onclick = (ev) => { if (ev.target.closest("button:not([data-inf])")) return; ev.stopPropagation();
     infOpen = infOpen === e.dataset.inf ? "" : e.dataset.inf; show(); });
   if (infOpen) show();
 }
+// ---------------- COMBAT OPTIONS (COP) ----------------
+// Jake, Nov 26: same lessons as the daily powers. Each Combat Option's description has its own button, and the button is
+// how the option is used: it spends the 1 COP itself. Options that are an attack roll the attack (+ any bonus) and the roll
+// card tells the table; options with no roll pop a blue card for the whole table naming the option and what it does.
+// Options that last (until your next turn, a few rounds, the rest of the combat) go on a shared list in room metadata, so
+// everyone they touch sees a strip on their sheet, the GM sees them all, and their bonuses are added to rolls by themselves.
+// roll: "atk" any attack skill on the sheet, "melee" melee only. x: bonus. two: a second attack with this modifier.
+// fx: what stays on the table. end: "turn" (until the user's next turn), "rounds" (n rounds), "combat" (rest of the fight).
+//   foe: aimed at enemies (selected tokens). ally: "many" / "one" pick players. self: the user is included.
+//   on: "adroit" (+v to Adroitness rolls), "all" (+v to every roll), "atk" (+v to that monster's attacks), vs: +v to attacks on them
+//   dmg: added once to that monster's next damage bonus, then it ends.
+const CO = {
+  "acid touch": { s: "Auto hit by touch. For 3 rounds the target takes 1 extra wound each round (lightest box open).", fx: { end: "rounds", n: 3, foe: 1, t: "ACID TOUCH", x: "1 extra wound each round (lightest box open)" } },
+  "attack twice": { roll: "atk", two: -1, s: "Two attacks. The second needs a second weapon and gets -1." },
+  "auto flank": { roll: "atk", x: 1, s: "Slips into a flanking spot and attacks with +1." },
+  "charge": { roll: "melee", x: 1, s: "Double move in a straight line, then a melee attack at +1." },
+  "create optical illusion double": { s: "Until their next turn, each attack on them has a 50/50 chance to hit the double.", fx: { end: "turn", t: "OPTICAL DOUBLE", x: "Each attack on them: flip a coin. Tails, it hits the double and misses.", coin: 1 } },
+  "defend a friend": { s: "They and chosen allies within 10 ft get +1 Adroitness until their next turn.", fx: { end: "turn", ally: "many", self: 1, on: "adroit", v: 1, t: "DEFEND A FRIEND", x: "+1 on Adroitness rolls" } },
+  "destroy armor": { s: "Auto hit, no damage. The target's Armor Bonus is -1 for the rest of the combat.", fx: { end: "combat", foe: 1, t: "ARMOR DESTROYED", x: "Armor Bonus -1 for the rest of the combat" } },
+  "encourage": { s: "One player gets +1 on all their rolls until the encourager's next turn.", fx: { end: "turn", ally: "one", self: 1, on: "all", v: 1, t: "ENCOURAGED", x: "+1 on all rolls" } },
+  "exchange places": { s: "Swaps places with an ally. Uses their movement, not their attack." },
+  "exploding hit": { roll: "atk", s: "If it hits, the damage also lands on chosen targets within 5 ft, at -1." },
+  "hide in place": { s: "Builds a cocoon out of nothing and hides in it." },
+  "mark enemy": { s: "Everyone gets +1 against the marked enemy until the marker's next turn.", fx: { end: "turn", foe: 1, vs: 1, v: 1, t: "MARKED", x: "Everyone gets +1 against it" } },
+  "power grab": { s: "Wraps up an enemy and holds them in place. Neither of them can move.", fx: { end: "rounds", grab: 1, foe: 1, t: "POWER GRAB", x: "Held in place (neither can move)" } },
+  "power strike": { roll: "atk", s: "On a hit, the target flies back 10 ft. Into a wall: +1 Light Wound." },
+  "retaliate": { roll: "atk", s: "Hit by an enemy's attack, they strike back right away." },
+  "shadow to shadow move": { s: "Steps from one shadow to another in the room, then keeps moving." },
+  "shield ally": { s: "Takes an attack meant for an ally instead." },
+  "stop": { s: "The target can't move until the end of its next turn.", fx: { end: "turn", foe: 1, t: "STOPPED", x: "Movement 0 until the end of its next turn" } },
+  "super jump": { s: "Jumps as if flying until their next turn. Uses their movement, not their attack.", fx: { end: "turn", t: "SUPER JUMP", x: "Flying-jump until their next turn" } },
+  "weaken": { pick: [
+    { u: "Weaken: -2 on its next damage", s: "The target's next damage gets -2.", fx: { end: "combat", foe: 1, dmg: -2, t: "WEAKENED", x: "-2 on its next damage" } },
+    { u: "Weaken: -1 on its attacks until my next turn", s: "The target's attacks get -1 until the weakener's next turn.", fx: { end: "turn", foe: 1, on: "atk", v: -1, t: "WEAKENED", x: "-1 on its attacks" } }] },
+};
+const coKey = (n) => String(n || "").replace(/\([^)]*\)/g, "").trim().toLowerCase();
+const coDef = (n) => CO[coKey(n)] || null;
+const copLeft = () => { const max = parseInt(V("H28")); return isNaN(max) ? null : Math.max(0, max - (parseInt(V("H29")) || 0)); };
+// Spend 1 COP: waits for any save that's still going (so the spend is never dropped), and can't be doubled by quick taps
+let copPending = false;
+async function spendCop() {
+  if (copPending || !sheetVals) return null;
+  const max = parseInt(V("H28")); if (!isNaN(max) && (parseInt(V("H29")) || 0) >= max) return null;
+  copPending = true;
+  try {
+    if (!(await whenFree())) { if ($("sherr")) { $("sherr").hidden = false; $("sherr").textContent = "Still saving something else. Tap again in a moment."; } return null; }
+    const now = parseInt(V("H29")) || 0; if (!isNaN(max) && now >= max) return null;
+    save({ copSpent: now + 1 }, () => setCell("H29", String(now + 1)));
+    return { left: isNaN(max) ? null : max - now - 1, max: isNaN(max) ? null : max };
+  } finally { copPending = false; }
+}
+// Attack skills on this sheet (trained, then untrained), short names; none at all = Ranged / Melee untrained
+function attackSkills(meleeOnly) {
+  const L = layout(), out = [];
+  for (const [a, b] of [L.trained, L.untrained]) for (let r = a; r <= b; r++) {
+    const nm = V("B" + r); if (!nm || !KS_ATTACK.test(nm) || out.some(o => normName(o.k) === normName(nm))) continue;
+    if (meleeOnly && !W_MEL.test(nm)) continue;
+    const pm = powerMod(nm); if (pm) out.push({ k: nm.replace(/\s*\([^)]*\)/g, "").trim(), ...pm });
+  }
+  if (!out.length) for (const k of meleeOnly ? ["Melee Weapon Fighting"] : ["Ranged Weapons", "Melee Weapon Fighting"]) { const pm = powerMod(k); if (pm) out.push({ k, ...pm }); }
+  return out;
+}
+// Attack Twice: after the first attack, the second one unlocks for a few minutes (doesn't spend another point)
+let coSecond = null; // { id, until }
+// who gets a buff (Defend a Friend, Encourage): picked from the players in this fight's initiative and any tokens you have selected
+let coAlly = { k: "", sel: [] };
+async function coCandidates() {
+  const out = []; const add = (n) => { n = String(n || "").trim(); if (n && !out.some(o => sameName(o, n))) out.push(n); };
+  add(myChar());
+  try { const md = actMd || await OBR.room.getMetadata(); if (md?.[INIT]?.open) initEntries(md).filter(e => e.pc).forEach(e => add(e.name)); } catch {}
+  try { const sel = (await OBR.player.getSelection()) || []; if (sel.length) (await OBR.scene.items.getItems(sel)).filter(i => i.type === "IMAGE").forEach(i => add(i.name)); } catch {}
+  return out;
+}
+async function coFoes() { // the tokens you have selected (the enemy the option is aimed at)
+  try { const sel = (await OBR.player.getSelection()) || []; if (!sel.length) return [];
+    const me2 = myChar(); return [...new Set((await OBR.scene.items.getItems(sel)).filter(i => i.type === "IMAGE" && (i.layer === "CHARACTER" || i.layer === "MOUNT")).map(i => String(i.name || "").trim()).filter(n => n && !sameName(n, me2)))].slice(0, 6); } catch { return []; }
+}
+// The buttons under a Combat Option's description
+async function coPanelHtml(name) {
+  const d = coDef(name), left = copLeft(), none = left === 0;
+  const lt = left == null ? "" : ` (${left} left)`;
+  const note = none ? `<div class="pwused">No COP left. A fight starting fills them back up.</div>` : "";
+  if (!d) return `<div class="pwrolls">${note}<button class="pwroll cogo" data-u="1" ${none ? "disabled" : ""}>⚔<span>Use it: spend 1 COP${lt}</span></button></div>`;
+  let h = "";
+  if (d.roll) {
+    for (const a of attackSkills(d.roll === "melee")) { const tot = a.m + (d.x || 0);
+      h += `<button class="pwroll cogo" data-r="${esc2(a.k)}" data-m="${tot}" data-b="${esc2(d.x ? "" : a.br)}" ${none ? "disabled" : ""}>${ROLL_ICON}<span>${esc2(tc(name))}: roll ${esc2(a.k)}${d.x ? ` +${d.x}` : ""}${a.un ? " (untrained)" : ""}</span><b>${tot >= 0 ? "+" : ""}${tot}</b></button>`; }
+    if (d.two) { const on = coSecond && coSecond.id === sheetId() && Date.now() < coSecond.until;
+      h += `<div class="pwtn">Second attack (second weapon, ${d.two}). ${on ? "Roll it here:" : "Unlocks after the first attack."}</div>`;
+      for (const a of attackSkills()) { const tot = a.m + d.two;
+        h += `<button class="pwroll cotwo" data-r="${esc2(a.k)}" data-m="${tot}" ${on ? "" : "disabled"}>${ROLL_ICON}<span>Second attack: ${esc2(a.k)} ${d.two}${a.un ? " (untrained)" : ""}</span><b>${tot >= 0 ? "+" : ""}${tot}</b></button>`; } }
+    return `<div class="pwrolls">${note}<div class="pwtn">Spends 1 COP${lt} and rolls the attack.</div>${h}</div>`;
+  }
+  const fx = d.fx || d.pick?.[0]?.fx;
+  if (fx?.ally) { // pick who gets it
+    if (coAlly.k !== coKey(name)) coAlly = { k: coKey(name), sel: fx.ally === "one" ? [myChar()] : [] };
+    const c = await coCandidates();
+    h += `<div class="pwtn">${fx.ally === "one" ? "Who gets it?" : `You${fx.self ? " always get it" : ""}. Add allies within 10 ft:`}</div><div class="coal">${c.filter(n => fx.ally === "one" || !sameName(n, myChar())).map(n => `<button class="sbtn coa ${coAlly.sel.some(x => sameName(x, n)) ? "on" : ""}" data-n="${esc2(n)}">${sameName(n, myChar()) ? "Me" : esc2(n)}</button>`).join("")}</div>
+      <div class="pwtn" style="font-weight:400">Missing someone? Select their token on the map, then reopen this.</div>`;
+  } else if (fx?.foe) h += `<div class="pwtn" style="font-weight:400">Select the target's token on the map first, so the table sees who it's on${fx.on || fx.dmg || fx.vs ? " and the bonus counts on its own" : ""}.</div>`;
+  if (fx?.grab) { const rs = Math.max(0, num(V("C8")) ?? 0); h += `<div class="pwtn">Holds for ${1 + rs} round${rs ? "s" : ""} (1 + Raw Strength).</div>`; }
+  const btns = d.pick ? d.pick.map((p, i) => `<button class="pwroll cogo" data-u="1" data-p="${i}" ${none ? "disabled" : ""}>⚔<span>${esc2(p.u)}${lt}</span></button>`).join("")
+    : `<button class="pwroll cogo" data-u="1" ${none ? "disabled" : ""}>⚔<span>Use ${esc2(tc(name))}: spend 1 COP${lt}</span></button>`;
+  return `<div class="pwrolls">${note}${h}${btns}</div>`;
+}
+function bindCoPanel(p, name) {
+  const d = coDef(name);
+  p.querySelectorAll(".coa").forEach(b => b.onclick = (e) => { e.stopPropagation(); const n = b.dataset.n, fx = d?.fx;
+    if (fx?.ally === "one") coAlly.sel = [n]; else coAlly.sel = coAlly.sel.some(x => sameName(x, n)) ? coAlly.sel.filter(x => !sameName(x, n)) : [...coAlly.sel, n];
+    p.querySelectorAll(".coa").forEach(x => x.classList.toggle("on", coAlly.sel.some(s => sameName(s, x.dataset.n)))); });
+  p.querySelectorAll(".cogo").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (rollBusy || copPending) return;
+    p.querySelectorAll(".cogo").forEach(x => x.disabled = true); // can't be spent twice by a double tap
+    if (b.dataset.r && d?.two) coSecond = { id: sheetId(), until: Date.now() + 5 * 60e3 }; // set first: the spend redraws the panel
+    const opt = d?.pick ? d.pick[+b.dataset.p] : d, got = await spendCop();
+    if (!got) { if (d?.two) coSecond = null; p.querySelectorAll(".cogo").forEach(x => x.disabled = copLeft() === 0); return; }
+    const nm = tc(String(name).replace(/\([^)]*\)/g, "").trim());
+    if (b.dataset.r) { // an attack: the roll card is the announcement
+      await quickRoll(b.dataset.m, `⚔ ${nm} · ${b.dataset.r}${d?.x ? ` +${d.x}` : ""}`, "", b.dataset.b);
+      return;
+    }
+    const fx = opt?.fx, foes = fx?.foe ? await coFoes() : [];
+    let to = fx?.ally ? [...coAlly.sel] : foes;
+    if (fx?.ally && fx.self && !to.some(x => sameName(x, myChar()))) to = fx.ally === "one" && to.length ? to : [myChar(), ...to];
+    const onWho = to.length && !(to.length === 1 && sameName(to[0], myChar())) ? ` → ${to.join(", ")}` : "";
+    announceCop(got.left, got.max, nm, `${opt?.s || ""}${onWho}`.slice(0, 90));
+    if (fx) fxAdd(nm, fx, to).catch(() => {});
+  });
+  p.querySelectorAll(".cotwo").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (rollBusy || !(coSecond && coSecond.id === sheetId() && Date.now() < coSecond.until)) return;
+    coSecond = null; p.querySelectorAll(".cotwo").forEach(x => x.disabled = true);
+    await quickRoll(b.dataset.m, `⚔ Attack Twice · 2nd · ${b.dataset.r} ${d?.two ?? -1}`, "", ""); });
+}
+// ---- Lasting Combat Option effects, shared with the table (room metadata, a short list) ----
+const COFX = "com.newscolos.cofx";
+let fxMd = null; // the last room metadata seen
+const fxList = (md = fxMd) => (Array.isArray(md?.[COFX]) ? md[COFX] : []).filter(e => fxAlive(e, md));
+function fxAlive(e, md) {
+  if (!e || Date.now() - (e.ts || 0) > 8 * 3600e3) return false;
+  const st = md?.[INIT];
+  if (e.sid) {
+    if (!st?.open || st.sid !== e.sid) return false;
+    const cur = turnNames(md).cur, moved = (st.round || 1) !== e.r0 || st.cur !== e.c0;
+    if (e.end === "turn" && moved && cur && sameName(cur, e.by)) return false;
+    if (e.end === "rounds" && (st.round || 1) - e.r0 >= e.n && cur && sameName(cur, e.by)) return false;
+  }
+  return true;
+}
+async function fxWrite(fn) {
+  const md = await OBR.room.getMetadata(), list = fn(fxList(md)).slice(-10); // small: room storage is ~16 kB for everything
+  await OBR.room.setMetadata({ [COFX]: list.length ? list : null });
+}
+async function fxAdd(nm, fx, to) {
+  if (standalone) return;
+  const md = actMd || await OBR.room.getMetadata(), st = md?.[INIT], open = !!st?.open;
+  const n = fx.grab ? 1 + Math.max(0, num(V("C8")) ?? 0) : fx.n || 0;
+  const e = { id: crypto.randomUUID().slice(0, 6), by: myChar(), o: nm, t: fx.t, x: fx.x, end: fx.end, to: to.slice(0, 6), ts: Date.now(),
+    sid: open ? st.sid : "", r0: open ? st.round || 1 : 0, c0: open ? st.cur || "" : "" };
+  if (n) e.n = n; if (fx.on) { e.on = fx.on; e.v = fx.v; } if (fx.vs) { e.vs = 1; e.v = fx.v; } if (fx.dmg) e.dmg = fx.dmg; if (fx.coin) e.coin = 1;
+  await fxWrite(l => [...l, e]);
+}
+const fxEnd = (id) => fxWrite(l => l.filter(e => e.id !== id)).catch(() => {});
+const fxMine = (e, who) => (e.to || []).some(t => sameName(t, who));
+// Bonuses from the shared list, added to a roll as it's made (called from the roll itself, after targets are known)
+function fxApply(r, whoName) {
+  const list = fxList(); if (!list.length) return;
+  const add = (v, t) => { r.mod += v; r.total += v; r.label = `${r.label} · ${t} ${v > 0 ? "+" : ""}${v}`.slice(0, 80); };
+  if (!whoName) { const me2 = myChar(); if (!me2) return;
+    for (const e of list) {
+      if (e.on === "adroit" && fxMine(e, me2) && /^adroitness/i.test(r.label) && !/initiative/i.test(r.label)) add(e.v, e.o);
+      if (e.on === "all" && fxMine(e, me2)) add(e.v, e.o);
+      if (e.vs && r.atk && (r.tg || []).some(n => fxMine(e, n))) add(e.v, "Marked");
+    }
+  } else if (r.atk) {
+    for (const e of list) {
+      if (e.on === "atk" && fxMine(e, whoName)) add(e.v, e.o);
+      if (e.dmg && fxMine(e, whoName) && r.db != null) { r.db += e.dmg; r.label = `${r.label} · ${e.o} ${e.dmg} damage`.slice(0, 80); fxEnd(e.id); }
+    }
+  }
+}
+// Strips: on the sheet, the effects you used or that are on you (Marked shows for everyone); the GM tab lists them all
+function fxLine(e, mine) {
+  const st = fxMd?.[INIT], rnd = e.end === "rounds" && e.sid && st?.open ? ` · round ${Math.min(e.n, (st.round || 1) - e.r0 + 1)} of ${e.n}` : e.end === "rounds" ? ` · ${e.n} rounds` : "";
+  const until = e.end === "turn" ? (e.sid ? ` · until ${esc2(e.by)}'s next turn` : " · until their next turn (✕ when done)") : e.end === "combat" ? " · rest of the combat" : "";
+  const on = (e.to || []).length ? ` <span class="fxto">on ${esc2(e.to.join(", "))}</span>` : "";
+  return `<div class="fxl"><span><b>${esc2(e.t)}</b>${on}<br>${esc2(e.x)}<small>${esc2(e.o)} by ${esc2(e.by)}${rnd}${until}</small>${e.coin && mine ? `<button class="sbtn fxcoin" data-id="${e.id}">Attacked? Flip the coin</button>` : ""}</span>${mine || isGM ? `<button class="fxx" data-id="${e.id}" title="End it">✕</button>` : ""}</div>`;
+}
+function fxDraw() {
+  const me2 = myChar(), list = fxList();
+  const bar = $("cofxbar");
+  if (bar) { const xs = list.filter(e => sameName(e.by, me2) || fxMine(e, me2) || e.vs);
+    bar.hidden = !xs.length; bar.innerHTML = xs.map(e => fxLine(e, sameName(e.by, me2))).join(""); }
+  const g = $("gmFx");
+  if (g) { g.hidden = !list.length; g.innerHTML = list.length ? `<div class="sec">COMBAT OPTIONS IN PLAY</div>` + list.map(e => fxLine(e, false)).join("") : ""; }
+  document.querySelectorAll(".fxx").forEach(b => b.onclick = (e) => { e.stopPropagation(); b.disabled = true; fxEnd(b.dataset.id); });
+  document.querySelectorAll(".fxcoin").forEach(b => b.onclick = (e) => { e.stopPropagation(); if (b.disabled) return; b.disabled = true; setTimeout(() => { if (b.isConnected) b.disabled = false; }, 1500);
+    const heads = (crypto.getRandomValues(new Uint8Array(1))[0] & 1) === 0;
+    announceCop(null, null, "Optical Double", heads ? "Heads: the attack goes at the real one." : "Tails: it hits the double. The attack misses!", true); });
+}
+function fxSync(md) {
+  fxMd = md; fxDraw();
+  // the GM's panel tidies the list: anything that has ended is taken off
+  if (isGM && Array.isArray(md?.[COFX]) && md[COFX].length !== fxList(md).length) fxWrite(l => l).catch(() => {});
+}
 // Kill Shot (Mercenary): armed from the power's description; the next attack roll from the sheet
 // (Ranged Weapons, Melee Weapon Fighting, Martial Arts, Unconventional Weapons) comes up +, +, +, + and shows in red.
-const KS_ATTACK = /ranged weapon|melee weapon|martial art|unconventional weapon/i;
+// Nov 26: also skills players named after their weapon ("rifle", "laser pistol", "knife"), so those count as attacks too
+const W_MEL = /melee|martial|\b(sword|knife|knives|blade|axe|club|spear|hammer|staff|brawl|boxing|kung fu|cqc|unarmed)/i;
+const W_RNG = /ranged|unconventional|\b(rifle|pistol|gun|blaster|laser|bow|shotgun|sniper|grenade|thrown)/i;
+const KS_ATTACK = /ranged weapon|melee weapon|martial art|unconventional weapon|\b(sword|knife|knives|blade|axe|club|spear|hammer|brawl|boxing|kung fu|cqc|unarmed|rifle|pistol|gun|blaster|laser|bow|shotgun|sniper|grenade|thrown)/i;
 const ksArmed = () => store.get(ck("ns.killShot")) === "1";
 function setKS(on) { store.set(ck("ns.killShot"), on ? "1" : ""); updateKS(); }
 function updateKS() {
@@ -2543,7 +2758,7 @@ function gmTools() {
   return `<div class="sec" style="margin-top:2px">TABLE</div><div class="g3" style="margin-bottom:4px;grid-template-columns:1fr 1fr 1fr">
     <button id="gmDay" class="sbtn" title="Combat and utility uses back, invocations / spell points refilled, everyone's COP back to 0">☀ NEW DAY</button><button id="gmCop" class="sbtn" title="Everyone's COP to full (CALL FOR INITIATIVE does this too)">⚡ FILL COP</button><button id="gmCop0" class="sbtn" title="Everyone's COP to 0">○ EMPTY COP</button></div>
     <button id="gmTgt" class="sbtn" style="width:100%;margin-bottom:4px" title="Off: whoever rolls Adroitness next defends (fast). On: select the target token(s) on the map before you roll a monster's attack, and only they defend. Just for you.">TARGET LOCK: …</button>
-    <div id="gmMsg" class="help" hidden></div>`;
+    <div id="gmMsg" class="help" hidden></div><div id="gmFx" class="cofxbar" hidden></div>`;
 }
 // 🎯 Targets (room setting, off by default): when on, an attack roll takes the tokens its roller has selected as its targets,
 // and only those characters' / monsters' Adroitness rolls defend against it. Off keeps the game fast: next Adroitness rolls defend.
@@ -2566,6 +2781,7 @@ function drawTgt() {
 }
 const flipTgt = () => { store.set("ns.tgt2", tgtOn() ? "0" : "1"); drawTgt(); };
 function bindGmTools() {
+  try { fxDraw(); } catch {}
   if ($("gmTgt")) { drawTgt(); $("gmTgt").onclick = flipTgt; }
   const arm = (b, label, run) => { if (!b) return; b.onclick = () => {
     if (b.dataset.armed) { delete b.dataset.armed; b.textContent = label; run(); return; }
@@ -4135,8 +4351,8 @@ if (standalone) {
       fixMarkScale(); OBR.scene.onReadyChange((r) => { if (r) fixMarkScale(); }); }
     if (!UPLINK && !PARTYPOP) applySize();
     render(rollLog(OBR.room.id, allRolls(await OBR.room.getMetadata())));
-    OBR.room.onMetadataChange((md) => { try { adMeta(md); } catch {} render(rollLog(OBR.room.id, allRolls(md))); updateInitBanner(md); actSync(md); });
-    updateInitBanner(); actSync(await OBR.room.getMetadata()); adMeta(await OBR.room.getMetadata(), true);
+    OBR.room.onMetadataChange((md) => { try { adMeta(md); } catch {} render(rollLog(OBR.room.id, allRolls(md))); updateInitBanner(md); actSync(md); try { fxSync(md); } catch {} });
+    updateInitBanner(); actSync(await OBR.room.getMetadata()); try { fxSync(await OBR.room.getMetadata()); } catch {} adMeta(await OBR.room.getMetadata(), true);
     window.addEventListener("storage", (e) => { if (e.key === "ns.sd:" + OBR.room.id) autoDamage(); });
     if (isGM && !UPLINK) { const beat = () => store.set("ns.adAlive:" + OBR.room.id, String(Date.now())); beat(); setInterval(beat, 2000); }
     const readAct = (ps) => { partyAct = ps.map(p => p.metadata?.[ACT_MD]).filter(Boolean); if (partyOn && lastParty && $("shbody")) drawParty($("shbody"), lastParty); };

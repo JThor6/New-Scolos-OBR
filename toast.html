@@ -22,6 +22,7 @@
   body.cp { background:rgba(10,55,80,.75); border:2px solid #4fc3f7; box-shadow:0 0 14px rgba(79,195,247,.55); }
   body.cp .lbl { flex-basis:auto; color:#7fd4ff; font-family:'Bangers', Impact, sans-serif; letter-spacing:1px; font-size:18px; white-space:nowrap; }
   body.cp .left { flex-basis:100%; font-size:12px; font-weight:800; color:#c9e9ff; }
+  body.cp .lbl.con { flex-basis:100%; white-space:normal; line-height:1.05; } body.cp .left.cpl { color:#9fd8f5; font-weight:700; }
   body.ap { background:rgba(45,30,105,.78); border:2px solid #9d86ff; box-shadow:0 0 14px rgba(157,134,255,.6); }
   body.ap .lbl { flex-basis:100%; color:#c7b6ff; font-family:'Bangers', Impact, sans-serif; letter-spacing:1px; font-size:18px; line-height:1.1; }
   body.ap .left { flex-basis:100%; font-size:12px; font-weight:800; color:#e4dcff; }
@@ -99,14 +100,20 @@
     (label ? `<span class="lbl" style="font-size:${q.get("ks") || q.get("pw") ? 15 : lsize}px">${esc(label)}</span>` : "");
   // Always fit: if the label doesn't fit in the card, shrink it (half a point at a time) until everything shows.
   const fit = () => { const b = document.body, l = document.querySelector(".lbl"); if (!l) return;
-    let s = parseFloat(l.style.fontSize) || 12;
-    while (b.scrollHeight > b.clientHeight + 1 && s > 6) { s -= 0.5; l.style.fontSize = s + "px"; } };
+    const over = () => b.scrollHeight > b.clientHeight + 1;
+    let s = parseFloat(l.style.fontSize) || parseFloat(getComputedStyle(l).fontSize) || 12;
+    // big titles (Combat Option names) come down to 13 first, then the small lines under them shrink, then the title again
+    while (over() && s > 13) { s -= 0.5; l.style.fontSize = s + "px"; }
+    const sm = [...document.querySelectorAll(".left")]; let t = 12;
+    while (sm.length && over() && t > 8) { t -= 0.5; sm.forEach(x => x.style.fontSize = t + "px"); }
+    while (over() && s > 6) { s -= 0.5; l.style.fontSize = s + "px"; } };
   fit(); if (document.fonts) document.fonts.ready.then(fit);
   if (q.get("cop")) { // Combat Option Point used: who, and how many they have left
     const max = q.get("max");
     document.getElementById("t").innerHTML = `<span class="who"><span style="overflow:hidden;text-overflow:ellipsis">${esc(q.get("char") || q.get("who") || "")}${q.get("char") ? `<span class="pn">${esc(q.get("who") || "")}</span>` : ""}</span></span>` +
-      `<span class="lbl cop">⚔ COMBAT OPTION!</span>` + (max ? `<span class="left">${esc(q.get("total") || "0")} of ${esc(max)} COP left</span>` : "");
-    document.body.classList.add("cp");
+      (q.get("con") ? `<span class="lbl cop con">⚔ ${esc(q.get("con").toUpperCase())}</span>` + (q.get("cos") ? `<span class="left">${esc(q.get("cos"))}</span>` : "") : `<span class="lbl cop">⚔ COMBAT OPTION!</span>`) +
+      (max && !q.get("nocp") ? `<span class="left cpl">${esc(q.get("total") || "0")} of ${esc(max)} COP left</span>` : "");
+    document.body.classList.add("cp"); fit();
   }
   if (q.get("ap")) { // a power that stays on was switched on: who, and what it does
     const pc = powerCard(q.get("ap"), q.get("label"));
