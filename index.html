@@ -308,7 +308,14 @@
   .tmturn .tmon { border:0; padding:0; } .tmturn .tmr button, .tmturn .tmb button { font-size:13px; padding:6px 10px; }
   .tmnext { width:100%; margin-top:12px; padding:9px; font:800 14px system-ui; border-radius:8px; cursor:pointer; background:rgba(91,63,158,.6); border:1px solid #9d86ff; color:#fff; }
   .tban { position:sticky; top:0; z-index:5; display:flex; flex-direction:column; gap:4px; padding:4px 0; background:linear-gradient(#222639 70%, transparent); }
-  .tban[hidden] { display:none; } .tbrow { display:flex; gap:4px; } .tbrow button { flex:1; }
+  .tban[hidden] { display:none; }
+  .tright { min-width:0; } .tdef { position:sticky; top:0; z-index:4; margin-bottom:8px; padding:8px; border-radius:10px; border:2px solid #b9a6ff; background:rgba(60,40,120,.92); box-shadow:0 0 16px rgba(157,134,255,.55); animation:tdpulse 1.6s ease-in-out infinite; }
+  .tdef[hidden] { display:none; } .tdef.inban { position:static; margin:0; animation:none; }
+  @keyframes tdpulse { 50% { box-shadow:0 0 26px rgba(185,166,255,.85); } }
+  .tdh { font:800 15px system-ui; letter-spacing:.6px; color:#fff; margin-bottom:6px; } .tdh small { font-weight:600; font-size:11px; color:#d6ccf5; margin-left:6px; }
+  .tdbs { display:flex; flex-wrap:wrap; gap:6px; }
+  .tdb { flex:1 1 180px; padding:10px 12px; border-radius:8px; cursor:pointer; font:800 15px system-ui; color:#fff; background:rgba(110,80,190,.9); border:1px solid #d4c8ff; display:flex; gap:8px; align-items:baseline; justify-content:center; }
+  .tdb.mon { background:rgba(70,60,110,.95); } .tdb small { font-weight:600; font-size:11px; color:#e0d8ff; } .tdb b { color:#fff; font-size:17px; } .tdb:disabled { opacity:.5; } .tbrow { display:flex; gap:4px; } .tbrow button { flex:1; }
   .tban button { width:100%; padding:9px 10px; border-radius:8px; cursor:pointer; font:800 14px system-ui; letter-spacing:.5px; color:#f0eaff; background:rgba(91,63,158,.55); border:1px solid #9d86ff; display:flex; flex-wrap:wrap; align-items:baseline; justify-content:center; gap:4px 10px; }
   .tban button.pc { background:rgba(110,80,190,.75); box-shadow:0 0 10px rgba(157,134,255,.45); }
   .tban button small { font-weight:600; font-size:11px; color:#d6ccf5; }
@@ -4280,11 +4287,12 @@ function testBarUpdate() {
     let h = "";
     if (!st?.open) h += `<button data-tb="all">⚔ START A FIGHT · <b>ROLL ALL INITIATIVE</b><small>party + monsters</small></button>`;
     if (need) h += `<div class="tbrow"><button data-tb="all">⚔ ROLL ALL INITIATIVE <small>party + monsters</small></button><button data-tb="init">ROLL PARTY INITIATIVE <small>${need} still to roll</small></button></div>`;
-    if (defs) h += `<button data-tb="def">🛡 DEFEND vs ${esc2(w.att)} <small>${defs} can defend</small></button>`;
+    const dh = defendDraw(); if (dh) h += `<div class="tdef inban">${dh}</div>`;
     if (st?.open && st.cur) h += `<button data-tb="next" class="${pc ? "pc" : ""}">${pc ? `▶ ${esc2(cur.toUpperCase())}'S TURN · <b>END TURN</b>` : `${esc2(cur)}'s turn · <b>NEXT TURN ▶</b>`}${t?.deck ? `<small>next up: ${esc2(t.deck)}</small>` : ""}</button>`;
     else if (st?.open && !need) h += `<button data-tb="next">Everyone's rolled · <b>START TURNS ▶</b></button>`;
     if (ban.dataset.h !== h) { ban.dataset.h = h; ban.innerHTML = h; ban.hidden = !h;
-      ban.querySelectorAll("button[data-tb]").forEach(x => x.onclick = (e) => { e.stopPropagation(); document.querySelector(`#tbar [data-t="${x.dataset.tb}"]`)?.click(); }); }
+      ban.querySelectorAll("button[data-tb]").forEach(x => x.onclick = (e) => { e.stopPropagation(); document.querySelector(`#tbar [data-t="${x.dataset.tb}"]`)?.click(); });
+      bindDefend(ban); }
     document.querySelectorAll(".pcard[data-cid]").forEach(k => { const c = (lastParty || []).find(x => x.id === k.dataset.cid);
       k.classList.toggle("turn", !!(pc && c && sameName(pCell(c.values, "C3"), cur))); }); }
   const b = (k) => document.querySelector(`#tbar [data-t="${k}"]`);
@@ -4412,6 +4420,39 @@ function testTurnDraw(refresh) {
   bindTmon($("tside"));
   $("tside").querySelector("[data-tnext]").onclick = (e) => { e.stopPropagation(); initStep(1).catch(() => {}); };
 }
+
+// DEFEND, everywhere at once (Jake, Nov 26: it has to be impossible to miss while clicking through a test fight).
+// While an attack waits, one big button per character or monster who can defend: on the top banner, above the middle of
+// the GM screen, and (as before) on their card / monster row. One tap rolls their defense.
+function defendBtns() {
+  const w = sdWait(); if (!w) return "";
+  const a = defAttr(w), sg = (x) => (x > 0 ? "+" : "") + x; let h = "";
+  for (const c of lastParty || []) { const n = pCell(c.values, "C3"); if (!canDefend(w, n)) continue;
+    const m = (num(pCell(c.values, ATTR_CELL[a] || "C7")) ?? 0) + (num(pCell(c.values, "C12")) || 0);
+    h += `<button class="tdb" data-dp="${esc2(c.id)}">🛡 ${esc2(n)} <small>${esc2(a)}</small> <b>${sg(m)}</b></button>`; }
+  const v = monVals || [], col = { Adroitness: 4, "Raw Strength": 3, Intellect: 5, Charm: 6 }[a] ?? 4;
+  const hdr = Math.max(0, v.findIndex(r => String(r?.[0] || "").trim().toLowerCase() === "name"));
+  for (let row = hdr + 1; row < v.length; row++) { const c = (i) => String(v[row]?.[i] ?? "").trim(), n = c(0);
+    if (!n || /^(true|x|yes|dead)$/i.test(c(19)) || !canDefend(w, n)) continue;
+    const mook = /\b(mook|minion)s?\b/i.test(n + " " + c(2)), pen = !mook && [16, 17].some(i => c(i)) ? -1 : 0, m = num(c(col)) ?? 0;
+    h += `<button class="tdb mon" data-dm="${esc2(n)}" data-dv="${m}" data-dpn="${pen}" data-dc="${esc2(JSON.stringify({ db: c(8), ab: c(10) }))}">🛡 ${esc2(n)} <small>${esc2(a)}</small> <b>${sg(m + pen)}</b></button>`; }
+  return h ? `<div class="tdh">🛡 DEFEND vs ${esc2(w.att)} <small>tap who rolls</small></div><div class="tdbs">${h}</div>` : "";
+}
+function bindDefend(root) {
+  const w = sdWait(), a = defAttr(w);
+  root.querySelectorAll("[data-dp]").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (b.disabled) return; b.disabled = true;
+    const c = (lastParty || []).find(x => x.id === b.dataset.dp);
+    try { if (c) await rollAs(c, num(pCell(c.values, ATTR_CELL[a] || "C7")) ?? 0, a + " · Defense"); } finally { if (b.isConnected) b.disabled = false; } });
+  root.querySelectorAll("[data-dm]").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (b.disabled) return; b.disabled = true;
+    await rollQ; for (let i = 0; i < 30 && rollBusy; i++) await new Promise(r => setTimeout(r, 100));
+    try { await quickRoll(b.dataset.dv, a, b.dataset.dm, "", parseInt(b.dataset.dpn) || 0, JSON.parse(b.dataset.dc || "{}")); }
+    finally { setTimeout(() => { if (b.isConnected) b.disabled = false; }, 1500); } });
+}
+function defendDraw() {
+  const h = testOn() ? defendBtns() : "";
+  const box = $("tdef"); if (box && box.dataset.h !== h) { box.dataset.h = h; box.innerHTML = h; box.hidden = !h; bindDefend(box); }
+  return h;
+}
 // switching test mode on or off: redraw the Party view (and on the GM screen, the columns)
 function testApply() {
   if (GMS) { document.body.classList.toggle("gmtest", testOn()); if (!testOn()) { sheetOverride = ""; sheetVals = null; } $("sh").innerHTML = ""; return showParty(); }
@@ -4420,7 +4461,7 @@ function testApply() {
 // GM screen, test mode: the party list on the left of the column, the opened character's full sheet on the right
 async function testList() {
   partyOn = false;
-  if (!$("tlist")) $("sh").innerHTML = `<div class="tsplit"><div id="tlist"></div><div id="tside">${sheetOverride ? `<div id="shbody"></div>` : `<div class="empty tsidehelp">Tap a character to run them here: every roll, their Extraordinary Powers, Combat Options, spells and wounds.</div>`}</div></div>`;
+  if (!$("tlist")) $("sh").innerHTML = `<div class="tsplit"><div id="tlist"></div><div class="tright"><div id="tdef" class="tdef" hidden></div><div id="tside">${sheetOverride ? `<div id="shbody"></div>` : `<div class="empty tsidehelp">Tap a character to run them here: every roll, their Extraordinary Powers, Combat Options, spells and wounds.</div>`}</div></div></div>`;
   const body = $("tlist"), saved = lastParty || cache.get(ck("chars"));
   if (saved?.length) drawParty(body, saved); else body.innerHTML = `<div class="empty">Loading party…</div>`;
   try { const chars = await characterSheets(); if (testSplit() && $("tlist")) drawParty($("tlist"), chars); } catch (e) { if (!saved?.length) body.innerHTML = `<div class="err">Couldn't load the party: ${esc2(e.message || e)}</div>`; }
