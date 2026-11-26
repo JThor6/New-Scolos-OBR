@@ -1025,8 +1025,9 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
     // Also hand it straight to the GM's screen: Owlbear sometimes drops the live update there (seen Nov 26, it only showed
     // after the GM reloaded), and the GM's screen writes it back into the room if it's missing (background.html, initroll)
     if (landed) OBR.broadcast.sendMessage("com.newscolos.initroll", { k, entry }, { destination: "REMOTE" }).catch(() => {});
-    if (landed && !px) store.set("ns.initDone", initSid);
-    else OBR.notification.show("⚔ Your initiative didn't reach the bar. Roll Adroitness again.", "WARNING").catch(() => {});
+    // (Nov 26 fix: a GM roll for a character that DID land used to fall into the warning below)
+    if (landed) { if (!px) store.set("ns.initDone", initSid); }
+    else OBR.notification.show(px ? `⚔ ${name}'s initiative didn't reach the bar. Roll it again.` : "⚔ Your initiative didn't reach the bar. Roll Adroitness again.", "WARNING").catch(() => {});
     updateInitBanner();
   }
 }
