@@ -117,6 +117,9 @@ function unshare(item) {
   try { item.setSharing(DriveApp.Access.PRIVATE, DriveApp.Permission.NONE); } catch (e) {}
   return gone;
 }
+// Who the bridge runs as (Jake). Read from his own My Drive's owner, with the Drive permission the bridge already has.
+// (Session.getEffectiveUser() needs an extra "see your email" permission, and failed with "not sufficient" on Nov 26.)
+function bridgeEmail() { try { return DriveApp.getRootFolder().getOwner().getEmail(); } catch (e) { return ''; } }
 function moveToStasis(id) {
   id = String(id || '');
   if (!id) throw new Error('Pick a character first.');
@@ -134,7 +137,8 @@ function moveToStasis(id) {
   }
   if (!from) throw new Error('That sheet is not in the New Scolos Characters folder (or it is already in Stasis).');
   let owner = ''; try { owner = file.getOwner().getEmail(); } catch (x) {}
-  if (owner && owner !== Session.getEffectiveUser().getEmail()) throw new Error('That sheet is owned by ' + owner + ', so only they can move it. Ask them to move it, or to make you the owner first.');
+  const me = bridgeEmail();
+  if (owner && me && owner !== me) throw new Error('That sheet is owned by ' + owner + ', so only they can move it. Ask them to move it, or to make you the owner first.');
   const stasis = stasisFolder();
   let name = '';
   try { name = String(SpreadsheetApp.openById(id).getSheetByName('Main Sheet').getRange('C3').getDisplayValue()).trim(); } catch (e) {}
@@ -611,7 +615,7 @@ function doGet(e) {
       let copy = 'ok';
       try { DriveApp.getFileById(MASTER_ID).makeCopy('Permission test (safe to delete)', DriveApp.getFolderById(CHARACTER_FOLDER_ID)).setTrashed(true); }
       catch (e) { copy = String(e.message || e); }
-      return json({ ok: true, runsAs: Session.getEffectiveUser().getEmail(), copy: copy });
+      return json({ ok: true, runsAs: bridgeEmail(), copy: copy });
     }
     if (p.pdfjob) { // result of an Export to PDF started by POST {exportPdf}
       const r = CacheService.getScriptCache().get('pdf:' + p.pdfjob);
