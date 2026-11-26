@@ -1,0 +1,52 @@
+<!doctype html>
+<html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Bangers&family=Luckiest+Guy&display=swap" rel="stylesheet">
+<style>
+  /* Big banner at the top for +,+,+,+ and -,-,-,- (Jake, Nov 25/26: make a big deal of it). Opened by background.html. */
+  html, body { margin:0; background:transparent; overflow:hidden; height:100%; }
+  body { font-family:system-ui, sans-serif; color:#fff; display:flex; align-items:center; justify-content:center; cursor:default; }
+  .ban { position:relative; width:calc(100% - 12px); height:calc(100% - 12px); border-radius:16px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; overflow:hidden;
+    animation: drop .45s cubic-bezier(.2,1.4,.4,1) both; text-align:center; }
+  .win { background:radial-gradient(ellipse at 50% 0%, rgba(255,214,102,.45), transparent 65%), linear-gradient(135deg, #1d3b2a, #24183f 55%, #3b2a12);
+    border:2px solid #ffd666; box-shadow:0 0 28px rgba(255,214,102,.55), inset 0 0 22px rgba(255,214,102,.25); }
+  .lose { background:radial-gradient(ellipse at 50% 0%, rgba(150,120,255,.28), transparent 65%), linear-gradient(135deg, #140f22, #1f1733 55%, #0e0b18);
+    border:2px solid #6d5aa8; box-shadow:0 0 24px rgba(80,60,160,.55), inset 0 0 22px rgba(0,0,0,.6); }
+  .dice { display:flex; gap:8px; }
+  .d { width:30px; height:30px; border-radius:7px; display:flex; align-items:center; justify-content:center; font:900 24px system-ui; border:2px solid; animation: pop .35s both; }
+  .win .d { color:#7dffae; border-color:#7dffae; background:rgba(10,40,20,.6); }
+  .lose .d { color:#c9b8ff; border-color:#8d79d6; background:rgba(20,14,40,.7); }
+  .d:nth-child(2) { animation-delay:.08s } .d:nth-child(3) { animation-delay:.16s } .d:nth-child(4) { animation-delay:.24s }
+  h1 { margin:2px 0 0; font-family:'Luckiest Guy', 'Bangers', Impact, sans-serif; font-weight:400; letter-spacing:2px; line-height:1; font-size:38px; white-space:nowrap; }
+  .win h1 { color:#ffe08a; text-shadow:0 0 14px rgba(255,214,102,.8), 0 3px 0 #6b4a00; }
+  .lose h1 { color:#d9ccff; text-shadow:0 0 12px rgba(120,90,220,.7), 0 3px 0 #1a1030; }
+  .sub { font-size:13px; font-weight:800; color:#e9e4ff; text-shadow:0 1px 2px #000; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:94%; }
+  .sub small { font-weight:600; color:#b8b2d6; }
+  .shine { position:absolute; inset:0; background:linear-gradient(110deg, transparent 30%, rgba(255,255,255,.35) 45%, transparent 60%); transform:translateX(-120%); animation: shine 1.1s .4s ease-out both; pointer-events:none; }
+  .lose .shine { display:none; }
+  .crack { position:absolute; inset:0; pointer-events:none; opacity:.35; background:
+    linear-gradient(62deg, transparent 48%, #8d79d6 49%, transparent 50%), linear-gradient(-28deg, transparent 60%, #8d79d6 60.6%, transparent 61.4%); }
+  .win .crack { display:none; }
+  .out { animation: fade .5s forwards; }
+  @keyframes drop { from { transform:translateY(-70%) scale(.8); opacity:0 } to { transform:none; opacity:1 } }
+  @keyframes pop { from { transform:scale(0) rotate(-40deg) } to { transform:none } }
+  @keyframes shine { to { transform:translateX(120%) } }
+  @keyframes fade { to { opacity:0; transform:translateY(-20%) } }
+</style></head><body>
+<div id="b" class="ban"><div class="shine"></div><div class="crack"></div><div class="dice" id="dice"></div><h1 id="h"></h1><div class="sub" id="s"></div></div>
+<script type="module">
+import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
+const q = new URLSearchParams(location.search), up = q.get("k") === "up";
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const b = document.getElementById("b");
+b.classList.add(up ? "win" : "lose");
+document.getElementById("dice").innerHTML = Array(4).fill(`<span class="d">${up ? "+" : "−"}</span>`).join("");
+document.getElementById("h").textContent = up ? "CRITICAL SUCCESS!" : "CRITICAL FAILURE!";
+const who = q.get("char") || q.get("who") || "", what = (q.get("label") || "").replace(/\s*·.*$/, "");
+document.getElementById("s").innerHTML = `${esc(who)}${what ? ` <small>· ${esc(what)}</small>` : ""} <small>· on a roll of ${up ? "+, +, +, +" : "-, -, -, -"}</small>`;
+// fit the headline on narrow screens
+const h = document.getElementById("h"); let fs = 38; while (h.scrollWidth > b.clientWidth - 20 && fs > 18) { fs -= 2; h.style.fontSize = fs + "px"; }
+// stays ~6 s (longer while the mouse is on it), then fades and closes itself
+let hover = false; b.onmouseenter = () => hover = true; b.onmouseleave = () => hover = false;
+const close = () => { if (hover) return setTimeout(close, 800); b.classList.add("out"); setTimeout(() => { if (OBR.isAvailable) OBR.popover.close(q.get("id")).catch(() => {}); }, 500); };
+setTimeout(close, 6000);
+</script></body></html>

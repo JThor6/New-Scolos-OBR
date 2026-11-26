@@ -13,7 +13,22 @@ const held = (id) => { try { return Number(localStorage.getItem("ns.hold:" + id)
 // Where the bottom row of roll cards starts (the Success Delta card sits just left of it)
 let rowLeft = 0;
 
+// +,+,+,+ / -,-,-,- (Jake, Nov 25/26): a big banner at the top for everyone, players' and the GM's monster rolls alike.
+// Waits for the dice on the roll card to land first.
+const isCrit = (r) => { const d = (r.dice || []).map(Number); return d.length === 4 && !r.sd && !r.cop && !r.ap && !r.bs && (d.every(x => x === 1) ? "up" : d.every(x => x === -1) ? "down" : ""); };
+async function critBanner(r, k) {
+  const vw = await OBR.viewport.getWidth(), w = Math.min(560, vw - 40), id = "com.newscolos.crit";
+  const url = new URL("go.html", location.href); url.searchParams.set("p", "crit");
+  const ref = new URLSearchParams(location.search).get("obrref"); if (ref) url.searchParams.set("obrref", ref);
+  url.searchParams.set("id", id); url.searchParams.set("k", k); url.searchParams.set("who", r.who || "");
+  if (r.char) url.searchParams.set("char", r.char); if (r.label) url.searchParams.set("label", r.label);
+  await OBR.popover.close(id).catch(() => {});
+  await OBR.popover.open({ id, url: url.href, width: w, height: 132, anchorReference: "POSITION",
+    anchorPosition: { left: Math.round(vw / 2), top: 64 }, anchorOrigin: { horizontal: "CENTER", vertical: "TOP" },
+    transformOrigin: { horizontal: "CENTER", vertical: "TOP" }, disableClickAway: true, hidePaper: true });
+}
 async function showRoll(r, spin) {
+  { const k = isCrit(r); if (k) setTimeout(() => critBanner(r, k).catch(() => {}), spin ? 1900 : 300); }
   const now = Date.now();
   let slot = busyUntil.findIndex((t, i) => t < now && !held(TOAST + "/" + i));
   if (slot < 0) { // all full: replace the oldest one nobody is hovering
