@@ -38,6 +38,20 @@
   body.pty > header, body.pty nav, body.pty #initban, body.pty #defban, body.pty section:not(#sheet) { display:none !important; }
   body.pty #sheet { display:block !important; padding-top:0; }
   body.pty .ptpop { display:none; }
+  /* GM SCREEN: full window, solid, four columns */
+  html.gmsh, html.gmsh body { background:#191c2a !important; }
+  body.gms { zoom:0.9; height:calc(100vh / 0.9); overflow:hidden; display:grid; grid-template-columns:minmax(300px,1.15fr) minmax(280px,1fr) minmax(260px,.95fr) minmax(280px,1fr); gap:10px; padding:10px; }
+  body.gms > *:not(#sheet):not(.gmsc) { display:none !important; }
+  body.gms #sheet, body.gms .gmsc { display:flex !important; flex-direction:column; min-height:0; overflow:hidden auto; background:#222639; border:1px solid #333a55; border-radius:10px; padding:0 10px 10px; }
+  body.gms #sheet { padding-top:0; }
+  .gmsc h2 { position:sticky; top:0; z-index:2; margin:0 -10px 6px; padding:7px 10px; background:#15172280; backdrop-filter:blur(4px); font-family:'Bangers', Impact, sans-serif; font-weight:400; font-size:20px; letter-spacing:1px; color:#bb99ff; display:flex; align-items:center; gap:6px; }
+  .gmsc h2 span { flex:1; } .gmsc h2 select { font:600 12px system-ui; background:#15172b; color:var(--ink); border:1px solid #444a66; border-radius:6px; padding:3px; max-width:60%; }
+  .gmsc .sub { font-size:11px; font-weight:800; letter-spacing:.6px; color:var(--dim); margin:8px 0 4px; text-transform:uppercase; }
+  .gmsturn { font-size:13px; line-height:1.5; } .gmsturn b { color:#e2d8ff; }
+  .sdbig { border:1px solid #444a66; border-radius:8px; padding:6px 8px; background:rgba(15,17,28,.55); }
+  .sdnav { display:flex; align-items:center; gap:6px; margin:6px 0; } .sdnav span { flex:1; text-align:center; color:var(--dim); font-weight:700; font-size:12px; }
+  .sdnav button { background:rgba(91,63,158,.45); border:1px solid #6b4fb8; color:#e6defa; border-radius:6px; padding:3px 10px; font-weight:800; cursor:pointer; } .sdnav button:disabled { opacity:.35; cursor:default; }
+  .sdlist .hl { cursor:pointer; } .sdlist .hl.cur { outline:1px solid #6b4fb8; border-radius:6px; background:rgba(91,63,158,.25); }
   body.pty .uplhead, body.upl .uplhead { display:flex; align-items:center; gap:6px; position:sticky; top:0; z-index:2; padding:7px 10px; margin:0 -10px; background:rgba(0,0,0,.55); border-radius:12px 12px 0 0; }
   body.pty .uplhead b, body.upl .uplhead b { flex:1; font-family:'Bangers', Impact, sans-serif; font-weight:400; font-size:20px; letter-spacing:1px; color:#bb99ff; }
   body.pty .uplhead button, body.upl .uplhead button { background:transparent; border:2px solid #444a66; color:#f1f3f9; border-radius:6px; width:26px; height:26px; cursor:pointer; font-weight:800; padding:0; }
@@ -555,7 +569,7 @@
   .istep #iNext { flex:1; min-height:68px; font-size:20px; } .istep #iPrev { width:60px; min-height:68px; flex:none; font-size:20px; }
   #iCall, #iMon, #iEnd { min-height:52px; font-size:15px; } .istep span { font-size:11px; font-weight:700; color:var(--dim); white-space:nowrap; }
   .welc i { font-style:normal; font-weight:700; color:#c9b8f5; }
-  .welc.wel1 { font-family:'Bangers', Impact, sans-serif; font-size:17px; letter-spacing:1px; color:#c7b6ff; }
+  .welc .wel1, .welc.wel1 { font-family:'Bangers', Impact, sans-serif; font-size:17px; letter-spacing:1px; color:#c7b6ff; }
   .welc b { display:block; color:#bb99ff; font-size:10px; letter-spacing:.6px; margin-bottom:2px; }
   .welrd { display:inline-flex; align-items:center; justify-content:center; width:22px; height:18px; vertical-align:-4px; border-radius:4px; background:rgba(187,153,255,.25); color:#bb99ff; } .welrd svg { width:14px; height:14px; }
   #welx { position:absolute; top:5px; right:5px; width:22px; height:22px; border-radius:5px; border:1px solid #5b3f9e; background:transparent; color:#ddd5f3; cursor:pointer; font-weight:800; }
@@ -841,7 +855,8 @@ function render(rolls) {
   const html = `<button class="histdet">${histDetail ? "DETAILED ▲ (tap for simple)" : "SIMPLE ▼ (tap for detailed)"}</button>` +
     (rolls.length ? rolls.slice(0, LOG_MAX).map(line).join("") : `<div class="empty">No rolls yet.</div>`);
   // same list on the DICE tab and in REFERENCE → ROLL HISTORY
-  for (const el of [$("history"), $("refRolls")]) if (el) el.innerHTML = html;
+  for (const el of [$("history"), $("refRolls"), $("gmsRolls")]) if (el) el.innerHTML = html;
+  if (GMS) try { gmsSd(); } catch {}
   document.querySelectorAll(".histdet").forEach(btn => btn.onclick = (e) => { e.preventDefault(); histDetail = !histDetail; try { localStorage.setItem("ns.histDetail", histDetail ? "on" : "off"); } catch {} render(lastRolls); });
 }
 // Δ: bring back the Success Delta card (background.html opens it; ‹ › on it pages through the results)
@@ -1114,7 +1129,7 @@ async function pickCharacter(msg) {
   let list;
   try { list = await characterSheets(); }
   catch (e) { if (/code/i.test(e.message)) store.set("ns.code", ""); return connectForm(e.message); }
-  $("sh").innerHTML = `<div class="welc wel1" style="padding-right:10px">Welcome to the New Scolos Manager</div><div class="sec">WHICH CHARACTER IS YOURS?</div>
+  $("sh").innerHTML = `<div class="welc" style="padding-right:10px"><span class="wel1" style="display:block">Welcome to the New Scolos Manager</span>Everything for the game lives here: your sheet, dice, rules and the map.<br>New here? Make a character in the <i>CHARACTER CREATOR</i> tab. Already have one? Tap your name below.</div><div class="sec">WHICH CHARACTER IS YOURS?</div>
     <div class="help">Tap your character.</div>
     ${list.map(c => `<button class="histbtn pickc" data-id="${c.id}">${esc2(c.name)}</button>`).join("") || `<div class="empty">No characters found. Ask your GM.</div>`}
     <div class="err" ${msg ? "" : "hidden"}>${esc2(msg || "")}</div>
@@ -1272,6 +1287,7 @@ function drawSheet() {
     <div id="sherr" class="err" hidden></div>
     ${isGM ? "" : `<div class="discw"><button id="disc" class="discb" title="Pick a different character">⇄ Switch character</button></div>`}`;
   fillPowers(); bindInfo(); updateKS(); updateActive(); publishActive(); bindPt(); fxDraw();
+  if ("BCDEFG".split("").some(c => V(c + "16"))) tip("wound", "You're hurt. Wound penalties are added to your rolls for you. HEAL moves wounds back to the left.");
   if (spellPk) { if (spellPk.id !== sheetId() || !/^mage$/i.test(V("C4").trim())) closeSpell(); else if (spellPk.sp !== V("F13")) { spellPk.sp = V("F13"); drawSpell(); } }
   document.querySelectorAll("#shbody .actarmx").forEach(b => b.onclick = (e) => { e.stopPropagation(); endActive(); });
   document.querySelectorAll("#shbody .rd").forEach(b => b.onclick = (e) => { e.stopPropagation();
@@ -1530,6 +1546,7 @@ function drawManager() {
     <div class="stab" id="ptsec">PORTRAIT</div>
     <div id="ptpanel"></div>
     <label class="ptsw"><input type="checkbox" id="ptHide" ${ptHidden() ? "checked" : ""}> Hide portraits on my screen</label>
+    <label class="ptsw"><input type="checkbox" id="tipsOn" ${store.get("ns.tipsOff") === "1" || (me && tipsRoom.includes(me)) ? "" : "checked"}> Show tips (a short hint the first time things happen)</label>
     <div class="mnote">Optional. Your character keeps every picture you upload (up to 12); tap one to pick it. Drop a picture anywhere on this panel to add it. Pictures are saved to the GM's Character Portraits folder in Google Drive. Hiding only changes your own screen; it doesn't delete anything.</div>
     <div class="stab">PRINT</div>
     <button id="pdfGo" class="sbtn" style="width:100%">⬇ EXPORT TO PDF</button>
@@ -2287,6 +2304,8 @@ function fxDraw() {
   const bar = $("cofxbar");
   if (bar) { const xs = list.filter(e => sameName(e.by, me2) || fxMine(e, me2) || e.vs);
     bar.hidden = !xs.length; bar.innerHTML = xs.map(e => fxLine(e, sameName(e.by, me2))).join(""); }
+  const gs = $("gmsFx"); if (gs) gs.innerHTML = list.length ? list.map(e => fxLine(e, false)).join("") : `<div class="empty">Nothing in play.</div>`;
+  if (GMS) try { gmsTurn(); } catch {}
   const g = $("gmFx");
   if (g) { g.hidden = !list.length; g.innerHTML = list.length ? `<div class="sec">COMBAT OPTIONS IN PLAY</div>` + list.map(e => fxLine(e, false)).join("") : ""; }
   document.querySelectorAll(".fxx").forEach(b => b.onclick = (e) => { e.stopPropagation(); b.disabled = true; fxEnd(b.dataset.id); });
@@ -2750,6 +2769,7 @@ function gmTools() {
   return `<div class="sec" style="margin-top:2px">TABLE</div><div class="g3" style="margin-bottom:4px;grid-template-columns:1fr 1fr 1fr">
     <button id="gmDay" class="sbtn" title="Combat and utility uses back, invocations / spell points refilled, everyone's COP back to 0">☀ NEW DAY</button><button id="gmCop" class="sbtn" title="Everyone's COP to full (CALL FOR INITIATIVE does this too)">⚡ FILL COP</button><button id="gmCop0" class="sbtn" title="Everyone's COP to 0">○ EMPTY COP</button></div>
     <button id="gmTgt" class="sbtn" style="width:100%;margin-bottom:4px" title="Off: whoever rolls Adroitness next defends (fast). On: select the target token(s) on the map before you roll a monster's attack, and only they defend. Just for you.">TARGET LOCK: …</button>
+    <button id="gmScr" class="sbtn" style="width:100%;margin-bottom:4px" title="Opens a big window over the whole screen: Party, Success Delta results, Roll History, what's in play and REFERENCE. ✕ at its top closes it.">GM SCREEN (full window)</button>
     <div id="gmMsg" class="help" hidden></div><div id="gmFx" class="cofxbar" hidden></div>`;
 }
 // 🎯 Targets (room setting, off by default): when on, an attack roll takes the tokens its roller has selected as its targets,
@@ -2773,6 +2793,7 @@ function drawTgt() {
 }
 const flipTgt = () => { store.set("ns.tgt2", tgtOn() ? "0" : "1"); drawTgt(); };
 function bindGmTools() {
+  if ($("gmScr")) $("gmScr").onclick = () => openGms();
   try { fxDraw(); } catch {}
   if ($("gmTgt")) { drawTgt(); $("gmTgt").onclick = flipTgt; }
   const arm = (b, label, run) => { if (!b) return; b.onclick = () => {
@@ -3807,6 +3828,7 @@ function bindPtPicButtons(el, p0) {
 function bindPtMgr() {
   ptPanel();
   $("ptHide").onchange = () => store.set("ns.ptHide", $("ptHide").checked ? "1" : "");
+  if ($("tipsOn")) $("tipsOn").onchange = () => setTips($("tipsOn").checked);
   ptDrop();
 }
 // Drop a picture anywhere on your sheet (or in Manage Character) to make it the portrait
@@ -3968,6 +3990,7 @@ async function updateInitBanner(md) {
     && store.get("ns.initDone") !== st.sid && lastMd[`${INIT}/p/${me}`]?.sid !== st.sid // not rolled yet
     && store.get("ns.initHide") !== st.sid;                         // not closed with ✕
   $("initban").hidden = !owed;
+  if (owed) tip("init", "A fight started. Roll Adroitness (the button on the pop-up or on your sheet): that's your initiative.");
   // END TURN shows once the player has rolled at least once this turn (background.html marks "ns.turnRolled")
   { const tb = $("turnban"); if (tb) { const k = st?.open && st.cur && me && st.cur === me ? `${st.sid}|${st.round || 1}|${st.cur}|${st.sub || 0}` : "";
     tb.hidden = !k || store.get("ns.turnRolled") !== k; tb.disabled = false; } }
@@ -3996,6 +4019,7 @@ function canDefend(w, name) { if (!name || sameName(name, w.att) || (w.defs || [
 function updateDefBanner() {
   if (standalone || !$("defban")) return;
   const w = sdWait(), sg = (n) => n > 0 ? "+" + n : String(n);
+  if (w && !isGM && canDefend(w, myChar())) tip("defend", "You're being attacked. Roll to dodge: the DEFEND button rolls it from your sheet.");
   // GM tab: pulse the Adroitness dice of the monsters that can defend
   const mons = w && isGM ? [...document.querySelectorAll("#mo .rd.ra")].filter(b => b.dataset.l === defAttr(w) && canDefend(w, b.dataset.w)) : [];
   document.querySelectorAll("#mo .rd.ra").forEach(b => b.classList.toggle("sddef", mons.includes(b)));
@@ -4292,6 +4316,83 @@ async function applyWound(name, w) {
 // Party pop-out (GM only): this same page opened beside the map, showing only the Party overview with the GM strip.
 const PTY_POP_ICON = `<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const PARTY_POP = "com.newscolos.party";
+
+
+// ---------------- TIPS (Jake, Nov 26) ----------------
+// One short hint the first time something happens (initiative, your turn, being attacked, wounded, a COP at the table).
+// Each shows once per browser, as a small Owlbear note that goes away after 7 s. Never for the GM, never in the pop-outs.
+// "Show tips" in Manage Character turns them off for that Owlbear account in this room, so private / test windows stay quiet.
+const TIPS_MD = "com.newscolos.tipsoff"; // room: [player ids with tips off]
+let tipsRoom = [], tipT0 = Date.now();
+const tipsOff = () => standalone || isGM || PARTYPOP || UPLINK || store.get("ns.tipsOff") === "1" || (me && tipsRoom.includes(me));
+async function tip(k, msg) {
+  if (tipsOff() || store.get("ns.tip." + k)) return;
+  store.set("ns.tip." + k, "1");
+  try { const id = await OBR.notification.show("Tip: " + msg, "INFO"); setTimeout(() => OBR.notification.close(id).catch(() => {}), 7000); } catch {}
+}
+async function setTips(on) {
+  store.set("ns.tipsOff", on ? "" : "1");
+  if (standalone || !me) return;
+  try { const md = await OBR.room.getMetadata(), l = Array.isArray(md[TIPS_MD]) ? md[TIPS_MD].filter(x => x !== me) : [];
+    await OBR.room.setMetadata({ [TIPS_MD]: (on ? l : [...l, me]).slice(-20) }); } catch {}
+}
+function tipsMeta(md) {
+  tipsRoom = Array.isArray(md?.[TIPS_MD]) ? md[TIPS_MD] : [];
+  if (tipsOff()) return;
+  const st = md?.[INIT];
+  if (st?.open && st.cur && me && st.cur === me) tip("turn", "It's your turn. Move up to 30 ft and do one thing. After your roll, tap END TURN.");
+  // someone else used a Combat Option
+  if (!store.get("ns.tip.cop") && allRolls(md).some(r => r.cop && r.con && r.pid !== me && r.ts > tipT0))
+    tip("cop", "Combat Options cost 1 COP. Yours are under COMBAT on your sheet: tap one's name to use it.");
+}
+// ---------------- GM SCREEN ----------------
+async function openGms() {
+  if (standalone) return window.open("index.html?gm=1");
+  const u = new URL("go.html", location.href); u.searchParams.set("p", "index"); u.searchParams.set("gm", "1");
+  const ref = new URLSearchParams(location.search).get("obrref"); if (ref) u.searchParams.set("obrref", ref);
+  OBR.modal.open({ id: GMS_ID, url: u.href, fullScreen: true }).catch(() => {});
+}
+let gmsSdId = ""; // the Success Delta result being looked at ("" = always the newest)
+function gmsSetup() {
+  document.documentElement.classList.add("gmsh"); document.body.classList.add("gms");
+  const hb = document.querySelector("#ptyhead b"); if (hb) hb.textContent = "PARTY";
+  $("ptyx").title = "Close the GM screen";
+  $("ptyx").onclick = () => standalone ? window.close() : OBR.modal.close(GMS_ID).catch(() => {});
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !standalone) OBR.modal.close(GMS_ID).catch(() => {}); });
+  document.body.insertAdjacentHTML("beforeend", `
+    <div class="gmsc"><h2><span>SUCCESS DELTA</span></h2><div id="gmsSd"><div class="empty">No results yet. Attacks and their defense rolls land here and stay.</div></div></div>
+    <div class="gmsc"><h2><span>RIGHT NOW</span></h2><div id="gmsTurn" class="gmsturn"></div><div class="sub">Combat Options in play</div><div id="gmsFx" class="cofxbar"><div class="empty">Nothing in play.</div></div><div class="sub">Roll History</div><div id="gmsRolls"><div class="empty">No rolls yet.</div></div></div>
+    <div class="gmsc"><h2><span>REFERENCE</span><select id="gmsPick"></select></h2><div id="gmsRef"><div class="rr">Loading…</div></div></div>`);
+  const pick = $("gmsPick");
+  pick.innerHTML = REF_GROUPS.map(([g, keys]) => `<optgroup label="${esc2(g)}">${keys.map(k => SECTIONS.find(x => x[1] === k)).filter(Boolean).map(([t, k]) => `<option value="${esc2(k)}">${esc2(t)}</option>`).join("")}</optgroup>`).join("");
+  const show = async (k) => { pick.value = k; store.set("ns.gmsRef", k); const m = $("gmsRef"); m.innerHTML = `<div class="rr">Loading…</div>`;
+    try { const h = await sectionHtml(k); if (pick.value === k) m.innerHTML = h || `<div class="rr">Nothing here yet.</div>`; } catch (e) { m.innerHTML = `<div class="err">Couldn't load: ${esc2(e.message || e)}</div>`; } };
+  pick.onchange = () => show(pick.value);
+  const first = SECTIONS.find(x => x[1] === store.get("ns.gmsRef"))?.[1] || pick.querySelector("option")?.value;
+  if (first) show(first);
+  gmsTurn();
+}
+function gmsTurn() {
+  const el = $("gmsTurn"); if (!el) return;
+  const md = fxMd || lastMd || {}, st = md[INIT];
+  if (!st?.open) { el.innerHTML = `<div class="empty" style="padding:4px 0">No fight going.</div>`; return; }
+  const t = turnNames(md);
+  el.innerHTML = `<div>Round <b>${esc2(String(st.round || 1))}</b></div><div>Turn: <b>${esc2(t.cur || "…")}</b></div>${t.deck ? `<div>On deck: <b>${esc2(t.deck)}</b></div>` : ""}`;
+}
+function gmsSd() {
+  const box = $("gmsSd"); if (!box) return;
+  const sds = (lastRolls || []).filter(r => r.sd); // newest first
+  if (!sds.length) { box.innerHTML = `<div class="empty">No results yet. Attacks and their defense rolls land here and stay.</div>`; return; }
+  let i = gmsSdId ? sds.findIndex(r => r.id === gmsSdId) : 0; if (i < 0) { i = 0; gmsSdId = ""; }
+  const cur = sds[i];
+  box.innerHTML = `<div class="sdnav"><button id="sdOld" ${i >= sds.length - 1 ? "disabled" : ""} title="Older">‹ older</button><span>${i + 1} of ${sds.length}${i ? "" : " · newest"}</span><button id="sdNew" ${i <= 0 ? "disabled" : ""} title="Newer">newer ›</button></div>
+    <div class="sdbig">${rollLine(cur, true)}</div>${i ? `<div class="sdnav"><button id="sdTop">Back to the newest</button></div>` : ""}
+    <div class="sub">All results</div><div class="sdlist">${sds.slice(0, 60).map((r, k) => rollLine(r, false).replace('class="hl', `data-k="${k}" class="hl${k === i ? " cur" : ""}`)).join("")}</div>`;
+  const go = (k) => { gmsSdId = k <= 0 ? "" : sds[k].id; gmsSd(); };
+  $("sdOld").onclick = () => go(i + 1); $("sdNew").onclick = () => go(i - 1);
+  if ($("sdTop")) $("sdTop").onclick = () => go(0);
+  box.querySelectorAll(".sdlist [data-k]").forEach(el => el.onclick = () => go(+el.dataset.k));
+}
 async function popParty() {
   if (standalone) return window.open("index.html?party=1");
   if (store.get("ns.partyPop") === "1") { store.set("ns.partyPop", ""); return OBR.popover.close(PARTY_POP).catch(() => {}); } // same button again: close it
@@ -4304,12 +4405,16 @@ async function popParty() {
     anchorOrigin: { horizontal: "RIGHT", vertical: "TOP" }, transformOrigin: { horizontal: "RIGHT", vertical: "TOP" },
     disableClickAway: true, hidePaper: true }).catch(() => {});
 }
-const PARTYPOP = new URLSearchParams(location.search).get("party") === "1";
+// GM SCREEN (Jake, Nov 26): the GM's big window, opened full screen over Owlbear. Party, Success Delta results (back and
+// forward, they stay), Roll History, what's in play right now, and REFERENCE, side by side. Same page in a different mode.
+const GMS = new URLSearchParams(location.search).get("gm") === "1", GMS_ID = "com.newscolos.gmscreen";
+const PARTYPOP = GMS || new URLSearchParams(location.search).get("party") === "1";
 if (PARTYPOP) {
   document.body.classList.add("pty");
   window.addEventListener("pagehide", () => store.set("ns.partyPop", ""));
   $("ptyx").onclick = () => { store.set("ns.partyPop", ""); standalone ? window.close() : OBR.popover.close(PARTY_POP).catch(() => {}); };
 }
+if (GMS) gmsSetup();
 // Uplink mode: this page opened as the pop-out beside the map, showing only the Analog Dice Uplink.
 // The character sheet still loads (hidden) so modifiers, wounds and powers stay right.
 const UPLINK = new URLSearchParams(location.search).get("uplink") === "1";
@@ -4344,8 +4449,8 @@ if (standalone) {
       fixMarkScale(); OBR.scene.onReadyChange((r) => { if (r) fixMarkScale(); }); }
     if (!UPLINK && !PARTYPOP) applySize();
     render(rollLog(OBR.room.id, allRolls(await OBR.room.getMetadata())));
-    OBR.room.onMetadataChange((md) => { try { adMeta(md); } catch {} render(rollLog(OBR.room.id, allRolls(md))); updateInitBanner(md); actSync(md); try { fxSync(md); } catch {} });
-    updateInitBanner(); actSync(await OBR.room.getMetadata()); try { fxSync(await OBR.room.getMetadata()); } catch {} adMeta(await OBR.room.getMetadata(), true);
+    OBR.room.onMetadataChange((md) => { try { adMeta(md); } catch {} render(rollLog(OBR.room.id, allRolls(md))); updateInitBanner(md); actSync(md); try { fxSync(md); } catch {} try { tipsMeta(md); } catch {} });
+    updateInitBanner(); actSync(await OBR.room.getMetadata()); try { fxSync(await OBR.room.getMetadata()); tipsRoom = (await OBR.room.getMetadata())[TIPS_MD] || []; } catch {} adMeta(await OBR.room.getMetadata(), true);
     window.addEventListener("storage", (e) => { if (e.key === "ns.sd:" + OBR.room.id) autoDamage(); });
     if (isGM && !UPLINK) { const beat = () => store.set("ns.adAlive:" + OBR.room.id, String(Date.now())); beat(); setInterval(beat, 2000); }
     const readAct = (ps) => { partyAct = ps.map(p => p.metadata?.[ACT_MD]).filter(Boolean); if (partyOn && lastParty && $("shbody")) drawParty($("shbody"), lastParty); };
