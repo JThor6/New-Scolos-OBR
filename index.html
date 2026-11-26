@@ -270,8 +270,22 @@
   .box { hyphens:auto; -webkit-hyphens:auto; }
   .skt td:first-child { overflow-wrap:anywhere; }
   .pcard { border:2px solid #000; outline:1px solid #444a66; border-radius:8px; background:var(--paper); padding:6px 8px; margin-top:6px; }
-  .ptop { display:flex; align-items:baseline; gap:6px; }
-  .ptop b { font-size:15px; } .ptop small { color:var(--dim); font-size:11px; flex:1; }
+  .ptop { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .ptn { flex:1 1 120px; min-width:0; display:flex; flex-direction:column; line-height:1.15; }
+  .ptn b { font-size:15px; overflow-wrap:anywhere; } .ptn small { color:var(--dim); font-size:11px; }
+  .ppws { display:flex; flex-wrap:wrap; gap:3px; justify-content:flex-end; max-width:100%; }
+  .ppw { white-space:nowrap; }
+  .ptbtns { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; } .ptbtns .pogb { margin:0; }
+  .pcard.gmc-on { cursor:pointer; } .pcard.gmc-on:hover { outline-color:#6b5fa8; } .pcard.open { outline-color:#9d86ff; }
+  .pstrip { display:flex; flex-wrap:wrap; gap:4px; } .pstrip:empty { display:none; } .pstrip { margin-top:5px; }
+  .pstrip button, .prl button { font:700 12px system-ui; padding:4px 8px; border-radius:6px; cursor:pointer; background:rgba(40,36,64,.85); border:1px solid #4a4170; color:#e6defa; display:inline-flex; gap:6px; align-items:baseline; }
+  .pstrip button.hot { background:rgba(91,63,158,.7); border-color:#9d86ff; }
+  .pstrip button b, .prl button b { font-variant-numeric:tabular-nums; color:#c7b6ff; }
+  .prl { margin-top:6px; padding-top:6px; border-top:1px solid #3a3f58; cursor:default; }
+  .prl .prh { font-size:10px; font-weight:800; letter-spacing:.6px; color:var(--dim); margin:4px 0 3px; }
+  .prl .prg { display:flex; flex-wrap:wrap; gap:4px; } .prl button.atk { border-color:#6b5fa8; }
+  .prl button:disabled, .pstrip button:disabled { opacity:.5; cursor:default; }
+  .ptyhead-solid { margin-left:auto; margin-right:6px; }
   .ppw { font-size:9px; font-weight:800; padding:2px 5px; border-radius:4px; background:var(--plus); color:#000; }
   .ppw.u { background:#555b75; color:var(--ink); }
   .ppw + .ppw { margin-left:3px; }
@@ -773,7 +787,7 @@
 <div id="defban" class="initban defban" hidden><span id="deft"></span><span id="defbtns" class="defbtns"></span><button id="defx" title="Hide">✕</button></div>
 <button id="turnban" class="turnban" hidden title="Done with your turn: pass to the next in order">⚔ YOUR TURN · END TURN ▶</button>
 <div id="initban" class="initban" hidden><span>⚔ Initiative! Your next Adroitness roll counts.</span><button id="initgo">ROLL</button><button id="initx" title="Hide">✕</button></div>
-<section id="sheet"><div id="ptyhead" class="uplhead"><b>PARTY OVERVIEW</b><button id="ptyx" title="Close">✕</button></div><div id="sh"><div class="empty">Loading…</div></div></section>
+<section id="sheet"><div id="ptyhead" class="uplhead"><b>PARTY OVERVIEW</b><button id="ptySolid" class="ptyhead-solid" title="See-through / solid">◐</button><button id="ptyx" title="Close">✕</button></div><div id="sh"><div class="empty">Loading…</div></div></section>
 <section id="rules" hidden><div id="ru"></div></section>
 <section id="gen" hidden><div id="cg"></div></section>
 <section id="mon" hidden><div id="mo"></div></section>
@@ -941,15 +955,17 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
   // If the GM called for initiative, a player's next Adroitness roll is their initiative
   let initSid = "";
   if (!standalone && !whoName && label === "Adroitness") {
-    const st = (await OBR.room.getMetadata())[INIT];
-    if (st?.open && store.get("ns.initDone") !== st.sid) { initSid = st.sid; label = "Adroitness · Initiative"; }
+    const md0 = await OBR.room.getMetadata(), st = md0[INIT];
+    if (proxy) { // the GM rolling for a character: their initiative, once, unless their player already rolled it
+      if (st?.open && md0[`${INIT}/p/pc-${proxy.id}`]?.sid !== st.sid && !initEntries(md0).some(e => e.pc && sameName(e.name, proxy.name))) { initSid = st.sid; label = "Adroitness · Initiative"; } }
+    else if (st?.open && store.get("ns.initDone") !== st.sid) { initSid = st.sid; label = "Adroitness · Initiative"; }
   }
-  const ks = !whoName && ksArmed() && KS_ATTACK.test(String(label || ""));
+  const ks = !whoName && !proxy && ksArmed() && KS_ATTACK.test(String(label || ""));
   if (ks) { label = "KILL SHOT · " + label; setKS(false); fillPowers(); setTimeout(() => markPowerUsed("combat"), 0); }
   // A power that's on can change the roll: Avatar's +1 Spellcasting, the Wraith's unseen first strike (+1, then they reappear)
-  const ad = !whoName ? actDef() : null;
+  const ad = !whoName && !proxy ? actDef() : null;
   if (ad?.skill && ad.skill[0].test(label)) { m += ad.skill[1]; label = `${label} · ${ad.t} +${ad.skill[1]}`; }
-  const aa = !whoName ? actGet() : null;
+  const aa = !whoName && !proxy ? actGet() : null;
   if (ad?.strike && ad.keep && KS_ATTACK.test(label) && !aa?.st) { m += ad.strike; label = `${ad.t} · ${label} +${ad.strike} risen`; setActive(aa.n, { ...aa, st: 1 }); setTimeout(() => updateActive(), 0); } // Corpse Walk: first attack after rising only, the power keeps going
   else if (ad?.strike && !ad.keep && KS_ATTACK.test(label)) { m += ad.strike; label = `FROM THE SHADOWS · ${label} +${ad.strike} unseen`; setTimeout(() => endActive("You strike and reappear."), 0); }
   if (nb) label = `${label || "Roll"} · +${nb} bonus`;
@@ -960,10 +976,11 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
   if (ks) r.ks = 1; else if (!whoName && /^⚡/.test(r.label)) r.pw = 1; // Kill Shot shows red, other daily power rolls gold
   if (pen) r.wnd = pen;
   if (!whoName && myChar()) r.char = myChar(); // the character's name, with the player's name small beside it
+  if (proxy) { r.who = "GM"; r.gmr = 1; } // the GM rolled for this character (Party view)
   // Combat numbers for the Success Delta card (background.html pairs an attack with the defender's next Adroitness roll)
   // atk: this was an attack roll. db: its damage bonus (melee or ranged). ab: this roller's Armor Bonus (with any armor power on)
   if (!whoName) {
-    const ab = num(V("H25")); if (ab != null) r.ab = ab + (actDef()?.armor || 0);
+    const ab = num(V("H25")); if (ab != null) r.ab = ab + (proxy ? (ACTIVE[partyAct.find(p => sameName(p.name, proxy.name))?.n]?.armor || 0) : actDef()?.armor || 0);
     // Meltdown's shockwave is rolled against Adroitness too (an Expanded Shockwave hits several people)
     const melt = /^⚡\s*meltdown/i.test(r.label);
     if (/^smite\b/i.test(r.label) || /^⚡\s*commune\b.*smite/i.test(r.label)) { r.atk = 1; r.db = 4; r.dbk = "smite"; } // Smite (and Commune's free Smite): Damage = Delta + 4
@@ -996,8 +1013,8 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
   if (initSid) {
     // Write it, read it back, and try up to 3 times (Jake, Nov 25: once in a while a player's roll didn't make the bar).
     // Only marked done once it's really in the room, so the banner / pop-up stay up to roll again if it never lands.
-    const name = String(sheetVals?.[2]?.[2] || "").trim() || who, k = `${INIT}/p/${me}`;
-    const entry = { id: me, sid: initSid, name, total: r.total, adr: m, pc: true, r: Math.random() };
+    const px = proxy, name = String(sheetVals?.[2]?.[2] || "").trim() || who, k = px ? `${INIT}/p/pc-${px.id}` : `${INIT}/p/${me}`;
+    const entry = { id: px ? "pc-" + px.id : me, sid: initSid, name, total: r.total, adr: m, pc: true, r: Math.random() };
     let landed = false;
     for (let t = 0; t < 3 && !landed; t++) {
       if (t) await new Promise(x => setTimeout(x, 700 * t));
@@ -1007,7 +1024,7 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
     // Also hand it straight to the GM's screen: Owlbear sometimes drops the live update there (seen Nov 26, it only showed
     // after the GM reloaded), and the GM's screen writes it back into the room if it's missing (background.html, initroll)
     if (landed) OBR.broadcast.sendMessage("com.newscolos.initroll", { k, entry }, { destination: "REMOTE" }).catch(() => {});
-    if (landed) store.set("ns.initDone", initSid);
+    if (landed && !px) store.set("ns.initDone", initSid);
     else OBR.notification.show("⚔ Your initiative didn't reach the bar. Roll Adroitness again.", "WARNING").catch(() => {});
     updateInitBanner();
   }
@@ -4161,6 +4178,73 @@ async function showParty() {
   finally { sync(-1); }
 }
 let lastParty = null;
+// ---------------- GM: ROLL FOR A CHARACTER (Jake, Nov 26) ----------------
+// Tap a Party card (GM only) to open every roll that character has: attributes and skills (attacks first). The roll goes
+// out exactly as if their player rolled it from their own sheet: wound penalty, armor, damage bonus, Encourage and the
+// rest, Success Delta and initiative. So the GM can run an encounter from Party view, or roll for a player who stepped
+// away. Each card also shows DEFEND (an attack is waiting and they can defend) and ROLL INITIATIVE (a fight was called
+// and they haven't rolled). Works in the panel, the Party pop-out and the GM screen.
+let ptyOpen = "", proxy = null; // proxy: the character the GM is rolling for, while that roll is made
+const pCell = (v, a1) => { const m = a1.match(/^([A-L])(\d+)$/); return String(v?.[+m[2] - 1]?.[m[1].charCodeAt(0) - 65] ?? "").trim(); };
+function partySkills(v) {
+  const col = (r) => String(v[r - 1]?.[1] ?? "").trim();
+  let tr = 0, un = 0, inv = 0;
+  for (let r = 1; r <= 90; r++) { const b = col(r).toLowerCase(); if (!tr && b === "trained skills") tr = r; else if (!un && b === "untrained skills") un = r; else if (!inv && b === "inventory") inv = r; }
+  const out = [], add = (a, b) => { for (let r = a; r < b; r++) { const n = col(r), t = num(pCell(v, "F" + r));
+    if (n && t != null) out.push({ n: tc(n), t, br: pCell(v, "C" + r) && pCell(v, "D" + r) !== "" ? `${pCell(v, "C" + r)}|${pCell(v, "D" + r)}|${pCell(v, "E" + r)}` : "", atk: KS_ATTACK.test(n) }); } };
+  if (tr) add(tr + 1, un || tr + 18); if (un) add(un + 1, inv || un + 10);
+  return out.sort((a, b) => b.atk - a.atk);
+}
+const sgnP = (n) => (n > 0 ? "+" : "") + n;
+function partyRollsHtml(c) {
+  const v = c.values, name = pCell(v, "C3"), pen = num(pCell(v, "C12")) || 0;
+  const btn = (mod, label, txt, br = "", cls = "") => { const t = mod + pen;
+    return `<button class="${cls}" data-rm="${mod}" data-rl="${esc2(label)}" data-rb="${esc2(br)}">${esc2(txt)} <b>${sgnP(t)}</b></button>`; };
+  const at = ["Adroitness", "Raw Strength", "Intellect", "Charm"].map(a => btn(num(pCell(v, ATTR_CELL[a])) ?? 0, a, a)).join("");
+  const sk = partySkills(v).map(k => btn(k.t, k.n, k.n, k.br, k.atk ? "atk" : "")).join("");
+  return `<div class="prh">ROLL FOR ${esc2(name.toUpperCase())}${pen ? ` <span style="color:#ff8f8f">(wounded ${pen})</span>` : ""}</div>
+    <div class="prh">ATTRIBUTES</div><div class="prg">${at}</div>
+    <div class="prh">SKILLS ${sk ? "· attacks first" : ""}</div><div class="prg">${sk || `<small style="color:var(--dim)">No skills on the sheet.</small>`}</div>`;
+}
+async function rollAs(c, mod, label, br = "") {
+  if (rollBusy || !c?.values) return;
+  const keep = sheetVals; setRollBusy(true);
+  sheetVals = c.values; proxy = { id: c.id, name: pCell(c.values, "C3") };
+  try { await doQuickRoll(mod, label, null, sheetPen(), br); }
+  catch (e) { obrNote("Couldn't roll: " + (e.message || e), "ERROR"); }
+  finally { sheetVals = keep; proxy = null; setTimeout(() => setRollBusy(false), 1200); }
+}
+function partyStrips() {
+  if (!isGM || !lastParty) return;
+  const md = actMd || lastMd || {}, st = md[INIT], w = sdWait(), have = st?.open ? initEntries(md) : [];
+  document.querySelectorAll(".pstrip[data-ps]").forEach(el => {
+    const c = lastParty.find(x => x.id === el.dataset.ps); if (!c) return;
+    const v = c.values, name = pCell(v, "C3"), pen = num(pCell(v, "C12")) || 0, adr = num(pCell(v, "C7")) ?? 0;
+    let h = "";
+    if (w && canDefend(w, name)) { const a = defAttr(w), m = num(pCell(v, ATTR_CELL[a] || "C7")) ?? 0;
+      h += `<button class="hot" data-rm="${m}" data-rl="${esc2(a)} · Defense" title="An attack by ${esc2(w.att)} is waiting: roll ${esc2(a)} for ${esc2(name)}">DEFEND vs ${esc2(w.att)}: ${esc2(a)} <b>${sgnP(m + pen)}</b></button>`; }
+    if (st?.open && !have.some(e => e.pc && sameName(e.name, name)))
+      h += `<button class="hot" data-rm="${adr}" data-rl="Adroitness" title="Roll ${esc2(name)}'s initiative (Adroitness)">ROLL INITIATIVE <b>${sgnP(adr + pen)}</b></button>`;
+    if (el.innerHTML !== h) { el.innerHTML = h; bindRollBtns(el, c); }
+  });
+}
+function bindRollBtns(root, c) {
+  root.querySelectorAll("button[data-rm]").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (rollBusy) return;
+    b.disabled = true; try { await rollAs(c, b.dataset.rm, b.dataset.rl, b.dataset.rb || ""); } finally { setTimeout(() => { if (b.isConnected) b.disabled = false; }, 1300); } });
+}
+function bindPartyRolls(body) {
+  body.querySelectorAll(".pcard[data-cid]").forEach(card => {
+    const c = (lastParty || []).find(x => x.id === card.dataset.cid); if (!c) return;
+    card.onclick = (e) => { if (e.target.closest("button, a, input, .prl, .pti")) return;
+      ptyOpen = ptyOpen === c.id ? "" : c.id;
+      body.querySelectorAll(".pcard[data-cid]").forEach(k => { const on = k.dataset.cid === ptyOpen, pr = k.querySelector(".prl");
+        k.classList.toggle("open", on); if (!pr) return; pr.hidden = !on;
+        if (on) { const cc = lastParty.find(x => x.id === k.dataset.cid); pr.innerHTML = partyRollsHtml(cc); bindRollBtns(pr, cc); } else pr.innerHTML = ""; }); };
+    const pr = card.querySelector(".prl"); if (pr && !pr.hidden) bindRollBtns(pr, c);
+  });
+  partyStrips();
+}
+
 // GM only: one strip of numbers on each Party card (defense, COP, points, credits, level/XP, wounded)
 function gmStrip(v, cell) {
   const n = (a1) => num(cell(v, a1)), sg = (x) => x > 0 ? "+" + x : String(x);
@@ -4193,11 +4277,15 @@ function drawParty(body, chars) {
       const worst = marks.lastIndexOf(true);
       const status = worst < 0 ? "Unhurt" : cell(v, "BCDEFGH"[worst] + "15").replace(/^\S+\s+/, "");
       const used = cell(v, "F6").toUpperCase() === "TRUE", usedU = cell(v, "F8").toUpperCase() === "TRUE", hasU = !/^(priest|mage)$/i.test(cell(v, "C4"));
-      return `<div class="pcard">
-        <div class="ptop">${ptIcon(c.id, cell(v, "C3"))}<b>${esc2(cell(v, "C3"))}</b>${isGM && ptT(c.id) ? `<button class="pogb" data-pog="${esc2(c.id)}" data-n="${esc2(cell(v, "C3"))}" title="Add this character's pog to your Owlbear characters">◎ POG</button><button class="pogb pogt" data-pt="${esc2(c.id)}" data-n="${esc2(cell(v, "C3"))}" hidden title="Put this character's pog on the map (middle of your screen). Only shows while they aren't on the map.">⬇ PUT POG ON THE TABLE</button><button class="pogb pogp" hidden title="Every character with a pog who isn't on the map yet, in the middle of your screen">⬇ PUT PARTY ON THE TABLE</button>` : ""}<small>${esc2(cell(v, "C4"))}</small>${hasU ? `<span class="ppw ${used ? "u" : ""}">${used ? "COMBAT USED" : "COMBAT READY"}</span><span class="ppw ${usedU ? "u" : ""}">${usedU ? "UTILITY USED" : "UTILITY READY"}</span>` : `<span class="ppw ${used ? "u" : ""}">${used ? "POWER USED" : "POWER READY"}</span>`}</div>
+      const cname = cell(v, "C3");
+      return `<div class="pcard ${isGM ? "gmc-on" : ""} ${ptyOpen === c.id ? "open" : ""}" data-cid="${esc2(c.id)}">
+        <div class="ptop">${ptIcon(c.id, cname)}<div class="ptn"><b>${esc2(cname)}</b><small>${esc2(cell(v, "C4"))}</small></div><div class="ppws">${hasU ? `<span class="ppw ${used ? "u" : ""}">${used ? "COMBAT USED" : "COMBAT READY"}</span><span class="ppw ${usedU ? "u" : ""}">${usedU ? "UTILITY USED" : "UTILITY READY"}</span>` : `<span class="ppw ${used ? "u" : ""}">${used ? "POWER USED" : "POWER READY"}</span>`}</div></div>
+        ${isGM && ptT(c.id) ? `<div class="ptbtns"><button class="pogb" data-pog="${esc2(c.id)}" data-n="${esc2(cell(v, "C3"))}" title="Add this character's pog to your Owlbear characters">◎ POG</button><button class="pogb pogt" data-pt="${esc2(c.id)}" data-n="${esc2(cell(v, "C3"))}" hidden title="Put this character's pog on the map (middle of your screen). Only shows while they aren't on the map.">⬇ PUT POG ON THE TABLE</button><button class="pogb pogp" hidden title="Every character with a pog who isn't on the map yet, in the middle of your screen">⬇ PUT PARTY ON THE TABLE</button></div>` : ""}
         ${isGM ? gmStrip(v, cell) : ""}${actBadge(cell(v, "C3"))}<div class="pvit">${marks.map((m, i) => `<i><small>${["LW", "LW", "LW", "MW", "CW", "KO", "D"][i]}</small><span class="${m ? "x" : ""}"></span></i>`).join("")}<em class="${worst >= 4 ? "bad" : ""}">${esc2(status)}</em></div>
+        ${isGM ? `<div class="pstrip" data-ps="${esc2(c.id)}"></div><div class="prl" data-pr="${esc2(c.id)}" ${ptyOpen === c.id ? "" : "hidden"}>${ptyOpen === c.id ? partyRollsHtml(c) : ""}</div>` : ""}
       </div>`;
     }).join("") : `<div class="empty">No characters found.</div>`);
+    if (isGM) bindPartyRolls(body);
     if ($("ptyPop")) $("ptyPop").onclick = popParty;
     if ($("ptyDrop")) $("ptyDrop").onclick = async () => { const b = $("ptyDrop"); b.disabled = true; try { await partyDrop(); } finally { b.disabled = false; } };
     body.querySelectorAll(".pogt").forEach(b => b.onclick = async (e) => { e.stopPropagation(); b.disabled = true; try { await partyDrop(b.dataset.pt); } finally { b.disabled = false; partyPogVis(); } });
@@ -4222,8 +4310,10 @@ function drawParty(body, chars) {
 }
 
 // See-through by default; ◐ switches the whole panel to solid gray (remembered per player)
-function applySolid() { const on = store.get("ns.solid") === "1"; document.documentElement.classList.toggle("solid", on); $("solid").classList.toggle("on", on); }
+function applySolid() { const on = store.get("ns.solid") === "1"; document.documentElement.classList.toggle("solid", on); $("solid").classList.toggle("on", on); $("ptySolid")?.classList.toggle("on", on); }
 $("solid").onclick = () => { store.set("ns.solid", store.get("ns.solid") === "1" ? "" : "1"); applySolid(); };
+$("ptySolid").onclick = () => $("solid").click(); // same switch in the Party pop-out (its header is the only one showing)
+window.addEventListener("storage", (e) => { if (e.key === "ns.solid") applySolid(); }); // panel and pop-out stay in step
 applySolid();
 
 // ---------------- PANEL SIZE (S / M / L, remembered per player) ----------------
@@ -4362,7 +4452,7 @@ function updateDefBanner() {
   $("defbtns").querySelectorAll("button").forEach(b => b.onclick = () => { if (!rollBusy) btns[+b.dataset.i][1](); });
 }
 $("defx").onclick = () => { const w = sdWait(); if (w) store.set("ns.defHide", w.id); $("defban").hidden = true; };
-window.addEventListener("storage", (e) => { if (!standalone && e.key === "ns.sd:" + OBR.room.id) updateDefBanner(); });
+window.addEventListener("storage", (e) => { if (!standalone && e.key === "ns.sd:" + OBR.room.id) { updateDefBanner(); try { partyStrips(); } catch {} } });
 // 🛡 ROLL ADROITNESS on the DEFEND! pop-up over the map (defpop.html) asks this panel to roll the defense from the sheet.
 // The pop-up also opens this panel if it was closed, so the request waits up to 20 s for the sheet to load.
 function defReq() {
@@ -4401,7 +4491,7 @@ function monDefReq() {
 }
 window.addEventListener("storage", (e) => { if (e.key === "ns.monDefReq") monDefReq(); });
 window.addEventListener("storage", (e) => { if (e.key === "ns.initReq") initReq(); if (e.key === "ns.turnRolled") updateInitBanner(); });
-setInterval(() => { if (!standalone) updateDefBanner(); }, 5000);
+setInterval(() => { if (!standalone) { updateDefBanner(); try { partyStrips(); } catch {} } }, 5000);
 // CALL FOR INITIATIVE also rolls the monsters (ON unless the GM switched it off; saved in this browser)
 const autoMon = () => store.get("ns.autoMon") !== "0";
 // GM tab: "✕ Clear conditions": first tap asks, second tap (within 4 s) removes every condition label on this map
@@ -4802,7 +4892,7 @@ if (standalone) {
       fixMarkScale(); OBR.scene.onReadyChange((r) => { if (r) fixMarkScale(); }); }
     if (!UPLINK && !PARTYPOP) applySize();
     render(rollLog(OBR.room.id, allRolls(await OBR.room.getMetadata())));
-    OBR.room.onMetadataChange((md) => { try { adMeta(md); } catch {} render(rollLog(OBR.room.id, allRolls(md))); updateInitBanner(md); actSync(md); try { fxSync(md); } catch {} try { tipsMeta(md); } catch {} });
+    OBR.room.onMetadataChange((md) => { try { adMeta(md); } catch {} render(rollLog(OBR.room.id, allRolls(md))); updateInitBanner(md); actSync(md); try { fxSync(md); } catch {} try { tipsMeta(md); } catch {} try { partyStrips(); } catch {} });
     updateInitBanner(); actSync(await OBR.room.getMetadata()); try { fxSync(await OBR.room.getMetadata()); tipsRoom = (await OBR.room.getMetadata())[TIPS_MD] || []; } catch {} adMeta(await OBR.room.getMetadata(), true);
     window.addEventListener("storage", (e) => { if (e.key === "ns.sd:" + OBR.room.id) autoDamage(); });
     if (isGM && !UPLINK) { const beat = () => store.set("ns.adAlive:" + OBR.room.id, String(Date.now())); beat(); setInterval(beat, 2000); }
