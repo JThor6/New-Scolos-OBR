@@ -10,11 +10,11 @@ async function bridgeGet(params) {
 export const MASTER = "1_cnTDLNHIsaVMAOkOKSKK0YawUHt38ZewW1o5-yWbhU";
 export const TYPES = ["Mercenary", "Hacker", "Revenant", "Subject Zero", "Wraith", "Mentalist", "Mage", "Priest"]; // easiest to hardest; the picker and REFERENCE list follow this order
 export const SECTIONS = [["Your Turn & Movement", "turn"], ["Attacking & Damage", "attack"], ["Combat Options", "tab:Combat Options"],
-  ["Skill List", "tab:Skill List"], ["Dice Odds", "odds"], ["The Gods", "gods"], ["Schools of Magic", "schools"], ...TYPES.map(t => [t.trim(), "tab:" + t]), ["New Scolos Rules Work in Progress", "wip"]];
+  ["Skill List", "tab:Skill List"], ["Dice Odds", "odds"], ["The Gods", "gods"], ["Schools of Magic", "schools"], ["Spell Book", "spellbook"], ...TYPES.map(t => [t.trim(), "tab:" + t]), ["New Scolos Rules Work in Progress", "wip"]];
 // REFERENCE is shown in these groups (tab and pop-out dropdown). "__rolls" is Roll History.
 export const REF_GROUPS = [
   ["Playing", ["__rolls", "turn", "attack", "tab:Combat Options", "odds"]],
-  ["Lists", ["tab:Skill List", "gods", "schools"]],
+  ["Lists", ["tab:Skill List", "gods", "schools", "spellbook"]],
   ["Character Types", TYPES.map(t => "tab:" + t)],
   ["Draft Rules WIP", ["wip"]],
 ];
@@ -52,12 +52,12 @@ function rowsHtml(values) {
     return `<div class="rr ${/^extraordinary power/i.test(label) ? "ep" : ""}"><b>${esc2(label)}</b>${esc2(text)}</div>`;
   }).join("");
 }
-// One card per school: bright name, what it is, verbs, then Small / Big / Huge examples with their cost tags.
-// Header row h holds the column names (Suggested verbs, Small (1 SP, diff 0), ...); schools run until a blank row.
+// One card per school: bright name, what it is, verbs, then one line per size (Trick ... Huge) with its cost tag.
+// Header row h holds the column names (Suggested verbs, Small (2 SP, diff +2), ...); schools run until a blank row.
 function schoolCards(v, h) {
   const t = (r, i) => String(r?.[i] ?? "").trim(); let html = "";
   for (let r = h + 1; r < v.length && t(v[r], 1); r++) {
-    const sizes = [4, 5, 6].filter(i => t(v[r], i)).map(i => { const m = t(v[h], i).match(/^(\w+)\s*\((.*)\)$/) || [, t(v[h], i), ""];
+    const sizes = [...Array(Math.max(0, (v[h]?.length || 0) - 4)).keys()].map(i => i + 4).filter(i => t(v[h], i) && t(v[r], i)).map(i => { const m = t(v[h], i).match(/^(\w+)\s*\((.*)\)$/) || [, t(v[h], i), ""];
       return `<div class="sz"><b>${esc2(m[1])}</b>${m[2] ? `<span class="cost">${esc2(m[2])}</span>` : ""} ${esc2(t(v[r], i))}</div>`; }).join("");
     html += `<div class="rr school"><b class="sn">${esc2(t(v[r], 1))}</b><div class="sw">${esc2(t(v[r], 2))}</div>` +
       (t(v[r], 3) ? `<div class="sv"><span>Verbs:</span> ${esc2(t(v[r], 3))}</div>` : "") + sizes + `</div>`;
@@ -120,7 +120,22 @@ export async function sectionHtml(key) {
   if (key === "schools") { // the chart on the Mage tab: one school per row (name, what it is, suggested verbs), ends at a blank row
     const v = await getTab("Mage"), t = (r, i) => String(r?.[i] ?? "").trim(), h = v.findIndex(r => /^schools of magic$/i.test(t(r, 1)));
     if (h < 0) return "<div class='rr'>No schools list found on the Mage tab.</div>";
-    return "<div class='rr'>Mages pick a Major school (small, big or huge spells) and a Minor school (small spells only). Spells use the school's verbs.</div>" + schoolCards(v, h);
+    return "<div class='rr'>Mages pick a Major school (every size) and a Minor school (Tricks, Small and Medium only). Full spells are in the Spell Book.</div>" + schoolCards(v, h);
+  }
+  if (key === "spellbook") { // Spell Book tab: School / Size / Spell / What it does / Cost-Difficulty, one card per school
+    const v = await getTab("Spell Book"), t = (r, i) => String(r?.[i] ?? "").trim(), rows = (v || []).slice(1).filter(r => t(r, 0) && t(r, 2));
+    if (!rows.length) return "<div class='rr'>The Spell Book tab is empty.</div>";
+    let html = "<div class='rr'>Pick a spell, pay its Spell Points and roll Spellcasting at its difficulty. On a Mage's sheet, tap Spellcasting to cast from this list.</div>";
+    for (const sc of [...new Set(rows.map(r => t(r, 0)))]) {
+      html += `<div class="rr school"><b class="sn">${esc2(sc)}</b>`;
+      for (const sz of [...new Set(rows.filter(r => t(r, 0) === sc).map(r => t(r, 1)))]) {
+        const list = rows.filter(r => t(r, 0) === sc && t(r, 1) === sz);
+        html += `<div class="sz"><b>${esc2(sz)}</b>${t(list[0], 4) ? `<span class="cost">${esc2(t(list[0], 4))}</span>` : ""}</div>` +
+          list.map(r => `<div class="sw"><b>${esc2(t(r, 2))}:</b> ${esc2(t(r, 3))}</div>`).join("");
+      }
+      html += `</div>`;
+    }
+    return html;
   }
   if (key === "gods") { const v = await getTab("Priest"); const g = v.findIndex(r => r.join("").trim() === "THE GODS"); return g > 0 ? rowsHtml(v.slice(g + 1)) : "<div class='rr'>No gods list found.</div>"; }
   const m = await getTab("Main Sheet");

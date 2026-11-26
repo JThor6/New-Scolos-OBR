@@ -548,6 +548,7 @@
   .spgo { width:100%; padding:9px; border-radius:9px; cursor:pointer; border:1px solid color-mix(in srgb, var(--sa) 55%, #3b2563);
     background:color-mix(in srgb, var(--sa) 14%, #2c1d4f); color:#fff; font:800 14px system-ui; letter-spacing:.8px; }
   .spgo:hover:not(:disabled) { background:color-mix(in srgb, var(--sa) 24%, #2c1d4f); } .spgo:disabled { opacity:.45; cursor:default; }
+  .spchk { display:flex; align-items:center; gap:6px; margin-top:5px; font-size:12px; color:#ddd5f3; cursor:pointer; }
   .spnote { font-size:11px; color:#9d92c2; margin-top:5px; line-height:1.4; }
   .welc { position:relative; margin:2px 0 8px; padding:7px 30px 7px 10px; border-left:3px solid #5b3f9e; border-radius:6px; background:rgba(60,38,110,.45); font-size:12px; line-height:1.5; color:#ddd5f3; }
   .istep { display:flex; align-items:center; gap:5px; margin-top:5px; } .istep[hidden] { display:none; }
@@ -1252,7 +1253,7 @@ function drawSheet() {
     <div class="vit">${["B", "C", "D", "E", "F", "G", "H"].map((c, i) => { const t = V(c + "15"); const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<button class="box ${V(c + "16") ? "x" : ""}" data-w="${i}"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk ${V(c + "16") ? "x" : ""}">${V(c + "16") ? "✕" : ""}</span></button>`; }).join("")}</div>
     <div class="g2b ${ptInEP() ? "g2p" : ""}"><div class="fld"><div class="epl"><div class="ephd"><small>Extraordinary Power</small>${typeRefBtn()}</div><div id="pwname">${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div>${/^priest$/i.test(V("C4").trim()) ? `<button id="smite" class="pwroll" ${(parseInt(V("F13")) || 0) < 2 ? "disabled" : ""} title="${(parseInt(V("F13")) || 0) < 2 ? "Smite costs 2 invocations: not enough left" : "Prayer against the target's Adroitness. Damage = Success Delta + 4. Takes 2 invocations off by itself"}">⚔<span>Smite: roll Prayer (2 inv.)</span></button>` : /^mage$/i.test(V("C4").trim()) ? `<button id="castsp" class="pwroll" title="Open the spell window: pick a school, a size and a spell">✦<span>Cast a spell (Spellcasting)</span></button>` : ""}</div></div>
       <div class="fld c"><small>Used Today</small>${hasUtility() ? `<div class="uses"><span>Combat</span><button id="pw" class="chk ${used ? "x" : ""}" title="Combat use spent today">${used ? "✕" : ""}</button><span>Utility</span><button id="pwu" class="chk ${usedU ? "x" : ""}" title="Utility use spent today">${usedU ? "✕" : ""}</button></div>` : `<button id="pw" class="chk ${used ? "x" : ""}">${used ? "✕" : ""}</button>`}</div>${ptInEP() ? `
-      <div class="fld c epp"><small>${esc2(V("E13"))}${ptMaxV() ? ` <span>/ ${esc2(ptMaxV())}</span>` : ""}</small>${ptCtl()}${/^priest$/i.test(V("C4").trim()) ? `<button class="sref epref" data-k="gods" title="Open The Gods beside the map">${REF_SVG}The Gods</button>` : /^mage$/i.test(V("C4").trim()) ? `<button class="sref epref" data-k="schools" title="Open Schools of Magic beside the map">${REF_SVG}Schools</button>` : ""}${ptMaxV() ? `<button id="ptfill" class="ptfill" title="Fill back up to ${esc2(ptMaxV())} (after a long rest). Asks first">↻ refill</button>` : ""}</div>` : ""}</div>
+      <div class="fld c epp"><small>${esc2(V("E13"))}${ptMaxV() ? ` <span>/ ${esc2(ptMaxV())}</span>` : ""}</small>${ptCtl()}${/^priest$/i.test(V("C4").trim()) ? `<button class="sref epref" data-k="gods" title="Open The Gods beside the map">${REF_SVG}The Gods</button>` : /^mage$/i.test(V("C4").trim()) ? `<button class="sref epref" data-k="schools" title="Open Schools of Magic beside the map">${REF_SVG}Schools</button><button class="sref epref" data-k="spellbook" title="Open the Spell Book beside the map">${REF_SVG}Spell Book</button>` : ""}${ptMaxV() ? `<button id="ptfill" class="ptfill" title="Fill back up to ${esc2(ptMaxV())} (after a long rest). Asks first">↻ refill</button>` : ""}</div>` : ""}</div>
     <div id="pwd" class="gpow pwd" hidden></div>
     ${V("E13") && !ptInEP() ? `<div class="g2">${ptMaxV() ? F(esc2(/\d/.test(V("G13")) || !V("G13") ? "Max " + V("E13") : V("G13")), ptMaxV()) : ""}<div class="fld"><small>${esc2(V("E13"))}</small>${ptCtl()}</div></div>` : ""}
     <div class="stabrow"><div class="stab">COMBAT</div>${tgtBtn()}</div>
@@ -1271,6 +1272,7 @@ function drawSheet() {
     <div id="sherr" class="err" hidden></div>
     ${isGM ? "" : `<div class="discw"><button id="disc" class="discb" title="Pick a different character">⇄ Switch character</button></div>`}`;
   fillPowers(); bindInfo(); updateKS(); updateActive(); publishActive(); bindPt();
+  if (spellPk) { if (spellPk.id !== sheetId() || !/^mage$/i.test(V("C4").trim())) closeSpell(); else if (spellPk.sp !== V("F13")) { spellPk.sp = V("F13"); drawSpell(); } }
   document.querySelectorAll("#shbody .actarmx").forEach(b => b.onclick = (e) => { e.stopPropagation(); endActive(); });
   document.querySelectorAll("#shbody .rd").forEach(b => b.onclick = (e) => { e.stopPropagation();
     if (/^mage$/i.test(V("C4").trim()) && /^spellcasting/i.test(b.dataset.l || "")) return openSpell(); // Mages pick a spell first
@@ -1279,9 +1281,9 @@ function drawSheet() {
   if ($("castsp")) $("castsp").onclick = (e) => { e.stopPropagation(); openSpell(); };
   if ($("tgtme")) $("tgtme").onclick = (e) => { e.stopPropagation(); flipTgt(); };
   // Smite spends its 2 invocations itself (Jake, Nov 25); greyed out with fewer than 2 left
-  if ($("smite")) $("smite").onclick = (e) => { e.stopPropagation(); if (rollBusy || busy) return;
+  if ($("smite")) $("smite").onclick = async (e) => { e.stopPropagation(); if (rollBusy) return;
+    $("smite").disabled = true; if (!(await whenFree())) { if ($("smite")) $("smite").disabled = false; return; }
     const have = parseInt(V("F13")) || 0; if (have < 2) return;
-    $("smite").disabled = true;
     const pm = powerMod("Prayer"); save({ points: have - 2 }, () => setCell("F13", String(have - 2)));
     quickRoll(pm ? pm.m : 0, "Smite · Prayer", "", pm?.br || ""); };
   // the whole attribute or skill box rolls, except its underlined name (that opens the info)
@@ -1336,7 +1338,7 @@ function drawSheet() {
 // meet the size's difficulty or the spell fizzles (the SP stay spent). A spell that does damage then works like an attack:
 // it feeds the Success Delta card (Damage Bonus from the spell), and area spells can take several defenders.
 // Minor school: Tricks, Small and Medium only. +,+,+,+ = one size up or a second target. -,-,-,- = wild magic.
-const SPELL_SIZES = [["Trick", 0, 0], ["Small", 2, 2], ["Medium", 4, 4], ["Large", 6, 6], ["Huge", 8, 8]]; // name, SP, difficulty
+const SPELL_SIZES = [["Trick", 0, 0, null], ["Small", 2, 2, 2], ["Medium", 4, 4, 3], ["Large", 6, 6, 4], ["Huge", 8, 8, 5]]; // name, SP, difficulty, Damage Bonus (Mage tab)
 const SCHOOL_LOOK = { // window tint + a line of flavour per school (subtle, deep tones)
   Cryo: ["#7fc8ff", "rgba(20,48,78,.96)", "Frost creeps along your fingers. Your breath fogs."],
   Plasma: ["#ffb35c", "rgba(70,36,12,.96)", "Starfire wakes in your palms. The air shimmers with heat."],
@@ -1353,8 +1355,9 @@ const FUDGE = [1, 4, 10, 16, 19, 16, 10, 4, 1]; // ways to roll -4..+4, out of 8
 const castOdds = (mod, diff) => Math.round(100 * FUDGE.reduce((a, w, i) => a + (i - 4 + mod >= diff ? w : 0), 0) / 81);
 let spellPk = null, pendingSpell = null;
 function mageSchools() { // "Major school: Cryo" / "Minor school: Ion" lines in Notes (the Character Creator writes them)
-  const out = { major: "", minor: "" };
-  for (const row of sheetVals || []) for (const c of row || []) { const s = String(c || "");
+  const out = { major: "", minor: "" }, L = layout(), cells = [];
+  for (let i = L.notes[0]; i <= L.notes[1]; i++) cells.push(V(L.nc + i));
+  for (const c of cells) { const s = String(c || "");
     const a = s.match(/major school:\s*([A-Za-z ]+)/i), b = s.match(/minor school:\s*([A-Za-z ]+)/i);
     if (a && !out.major) out.major = a[1].trim(); if (b && !out.minor) out.minor = b[1].trim(); }
   return out;
@@ -1372,25 +1375,29 @@ function spellMath(x) {
   return { atk: !!(vs && db && !/crossing it|steps on it|leaving it|in its path/i.test(x)), db: db ? +db[1] : null, dfa, area, vs: !!vs };
 }
 function closeSpell() { spellPk = null; $("spov")?.remove(); }
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && spellPk) closeSpell(); });
 async function openSpell() {
   if ($("spov")) return closeSpell(); // tapping Spellcasting again closes it
-  const sch = mageSchools(), pm = powerMod("Spellcasting"), mod = (pm?.m ?? 0) + sheetPen() + (actDef()?.skill?.[0].test("Spellcasting") ? actDef().skill[1] : 0);
-  spellPk = { school: sch.major || "", size: "Small", pick: -1, own: "", mod, sch, book: null, err: "" };
+  const sch = mageSchools();
+  spellPk = { id: sheetId(), school: sch.major || "", size: "Small", pick: -1, own: "", ownAtk: false, sch, book: null, err: "", sp: V("F13") };
   document.body.insertAdjacentHTML("beforeend", `<div id="spov" class="spov"><div class="spwin" id="spwin"><div class="spload">Opening your Spell Book…</div></div></div>`);
   $("spov").onclick = (e) => { if (e.target.id === "spov") closeSpell(); };
   drawSpell();
   try { spellPk.book = await spellBook(); } catch (e) { if (spellPk) spellPk.err = "Couldn't read the Spell Book (" + e.message + "). You can still cast your own spell."; }
+  if (spellPk && spellPk.book) { const fix = (n) => [...new Set(spellPk.book.map(s => s.sc))].find(b => b.toLowerCase() === String(n).toLowerCase()) || n; // "cryo" in Notes -> "Cryo"
+    spellPk.sch = { major: fix(spellPk.sch.major), minor: fix(spellPk.sch.minor) }; spellPk.school = fix(spellPk.school); }
   if (spellPk) { if (!spellPk.school) spellPk.school = [...new Set((spellPk.book || []).map(s => s.sc))][0] || "Cryo"; drawSpell(); }
 }
 function drawSpell() {
   const P = spellPk, w = $("spwin"); if (!P || !w) return;
+  P.mod = (powerMod("Spellcasting")?.m ?? 0) + sheetPen() + (actDef()?.skill?.[0].test("Spellcasting") ? actDef().skill[1] : 0); // what the roll will add
   const sp = parseInt(V("F13")) || 0, all = [...new Set((P.book || []).map(s => s.sc))];
   const schools = P.sch.major ? [P.sch.major, P.sch.minor].filter(Boolean) : all; // no schools in Notes: show them all
   const minor = P.sch.major && P.school === P.sch.minor;
   const [acc, bg, flav] = spLook(P.school), sz = SPELL_SIZES.find(s => s[0] === P.size) || SPELL_SIZES[1];
   const list = (P.book || []).filter(s => s.sc.toLowerCase() === P.school.toLowerCase() && s.sz.toLowerCase() === P.size.toLowerCase());
   const pick = P.pick >= 0 ? list[P.pick] : null, own = P.pick === -2;
-  const m = pick ? spellMath(pick.x) : { atk: false }, odds = sz[2] ? castOdds(P.mod, sz[2]) : 100;
+  const m = pick ? spellMath(pick.x) : own && P.ownAtk && sz[3] ? { atk: true, db: sz[3], dfa: "Adroitness", area: false } : { atk: false }, odds = sz[2] ? castOdds(P.mod, sz[2]) : 100;
   const lack = sz[1] > sp, blocked = minor && sz[2] > 4;
   w.style.setProperty("--sa", acc); w.style.setProperty("--sb", bg);
   w.innerHTML = `<div class="sphd"><b>✦ CAST A SPELL</b><span class="spsp" title="Spell Points left today">${sp}${ptMaxV() ? ` / ${esc2(ptMaxV())}` : ""} SP</span><button class="spx" id="spx" title="Close">✕</button></div>
@@ -1402,9 +1409,9 @@ function drawSpell() {
     <div class="spsec">SPELL</div><div class="splist">${P.err ? `<div class="spnote">${esc2(P.err)}</div>` : ""}${!P.book && !P.err ? `<div class="spnote">Loading…</div>` : ""}
       ${list.map((s, i) => `<button class="spc ${i === P.pick ? "on" : ""}" data-i="${i}"><b>${esc2(s.n)}</b><span>${esc2(s.x)}</span></button>`).join("")}
       <button class="spc own ${own ? "on" : ""}" data-i="-2"><b>Your own spell</b><span>Describe it with a verb from your school and a target. The GM agrees the size with you before the roll.</span></button>
-      ${own ? `<input id="spown" class="spin" maxlength="24" placeholder="Name it (e.g. Frost Lance)" value="${esc2(P.own)}">` : ""}</div>
+      ${own ? `<input id="spown" class="spin" maxlength="24" placeholder="Name it (e.g. Frost Lance)" value="${esc2(P.own)}">${sz[3] ? `<label class="spchk"><input type="checkbox" id="spatk" ${P.ownAtk ? "checked" : ""}> It's an attack: targets roll Adroitness, Damage Bonus +${sz[3]} (${esc2(sz[0])})</label>` : ""}` : ""}</div>
     <div class="spfoot">${pick || own ? `<div class="spsum">${m.atk ? `<b>Attack.</b> Cast it, then ${m.area ? "each target" : "the target"} rolls <b>${esc2(m.dfa)}</b>: Damage = Delta + ${m.db}${m.area ? ". Hits several: select their tokens with Target Lock, or set how many on the Success Delta card" : ""}.`
-        : pick && m.vs ? `The target resists with <b>${esc2(m.dfa)}</b>. The GM compares the rolls.` : own ? `If it does damage, the GM sets the Damage Bonus.` : `No defense roll: it just has to be cast.`}</div>` : ""}
+        : pick && m.vs ? `The target resists with <b>${esc2(m.dfa)}</b>. The GM compares the rolls.` : own ? `Not an attack: it just has to be cast.` : `No defense roll: it just has to be cast.`}</div>` : ""}
       <div class="sprl">Spellcasting <b>${P.mod >= 0 ? "+" : ""}${P.mod}</b> vs difficulty <b>${sz[2] ? "+" + sz[2] : "0"}</b> · <b>${odds}%</b> to cast${sz[1] ? ` · costs <b>${sz[1]} SP</b>` : " · free"}</div>
       <button class="spgo" id="spgo" ${(!pick && !(own && P.own.trim())) || lack || blocked ? "disabled" : ""}>${blocked ? "Major school only" : lack ? "Not enough Spell Points" : `✦ CAST${pick ? " " + esc2(pick.n.toUpperCase()) : own && P.own.trim() ? " " + esc2(P.own.trim().toUpperCase()) : ""}`}</button>
       <div class="spnote">Miss: it fizzles, the SP stay spent. On +, +, +, +: one size up for free or a second target. On -, -, -, -: wild magic.</div></div>`;
@@ -1412,15 +1419,20 @@ function drawSpell() {
   w.querySelectorAll("[data-sc]").forEach(b => b.onclick = () => { P.school = b.dataset.sc; P.pick = -1; if (P.sch.major && P.school === P.sch.minor && /large|huge/i.test(P.size)) P.size = "Medium"; drawSpell(); });
   w.querySelectorAll("[data-sz]").forEach(b => b.onclick = () => { P.size = b.dataset.sz; P.pick = -1; drawSpell(); });
   w.querySelectorAll("[data-i]").forEach(b => b.onclick = () => { const i = +b.dataset.i; P.pick = P.pick === i ? -1 : i; drawSpell(); if (i === -2) $("spown")?.focus(); });
+  if ($("spatk")) $("spatk").onchange = () => { P.ownAtk = $("spatk").checked; drawSpell(); };
   if ($("spown")) $("spown").oninput = () => { P.own = $("spown").value; const g = $("spgo"); const ok = P.own.trim() && !lack && !blocked;
     g.disabled = !ok; if (ok) g.textContent = "✦ CAST " + P.own.trim().toUpperCase(); };
   $("spgo").onclick = () => castSpell(pick, sz, m);
 }
-function castSpell(pick, sz, m) {
-  const P = spellPk; if (!P || rollBusy || busy) return;
-  const have = parseInt(V("F13")) || 0; if (sz[1] > have) return;
+// save() drops a change while another save is going, so wait (up to 4 s) for it to finish before spending points
+async function whenFree() { for (let i = 0; busy && i < 40; i++) await new Promise(r => setTimeout(r, 100)); return !busy; }
+async function castSpell(pick, sz, m) {
+  const P = spellPk; if (!P || rollBusy) return;
+  const g = $("spgo"); if (g) { g.disabled = true; g.textContent = "Casting…"; }
+  if (!(await whenFree()) || spellPk !== P) { if (g?.isConnected) { g.disabled = false; g.textContent = "Still saving, tap again"; } return; }
+  const have = parseInt(V("F13")) || 0; if (sz[1] > have) return drawSpell();
   const name = (pick ? pick.n : P.own.trim() || "Spell").slice(0, 22);
-  pendingSpell = { n: name, sc: P.school, sz: sz[0], d: sz[2], atk: !!m.atk, db: m.db, dfa: m.dfa || "Adroitness", area: !!m.area };
+  pendingSpell = { d: sz[2], atk: !!m.atk, db: m.db, dfa: m.dfa || "Adroitness" };
   if (sz[1]) save({ points: have - sz[1] }, () => setCell("F13", String(have - sz[1]))); // the Spell Points go first, cast or fizzle
   const pm = powerMod("Spellcasting");
   closeSpell();
@@ -1431,8 +1443,7 @@ function applySpell(r, sp) {
   const pp = r.dice.every(d => d > 0), mm = r.dice.every(d => d < 0), ok = r.total >= sp.d && !mm;
   delete r.atk; delete r.sp; delete r.db; delete r.dbk;
   r.label = (r.label + (mm ? " · WILD MAGIC" : !ok ? " · FIZZLED" : pp ? " · CAST, ONE SIZE UP!" : " · CAST")).slice(0, 70);
-  r.spl = { sc: sp.sc, sz: sp.sz, d: sp.d, ok: ok ? 1 : 0 };
-  if (ok && sp.atk) { r.atk = 1; r.sp = 1; r.db = sp.db; r.dbk = "spell"; if (sp.dfa && sp.dfa !== "Adroitness") r.dfa = sp.dfa; if (sp.area) r.area = 1; }
+  if (ok && sp.atk) { r.atk = 1; r.sp = 1; r.db = sp.db; r.dbk = "spell"; if (sp.dfa && sp.dfa !== "Adroitness") r.dfa = sp.dfa; }
 }
 // ---------------- SHEET MANAGER ----------------
 // Spend XP on skills and attribute points on attributes using the sheet's own cost chart (G4:H12),
