@@ -294,7 +294,7 @@
   .tbtns button:disabled { opacity:.4; cursor:default; }
   .tmsg { margin-top:5px; font-size:11px; color:#cfc6ee; }
   .tban { position:sticky; top:0; z-index:5; display:flex; flex-direction:column; gap:4px; padding:4px 0; background:linear-gradient(#222639 70%, transparent); }
-  .tban[hidden] { display:none; }
+  .tban[hidden] { display:none; } .tbrow { display:flex; gap:4px; } .tbrow button { flex:1; }
   .tban button { width:100%; padding:9px 10px; border-radius:8px; cursor:pointer; font:800 14px system-ui; letter-spacing:.5px; color:#f0eaff; background:rgba(91,63,158,.55); border:1px solid #9d86ff; display:flex; flex-wrap:wrap; align-items:baseline; justify-content:center; gap:4px 10px; }
   .tban button.pc { background:rgba(110,80,190,.75); box-shadow:0 0 10px rgba(157,134,255,.45); }
   .tban button small { font-weight:600; font-size:11px; color:#d6ccf5; }
@@ -4229,6 +4229,7 @@ function testBarHtml() {
   return `<div class="tbar" id="tbar"><div class="tstat" id="tstat"></div><div class="tbtns">
     <button data-t="fight" title="New initiative and everyone's COP to full${monVals?.length ? ", monsters roll" : ""}">⚔ START FIGHT</button>
     <button data-t="init" title="Roll Adroitness initiative for every character who hasn't rolled">ROLL PARTY INITIATIVE</button>
+    <button data-t="all" title="Everyone: the party who haven't rolled, and the encounter's monsters (by group). Calls the fight first if none is going.">⚔ ROLL ALL INITIATIVE</button>
     <button data-t="def" title="An attack is waiting: roll defense for every character who can defend">DEFEND ALL TARGETED</button>
     <button data-t="prev" title="Back one turn">◀ TURN</button><button data-t="next" title="Next turn">NEXT TURN ▶</button>
     <button data-t="end" title="Tap twice">END COMBAT</button></div>
@@ -4248,7 +4249,8 @@ function testBarUpdate() {
   const ban = $("tban");
   if (ban) { const cur = t?.cur || "", pc = cur && (lastParty || []).some(c => sameName(pCell(c.values, "C3"), cur));
     let h = "";
-    if (need) h += `<button data-tb="init">⚔ ROLL PARTY INITIATIVE <small>${need} still to roll</small></button>`;
+    if (!st?.open) h += `<button data-tb="all">⚔ START A FIGHT · <b>ROLL ALL INITIATIVE</b><small>party + monsters</small></button>`;
+    if (need) h += `<div class="tbrow"><button data-tb="all">⚔ ROLL ALL INITIATIVE <small>party + monsters</small></button><button data-tb="init">ROLL PARTY INITIATIVE <small>${need} still to roll</small></button></div>`;
     if (defs) h += `<button data-tb="def">🛡 DEFEND vs ${esc2(w.att)} <small>${defs} can defend</small></button>`;
     if (st?.open && st.cur) h += `<button data-tb="next" class="${pc ? "pc" : ""}">${pc ? `▶ ${esc2(cur.toUpperCase())}'S TURN · <b>END TURN</b>` : `${esc2(cur)}'s turn · <b>NEXT TURN ▶</b>`}${t?.deck ? `<small>next up: ${esc2(t.deck)}</small>` : ""}</button>`;
     else if (st?.open && !need) h += `<button data-tb="next">Everyone's rolled · <b>START TURNS ▶</b></button>`;
@@ -4278,6 +4280,13 @@ function bindTestBar(body) {
       else if (k === "cop") { await fillAllCop(); afterGmAll(); }
       else if (k === "day") { await newDayAll(); afterGmAll(); }
       else if (k === "tgt") { flipTgt(); b.textContent = "TARGET LOCK: " + (tgtOn() ? "ON" : "OFF"); }
+      else if (k === "all") { // monsters (the GM tab's encounter, loaded here if needed) and the party, in one go
+        if (!(await OBR.room.getMetadata())[INIT]?.open) await startFight();
+        if (!monVals && monId()) { const r = await bridgeGet({ id: monId(), tab: "Extension Tracker" }).catch(() => null); if (r?.ok) monVals = r.values; }
+        if (monVals?.length) await rollMonsterInit(); else obrNote("No encounter picked on the GM tab, so only the party rolled.", "WARNING");
+        const md = await OBR.room.getMetadata(), have = initEntries(md);
+        for (const c of lastParty || []) { const n = pCell(c.values, "C3");
+          if (!have.some(x => x.pc && sameName(x.name, n))) await rollAs(c, num(pCell(c.values, "C7")) ?? 0, "Adroitness"); } }
       else if (k === "init") { const md = await OBR.room.getMetadata(), have = initEntries(md);
         for (const c of lastParty || []) { const n = pCell(c.values, "C3");
           if (!have.some(x => x.pc && sameName(x.name, n))) await rollAs(c, num(pCell(c.values, "C7")) ?? 0, "Adroitness"); } }
