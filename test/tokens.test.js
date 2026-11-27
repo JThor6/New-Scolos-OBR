@@ -29,3 +29,17 @@ test("HIDE ALL / SHOW ALL for the whole encounter, leaving other encounters' nam
   assert.equal(allHidden(off, names), false); assert.deepEqual(off, ["Old Boss"]);
   assert.equal(allHidden([], []), false);
 });
+
+// ---- Camera follows the turn (Jake, Nov 27)
+import { turnToken } from "../logic/tokens.js";
+const tk = (name, extra = {}) => ({ id: name, name, type: "IMAGE", layer: "CHARACTER", visible: true, position: { x: 1, y: 2 }, ...extra });
+test("turnToken: the token whose turn it is; exact name first, loose only if one fits; hidden ones only for the GM", () => {
+  const items = [tk("Hive Runner 1"), tk("Hive Runner 10"), tk("Raxx Veldt"), tk("Odo Grisk", { visible: false }), tk("Map", { layer: "MAP" })];
+  assert.equal(turnToken(items, "Hive Runner 1", false)?.id, "Hive Runner 1");
+  assert.equal(turnToken(items, "Raxx", false)?.id, "Raxx Veldt");
+  assert.equal(turnToken(items, "Odo Grisk", false), null);          // hidden: players' cameras don't give it away
+  assert.equal(turnToken(items, "Odo Grisk", true)?.id, "Odo Grisk");
+  assert.equal(turnToken(items, "Map", true), null);                  // not a token
+  assert.equal(turnToken([tk("Hive Runner A"), tk("Hive Runner B")], "Hive Runner", true), null); // two fit: don't guess
+  assert.equal(turnToken(items, "", true), null);
+});

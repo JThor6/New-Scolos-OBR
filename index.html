@@ -241,9 +241,10 @@
   .mhide { flex:none; width:64px; box-sizing:border-box; text-align:center; margin:0 6px 0 0; padding:3px 0; /* same width for HIDE and HIDDEN */ border-radius:6px; border:1px solid #4d4282; background:#2a2445; color:#d2c8f2; font:800 11px system-ui; letter-spacing:.5px; cursor:pointer; }
   .mhide:hover { background:#342c58; } .mhide.on, #monHideAll.on { background:#4a3d80; border-color:#7a68c0; color:#fff; }
   .nbw.nbc { margin:0 6px 0 0; } .nbw.nbc .nb { padding:3px 8px; font-size:12px; }
-  #gmTgt { background:transparent; border:1px solid #3a3d55; color:#6f7590; font-size:11px; font-weight:700; padding:3px 8px; }
-  #gmTgt.on { background:#1e1830; border-color:#4a4466; color:#8a82a8; } /* deep purple, quiet (Jake, Nov 25) */
+  #gmTgt, #gmCam { background:transparent; border:1px solid #3a3d55; color:#6f7590; font-size:11px; font-weight:700; padding:3px 8px; }
+  #gmTgt.on, #gmCam.on { background:#1e1830; border-color:#4a4466; color:#8a82a8; } /* deep purple, quiet (Jake, Nov 25) */
   .stabrow { display:flex; align-items:flex-end; justify-content:space-between; gap:6px; }
+  .stabbtns { display:flex; gap:5px; flex-wrap:wrap; justify-content:flex-end; }
   .tgtme { margin-bottom:3px; padding:2px 8px; border-radius:6px; border:1px solid #4a4466; background:transparent; color:var(--dim); font:800 10.5px system-ui; letter-spacing:.8px; cursor:pointer; }
   .tgtme.on { background:#1e1830; border-color:#4a4466; color:#8a82a8; } /* ON stays dim deep purple, like NEXT ROLL: eye not drawn to it */
   .stab { display:inline-block; background:#000; color:#fff; font-weight:800; font-size:12px; letter-spacing:.5px; padding:2px 10px; border-radius:6px 6px 0 0; margin-top:10px; }
@@ -1392,7 +1393,7 @@ function drawSheet() {
       <div class="fld c epp"><small>${esc2(V("E13"))}${ptMaxV() ? ` <span>/ ${esc2(ptMaxV())}</span>` : ""}</small>${ptCtl()}${/^priest$/i.test(V("C4").trim()) ? `<button class="sref epref" data-k="gods" title="Open The Gods beside the map">${REF_SVG}The Gods</button>` : /^mage$/i.test(V("C4").trim()) ? `<button class="sref epref" data-k="schools" title="Open Schools of Magic beside the map">${REF_SVG}Schools</button><button class="sref epref" data-k="spellbook" title="Open the Spell Book beside the map">${REF_SVG}Spell Book</button>` : ""}${ptMaxV() ? `<button id="ptfill" class="ptfill" title="Fill back up to ${esc2(ptMaxV())} (after a long rest). Asks first">↻ refill</button>` : ""}</div>` : ""}</div>
     <div id="pwd" class="gpow pwd" hidden></div>
     ${V("E13") && !ptInEP() ? `<div class="g2">${ptMaxV() ? F(esc2(/\d/.test(V("G13")) || !V("G13") ? "Max " + V("E13") : V("G13")), ptMaxV()) : ""}<div class="fld"><small>${esc2(V("E13"))}</small>${ptCtl()}</div></div>` : ""}
-    <div class="stabrow"><div class="stab">COMBAT</div>${tgtBtn()}</div>
+    <div class="stabrow"><div class="stab">COMBAT</div><span class="stabbtns">${camBtn()}${tgtBtn()}</span></div>
     <div class="gcb3">${F("Melee Damage Bonus", V("H23"), "c", "cb:Melee Damage Bonus")}${F("Ranged Damage Bonus", V("H24"), "c", "cb:Ranged Damage Bonus")}${actDef()?.armor ? `<div class="fld c actarm ${actDef().c}"><small class="inft" data-inf="cb:Armor Bonus" data-sec="combat">Armor Bonus</small><div>${esc2(V("H25"))}<span class="actp ${actDef().c}" title="${esc2(actDef().t)}">+${actDef().armor}</span><button class="actarmx" title="Turn the +${actDef().armor} off (combat's over)">✕</button></div><em class="actnote">${esc2(POWER_CARDS[actGet().n]?.n || actDef().t)}: add +${actDef().armor}</em></div>` : F("Armor Bonus", V("H25"), "c", "cb:Armor Bonus")}</div>
     <div class="gcop"><div class="fld"><small>Combat Options</small><div class="cowrap"><div class="copl">${opts.length ? opts.map(o => `<button class="cob" data-inf="co:${esc2(o)}" data-sec="combat">${esc2(tc(o))}</button>`).join("<br>") : `<span class="dimn2">None yet</span>`}</div><div class="codesc" hidden></div></div></div>
       <div class="fld c"><small class="inft" data-inf="cop" data-sec="combat">COP${copMaxT !== "" ? ` <span class="dimn">/ ${esc2(copMaxT)}</span>` : ""}</small><div class="ctl"><button id="copm" title="Use a point">−</button><b id="copv" title="Points left this combat">${esc2((m => isNaN(m) ? (V("H29") || "0") : String(Math.max(0, m - (parseInt(V("H29")) || 0))))(parseInt(copMaxT)))}</b><button id="copp" title="Give a point back">+</button></div></div></div>
@@ -1420,6 +1421,7 @@ function drawSheet() {
   if ($("castsp")) $("castsp").onclick = (e) => { e.stopPropagation(); openSpell(); };
   if ($("splist")) $("splist").onclick = (e) => { e.stopPropagation(); spellListToggle(); };
   if ($("tgtme")) $("tgtme").onclick = (e) => { e.stopPropagation(); flipTgt(); };
+  if ($("camme")) $("camme").onclick = (e) => { e.stopPropagation(); flipCam(); };
   // Smite spends its 2 invocations itself (Jake, Nov 25); greyed out with fewer than 2 left
   if ($("smite")) $("smite").onclick = async (e) => { e.stopPropagation(); if (rollBusy) return;
     $("smite").disabled = true; if (!(await whenFree())) { if ($("smite")) $("smite").disabled = false; return; }
@@ -3038,6 +3040,7 @@ function gmTools() {
   return `<div class="g3" style="margin:0 0 4px;grid-template-columns:1fr 1fr 1fr">
     <button id="gmDay" class="sbtn" title="Combat and utility uses back, invocations / spell points refilled, everyone's COP back to 0">☀ NEW DAY</button><button id="gmCop" class="sbtn" title="Everyone's COP to full (CALL FOR INITIATIVE does this too)">⚡ FILL COP</button><button id="gmCop0" class="sbtn" title="Everyone's COP to 0">○ EMPTY COP</button></div>
     <button id="gmTgt" class="sbtn" style="width:100%;margin-bottom:4px" title="Off: whoever rolls Adroitness next defends (fast). On: select the target token(s) on the map before you roll a monster's attack, and only they defend. Just for you.">TARGET LOCK: …</button>
+    <button id="gmCam" class="sbtn" style="width:100%;margin-bottom:4px" title="On: during a fight, your map moves to whoever's turn it is (monster or character). Just for you; each player has their own switch on their sheet.">CAMERA FOLLOW: …</button>
     <button id="gmScr" class="sbtn" style="width:100%;margin-bottom:4px;font-weight:500" title="Opens a big window over the whole screen: Party, Success Delta results, what's happening right now (turn, Combat Options, conditions) and REFERENCE. ✕ at its top closes it.">GM SCREEN (full window)</button>
     <div id="gmMsg" class="help" hidden></div><div id="gmFx" class="cofxbar" hidden></div>`;
 }
@@ -3061,10 +3064,20 @@ function drawTgt() {
   const p = $("tgtme"); if (p) { p.textContent = "TARGET LOCK: " + (tgtOn() ? "ON" : "OFF"); p.classList.toggle("on", tgtOn()); }
 }
 const flipTgt = () => { store.set("ns.tgt2", tgtOn() ? "0" : "1"); drawTgt(); };
+// CAMERA FOLLOW (Jake, Nov 27): during initiative the map centers on whoever's turn it is (background.html does it).
+// On unless switched off; per browser. Players: small switch by TARGET LOCK on the sheet. GM: under TARGET LOCK on the GM tab.
+const camOn = () => store.get("ns.camFollow") !== "0";
+const camBtn = () => standalone ? "" : `<button id="camme" class="tgtme ${camOn() ? "on" : ""}" title="On: during a fight, your map moves to whoever's turn it is. Off: your camera stays where you put it.">CAMERA FOLLOW: ${camOn() ? "ON" : "OFF"}</button>`;
+function drawCam() {
+  const g = $("gmCam"); if (g) { g.textContent = camOn() ? "CAMERA FOLLOW: ON (the map moves to whoever's turn it is)" : "CAMERA FOLLOW: OFF"; g.classList.toggle("on", camOn()); }
+  const p = $("camme"); if (p) { p.textContent = "CAMERA FOLLOW: " + (camOn() ? "ON" : "OFF"); p.classList.toggle("on", camOn()); }
+}
+const flipCam = () => { store.set("ns.camFollow", camOn() ? "0" : "1"); drawCam(); };
 function bindGmTools() {
   if ($("gmScr")) $("gmScr").onclick = () => openGms();
   try { fxDraw(); } catch {}
   if ($("gmTgt")) { drawTgt(); $("gmTgt").onclick = flipTgt; }
+  if ($("gmCam")) { drawCam(); $("gmCam").onclick = flipCam; }
   const arm = (b, label, run) => { if (!b) return; b.onclick = () => {
     if (b.dataset.armed) { delete b.dataset.armed; b.textContent = label; run(); return; }
     b.dataset.armed = "1"; b.textContent = "TAP AGAIN TO CONFIRM";

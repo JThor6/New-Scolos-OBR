@@ -1,7 +1,7 @@
 <!doctype html><html><head><meta charset="utf-8"></head><body>
 <script type="module">
 import OBR, { buildShape } from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
-import { toHide } from "./logic/tokens.js";
+import { toHide, turnToken } from "./logic/tokens.js";
 import { allRolls, CLEARED, isCleared, INIT, initEntries, markList, rollLog, rollKey, KEEP, sameName, sdResult, turnNames } from "./shared.js";
 // Runs all session, even when the dice panel is closed.
 // Shows rolls as small cards at the bottom middle of the map. Up to 8 at once (two rows of 4, middle cards first),
@@ -375,8 +375,24 @@ OBR.onReady(async () => {
     // shows up once their dice have landed (~2 s), not the instant they tap roll (Jake, Nov 25: a little drama)
     setTimeout(async () => { if (turnKey((await OBR.room.getMetadata())[INIT]) !== k) return; // the turn moved on meanwhile
       try { localStorage.setItem("ns.turnRolled", k); } catch {} turnPop(true); }, REVEAL_MS); }
+  // Camera follows the turn (Jake, Nov 27): during initiative, when the turn moves, everyone's map centers on the token whose
+  // turn it is (monster or character), at their current zoom. Off per browser with the CAMERA FOLLOW switch (GM tab, sheet).
+  // Players never get moved to a hidden token. Reloading mid-fight doesn't jump the camera (only real turn changes do).
+  const camKeyOf = (st) => st?.open && st.cur ? `${st.sid}|${st.round || 1}|${st.cur}|${st.sub || 0}` : "";
+  let camKey = camKeyOf((await OBR.room.getMetadata())[INIT]);
+  async function camFollow(md) {
+    const key = camKeyOf(md[INIT]); if (key === camKey) return; camKey = key; if (!key) return;
+    try { if (localStorage.getItem("ns.camFollow") === "0") return; } catch {}
+    const cur = turnNames(md).cur; if (!cur) return;
+    try { if (!(await OBR.scene.isReady())) return;
+      const tk = turnToken(await OBR.scene.items.getItems(), cur, isGM); if (!tk?.position) return;
+      const [vw, vh, sc] = await Promise.all([OBR.viewport.getWidth(), OBR.viewport.getHeight(), OBR.viewport.getScale()]);
+      await OBR.viewport.animateTo({ position: { x: vw / 2 - tk.position.x * sc, y: vh / 2 - tk.position.y * sc }, scale: sc });
+    } catch {}
+  }
   async function initUpdate(md) {
     const st = md[INIT];
+    camFollow(md).catch(() => {});
     if (!isGM) { const k = turnKey(st); turnPop(rolledNow(k)); }
     if (!st?.open || !st.cur) lastCur = ""; // new combat starts fresh, so its first turn always pings
     // "Your turn" ping for the player whose turn it is
