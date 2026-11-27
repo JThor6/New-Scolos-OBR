@@ -858,6 +858,14 @@ import OBR, { buildImage, buildImageUpload, buildLabel } from "https://esm.sh/@o
 import { NS, KEEP, rollKey, allRolls, clearBtn, bindClear, CLEAR_CSS, fmt, INIT, initEntries, rollLine, ROLL_CSS, rollLog, LOG_MAX, POWER_CARDS, sameName, sdResult, MARK_ITEM, DEFAULT_MARKS, initMove, turnNames } from "./shared.js";
 document.head.insertAdjacentHTML("beforeend", `<style>${ROLL_CSS}${CLEAR_CSS}</style>`);
 import { TYPES, SECTIONS, REF_GROUPS, getTab, sectionHtml } from "./rules.js";
+// Pure game logic, unit tested in test/ (npm test)
+import { num, sgn, nm, tc, pCell } from "./logic/util.js";
+import { BOX_START, BOX_NAME, WOUNDS, WOUND_DMG, pickWoundBox, woundSaid, trackOf, healTrack, isMook } from "./logic/wounds.js";
+import { SPELL_SIZES, FUDGE, castOdds, schoolsFromNotes, spellMath, SPELL_FX, spellFx } from "./logic/spells.js";
+import { CO, coKey, coDef, copLeftOf, copLadder, W_MEL, W_RNG, KS_ATTACK, kindOfName, monAttacks, defAttr, canDefend } from "./logic/combat.js";
+import { fxAlive, fxMine, fxPlan, fxAct } from "./logic/effects.js";
+import { levelOf, ptMaxOf, copEmpty, newDayChanges, partySkills } from "./logic/sheet.js";
+import { ATTRS, ATTR_COST, ATTR_SETS, LEVEL_SLOTS, attrCostOf, chooseOpts, needsSpec, baseShort, specMissing } from "./logic/chargen.js";
 
 const $ = (id) => document.getElementById(id);
 let mod = 0, me = null, standalone = !OBR.isAvailable, localRolls = [];
@@ -1329,8 +1337,6 @@ function layout() {
   return { trained: [tr + 1, ut - 1], untrained: [ut + 1, inv - 1], inv: [inv + 1, cr - 1], notes: [notes + 1, Math.max(notes + 12, sheetVals?.length || 0)], nc: "B" };
 }
 // Skill and option names show in Title Case on the sheet ("knowledge religion" -> "Knowledge Religion"); the Google Sheet keeps what was typed
-const SMALL_WORDS = new Set(["of", "and", "the", "a", "an", "to", "in", "on", "for", "with", "or", "at", "by"]);
-const tc = (s) => String(s ?? "").replace(/[A-Za-z][A-Za-z']*/g, (w, i) => (i > 0 && SMALL_WORDS.has(w.toLowerCase()) && w === w.toLowerCase()) ? w : w[0].toUpperCase() + w.slice(1));
 const drawOpen = {}; // which fold-out drawers are open, so the 30-second refresh doesn't snap them shut
 function drawSheet() {
   // the background page needs to know who you're playing, for the "DEFEND!" pop-up when Target Lock picks you
@@ -1457,7 +1463,6 @@ function drawSheet() {
 // meet the size's difficulty or the spell fizzles (the SP stay spent). A spell that does damage then works like an attack:
 // it feeds the Success Delta card (Damage Bonus from the spell), and area spells can take several defenders.
 // Minor school: Tricks, Small and Medium only. +,+,+,+ = one size up or a second target. -,-,-,- = wild magic.
-const SPELL_SIZES = [["Trick", 0, 0, null], ["Small", 2, 2, 2], ["Medium", 4, 4, 3], ["Large", 6, 6, 4], ["Huge", 8, 8, 5]]; // name, SP, difficulty, Damage Bonus (Mage tab)
 const SCHOOL_LOOK = { // window tint + a line of flavour per school (subtle, deep tones)
   Cryo: ["#7fc8ff", "rgba(20,48,78,.96)", "Frost creeps along your fingers. Your breath fogs."],
   Plasma: ["#ffb35c", "rgba(70,36,12,.96)", "Starfire wakes in your palms. The air shimmers with heat."],
@@ -1470,29 +1475,17 @@ const SCHOOL_LOOK = { // window tint + a line of flavour per school (subtle, dee
 };
 const spLook = (s) => SCHOOL_LOOK[s] || ["#c9b8ff", "rgba(40,26,76,.96)", "The forces of the universe lean in to listen."];
 // 4 Fudge dice: chance the total meets or beats the difficulty
-const FUDGE = [1, 4, 10, 16, 19, 16, 10, 4, 1]; // ways to roll -4..+4, out of 81
-const castOdds = (mod, diff) => Math.round(100 * FUDGE.reduce((a, w, i) => a + (i - 4 + mod >= diff ? w : 0), 0) / 81);
 let spellPk = null, pendingSpell = null;
 function mageSchools() { // "Major school: Cryo" / "Minor school: Ion" lines in Notes (the Character Creator writes them)
-  const out = { major: "", minor: "" }, L = layout(), cells = [];
+  const L = layout(), cells = [];
   for (let i = L.notes[0]; i <= L.notes[1]; i++) cells.push(V(L.nc + i));
-  for (const c of cells) { const s = String(c || "");
-    const a = s.match(/major school:\s*([A-Za-z ]+)/i), b = s.match(/minor school:\s*([A-Za-z ]+)/i);
-    if (a && !out.major) out.major = a[1].trim(); if (b && !out.minor) out.minor = b[1].trim(); }
-  return out;
+  return schoolsFromNotes(cells);
 }
 async function spellBook() {
   const v = await getTab("Spell Book"), t = (s) => String(s ?? "").trim();
   return (v || []).slice(1).filter(r => t(r[0]) && t(r[2])).map(r => ({ sc: t(r[0]), sz: t(r[1]), n: t(r[2]), x: t(r[3]) }));
 }
 // What a spell's text says about rolling it: an attack (Damage Bonus, against which attribute) and whether it hits several
-function spellMath(x) {
-  const vs = String(x).match(/spellcasting vs\.?\s*(?:its |the highest |their )?(adroitness|raw strength|intellect|charm)/i);
-  const db = String(x).match(/damage bonus\s*\+?(\d+)/i);
-  const area = /everyone|up to \d+ targets|each\b|a group|squad/i.test(x);
-  const dfa = vs ? vs[1].replace(/\b\w/g, c => c.toUpperCase()) : "";
-  return { atk: !!(vs && db && !/crossing it|steps on it|leaving it|in its path/i.test(x)), db: db ? +db[1] : null, dfa, area, vs: !!vs };
-}
 function closeSpell() { spellPk = null; $("spov")?.remove(); }
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && spellPk) closeSpell(); });
 async function openSpell(preset) {
@@ -1591,29 +1584,6 @@ async function castSpell(pick, sz, m) {
 // numbers are added to rolls by themselves. "self": the caster; "ally": the picked / selected party member (else the caster);
 // "foe": the picked / selected enemies. end: scene ones last until ✕ or the fight ends (combat), "turn" until the caster's
 // next turn, "once" until used. Spells not listed here are story effects: the card says what happens, the GM runs it.
-const SPELL_FX = {
-  "ice armor": { who: "ally", end: "combat", on: "armor", v: 1, x: "+1 Armor Bonus for the scene", tag: "+1 armor" },
-  "gem armor": { who: "ally", end: "combat", on: "armor", v: 1, x: "+1 Armor Bonus for the scene", tag: "+1 armor" },
-  "fire shield": { who: "self+", end: "combat", on: "armor", v: 2, x: "+2 Armor Bonus for the scene (you and allies within 10 ft)", tag: "+2 armor" },
-  "crystal fortress": { who: "self+", end: "combat", on: "armor", v: 2, x: "+2 Armor Bonus while inside the bunker", tag: "+2 armor" },
-  "stone skin": { who: "self", end: "combat", once: 1, nohit: 1, x: "The next hit against them does no damage", tag: "blocks a hit" },
-  "deflect": { who: "self", end: "combat", once: 1, nohit: 1, ranged: 1, x: "The next ranged attack against them misses", tag: "blocks a shot" },
-  "heat shimmer": { who: "self", end: "turn", once: 1, on: "adroit", v: 1, x: "The next attack against them is at -1 (their dodge gets +1)", tag: "dodge +1" },
-  "mirror images": { who: "self", end: "combat", coin: 1, uses: 3, x: "3 copies: each attack has a 1 in 2 chance of popping a copy instead", tag: "3 copies" },
-  "burning blade": { who: "ally", end: "combat", on: "dmg", v: 1, x: "+1 Damage Bonus on their weapon for the scene", tag: "+1 damage" },
-  "sharpen": { who: "ally", end: "combat", on: "dmg", v: 1, x: "+1 Damage Bonus on their blade for the scene", tag: "+1 damage" },
-  "shroud": { who: "ally", end: "combat", on: "sneak", v: 1, x: "+1 to Sneak for the scene", tag: "+1 sneak" },
-  "veil the crew": { who: "party", end: "combat", on: "sneak", v: 1, x: "+1 to Sneak for the scene (the whole crew)", tag: "+1 sneak" },
-  "numb": { who: "foe", end: "combat", once: 1, on: "atk", v: -1, x: "-1 to their next attack", tag: "-1 next attack" },
-  "drain": { who: "foe", end: "combat", on: "all", v: -1, x: "-1 to all their rolls for the scene", tag: "-1 all rolls" },
-  "weaken": { who: "foe", end: "combat", on: "all", v: -1, x: "-1 to all their rolls for the scene", tag: "-1 all rolls" },
-  "break armor": { who: "foe", end: "combat", arm: -99, x: "No Armor Bonus for the scene", tag: "armor gone" },
-  "smoke screen": { who: "none", end: "combat", x: "Everyone attacks at -2 inside the gas (scene)", tag: "-2 inside" },
-  "frozen room": { who: "none", end: "combat", x: "Everyone but the caster rolls at -1 in this room (scene)", tag: "-1 in room" },
-  "slow time": { who: "foe", end: "turn", x: "They act last in the round until the caster's next turn", tag: "act last" },
-  "storm sense": { who: "party", end: "manual", x: "Can't be caught off guard by an ambush today", tag: "no ambush" },
-};
-const spellFx = (n) => SPELL_FX[String(n || "").trim().toLowerCase()] || null;
 // a successful cast: tell the table what it does, and put any lasting effect on the list
 async function spellCast(sp) {
   if (standalone || !sp?.name) return;
@@ -1643,14 +1613,11 @@ function applySpell(r, sp) {
 // ---------------- SHEET MANAGER ----------------
 // Spend XP on skills and attribute points on attributes using the sheet's own cost chart (G4:H12),
 // add skills, credits, equipment and notes. Every change writes straight to the Google Sheet.
-const num = (s) => { const n = parseInt(String(s ?? "").replace(/[,\s+]/g, "").replace("−", "-"), 10); return isNaN(n) ? null : n; };
-const sgn = (n) => (n > 0 ? "+" : "") + n;
 function stepCost(rank) { // cost to go from rank to rank+1, read from the chart on the sheet ("-4 to -3" → 1)
   for (let row = 4; row <= 12; row++) { const from = num(String(V("G" + row)).split(/\s+to\s+/i)[0]); if (from === rank) return num(V("H" + row)); }
   return null;
 }
 const xpNow = () => num(V("F3")) || 0, xpSpent = () => num(V("F4")) || 0;
-const levelOf = (spent) => Math.floor(spent / 10);
 const attrLeft = () => levelOf(xpSpent()) - (num(V("F10")) || 0);
 const skillLvl = (row) => { const n = num(V("E" + row)); return n == null ? -4 : n; };
 function mgrSave(cells, done) {
@@ -1659,7 +1626,6 @@ function mgrSave(cells, done) {
 }
 // Manage Character: Combat Options. Jake, Nov 25: options known = COP points, on a slow ladder:
 // level 1: 1, level 4: 2, level 10: 3, level 20: 4 (level 0 has none). Swap by removing one and adding another.
-const copLadder = (lvl) => lvl >= 20 ? 4 : lvl >= 10 ? 3 : lvl >= 4 ? 2 : lvl >= 1 ? 1 : 0;
 async function drawMgrCombat(err) {
   const box = $("mco"); if (!box) return;
   const slots = coSlots(), have = slots.map(V).filter(Boolean), lvl = num(V("F5")) ?? levelOf(xpSpent()), max = copLadder(lvl);
@@ -1838,10 +1804,6 @@ function drawManager() {
 
 // ---------------- CHARACTER GENERATOR ----------------
 // Walks a player through type, attributes, skills and gear, then the bridge copies the Master into a new character sheet.
-const ATTRS = ["Adroitness", "Raw Strength", "Intellect", "Charm"];
-const ATTR_COST = { "-3": 0, "-2": 1, "-1": 3, "0": 7, "1": 14, "2": 25, "3": 41 }; // from the Starting Attribute Calculator
-const ATTR_SETS = [[1, 1, 0, 0], [2, -1, 0, 0], [3, -2, -3, -3], [1, 1, 1, -3], [2, 1, -1, -3]]; // its preset arrays (42 each)
-const LEVEL_SLOTS = [["+1", 1, 1], ["0", 0, 3], ["-2", -2, 2], ["-3", -3, 2]]; // label, level, how many
 const GSTEPS = ["Type", "Attributes", "Skills", "Equipment", "Finish"];
 let cg = (() => { try { return JSON.parse(localStorage.getItem("ns.cgDraft") || "null"); } catch { return null; } })();
 const cgNew = () => ({ step: 0, type: "", god: "", major: "", minor: "", attrs: { Adroitness: -3, "Raw Strength": -3, Intellect: -3, Charm: -3 },
@@ -1849,7 +1811,7 @@ const cgNew = () => ({ step: 0, type: "", god: "", major: "", minor: "", attrs: 
 if (!cg) cg = cgNew();
 if (cg.custom === undefined) cg.custom = cg.preset == null && ATTRS.some(a => cg.attrs[a] !== -3); // drafts saved before sets came first
 const cgSave = () => { try { localStorage.setItem("ns.cgDraft", JSON.stringify(cg)); } catch {} };
-const attrCost = () => ATTRS.reduce((s, a) => s + ATTR_COST[String(cg.attrs[a])], 0);
+const attrCost = () => attrCostOf(cg.attrs);
 const rows = (v) => (v || []).map(r => [String(r[1] ?? "").trim(), String(r[2] ?? "").trim(), String(r[3] ?? "").trim()]);
 
 async function skillList() { // [{name, attrs:[...], desc}] from the Master's Skill List tab
@@ -1931,10 +1893,6 @@ function stepWhy(i) {
   return "";
 }
 // skills like "Pilot (Choose One: Spacecraft, Watercraft, Land craft)" need a specialty picked
-const chooseOpts = (base) => { const m = String(base).match(/\(Choose One:\s*([^)]*)\)/i); return m ? m[1].split(/\s*,\s*/).filter(Boolean) : null; };
-const needsSpec = (base) => /\(Choose One/i.test(base);
-const baseShort = (base) => String(base).replace(/\s*\((Choose One[^)]*|Type Restricted[^)]*)\)\s*/i, " ").trim();
-const specMissing = (s) => needsSpec(s.base) && !s.spec && s.name === baseShort(s.base);
 // Which attributes a type leans on, read from its "Suggested skills" row and the Skill List. Required/core skills count double.
 const ATTR_DOES = { Adroitness: "dodging (attacks roll against it), initiative, guns, blades, piloting, sneaking",
   "Raw Strength": "melee damage, armor bonus, intimidation",
@@ -2424,33 +2382,7 @@ function bindInfo() {
 //   foe: aimed at enemies (selected tokens). ally: "many" / "one" pick players. self: the user is included.
 //   on: "adroit" (+v to Adroitness rolls), "all" (+v to every roll), "atk" (+v to that monster's attacks), vs: +v to attacks on them
 //   dmg: added once to that monster's next damage bonus, then it ends.
-const CO = {
-  "acid touch": { s: "Auto hit by touch. For 3 rounds the target takes 1 extra wound each round (lightest box open).", fx: { end: "rounds", n: 3, foe: 1, t: "ACID TOUCH", x: "1 extra wound each round (lightest box open)" } },
-  "attack twice": { roll: "atk", two: -1, s: "Two attacks. The second needs a second weapon and gets -1." },
-  "auto flank": { roll: "atk", x: 1, s: "Slips into a flanking spot and attacks with +1." },
-  "charge": { roll: "melee", x: 1, s: "Double move in a straight line, then a melee attack at +1." },
-  "create optical illusion double": { s: "Until their next turn, each attack on them has a 50/50 chance to hit the double.", fx: { end: "turn", t: "OPTICAL DOUBLE", x: "Each attack on them flips a coin by itself. Tails: it hits the double and misses.", coin: 1 } },
-  "defend a friend": { s: "They and chosen allies within 10 ft get +1 Adroitness until their next turn.", fx: { end: "turn", ally: "many", self: 1, on: "adroit", v: 1, t: "DEFEND A FRIEND", x: "+1 on Adroitness rolls" } },
-  "destroy armor": { s: "Auto hit, no damage. The target's Armor Bonus is -1 for the rest of the combat.", fx: { end: "combat", foe: 1, arm: -1, t: "ARMOR DESTROYED", x: "Armor Bonus -1 for the rest of the combat (counted in Success Delta)" } },
-  "encourage": { s: "One player gets +1 on all their rolls until the encourager's next turn.", fx: { end: "turn", ally: "one", self: 1, on: "all", v: 1, t: "ENCOURAGED", x: "+1 on all rolls" } },
-  "exchange places": { s: "Swaps places with an ally. Uses their movement, not their attack." },
-  "exploding hit": { roll: "atk", s: "If it hits, the damage also lands on chosen targets within 5 ft, at -1." },
-  "hide in place": { s: "Builds a cocoon out of nothing and hides in it." },
-  "mark enemy": { s: "Everyone gets +1 against the marked enemy until the marker's next turn.", fx: { end: "turn", foe: 1, vs: 1, v: 1, t: "MARKED", x: "Everyone gets +1 against it" } },
-  "power grab": { s: "Wraps up an enemy and holds them in place. Neither of them can move.", fx: { end: "rounds", grab: 1, foe: 1, t: "POWER GRAB", x: "Held in place (neither can move)" } },
-  "power strike": { roll: "atk", s: "On a hit, the target flies back 10 ft. Into a wall: +1 Light Wound." },
-  "retaliate": { roll: "atk", s: "Hit by an enemy's attack, they strike back right away." },
-  "shadow to shadow move": { s: "Steps from one shadow to another in the room, then keeps moving." },
-  "shield ally": { s: "Takes an attack meant for an ally instead." },
-  "stop": { s: "The target can't move until the end of its next turn.", fx: { end: "turn", foe: 1, t: "STOPPED", x: "Movement 0 until the end of its next turn" } },
-  "super jump": { s: "Jumps as if flying until their next turn. Uses their movement, not their attack.", fx: { end: "turn", t: "SUPER JUMP", x: "Flying-jump until their next turn" } },
-  "weaken": { pick: [
-    { u: "Weaken: -2 on its next damage", s: "The target's next damage gets -2.", fx: { end: "combat", foe: 1, dmg: -2, t: "WEAKENED", x: "-2 on its next damage" } },
-    { u: "Weaken: -1 on its attacks until my next turn", s: "The target's attacks get -1 until the weakener's next turn.", fx: { end: "turn", foe: 1, on: "atk", v: -1, t: "WEAKENED", x: "-1 on its attacks" } }] },
-};
-const coKey = (n) => String(n || "").replace(/\([^)]*\)/g, "").trim().toLowerCase();
-const coDef = (n) => CO[coKey(n)] || null;
-const copLeft = () => { const max = parseInt(V("H28")); return isNaN(max) ? null : Math.max(0, max - (parseInt(V("H29")) || 0)); };
+const copLeft = () => copLeftOf(V("H28"), V("H29"));
 // Spend 1 COP: waits for any save that's still going (so the spend is never dropped), and can't be doubled by quick taps
 let copPending = false;
 async function spendCop() {
@@ -2549,17 +2481,6 @@ function bindCoPanel(p, name) {
 const COFX = "com.newscolos.cofx";
 let fxMd = null; // the last room metadata seen
 const fxList = (md = fxMd) => (Array.isArray(md?.[COFX]) ? md[COFX] : []).filter(e => fxAlive(e, md));
-function fxAlive(e, md) {
-  if (!e || Date.now() - (e.ts || 0) > 8 * 3600e3) return false;
-  const st = md?.[INIT];
-  if (e.sid) {
-    if (!st?.open || st.sid !== e.sid) return false;
-    const cur = turnNames(md).cur, moved = (st.round || 1) !== e.r0 || st.cur !== e.c0;
-    if (e.end === "turn" && moved && cur && sameName(cur, e.by)) return false;
-    if (e.end === "rounds" && (st.round || 1) - e.r0 >= e.n && cur && sameName(cur, e.by)) return false;
-  }
-  return true;
-}
 async function fxWrite(fn) {
   const md = await OBR.room.getMetadata(), list = fn(fxList(md)).slice(-10); // small: room storage is ~16 kB for everything
   await OBR.room.setMetadata({ [COFX]: list.length ? list : null });
@@ -2576,43 +2497,12 @@ async function fxAdd(nm, fx, to, extra) {
   await fxWrite(l => [...l.filter(a => !same(a)), e]); // using the same option again on the same people refreshes it instead of stacking
 }
 const fxEnd = (id) => fxWrite(l => l.filter(e => e.id !== id)).catch(() => {});
-const fxMine = (e, who) => (e.to || []).some(t => sameName(t, who));
 // Bonuses from the shared list, added to a roll as it's made (called from the roll itself, after targets are known)
 function fxApply(r, whoName) {
   const list = fxList(); if (!list.length) return;
-  const add = (v, t) => { r.mod += v; r.total += v; r.label = `${r.label} · ${t} ${v > 0 ? "+" : ""}${v}`.slice(0, 80); };
-  // Jake, Nov 26: the same option never adds up (two Encourages on Raxx = +1, not +2)
-  const seen = new Set(), once = (e) => { const k = e.o + "|" + (e.on || e.vs || e.arm || e.dmg); if (seen.has(k)) return false; seen.add(k); return true; };
-  // out of a fight, a bonus that would last "until your next turn" is used up by its first roll (Jake, Nov 26)
-  const used = (e, who) => { if (!e.once && (e.sid || e.end !== "turn")) return; /* "once" spells (Numb, Heat Shimmer): gone after one use */ const left = (e.to || []).filter(t => !sameName(t, who));
-    fxWrite(l => left.length ? l.map(a => a.id === e.id ? { ...a, to: left } : a) : l.filter(a => a.id !== e.id)).catch(() => {}); };
-  const defense = /^adroitness/i.test(r.label) && !/initiative/i.test(r.label);
-  if (!whoName) { const me2 = myChar(); if (!me2) return;
-    for (const e of list) {
-      if (e.on === "adroit" && fxMine(e, me2) && defense && once(e)) { add(e.v, e.o); used(e, me2); }
-      if (e.on === "all" && fxMine(e, me2) && once(e)) { add(e.v, e.o); used(e, me2); }
-      if (e.vs && r.atk && (r.tg || []).some(n => fxMine(e, n)) && once(e)) { add(e.v, "Marked"); if (!e.sid) fxEnd(e.id); }
-      // spells (Nov 26): armor, damage, Sneak, and Stone Skin / Deflect stopping a hit
-      if (e.on === "armor" && fxMine(e, me2) && r.ab != null && once(e)) r.ab += e.v;
-      if (e.on === "dmg" && fxMine(e, me2) && r.atk && r.db != null && once(e)) { r.db += e.v; r.label = `${r.label} · ${e.o} +${e.v} damage`.slice(0, 80); }
-      if (e.on === "sneak" && fxMine(e, me2) && /^sneak/i.test(r.label) && once(e)) add(e.v, e.o);
-      if (e.nohit && fxMine(e, me2) && defense && once(e)) { const w = sdWaitSafe() ? sdWait() : null;
-        if (w && (!e.ranged || !W_MEL.test(w.l || "")) && (w.at ?? 0) >= r.total) { r.blk = e.o; r.label = `${r.label} · ${e.o}: no damage!`.slice(0, 80); used(e, me2); } }
-      // Optical Illusion Double: defending while an attack waits flips the coin by itself; tails = the attack hits the double
-      if (e.coin && sameName(e.by, me2) && defense && sdWaitSafe() && once(e)) {
-        const tails = (crypto.getRandomValues(new Uint8Array(1))[0] & 1) === 1;
-        if (tails) r.dbl = 1; r.label = `${r.label} · ${e.uses ? "Copy" : "Double"}: ${tails ? "tails, it hits the " + (e.uses ? "copy!" : "double!") : "heads, the real one"}`.slice(0, 80);
-        if (tails && e.uses) { const left = e.uses - 1; fxWrite(l => left > 0 ? l.map(a => a.id === e.id ? { ...a, uses: left, x: `${left} cop${left === 1 ? "y" : "ies"} left: each attack has a 1 in 2 chance of popping one` } : a) : l.filter(a => a.id !== e.id)).catch(() => {}); } }
-    }
-  } else {
-    for (const e of list) {
-      if (!fxMine(e, whoName)) continue;
-      if (r.atk && e.on === "atk" && once(e)) { add(e.v, e.o); used(e, whoName); }
-      if (e.on === "all" && once(e)) add(e.v, e.o); // Drain / Weaken spells on a monster
-      if (r.atk && e.dmg && r.db != null && once(e)) { r.db += e.dmg; r.label = `${r.label} · ${e.o} ${e.dmg} damage`.slice(0, 80); fxEnd(e.id); }
-      if (e.arm && r.ab != null && once(e)) r.ab = Math.max(0, r.ab + e.arm); // Destroy Armor / Break Armor: counts when this monster defends
-    }
-  }
+  const acts = fxPlan(list, r, { me: whoName ? "" : myChar(), whoName, wait: sdWaitSafe() ? sdWait() : null,
+    tails: () => (crypto.getRandomValues(new Uint8Array(1))[0] & 1) === 1 });
+  for (const act of acts) fxWrite(l => fxAct(l, act)).catch(() => {});
 }
 const sdWaitSafe = () => { try { return !!sdWait(); } catch { return false; } };
 // Strips: on the sheet, the effects you used or that are on you (Marked shows for everyone); the GM tab lists them all
@@ -2653,9 +2543,6 @@ function fxSync(md) {
 // Kill Shot (Mercenary): armed from the power's description; the next attack roll from the sheet
 // (Ranged Weapons, Melee Weapon Fighting, Martial Arts, Unconventional Weapons) comes up +, +, +, + and shows in red.
 // Nov 26: also skills players named after their weapon ("rifle", "laser pistol", "knife"), so those count as attacks too
-const W_MEL = /melee|martial|\b(sword|knife|knives|blade|axe|club|spear|hammer|staff|brawl|boxing|kung fu|cqc|unarmed)/i;
-const W_RNG = /ranged|unconventional|\b(rifle|pistol|gun|blaster|laser|bow|shotgun|sniper|grenade|thrown)/i;
-const KS_ATTACK = /ranged weapon|melee weapon|martial art|unconventional weapon|\b(sword|knife|knives|blade|axe|club|spear|hammer|brawl|boxing|kung fu|cqc|unarmed|rifle|pistol|gun|blaster|laser|bow|shotgun|sniper|grenade|thrown)/i;
 // per character (Nov 26 fix): the GM in test mode opens many sheets, and Kill Shot armed on one must not fire on another
 const ksKey = () => ck("ns.killShot") + (isGM ? ":" + (sheetId() || "") : "");
 const ksArmed = () => store.get(ksKey()) === "1";
@@ -2799,7 +2686,7 @@ const SKILL_ATTR = { "Prayer": "Charm", "Streetwise": "Charm", "Hacking": "Intel
 // Each power's kind comes from its heading on the type tab ("Extraordinary Power: combat ..." / "...: utility ...").
 const USE_CELL = { combat: "F6", utility: "F8" }, USE_KEY = { combat: "power", utility: "utility" };
 let myKinds = {}; // power name (lowercase) -> "combat" | "utility"
-const kindOf = (name) => myKinds[String(name || "").toLowerCase().trim()] || (/^(kill shot|death mark|flash forward|corpse walk|meltdown|bullet stop|hijack|avatar|commune)$/i.test(String(name || "").trim()) ? "combat" : "utility");
+const kindOf = (name) => kindOfName(name, myKinds);
 const hasUtility = () => !/^(priest|mage)$/i.test(V("C4").trim());
 const pwPending = { combat: false, utility: false };
 const powerUsed = (kind = "combat") => pwPending[kind] || V(USE_CELL[kind]).toUpperCase() === "TRUE";
@@ -2898,7 +2785,6 @@ document.addEventListener("click", (e) => { const b = e.target.closest(".tref, .
   popOut(b.dataset.k); }, true);
 function ptCtl() { return `<div class="ctl"><button id="ptm">−</button><b>${esc2(V("F13") || "0")}</b><button id="ptp">+</button></div>`; }
 // the same max from a whole sheet's values (GM tools): H13, or G13 on the older layout
-function ptMaxOf(v) { const h = String(v[12]?.[7] ?? "").trim(), g = String(v[12]?.[6] ?? "").trim(); return /^\d+$/.test(h) ? +h : /^\d+$/.test(g) ? +g : null; }
 function ptMaxV() { return /^\d+$/.test(V("H13")) ? V("H13") : /^\d+$/.test(V("G13")) ? V("G13") : ""; }
 // Healing: every mark on the vitality track shifts one box left; the leftmost (Light Wound) drops off.
 // The last 5 heals per character can be undone (cleared if someone taps a wound box by hand).
@@ -3012,8 +2898,6 @@ async function refreshCharList() {
 // A Name, B Group, C Kind, D-G Raw Str/Adroitness/Intellect/Charm, H Attack, I Offense, J Defense, K Armor,
 // L Special, M-S the 7 wound boxes, T Dead, U Loot / Notes.
 const DEFAULT_ENCOUNTER = "1bZy2SITk6KEyIYH-cgiheQbp5-RUFGEkubag49ukPBM"; // Scratch Encounter Tracking Sheet
-const WOUNDS = ["LW", "LW", "LW", "MW", "CW", "KO", "D"];
-const WOUND_DMG = ["1-2", "1-2", "1-2", "3-4", "5-6", "7-8", "9+"]; // damage that lands in each box, like the sheet
 let monVals = null;
 const monId = () => store.get(ck("ns.encounter")) || (campaign ? (encList[0]?.id || "") : DEFAULT_ENCOUNTER);
 async function showMonsters() {
@@ -3174,25 +3058,15 @@ function bindGmTools() {
   arm($("gmCop0"), "○ EMPTY COP", () => gmAll("Empty COP", copEmpty, (v, b) => { v[28] = v[28] || []; v[28][7] = String(b.copSpent); }));
 }
 // H28 = COP max, H29 = COP spent. Empty = spent set to max (0 left). Fill = spent back to 0.
-const copEmpty = (v) => { const max = parseInt(String(v[27]?.[7] ?? "")); const now = parseInt(String(v[28]?.[7] ?? "")) || 0; return isNaN(max) || now === max ? null : { copSpent: max }; };
 const fillAllCop = (label = "Fill COP") => gmAll(label, (v) => (parseInt(String(v[28]?.[7] ?? "")) || 0) === 0 ? null : { copSpent: 0 },
   (v, b) => { v[28] = v[28] || []; v[28][7] = String(b.copSpent); });
 // Healing for the whole party (test mode): one step left for everyone, or every wound off (Dead stays: uncheck it by hand)
-const trackOf = (v) => "BCDEFGH".split("").map((c, i) => !!String(v[15]?.[i + 1] ?? "").trim());
-const healAll = (full) => gmAll(full ? "Heal everyone" : "Heal 1 step", (v) => { const was = trackOf(v), six = was.slice(0, 6);
-    const now = (full ? Array(6).fill(false) : six.slice(1).concat(false)).concat(was[6]);
+const healAll = (full) => gmAll(full ? "Heal everyone" : "Heal 1 step", (v) => { const was = trackOf(v);
+    const now = healTrack(was, full);
     return now.some((x, i) => x !== was[i]) ? { track: now } : null; },
   (v, b) => { v[15] = v[15] || []; b.track.forEach((on, i) => v[15][i + 1] = on ? "X" : ""); });
 // New Day for everyone in the campaign (GM tab and the Party view's test mode)
-const newDayAll = () => gmAll("New day", (v) => {
-  const out = [];
-  if (/^true$/i.test(String(v[5]?.[5] ?? "").trim())) out.push({ power: false });
-  if (/^true$/i.test(String(v[7]?.[5] ?? "").trim())) out.push({ utility: false });
-  const max = ptMaxOf(v), now = parseInt(String(v[12]?.[5] ?? "")) || 0;
-  if (/^(priest|mage)$/i.test(String(v[3]?.[2] ?? "").trim()) && max != null && now !== max) out.push({ points: max });
-  const cm = copEmpty(v); if (cm) out.push(cm);
-  return out.length ? out : null;
-}, (v, b) => { for (const one of b) { if (one.power === false) v[5][5] = "FALSE"; if (one.utility === false) { v[7] = v[7] || []; v[7][5] = "FALSE"; } if (one.points != null) { v[12] = v[12] || []; v[12][5] = String(one.points); } if (one.copSpent != null) { v[28] = v[28] || []; v[28][7] = String(one.copSpent); } } });
+const newDayAll = () => gmAll("New day", newDayChanges, (v, b) => { for (const one of b) { if (one.power === false) v[5][5] = "FALSE"; if (one.utility === false) { v[7] = v[7] || []; v[7][5] = "FALSE"; } if (one.points != null) { v[12] = v[12] || []; v[12][5] = String(one.points); } if (one.copSpent != null) { v[28] = v[28] || []; v[28][7] = String(one.copSpent); } } });
 async function gmAll(label, change, local) {
   const msg = $("gmMsg"); const say = (t) => { if (msg) { msg.hidden = false; msg.textContent = t; } const tm = $("tmsg"); if (tm) { tm.hidden = false; tm.textContent = t; } };
   say(`${label}: checking characters…`); sync(1);
@@ -3720,12 +3594,6 @@ async function syncDeadGroups() {
 // Monsters with more than one attack: the Attack cell (column H) can hold several, one per line or split by " / " or ";",
 // each "Name +2" or just "+2" (e.g. "Claw +2 / Bite +1"). Offense (column I) can match them the same way ("2 / 1"),
 // otherwise every attack uses the one Offense. One plain number works exactly as before.
-function monAttacks(atk, off) {
-  const split = (t) => String(t || "").split(/\s*(?:\n|;|\s\/\s)\s*/).map(x => x.trim()).filter(Boolean);
-  const offs = split(off), parts = split(atk).filter(p => p !== "-"); if (!parts.length) return [{ name: "", val: "", off: String(off || "") }];
-  return parts.map((p, i) => { const m = p.match(/^(.*?)[\s:]*([+\-−]?\d+)$/);
-    return { name: m ? m[1].replace(/[:\s]+$/, "").trim() : p, val: m ? m[2] : "", off: offs.length > 1 ? (offs[i] ?? offs[0]) : String(off || "") }; });
-}
 const specOpen = new Set(); // monsters whose long Special text is unfolded (this session)
 
 // ---------------- INITIATIVE (GM controls) ----------------
@@ -4581,16 +4449,6 @@ setInterval(() => { if (testSplit() && $("tlist") && !rollBusy) characterSheets(
 let ptyOpen = "";
 // whose initiative a GM's Adroitness roll is: the Party card being rolled for, or the character sheet the GM has open
 const initProxy = () => proxy || (isGM && sheetVals && sheetId() && sheetId() !== "__party" && myChar() ? { id: sheetId(), name: myChar() } : null); // proxy: the character the GM is rolling for, while that roll is made
-const pCell = (v, a1) => { const m = a1.match(/^([A-L])(\d+)$/); return String(v?.[+m[2] - 1]?.[m[1].charCodeAt(0) - 65] ?? "").trim(); };
-function partySkills(v) {
-  const col = (r) => String(v[r - 1]?.[1] ?? "").trim();
-  let tr = 0, un = 0, inv = 0;
-  for (let r = 1; r <= 90; r++) { const b = col(r).toLowerCase(); if (!tr && b === "trained skills") tr = r; else if (!un && b === "untrained skills") un = r; else if (!inv && b === "inventory") inv = r; }
-  const out = [], add = (a, b) => { for (let r = a; r < b; r++) { const n = col(r), t = num(pCell(v, "F" + r));
-    if (n && t != null) out.push({ n: tc(n), t, br: pCell(v, "C" + r) && pCell(v, "D" + r) !== "" ? `${pCell(v, "C" + r)}|${pCell(v, "D" + r)}|${pCell(v, "E" + r)}` : "", atk: KS_ATTACK.test(n) }); } };
-  if (tr) add(tr + 1, un || tr + 18); if (un) add(un + 1, inv || un + 10);
-  return out.sort((a, b) => b.atk - a.atk);
-}
 const sgnP = (n) => (n > 0 ? "+" : "") + n;
 function partyRollsHtml(c) {
   const v = c.values, name = pCell(v, "C3"), pen = num(pCell(v, "C12")) || 0;
@@ -4835,11 +4693,8 @@ $("initgo").onclick = () => {
 function sdWait() { try { const w = JSON.parse(localStorage.getItem("ns.sd:" + OBR.room.id) || "{}").wait;
   return w && Date.now() - w.at0 < 3 * 60e3 && (w.defs || []).length < (w.n || 1) ? w : null; } catch { return null; } }
 // The attribute a waiting attack is defended with (spells can name another one), and rolling it from the open sheet
-const defAttr = (w) => w?.dfa || "Adroitness";
 function defRollSheet(w) { const at = defAttr(w), cell = ATTR_CELL[at] || "C7", v = V(cell);
   if (v == null || String(v).trim() === "") return false; quickRoll(v, at + " · Defense"); return true; }
-function canDefend(w, name) { if (!name || sameName(name, w.att) || (w.defs || []).some(d => sameName(d, name))) return false;
-  return !w.tg?.length || w.tg.some(t => sameName(t, name)); }
 function updateDefBanner() {
   if (standalone || !$("defban")) return;
   const w = sdWait(), sg = (n) => n > 0 ? "+" + n : String(n);
@@ -5008,12 +4863,9 @@ const AUTOD = "com.newscolos.autodmg";            // room: 0 = off, otherwise th
 const APPLIED = "com.newscolos.dice/applied";     // room: [{ id, t }] what auto damage marked, shown on the card
 const CONDREQ = "com.newscolos.cond/";            // room: <player> -> { name, ko, dead, ts } after a hand change on a sheet
 const SHEETPING = "com.newscolos.sheetping";      // room: { id, ts, hurt } "this sheet changed, reload it"
-const BOX_START = [0, 0, 3, 4, 5, 6];             // wound level 1..5 -> its first box
-const BOX_NAME = ["Light Wound", "Light Wound", "Light Wound", "Medium Wound", "Critical Wound", "Down & KO'ed", "Dead"];
 // ON by default (Jake, Nov 25): never set = on. The switch is only there if players hate it. Off is stored as 0.
 const adSince = (md) => { const v = (md || {})[AUTOD]; return v === undefined || v === null ? 1 : Number(v) || 0; };
 const adOn = () => adSince(lastMd);
-const nm = (x) => String(x || "").toLowerCase().replace(/\s+/g, " ").trim();
 function adBox() {
   const on = !!adOn();
   return `<div class="sec" style="margin-top:10px">AUTO DAMAGE</div><button id="adBtn" class="sbtn ${on ? "on" : ""}" style="width:100%">AUTO DAMAGE: ${on ? "ON" : "OFF"}</button>
@@ -5091,7 +4943,6 @@ async function applyCond(name, ko, dead) {
 }
 // A monster card's KO / Dead state -> its tokens
 // Mooks (Nov 26 fix): their KO box comes pre-marked, so it never means Unconscious. A mook is up or Dead, nothing between.
-const isMook = (r) => /\b(mook|minion)s?\b/i.test(String(r?.[0] ?? "") + " " + String(r?.[2] ?? ""));
 function monCond(row) { const r = (monVals || [])[row - 1] || [], on = (i) => !!String(r[i] ?? "").trim() && !/^false$/i.test(String(r[i]));
   if (adOn() && r[0]) applyCond(String(r[0]).trim(), on(17) && !isMook(r), on(19)); }
 // Mooks / minions: MW, CW and KO come pre-marked (D stays empty), so any hit past their 3 Light boxes kills them
@@ -5132,9 +4983,7 @@ async function autoDamage() {
   } finally { adBusy = false; if (adAgain) { adAgain = false; autoDamage(); } }
 }
 async function applyWound(name, w) {
-  const start = BOX_START[w];
-  const pick = (marks) => { for (let i = start; i < 7; i++) if (!marks[i]) return i; return -1; };
-  const said = (i) => i < 0 ? `${name} is already dead` : `${BOX_NAME[i]} marked on ${name}${i > start ? " (boxes full, moved right)" : ""}`;
+  const pick = (marks) => pickWoundBox(marks, w), said = (i) => woundSaid(name, i, w);
   // a monster on the GM tab's encounter?
   if (!monVals && monId()) { const r = await bridgeGet({ id: monId(), tab: "Extension Tracker" }).catch(() => null); if (r?.ok) monVals = r.values; }
   const v = monVals || [], row = v.findIndex((r, i) => i > 0 && nm(r?.[0]) === nm(name));
