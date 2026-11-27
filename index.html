@@ -636,12 +636,14 @@
     background:color-mix(in srgb, var(--sa) 14%, #2c1d4f); color:#fff; font:800 14px system-ui; letter-spacing:.8px; }
   .spgo:hover:not(:disabled) { background:color-mix(in srgb, var(--sa) 24%, #2c1d4f); } .spgo:disabled { opacity:.45; cursor:default; }
   .spchk { display:flex; align-items:center; gap:6px; margin-top:5px; font-size:12px; color:#ddd5f3; cursor:pointer; }
-  .splistbox { margin-top:6px; max-height:420px; overflow:auto; border:1px solid #3a3558; border-radius:8px; padding:6px; background:rgba(15,13,28,.6); }
-  .sls + .sls { margin-top:8px; } .slsh { font-family:'Bangers', Impact, sans-serif; font-size:17px; letter-spacing:1px; color:var(--sa, #c7b6ff); } .slsh small { font:600 10px system-ui; color:var(--dim); letter-spacing:0; }
-  .slz { margin:6px 0 2px; font-size:10px; font-weight:800; letter-spacing:.6px; color:var(--dim); text-transform:uppercase; } .slz small { text-transform:none; font-weight:600; }
-  .slr { display:flex; gap:8px; align-items:center; padding:4px 0; border-top:1px solid rgba(255,255,255,.05); }
-  .slr > div { flex:1; min-width:0; font-size:12px; line-height:1.35; } .slr b { color:#f0eaff; } .slr span { display:block; color:#cfc6ee; }
-  .slr em { font-style:normal; font-size:10px; font-weight:800; color:#e6c97a; margin-left:4px; } .slr .sbtn { flex:none; padding:3px 8px; font-size:11px; }
+  .splistbox { display:none; }
+  .spwin.sllist { max-width:620px; font-size:14px; }
+  .sllist .sls + .sls { margin-top:14px; } .sllist .slsh { font-family:'Bangers', Impact, sans-serif; font-size:24px; letter-spacing:1px; color:var(--sa, #c7b6ff); margin-top:6px; } .sllist .slsh small { font:600 12px system-ui; color:#a9a2c4; letter-spacing:0; }
+  .sllist .slz { margin:12px 0 4px; padding:4px 8px; border-radius:6px; background:rgba(255,255,255,.06); font-size:12px; font-weight:800; letter-spacing:.6px; color:#d8d0f4; text-transform:uppercase; } .sllist .slz small { text-transform:none; font-weight:600; color:#a9a2c4; margin-left:6px; }
+  .sllist .slr { padding:9px 4px; border-top:1px solid rgba(255,255,255,.08); }
+  .sllist .slt { display:flex; align-items:center; gap:8px; } .sllist .slt b { font-size:16px; color:#fff; } .sllist .slt .sbtn { margin-left:auto; flex:none; padding:5px 12px; font-size:12px; }
+  .sllist .slr em { font-style:normal; font-size:11px; font-weight:800; color:#1a1400; background:#e6c97a; border-radius:4px; padding:1px 6px; }
+  .sllist .slr > span { display:block; margin-top:4px; color:#ddd6f5; line-height:1.45; white-space:normal; } .sllist .slr .slfx { color:#9fe3b0; font-size:13px; }
   .spnote { font-size:11px; color:#9d92c2; margin-top:5px; line-height:1.4; }
   .istep { display:flex; align-items:center; gap:5px; margin-top:5px; } .istep[hidden] { display:none; }
   .istep #iNext { flex:1; min-height:68px; font-size:20px; } .istep #iPrev { width:60px; min-height:68px; flex:none; font-size:20px; }
@@ -1393,7 +1395,6 @@ function drawSheet() {
   // Smite (Priest): a Prayer roll that feeds the Success Delta card, Damage = Delta + 4
   if ($("castsp")) $("castsp").onclick = (e) => { e.stopPropagation(); openSpell(); };
   if ($("splist")) $("splist").onclick = (e) => { e.stopPropagation(); spellListToggle(); };
-  if (spListOpen && $("splistbox")) spellListToggle(true);
   if ($("tgtme")) $("tgtme").onclick = (e) => { e.stopPropagation(); flipTgt(); };
   // Smite spends its 2 invocations itself (Jake, Nov 25); greyed out with fewer than 2 left
   if ($("smite")) $("smite").onclick = async (e) => { e.stopPropagation(); if (rollBusy) return;
@@ -1512,21 +1513,28 @@ async function openSpell(preset) {
 // 📖 My spell list (Jake, Nov 26): every spell this Mage's schools know (major: every size; minor: up to Medium), grouped by
 // school and size, with what each does. CAST opens the spell window with that spell picked.
 let spListOpen = false;
-async function spellListToggle(keep) {
-  const box = $("splistbox"); if (!box) return;
-  if (!keep) spListOpen = !spListOpen;
-  box.hidden = !spListOpen; if (!spListOpen) return;
-  box.innerHTML = `<div class="spnote">Loading the Spell Book…</div>`;
+function closeSpList() { spListOpen = false; $("slov")?.remove(); document.removeEventListener("keydown", spListKey); }
+function spListKey(e) { if (e.key === "Escape") closeSpList(); }
+async function spellListToggle(keep) { // big readable window over the sheet (Jake: "can't read the spells" in the narrow column)
+  if (keep) return;
+  if (spListOpen) { closeSpList(); return; }
+  spListOpen = true;
+  const ov = document.createElement("div"); ov.id = "slov"; ov.className = "spov";
+  ov.innerHTML = `<div class="spwin sllist"><div class="sphd"><b>📖 MY SPELL LIST</b><button class="spx" id="slx" title="Close">✕</button></div><div id="slbody"><div class="spnote">Loading the Spell Book…</div></div></div>`;
+  ov.onclick = (e) => { if (e.target === ov) closeSpList(); };
+  document.body.appendChild(ov); $("slx").onclick = closeSpList; document.addEventListener("keydown", spListKey);
+  const box = $("slbody");
   let book; try { book = await spellBook(); } catch (e) { box.innerHTML = `<div class="err">Couldn't read the Spell Book: ${esc2(e.message || e)}</div>`; return; }
+  if (!$("slbody")) return;
   const sch = mageSchools(), fix = (n) => [...new Set(book.map(b => b.sc))].find(b => b.toLowerCase() === String(n).toLowerCase()) || n;
   const major = fix(sch.major), minor = fix(sch.minor), schools = major ? [major, minor].filter(Boolean) : [...new Set(book.map(b => b.sc))];
   const sizes = SPELL_SIZES.map(z => z[0]);
   box.innerHTML = schools.map(sc => { const isMinor = major && sc === minor;
-    return `<div class="sls"><div class="slsh" style="--sa:${spLook(sc)[0]}">${esc2(sc)} <small>${major ? (isMinor ? "minor: Tricks to Medium" : "major: every size") : ""}</small></div>` +
+    return `<div class="sls"><div class="slsh" style="--sa:${spLook(sc)[0]}">${esc2(sc)} <small>${major ? (isMinor ? "minor school: Tricks to Medium" : "major school: every size") : ""}</small></div>` +
       sizes.filter(z => !(isMinor && /large|huge/i.test(z))).map(z => { const zz = SPELL_SIZES.find(x => x[0] === z), list = book.filter(b => b.sc === sc && b.sz.toLowerCase() === z.toLowerCase());
         return list.length ? `<div class="slz">${esc2(z)} <small>${zz[1] ? zz[1] + " SP · difficulty +" + zz[2] : "free · difficulty 0"}</small></div>` + list.map(b => { const fx = spellFx(b.n), m = spellMath(b.x);
-          return `<div class="slr"><div><b>${esc2(b.n)}</b>${m.atk ? ` <em>attack</em>` : fx ? ` <em>${esc2(fx.tag)}</em>` : ""}<span>${esc2(b.x)}</span></div><button class="sbtn" data-cast="${esc2(b.n)}" data-sc="${esc2(sc)}" data-sz="${esc2(b.sz)}">CAST</button></div>`; }).join("") : ""; }).join("") + `</div>`; }).join("");
-  box.querySelectorAll("[data-cast]").forEach(b => b.onclick = (e) => { e.stopPropagation(); openSpell({ sc: b.dataset.sc, sz: b.dataset.sz, n: b.dataset.cast }); });
+          return `<div class="slr"><div class="slt"><b>${esc2(b.n)}</b>${m.atk ? `<em>attack</em>` : fx ? `<em>${esc2(fx.tag)}</em>` : ""}<button class="sbtn" data-cast="${esc2(b.n)}" data-sc="${esc2(sc)}" data-sz="${esc2(b.sz)}">✦ CAST</button></div><span>${esc2(b.x)}</span>${fx ? `<span class="slfx">When cast: ${esc2(fx.x)}</span>` : ""}</div>`; }).join("") : ""; }).join("") + `</div>`; }).join("");
+  box.querySelectorAll("[data-cast]").forEach(b => b.onclick = (e) => { e.stopPropagation(); closeSpList(); openSpell({ sc: b.dataset.sc, sz: b.dataset.sz, n: b.dataset.cast }); });
 }
 function drawSpell() {
   const P = spellPk, w = $("spwin"); if (!P || !w) return;
