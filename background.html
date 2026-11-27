@@ -1,6 +1,7 @@
 <!doctype html><html><head><meta charset="utf-8"></head><body>
 <script type="module">
 import OBR, { buildShape } from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
+import { toHide } from "./logic/tokens.js";
 import { allRolls, CLEARED, isCleared, INIT, initEntries, markList, rollLog, rollKey, KEEP, sameName, sdResult, turnNames } from "./shared.js";
 // Runs all session, even when the dice panel is closed.
 // Shows rolls as small cards at the bottom middle of the map. Up to 8 at once (two rows of 4, middle cards first),
@@ -405,6 +406,11 @@ OBR.onReady(async () => {
   initUpdate(await OBR.room.getMetadata());
   drawRings(await OBR.room.getMetadata());
   OBR.scene.items.onChange(ringsSoon); // a token added, renamed or resized
+  // HIDE on the GM tab (Jake, Nov 26): a token put on the map for a monster the GM hid goes hidden too
+  const hideSync = async () => { if (!amGM) return; try { const l = JSON.parse(localStorage.getItem("ns.monHidden") || "[]");
+    if (!l.length) return; const ids = toHide(await OBR.scene.items.getItems(), l);
+    if (ids.length) await OBR.scene.items.updateItems(ids, (ds) => ds.forEach(d => { d.visible = false; })); } catch {} };
+  OBR.scene.items.onChange(() => hideSync());
   OBR.scene.onReadyChange((r) => { ringKey = ""; if (r) drawRings(); });
   // Watchdog: while combat is on, make sure the bar is really on this screen (late joiners, a reload, a failed open).
   // The bar writes a heartbeat every 1.5 s; no heartbeat for 6 s means it isn't showing, so open it again.

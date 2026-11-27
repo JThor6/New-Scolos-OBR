@@ -13,6 +13,7 @@ Party pop-out; the other `.html` files are Owlbear pop-ups and the background pa
   - `sheet.js`: reading a character sheet's values (skills, New Day, COP, points)
   - `chargen.js`: Character Creator rules
   - `sim.js`: fight simulator (party vs an encounter, many runs, difficulty rating)
+  - `confirm.js`: tap-twice buttons; `turns.js`: moving the initiative turn; `tokens.js`: monster tokens and HIDE
 - `shared.js`, `rules.js`: shared by several pages (roll storage, Success Delta, initiative order, rules text).
 - Pages import from these. Put new rules math in `logic/` as a plain function and call it from the page.
 

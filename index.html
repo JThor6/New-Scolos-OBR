@@ -238,6 +238,8 @@
   .nbw .nb { padding:1px 7px; border-radius:6px; border:1px solid #4a4466; background:transparent; color:var(--dim); font:800 11px system-ui; cursor:pointer; }
   .nbw .nb.on { background:#5fd38d; border-color:#5fd38d; color:#0c1a12; box-shadow:0 0 8px rgba(95,211,141,.5); }
   .nbw.armed > span { color:#5fd38d; }
+  .mhide { flex:none; margin:0 6px 0 0; padding:3px 9px; border-radius:6px; border:1px solid #4d4282; background:#2a2445; color:#d2c8f2; font:800 11px system-ui; letter-spacing:.5px; cursor:pointer; }
+  .mhide:hover { background:#342c58; } .mhide.on, #monHideAll.on { background:#4a3d80; border-color:#7a68c0; color:#fff; }
   .nbw.nbc { margin:0 6px 0 0; } .nbw.nbc .nb { padding:3px 8px; font-size:12px; }
   #gmTgt { background:transparent; border:1px solid #3a3d55; color:#6f7590; font-size:11px; font-weight:700; padding:3px 8px; }
   #gmTgt.on { background:#1e1830; border-color:#4a4466; color:#8a82a8; } /* deep purple, quiet (Jake, Nov 25) */
@@ -870,6 +872,7 @@ import { levelOf, ptMaxOf, copEmpty, newDayChanges, partySkills } from "./logic/
 import { ATTRS, ATTR_COST, ATTR_SETS, LEVEL_SLOTS, attrCostOf, chooseOpts, needsSpec, baseShort, specMissing } from "./logic/chargen.js";
 import { barTap, BAR_CONFIRM } from "./logic/confirm.js";
 import { turnKey as turnKeyOf, stepTurn, autoFirstTurn } from "./logic/turns.js";
+import { isToken, tokensOf, toggleHidden, isHidden, toHide, allHidden, setAllHidden } from "./logic/tokens.js";
 
 const $ = (id) => document.getElementById(id);
 let mod = 0, me = null, standalone = !OBR.isAvailable, localRolls = [];
@@ -3449,6 +3452,27 @@ function bindMonArt() {
   });
   monArtEnsure();
 }
+// HIDE (Jake, Nov 26): a monster's token hidden from the players, off by default. The GM still sees it, faded.
+// The list is kept in this browser; the background page also hides any token put on the map later with a hidden name.
+const HID = "ns.monHidden";
+const hidList = () => { try { return JSON.parse(store.get(HID) || "[]"); } catch { return []; } };
+const monNames = () => { const v = monVals || [], hdr = Math.max(0, v.findIndex(r => String(r?.[0] || "").trim().toLowerCase() === "name"));
+  return v.slice(hdr + 1).filter(r => String(r?.[0] ?? "").trim() && !/^(true|x|yes|dead)$/i.test(String(r?.[19] ?? "").trim())).map(r => String(r[0]).trim()); };
+const hideBtn = (name) => standalone ? "" : `<button class="mhide" data-hide="${esc2(name)}" title="Hide this monster's token from the players">HIDE</button>`;
+function hideDraw() {
+  const l = hidList();
+  document.querySelectorAll("[data-hide]").forEach(b => { const on = isHidden(l, b.dataset.hide); b.classList.toggle("on", on); b.textContent = on ? "HIDDEN" : "HIDE";
+    b.title = on ? "Hidden from the players. Tap to show it" : "Hide this monster's token from the players"; });
+  const a = $("monHideAll"); if (a) { const all = allHidden(l, monNames()); a.classList.toggle("on", all); a.textContent = all ? "SHOW ALL MONSTERS" : "HIDE ALL MONSTERS"; }
+}
+async function hideApply(names, on) { // those monsters' tokens hidden or shown now
+  if (standalone) return;
+  try { const items = await OBR.scene.items.getItems(isToken), ids = names.flatMap(n => tokensOf(items, n)).filter(i => (i.visible !== false) === on).map(i => i.id);
+    if (ids.length) await OBR.scene.items.updateItems(ids, (ds) => ds.forEach(d => { d.visible = !on; })); } catch {}
+}
+document.addEventListener("click", (e) => { const b = e.target.closest("[data-hide]"); if (!b) return; e.preventDefault(); e.stopPropagation();
+  const n = b.dataset.hide, l = toggleHidden(hidList(), n); store.set(HID, JSON.stringify(l)); hideDraw(); hideApply([n], isHidden(l, n)); }, true);
+window.addEventListener("storage", (e) => { if (e.key === HID) hideDraw(); });
 function drawMonsters() {
   const v = monVals || [], c = (row, i) => String(v[row]?.[i] ?? "").trim();
   // INITIATIVE, then the tools in order of use (Jake, Nov 25). Auto-roll monsters moved to the bottom, under AUTO DAMAGE.
@@ -3458,7 +3482,7 @@ function drawMonsters() {
     <div id="iStep" class="istep" hidden><button id="iPrev" class="sbtn" title="Previous turn">◀</button><span id="iRound"></span><button id="iNext" class="sbtn">NEXT TURN ▶</button></div>
     <div class="iadd"><input id="iName" placeholder="Add a name"><input id="iNum" placeholder="+0" inputmode="numeric"><button id="iNeg" class="sbtn negbtn" title="Flip to minus / plus">±</button><button id="iAdd" class="sbtn">ADD</button></div>
     <button id="iEnd" class="sbtn" style="width:100%;margin-top:5px">END COMBAT</button></div>
-    <div class="g2" style="margin-top:8px"><button id="monAll" class="sbtn" title="Every living monster with art that isn't on the map yet, in a grid in the middle of your screen">⬇ PUT ALL MONSTERS ON THE TABLE</button><button id="pcAll" class="sbtn" title="Every character with a pog who isn't on the map yet">⬇ PUT PARTY ON THE TABLE</button><button id="monRe" class="sbtn">↻ RELOAD MONSTERS</button></div>`;
+    <div class="g2" style="margin-top:8px"><button id="monAll" class="sbtn" title="Every living monster with art that isn't on the map yet, in a grid in the middle of your screen">⬇ PUT ALL MONSTERS ON THE TABLE</button><button id="monHideAll" class="sbtn" title="Hide every monster's token from the players (you still see them, faded). Tokens put on the map later stay hidden too.">HIDE ALL MONSTERS</button><button id="pcAll" class="sbtn" title="Every character with a pog who isn't on the map yet">⬇ PUT PARTY ON THE TABLE</button><button id="monRe" class="sbtn">↻ RELOAD MONSTERS</button></div>`;
   const cards = [];
   const hdr = Math.max(0, v.findIndex(r => String(r?.[0] || "").trim().toLowerCase() === "name"));
   for (let row = hdr + 1; row < v.length; row++) {
@@ -3473,7 +3497,7 @@ function drawMonsters() {
     const attrs = [["Adroitness", 4, "Adroitness"], ["Raw Str.", 3, "Raw Strength"], ["Intellect", 5, "Intellect"], ["Charm", 6, "Charm"]].map(([n, i, full]) =>
       `<div class="att"><small>${n}</small><b>${esc2(c(row, i) || "-")}</b>${roll(full, c(row, i)).replace('class="rd"', 'class="rd ra"')}</div>`).join("");
     cards.push([sheetRow, `<div class="mcard ${dead ? "dead" : ""}" data-row="${sheetRow}" data-n="${esc2(name)}" data-g="${esc2("m:" + (c(row, 1) || name))}">
-      <div class="mtop" title="Drag to move this monster up or down"><span class="mgrip">⋮⋮</span>${monThumb(name)}<b>${esc2(name)}${dead ? ` <span class="deadtag">(DEAD)</span>` : ""}</b>${pen && !dead ? `<span class="mwnd">wounded ${pen}</span>` : ""}${c(row, 2) ? `<span class="mkind">${esc2(c(row, 2))}</span>` : ""}<span style="flex:1"></span>${dead ? "" : nbChips("mon:" + name, true)}
+      <div class="mtop" title="Drag to move this monster up or down"><span class="mgrip">⋮⋮</span>${monThumb(name)}<b>${esc2(name)}${dead ? ` <span class="deadtag">(DEAD)</span>` : ""}</b>${pen && !dead ? `<span class="mwnd">wounded ${pen}</span>` : ""}${c(row, 2) ? `<span class="mkind">${esc2(c(row, 2))}</span>` : ""}<span style="flex:1"></span>${dead ? "" : nbChips("mon:" + name, true)}${dead ? "" : hideBtn(name)}
         <button class="sbtn mdead ${dead ? "on" : ""}" data-r="${sheetRow}" data-on="${dead ? "" : "1"}">${dead ? SKULL + "DEAD" : "DEAD?"}</button></div>
       <div class="g4 matt">${attrs}</div>
       <div class="mrow2">${monArtCell(name)}<div class="matks">${monAttacks(c(row, 7), c(row, 8)).map(a => `<div class="skc matk"><span><small>${esc2(a.name ? a.name.toUpperCase() : "ATTACK")}</small></span><b>${esc2(a.val || "-")}</b>${a.val ? roll(a.name ? "Attack · " + a.name : "Attack", a.val).replace(`data-o="${esc2(c(row, 8))}"`, `data-o="${esc2(a.off)}"`) : ""}</div>`).join("")}</div>
@@ -3503,6 +3527,9 @@ function drawMonsters() {
   bindMonArt();
   $("monRe").onclick = () => { monArtChecked.clear(); showMonsters(); };
   $("monAll").onclick = monDropAll;
+  $("monHideAll").onclick = () => { const names = monNames(), on = !allHidden(hidList(), names);
+    store.set(HID, JSON.stringify(setAllHidden(hidList(), names, on))); hideDraw(); hideApply(names, on); };
+  hideDraw();
   if ($("pcAll")) $("pcAll").onclick = async () => { $("pcAll").disabled = true; try { await partyDrop(); } finally { if ($("pcAll")) $("pcAll").disabled = false; } };
   $("iPrev").onclick = () => initStep(-1); $("iNext").onclick = () => initStep(1);
   // Jake, Nov 26: left = a fight (initiative, COP to full, monsters roll). Right = initiative order only (out of combat).
