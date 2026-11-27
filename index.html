@@ -1067,10 +1067,8 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
   { const spl = !whoName ? pendingSpell : null; pendingSpell = null; if (spl) applySpell(r, spl); } // a spell from the spell window
   let autoDef = false;
   if (r.atk && !standalone && testOn() && testTgt.length) { // test mode: the targets picked in the Party view, no map selection needed
-    const self = String(whoName || myChar() || ""), all = testTgt.filter(n => !sameName(n, self)), names = all.filter(n => !tgtDown(n));
-    if (names.length) { r.tg = names.slice(0, 12); autoDef = true; } else r.notg = 1;
-    const down = all.filter(n => tgtDown(n)); // KO'd / Dead: no defense roll, the GM marks the hit (Jake, Nov 27)
-    if (down.length) obrNote(`${down.join(", ")} ${down.length === 1 ? "is" : "are"} down: left out of the defense rolls. Mark the hit by hand.`, "INFO");
+    const self = String(whoName || myChar() || ""), names = testTgt.filter(n => !sameName(n, self));
+    if (names.length) r.tg = names.slice(0, 12); else r.notg = 1;
   } else if (r.atk && !standalone) { // 🎯 Targets on: the tokens this roller has selected are what the attack is aimed at
     try { if (tgtOn()) {
       const sel = (await OBR.player.getSelection()) || [], self = String(whoName || myChar() || "").toLowerCase();
@@ -1080,6 +1078,13 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
         .map(i => String(i.name || "").trim()).filter(n => n && !sameName(n, self));
       if (names.length) r.tg = [...new Set(names)].slice(0, 12); else r.notg = 1; // Target Lock on, nothing picked: the card says so
     } } catch {}
+  }
+  // Test mode auto defense (Jake, Nov 27): targets picked with ◎ OR selected on the map with Target Lock. KO'd / Dead
+  // targets are left out (no defense roll; the GM marks the hit by hand).
+  if (r.tg && testOn() && !standalone) {
+    const down = r.tg.filter(n => tgtDown(n)); r.tg = r.tg.filter(n => !tgtDown(n));
+    if (r.tg.length) autoDef = true; else { delete r.tg; r.notg = 1; }
+    if (down.length) obrNote(`${down.join(", ")} ${down.length === 1 ? "is" : "are"} down: left out of the defense rolls. Mark the hit by hand.`, "INFO");
   }
   if (!standalone) try { fxApply(r, whoName); } catch {} // lasting Combat Options: Encourage, Defend a Friend, Marked, Weaken
   if (br) { const [at, av, sr] = String(br).split("|"); r.at = String(at || "").trim().slice(0, 14); r.av = String(av || "").trim(); if (sr !== undefined) r.sr = String(sr).trim(); }
@@ -4449,11 +4454,11 @@ async function autoDefend(id, tg) {
   for (const n of tg || []) {
     if (!testOn() || tgtDown(n)) continue;
     const c = (lastParty || []).find(x => sameName(pCell(x.values, "C3"), n));
-    if (c) { await rollAs(c, num(pCell(c.values, ATTR_CELL[a] || "C7")) ?? 0, a + " · Defense"); continue; }
+    if (c) { await rollAs(c, num(pCell(c.values, ATTR_CELL[a] || "C7")) ?? 0, a + " · Defense · auto"); continue; }
     const v = monVals || [], row = monRowOf(v, n); if (row < 0) { obrNote(`Couldn't find ${n} to roll its defense. Tap DEFEND for it.`, "WARNING"); continue; }
     const m = v[row], cc = (i) => String(m?.[i] ?? "").trim(), pen = !isMook(m) && [16, 17].some(i => cc(i)) ? -1 : 0;
     await rollQ; for (let i = 0; i < 40 && rollBusy; i++) await nap(100);
-    await quickRoll(String(num(cc(col)) ?? 0), a, n, "", pen, { db: cc(8), ab: cc(10) });
+    await quickRoll(String(num(cc(col)) ?? 0), a + " · auto", n, "", pen, { db: cc(8), ab: cc(10) });
   }
 }
 
