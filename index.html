@@ -5144,6 +5144,16 @@ window.addEventListener("storage", async (e) => {
     if (r?.ok) { monVals = r.values; cache.set("mon." + monId(), monVals); } }
   hurtRefresh(q.kind, q.id);
 });
+// Nov 27 fix: the GM screen / Party pop-out kept their own old copy of the encounter (test mode only listed monsters that
+// were alive when that page opened, even after Reset for Battle). Whenever any page saves the encounter (wounds, Dead,
+// Clear monster wounds, Reset, a reload from the sheet), every other open page takes the new copy and redraws.
+window.addEventListener("storage", (e) => {
+  if (standalone || !isGM || !monId() || e.key !== "ns.cache.mon." + monId() || !e.newValue) return;
+  let v = null; try { v = JSON.parse(e.newValue); } catch {} if (!Array.isArray(v)) return;
+  monVals = v;
+  try { if ($("mo")) keepScroll(drawMonsters); } catch {}
+  try { testMonDraw(); testBarUpdate(); testTurnDraw(true); } catch {}
+});
 // Party pop-out (GM only): this same page opened beside the map, showing only the Party overview with the GM strip.
 const PTY_POP_ICON = `<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const PARTY_POP = "com.newscolos.party";
