@@ -636,6 +636,12 @@
     background:color-mix(in srgb, var(--sa) 14%, #2c1d4f); color:#fff; font:800 14px system-ui; letter-spacing:.8px; }
   .spgo:hover:not(:disabled) { background:color-mix(in srgb, var(--sa) 24%, #2c1d4f); } .spgo:disabled { opacity:.45; cursor:default; }
   .spchk { display:flex; align-items:center; gap:6px; margin-top:5px; font-size:12px; color:#ddd5f3; cursor:pointer; }
+  .splistbox { margin-top:6px; max-height:420px; overflow:auto; border:1px solid #3a3558; border-radius:8px; padding:6px; background:rgba(15,13,28,.6); }
+  .sls + .sls { margin-top:8px; } .slsh { font-family:'Bangers', Impact, sans-serif; font-size:17px; letter-spacing:1px; color:var(--sa, #c7b6ff); } .slsh small { font:600 10px system-ui; color:var(--dim); letter-spacing:0; }
+  .slz { margin:6px 0 2px; font-size:10px; font-weight:800; letter-spacing:.6px; color:var(--dim); text-transform:uppercase; } .slz small { text-transform:none; font-weight:600; }
+  .slr { display:flex; gap:8px; align-items:center; padding:4px 0; border-top:1px solid rgba(255,255,255,.05); }
+  .slr > div { flex:1; min-width:0; font-size:12px; line-height:1.35; } .slr b { color:#f0eaff; } .slr span { display:block; color:#cfc6ee; }
+  .slr em { font-style:normal; font-size:10px; font-weight:800; color:#e6c97a; margin-left:4px; } .slr .sbtn { flex:none; padding:3px 8px; font-size:11px; }
   .spnote { font-size:11px; color:#9d92c2; margin-top:5px; line-height:1.4; }
   .istep { display:flex; align-items:center; gap:5px; margin-top:5px; } .istep[hidden] { display:none; }
   .istep #iNext { flex:1; min-height:68px; font-size:20px; } .istep #iPrev { width:60px; min-height:68px; flex:none; font-size:20px; }
@@ -1355,7 +1361,7 @@ function drawSheet() {
     <div class="infp gpow" data-for="attr" hidden></div>
     <div class="stab">VITALITY TRACK</div><button id="heal" class="healb" title="Heal one step: every wound moves one box left; the leftmost Light Wound goes away. Dead stays until you uncheck it." ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}>✚ HEAL 1 STEP</button><span class="healn"><button id="healGo" class="healb" title="Heal that many steps: every wound moves that many boxes left. Dead stays until you uncheck it." ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}>✚ HEAL STEPS</button><button id="healDn" class="healb hstep" title="One less step" ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}>−</button><input id="healN" type="number" min="1" max="6" inputmode="numeric" placeholder="#" value="${esc2(healNVal)}" title="How many steps to heal" ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}><button id="healUp" class="healb hstep" title="One more step" ${"BCDEFG".split("").some(c => V(c + "16")) ? "" : "disabled"}>+</button></span>${(healUndo.get(sheetId()) || []).length ? `<button id="healUndo" class="healb undo" title="Put the vitality track back the way it was before the last heal">↶ UNDO (${healUndo.get(sheetId()).length})</button>` : ""}${"BCDEFGH".split("").some(c => V(c + "16")) ? `<button id="healClr" class="healb clr" title="Full heal: clear every wound on the vitality track, Dead too. Tap twice to confirm.">✚ FULL HEAL</button>` : ""}
     <div class="vit">${["B", "C", "D", "E", "F", "G", "H"].map((c, i) => { const t = V(c + "15"); const m = t.match(/^(\S+)\s+(.*)$/) || [, t, ""]; return `<button class="box ${V(c + "16") ? "x" : ""}" data-w="${i}"><b>${esc2(m[1])}</b>${esc2(m[2])}<span class="chk ${V(c + "16") ? "x" : ""}">${V(c + "16") ? "✕" : ""}</span></button>`; }).join("")}</div>
-    <div class="g2b ${ptInEP() ? "g2p" : ""}"><div class="fld"><div class="epl"><div class="ephd"><small>Extraordinary Power</small>${typeRefBtn()}</div><div id="pwname">${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div>${/^priest$/i.test(V("C4").trim()) ? `<button id="smite" class="pwroll" ${(parseInt(V("F13")) || 0) < 2 ? "disabled" : ""} title="${(parseInt(V("F13")) || 0) < 2 ? "Smite costs 2 invocations: not enough left" : "Prayer against the target's Adroitness. Damage = Success Delta + 4. Takes 2 invocations off by itself"}">⚔<span>Smite: roll Prayer (2 inv.)</span></button>` : /^mage$/i.test(V("C4").trim()) ? `<button id="castsp" class="pwroll" title="Open the spell window: pick a school, a size and a spell">✦<span>Cast a spell (Spellcasting)</span></button>` : ""}</div></div>
+    <div class="g2b ${ptInEP() ? "g2p" : ""}"><div class="fld"><div class="epl"><div class="ephd"><small>Extraordinary Power</small>${typeRefBtn()}</div><div id="pwname">${esc2(V("C5"))}</div><div id="pwlist" class="pwl"></div>${/^priest$/i.test(V("C4").trim()) ? `<button id="smite" class="pwroll" ${(parseInt(V("F13")) || 0) < 2 ? "disabled" : ""} title="${(parseInt(V("F13")) || 0) < 2 ? "Smite costs 2 invocations: not enough left" : "Prayer against the target's Adroitness. Damage = Success Delta + 4. Takes 2 invocations off by itself"}">⚔<span>Smite: roll Prayer (2 inv.)</span></button>` : /^mage$/i.test(V("C4").trim()) ? `<button id="castsp" class="pwroll" title="Open the spell window: pick a school, a size and a spell">✦<span>Cast a spell (Spellcasting)</span></button><button id="splist" class="pwroll" title="Every spell your schools know, with what each one does">📖<span>My spell list</span></button><div id="splistbox" class="splistbox" hidden></div>` : ""}</div></div>
       <div class="fld c"><small>Used Today</small>${hasUtility() ? `<div class="uses"><span>Combat</span><button id="pw" class="chk ${used ? "x" : ""}" title="Combat use spent today">${used ? "✕" : ""}</button><span>Utility</span><button id="pwu" class="chk ${usedU ? "x" : ""}" title="Utility use spent today">${usedU ? "✕" : ""}</button></div>` : `<button id="pw" class="chk ${used ? "x" : ""}">${used ? "✕" : ""}</button>`}</div>${ptInEP() ? `
       <div class="fld c epp"><small>${esc2(V("E13"))}${ptMaxV() ? ` <span>/ ${esc2(ptMaxV())}</span>` : ""}</small>${ptCtl()}${/^priest$/i.test(V("C4").trim()) ? `<button class="sref epref" data-k="gods" title="Open The Gods beside the map">${REF_SVG}The Gods</button>` : /^mage$/i.test(V("C4").trim()) ? `<button class="sref epref" data-k="schools" title="Open Schools of Magic beside the map">${REF_SVG}Schools</button><button class="sref epref" data-k="spellbook" title="Open the Spell Book beside the map">${REF_SVG}Spell Book</button>` : ""}${ptMaxV() ? `<button id="ptfill" class="ptfill" title="Fill back up to ${esc2(ptMaxV())} (after a long rest). Asks first">↻ refill</button>` : ""}</div>` : ""}</div>
     <div id="pwd" class="gpow pwd" hidden></div>
@@ -1386,6 +1392,8 @@ function drawSheet() {
     quickRoll(b.dataset.m, b.dataset.l, "", b.dataset.b); });
   // Smite (Priest): a Prayer roll that feeds the Success Delta card, Damage = Delta + 4
   if ($("castsp")) $("castsp").onclick = (e) => { e.stopPropagation(); openSpell(); };
+  if ($("splist")) $("splist").onclick = (e) => { e.stopPropagation(); spellListToggle(); };
+  if (spListOpen && $("splistbox")) spellListToggle(true);
   if ($("tgtme")) $("tgtme").onclick = (e) => { e.stopPropagation(); flipTgt(); };
   // Smite spends its 2 invocations itself (Jake, Nov 25); greyed out with fewer than 2 left
   if ($("smite")) $("smite").onclick = async (e) => { e.stopPropagation(); if (rollBusy) return;
@@ -1486,8 +1494,8 @@ function spellMath(x) {
 }
 function closeSpell() { spellPk = null; $("spov")?.remove(); }
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && spellPk) closeSpell(); });
-async function openSpell() {
-  if ($("spov")) return closeSpell(); // tapping Spellcasting again closes it
+async function openSpell(preset) {
+  if ($("spov")) { closeSpell(); if (!preset) return; } // tapping Spellcasting again closes it
   const sch = mageSchools();
   spellPk = { id: sheetId(), school: sch.major || "", size: "Small", pick: -1, own: "", ownAtk: false, sch, book: null, err: "", sp: V("F13") };
   document.body.insertAdjacentHTML("beforeend", `<div id="spov" class="spov"><div class="spwin" id="spwin"><div class="spload">Opening your Spell Book…</div></div></div>`);
@@ -1496,7 +1504,29 @@ async function openSpell() {
   try { spellPk.book = await spellBook(); } catch (e) { if (spellPk) spellPk.err = "Couldn't read the Spell Book (" + e.message + "). You can still cast your own spell."; }
   if (spellPk && spellPk.book) { const fix = (n) => [...new Set(spellPk.book.map(s => s.sc))].find(b => b.toLowerCase() === String(n).toLowerCase()) || n; // "cryo" in Notes -> "Cryo"
     spellPk.sch = { major: fix(spellPk.sch.major), minor: fix(spellPk.sch.minor) }; spellPk.school = fix(spellPk.school); }
+  if (spellPk && preset && spellPk.book) { // from the spell list: that spell already picked
+    spellPk.school = preset.sc; spellPk.size = preset.sz;
+    spellPk.pick = spellPk.book.filter(s => s.sc.toLowerCase() === preset.sc.toLowerCase() && s.sz.toLowerCase() === preset.sz.toLowerCase()).findIndex(s => s.n === preset.n); }
   if (spellPk) { if (!spellPk.school) spellPk.school = [...new Set((spellPk.book || []).map(s => s.sc))][0] || "Cryo"; drawSpell(); }
+}
+// 📖 My spell list (Jake, Nov 26): every spell this Mage's schools know (major: every size; minor: up to Medium), grouped by
+// school and size, with what each does. CAST opens the spell window with that spell picked.
+let spListOpen = false;
+async function spellListToggle(keep) {
+  const box = $("splistbox"); if (!box) return;
+  if (!keep) spListOpen = !spListOpen;
+  box.hidden = !spListOpen; if (!spListOpen) return;
+  box.innerHTML = `<div class="spnote">Loading the Spell Book…</div>`;
+  let book; try { book = await spellBook(); } catch (e) { box.innerHTML = `<div class="err">Couldn't read the Spell Book: ${esc2(e.message || e)}</div>`; return; }
+  const sch = mageSchools(), fix = (n) => [...new Set(book.map(b => b.sc))].find(b => b.toLowerCase() === String(n).toLowerCase()) || n;
+  const major = fix(sch.major), minor = fix(sch.minor), schools = major ? [major, minor].filter(Boolean) : [...new Set(book.map(b => b.sc))];
+  const sizes = SPELL_SIZES.map(z => z[0]);
+  box.innerHTML = schools.map(sc => { const isMinor = major && sc === minor;
+    return `<div class="sls"><div class="slsh" style="--sa:${spLook(sc)[0]}">${esc2(sc)} <small>${major ? (isMinor ? "minor: Tricks to Medium" : "major: every size") : ""}</small></div>` +
+      sizes.filter(z => !(isMinor && /large|huge/i.test(z))).map(z => { const zz = SPELL_SIZES.find(x => x[0] === z), list = book.filter(b => b.sc === sc && b.sz.toLowerCase() === z.toLowerCase());
+        return list.length ? `<div class="slz">${esc2(z)} <small>${zz[1] ? zz[1] + " SP · difficulty +" + zz[2] : "free · difficulty 0"}</small></div>` + list.map(b => { const fx = spellFx(b.n), m = spellMath(b.x);
+          return `<div class="slr"><div><b>${esc2(b.n)}</b>${m.atk ? ` <em>attack</em>` : fx ? ` <em>${esc2(fx.tag)}</em>` : ""}<span>${esc2(b.x)}</span></div><button class="sbtn" data-cast="${esc2(b.n)}" data-sc="${esc2(sc)}" data-sz="${esc2(b.sz)}">CAST</button></div>`; }).join("") : ""; }).join("") + `</div>`; }).join("");
+  box.querySelectorAll("[data-cast]").forEach(b => b.onclick = (e) => { e.stopPropagation(); openSpell({ sc: b.dataset.sc, sz: b.dataset.sz, n: b.dataset.cast }); });
 }
 function drawSpell() {
   const P = spellPk, w = $("spwin"); if (!P || !w) return;
@@ -1521,7 +1551,7 @@ function drawSpell() {
       <button class="spc own ${own ? "on" : ""}" data-i="-2"><b>Your own spell</b><span>Describe it with a verb from your school and a target. The GM agrees the size with you before the roll.</span></button>
       ${own ? `<input id="spown" class="spin" maxlength="24" placeholder="Name it (e.g. Frost Lance)" value="${esc2(P.own)}">${sz[3] ? `<label class="spchk"><input type="checkbox" id="spatk" ${P.ownAtk ? "checked" : ""}> It's an attack: targets roll Adroitness, Damage Bonus +${sz[3]} (${esc2(sz[0])})</label>` : ""}` : ""}</div>
     <div class="spfoot">${pick || own ? `<div class="spsum">${m.atk ? `<b>Attack.</b> Cast it, then ${m.area ? "each target" : "the target"} rolls <b>${esc2(m.dfa)}</b>: Damage = Delta + ${m.db}${m.area ? ". Hits several: select their tokens with Target Lock, or set how many on the Success Delta card" : ""}.`
-        : pick && m.vs ? `The target resists with <b>${esc2(m.dfa)}</b>. The GM compares the rolls.` : own ? `Not an attack: it just has to be cast.` : `No defense roll: it just has to be cast.`}</div>` : ""}
+        : pick && m.vs ? `The target resists with <b>${esc2(m.dfa)}</b>. The GM compares the rolls.` : own ? `Not an attack: it just has to be cast.` : `No defense roll: it just has to be cast.`}${pick && spellFx(pick.n) ? `<br><b>When it's cast:</b> ${esc2(spellFx(pick.n).x)}. It goes on ${/foe/.test(spellFx(pick.n).who) ? "the targets you pick (◎ in test mode, or selected tokens)" : spellFx(pick.n).who === "self" ? "you" : spellFx(pick.n).who === "party" ? "the whole crew" : "you, or the ally you pick / select"}, shows on the sheet, and counts in the rolls by itself.` : pick && !m.atk ? `<br>The table sees what it does. The GM plays out the rest.` : ""}</div>` : ""}
       <div class="sprl">Spellcasting <b>${P.mod >= 0 ? "+" : ""}${P.mod}</b> vs difficulty <b>${sz[2] ? "+" + sz[2] : "0"}</b> · <b>${odds}%</b> to cast${sz[1] ? ` · costs <b>${sz[1]} SP</b>` : " · free"}</div>
       <button class="spgo" id="spgo" ${(!pick && !(own && P.own.trim())) || lack || blocked ? "disabled" : ""}>${blocked ? "Major school only" : lack ? "Not enough Spell Points" : `✦ CAST${pick ? " " + esc2(pick.n.toUpperCase()) : own && P.own.trim() ? " " + esc2(P.own.trim().toUpperCase()) : ""}`}</button>
       <div class="spnote">Miss: it fizzles, the SP stay spent. On +, +, +, +: one size up for free or a second target. On -, -, -, -: wild magic.</div></div>`;
@@ -1542,11 +1572,57 @@ async function castSpell(pick, sz, m) {
   if (!(await whenFree()) || spellPk !== P) { if (g?.isConnected) { g.disabled = false; g.textContent = "Still saving, tap again"; } return; }
   const have = parseInt(V("F13")) || 0; if (sz[1] > have) return drawSpell();
   const name = (pick ? pick.n : P.own.trim() || "Spell").slice(0, 22);
-  pendingSpell = { d: sz[2], atk: !!m.atk, db: m.db, dfa: m.dfa || "Adroitness" };
+  pendingSpell = { d: sz[2], atk: !!m.atk, db: m.db, dfa: m.dfa || "Adroitness", name, x: pick ? pick.x : "" };
   if (sz[1]) save({ points: have - sz[1] }, () => setCell("F13", String(have - sz[1]))); // the Spell Points go first, cast or fizzle
   const pm = powerMod("Spellcasting");
   closeSpell();
   quickRoll(pm ? pm.m : 0, `Spellcasting · ${name} (${sz[0]}${sz[2] ? " +" + sz[2] : ""})`, "", pm?.br || "");
+}
+// ---- Spells that DO something once cast (Jake, Nov 26: "Stone Skin, I have no idea what it does") ----
+// On a successful cast, these go on the shared Combat Option / effect list (strip on the sheet, GM list, ✕ to end) and their
+// numbers are added to rolls by themselves. "self": the caster; "ally": the picked / selected party member (else the caster);
+// "foe": the picked / selected enemies. end: scene ones last until ✕ or the fight ends (combat), "turn" until the caster's
+// next turn, "once" until used. Spells not listed here are story effects: the card says what happens, the GM runs it.
+const SPELL_FX = {
+  "ice armor": { who: "ally", end: "combat", on: "armor", v: 1, x: "+1 Armor Bonus for the scene", tag: "+1 armor" },
+  "gem armor": { who: "ally", end: "combat", on: "armor", v: 1, x: "+1 Armor Bonus for the scene", tag: "+1 armor" },
+  "fire shield": { who: "self+", end: "combat", on: "armor", v: 2, x: "+2 Armor Bonus for the scene (you and allies within 10 ft)", tag: "+2 armor" },
+  "crystal fortress": { who: "self+", end: "combat", on: "armor", v: 2, x: "+2 Armor Bonus while inside the bunker", tag: "+2 armor" },
+  "stone skin": { who: "self", end: "combat", once: 1, nohit: 1, x: "The next hit against them does no damage", tag: "blocks a hit" },
+  "deflect": { who: "self", end: "combat", once: 1, nohit: 1, ranged: 1, x: "The next ranged attack against them misses", tag: "blocks a shot" },
+  "heat shimmer": { who: "self", end: "turn", once: 1, on: "adroit", v: 1, x: "The next attack against them is at -1 (their dodge gets +1)", tag: "dodge +1" },
+  "mirror images": { who: "self", end: "combat", coin: 1, uses: 3, x: "3 copies: each attack has a 1 in 2 chance of popping a copy instead", tag: "3 copies" },
+  "burning blade": { who: "ally", end: "combat", on: "dmg", v: 1, x: "+1 Damage Bonus on their weapon for the scene", tag: "+1 damage" },
+  "sharpen": { who: "ally", end: "combat", on: "dmg", v: 1, x: "+1 Damage Bonus on their blade for the scene", tag: "+1 damage" },
+  "shroud": { who: "ally", end: "combat", on: "sneak", v: 1, x: "+1 to Sneak for the scene", tag: "+1 sneak" },
+  "veil the crew": { who: "party", end: "combat", on: "sneak", v: 1, x: "+1 to Sneak for the scene (the whole crew)", tag: "+1 sneak" },
+  "numb": { who: "foe", end: "combat", once: 1, on: "atk", v: -1, x: "-1 to their next attack", tag: "-1 next attack" },
+  "drain": { who: "foe", end: "combat", on: "all", v: -1, x: "-1 to all their rolls for the scene", tag: "-1 all rolls" },
+  "weaken": { who: "foe", end: "combat", on: "all", v: -1, x: "-1 to all their rolls for the scene", tag: "-1 all rolls" },
+  "break armor": { who: "foe", end: "combat", arm: -99, x: "No Armor Bonus for the scene", tag: "armor gone" },
+  "smoke screen": { who: "none", end: "combat", x: "Everyone attacks at -2 inside the gas (scene)", tag: "-2 inside" },
+  "frozen room": { who: "none", end: "combat", x: "Everyone but the caster rolls at -1 in this room (scene)", tag: "-1 in room" },
+  "slow time": { who: "foe", end: "turn", x: "They act last in the round until the caster's next turn", tag: "act last" },
+  "storm sense": { who: "party", end: "manual", x: "Can't be caught off guard by an ambush today", tag: "no ambush" },
+};
+const spellFx = (n) => SPELL_FX[String(n || "").trim().toLowerCase()] || null;
+// a successful cast: tell the table what it does, and put any lasting effect on the list
+async function spellCast(sp) {
+  if (standalone || !sp?.name) return;
+  const fx = spellFx(sp.name);
+  announceCop(null, null, "✦ " + sp.name, (sp.x || "").slice(0, 90), true);
+  if (!fx || fx.who === "none" && !fx.x) return;
+  const me2 = myChar();
+  let to = [];
+  if (fx.who === "self") to = [me2];
+  else if (fx.who === "foe") to = await coFoes();
+  else if (fx.who === "party") to = (lastParty || []).map(c => pCell(c.values, "C3")).filter(Boolean).concat(me2);
+  else if (fx.who === "ally" || fx.who === "self+") { const pk = testOn() && testTgt.length ? testTgt : await coFoes();
+    to = pk.filter(n => !sameName(n, me2)); if (fx.who === "self+" || !to.length) to = [me2, ...to]; }
+  to = [...new Set(to)].slice(0, 8);
+  const def = { t: sp.name.toUpperCase(), x: fx.x, end: fx.end === "manual" ? "combat" : fx.end };
+  if (fx.on) { def.on = fx.on; def.v = fx.v; } if (fx.arm) def.arm = fx.arm; if (fx.coin) def.coin = 1;
+  await fxAdd(sp.name, def, to, fx);
 }
 // Called from doQuickRoll once the dice are in: did it beat the difficulty, and is it an attack?
 function applySpell(r, sp) {
@@ -1554,6 +1630,7 @@ function applySpell(r, sp) {
   delete r.atk; delete r.sp; delete r.db; delete r.dbk;
   r.label = (r.label + (mm ? " · WILD MAGIC" : !ok ? " · FIZZLED" : pp ? " · CAST, ONE SIZE UP!" : " · CAST")).slice(0, 70);
   if (ok && sp.atk) { r.atk = 1; r.sp = 1; r.db = sp.db; r.dbk = "spell"; if (sp.dfa && sp.dfa !== "Adroitness") r.dfa = sp.dfa; }
+  if (ok && !sp.atk) setTimeout(() => spellCast(sp).catch(() => {}), 1800); // after the dice land: what it does, and its effect
 }
 // ---------------- SHEET MANAGER ----------------
 // Spend XP on skills and attribute points on attributes using the sheet's own cost chart (G4:H12),
@@ -2479,13 +2556,14 @@ async function fxWrite(fn) {
   const md = await OBR.room.getMetadata(), list = fn(fxList(md)).slice(-10); // small: room storage is ~16 kB for everything
   await OBR.room.setMetadata({ [COFX]: list.length ? list : null });
 }
-async function fxAdd(nm, fx, to) {
+async function fxAdd(nm, fx, to, extra) {
   if (standalone) return;
   const md = actMd || await OBR.room.getMetadata(), st = md?.[INIT], open = !!st?.open;
   const n = fx.grab ? 1 + Math.max(0, num(V("C8")) ?? 0) : fx.n || 0;
   const e = { id: crypto.randomUUID().slice(0, 6), by: myChar(), o: nm, t: fx.t, x: fx.x, end: fx.end, to: to.slice(0, 6), ts: Date.now(),
     sid: open ? st.sid : "", r0: open ? st.round || 1 : 0, c0: open ? st.cur || "" : "" };
   if (n) e.n = n; if (fx.on) { e.on = fx.on; e.v = fx.v; } if (fx.vs) { e.vs = 1; e.v = fx.v; } if (fx.dmg) e.dmg = fx.dmg; if (fx.coin) e.coin = 1; if (fx.arm) e.arm = fx.arm;
+  if (extra) { if (extra.once) e.once = 1; if (extra.nohit) e.nohit = 1; if (extra.ranged) e.ranged = 1; if (extra.uses) e.uses = extra.uses; }
   const same = (a) => a.o === e.o && sameName(a.by, e.by) && [...a.to].sort().join("|").toLowerCase() === [...e.to].sort().join("|").toLowerCase();
   await fxWrite(l => [...l.filter(a => !same(a)), e]); // using the same option again on the same people refreshes it instead of stacking
 }
@@ -2498,7 +2576,7 @@ function fxApply(r, whoName) {
   // Jake, Nov 26: the same option never adds up (two Encourages on Raxx = +1, not +2)
   const seen = new Set(), once = (e) => { const k = e.o + "|" + (e.on || e.vs || e.arm || e.dmg); if (seen.has(k)) return false; seen.add(k); return true; };
   // out of a fight, a bonus that would last "until your next turn" is used up by its first roll (Jake, Nov 26)
-  const used = (e, who) => { if (e.sid || e.end !== "turn") return; const left = (e.to || []).filter(t => !sameName(t, who));
+  const used = (e, who) => { if (!e.once && (e.sid || e.end !== "turn")) return; /* "once" spells (Numb, Heat Shimmer): gone after one use */ const left = (e.to || []).filter(t => !sameName(t, who));
     fxWrite(l => left.length ? l.map(a => a.id === e.id ? { ...a, to: left } : a) : l.filter(a => a.id !== e.id)).catch(() => {}); };
   const defense = /^adroitness/i.test(r.label) && !/initiative/i.test(r.label);
   if (!whoName) { const me2 = myChar(); if (!me2) return;
@@ -2506,17 +2584,25 @@ function fxApply(r, whoName) {
       if (e.on === "adroit" && fxMine(e, me2) && defense && once(e)) { add(e.v, e.o); used(e, me2); }
       if (e.on === "all" && fxMine(e, me2) && once(e)) { add(e.v, e.o); used(e, me2); }
       if (e.vs && r.atk && (r.tg || []).some(n => fxMine(e, n)) && once(e)) { add(e.v, "Marked"); if (!e.sid) fxEnd(e.id); }
+      // spells (Nov 26): armor, damage, Sneak, and Stone Skin / Deflect stopping a hit
+      if (e.on === "armor" && fxMine(e, me2) && r.ab != null && once(e)) r.ab += e.v;
+      if (e.on === "dmg" && fxMine(e, me2) && r.atk && r.db != null && once(e)) { r.db += e.v; r.label = `${r.label} · ${e.o} +${e.v} damage`.slice(0, 80); }
+      if (e.on === "sneak" && fxMine(e, me2) && /^sneak/i.test(r.label) && once(e)) add(e.v, e.o);
+      if (e.nohit && fxMine(e, me2) && defense && once(e)) { const w = sdWaitSafe() ? sdWait() : null;
+        if (w && (!e.ranged || !W_MEL.test(w.l || "")) && (w.at ?? 0) >= r.total) { r.blk = e.o; r.label = `${r.label} · ${e.o}: no damage!`.slice(0, 80); used(e, me2); } }
       // Optical Illusion Double: defending while an attack waits flips the coin by itself; tails = the attack hits the double
       if (e.coin && sameName(e.by, me2) && defense && sdWaitSafe() && once(e)) {
         const tails = (crypto.getRandomValues(new Uint8Array(1))[0] & 1) === 1;
-        if (tails) r.dbl = 1; r.label = `${r.label} · Double: ${tails ? "tails, it hits the double!" : "heads, the real one"}`.slice(0, 80); }
+        if (tails) r.dbl = 1; r.label = `${r.label} · ${e.uses ? "Copy" : "Double"}: ${tails ? "tails, it hits the " + (e.uses ? "copy!" : "double!") : "heads, the real one"}`.slice(0, 80);
+        if (tails && e.uses) { const left = e.uses - 1; fxWrite(l => left > 0 ? l.map(a => a.id === e.id ? { ...a, uses: left, x: `${left} cop${left === 1 ? "y" : "ies"} left: each attack has a 1 in 2 chance of popping one` } : a) : l.filter(a => a.id !== e.id)).catch(() => {}); } }
     }
   } else {
     for (const e of list) {
       if (!fxMine(e, whoName)) continue;
       if (r.atk && e.on === "atk" && once(e)) { add(e.v, e.o); used(e, whoName); }
+      if (e.on === "all" && once(e)) add(e.v, e.o); // Drain / Weaken spells on a monster
       if (r.atk && e.dmg && r.db != null && once(e)) { r.db += e.dmg; r.label = `${r.label} · ${e.o} ${e.dmg} damage`.slice(0, 80); fxEnd(e.id); }
-      if (e.arm && r.ab != null && once(e)) r.ab = Math.max(0, r.ab + e.arm); // Destroy Armor: counts when this monster defends
+      if (e.arm && r.ab != null && once(e)) r.ab = Math.max(0, r.ab + e.arm); // Destroy Armor / Break Armor: counts when this monster defends
     }
   }
 }
