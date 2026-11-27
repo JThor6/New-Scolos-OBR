@@ -866,7 +866,7 @@ import { TYPES, SECTIONS, REF_GROUPS, getTab, sectionHtml } from "./rules.js";
 import { num, sgn, nm, tc, pCell } from "./logic/util.js";
 import { BOX_START, BOX_NAME, WOUNDS, WOUND_DMG, pickWoundBox, woundSaid, trackOf, healTrack, isMook, pcDown, monDown } from "./logic/wounds.js";
 import { SPELL_SIZES, FUDGE, castOdds, schoolsFromNotes, spellMath, SPELL_FX, spellFx } from "./logic/spells.js";
-import { CO, coKey, coDef, copLeftOf, copLadder, W_MEL, W_RNG, KS_ATTACK, kindOfName, monAttacks, defAttr, canDefend, monRowOf } from "./logic/combat.js";
+import { CO, coKey, coDef, copLeftOf, copLadder, W_MEL, W_RNG, KS_ATTACK, kindOfName, monAttacks, defAttr, canDefend, monRowOf, partyMatch } from "./logic/combat.js";
 import { fxAlive, fxMine, fxPlan, fxAct } from "./logic/effects.js";
 import { levelOf, ptMaxOf, copEmpty, newDayChanges, partySkills } from "./logic/sheet.js";
 import { ATTRS, ATTR_COST, ATTR_SETS, LEVEL_SLOTS, attrCostOf, chooseOpts, needsSpec, baseShort, specMissing } from "./logic/chargen.js";
@@ -1081,6 +1081,8 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
   }
   // Test mode auto defense (Jake, Nov 27): targets picked with ◎ OR selected on the map with Target Lock. KO'd / Dead
   // targets are left out (no defense roll; the GM marks the hit by hand).
+  if (r.tg && isGM && !standalone) { // a token "Tony" is the character "Test(Tony)": use the sheet name, so the defense roll counts
+    const pl = partyNow(); r.tg = [...new Set(r.tg.map(n => { const c = monRowOf(monVals, n) > 0 ? null : partyMatch(pl, n); return c ? pCell(c.values, "C3") : n; }))]; }
   if (r.tg && testOn() && !standalone) {
     const down = r.tg.filter(n => tgtDown(n)); r.tg = r.tg.filter(n => !tgtDown(n));
     if (r.tg.length) autoDef = true; else { delete r.tg; r.notg = 1; }
@@ -4441,8 +4443,10 @@ function testTurnDraw(refresh) {
 // Test mode auto defense (Jake, Nov 27): an attack at picked targets rolls each target's defense by itself, about 2 s
 // after the attack (its dice have landed), one after another. Party members and monsters both; anyone KO'd or Dead is
 // left out (tgtDown). The defense is whatever the attack calls for (usually Adroitness).
+// the party's sheets: the Party view's list, or the campaign's characters this browser already loaded
+const partyNow = () => (lastParty && lastParty.length ? lastParty : cache.get(ck("chars")) || []);
 function tgtDown(n) {
-  const c = (lastParty || []).find(x => sameName(pCell(x.values, "C3"), n)); if (c) return pcDown(c.values);
+  const c = partyMatch(partyNow(), n); if (c) return pcDown(c.values);
   const v = monVals || [], row = monRowOf(v, n); return row > 0 && monDown(v[row]);
 }
 const nap = (ms) => new Promise(r => setTimeout(r, ms));
@@ -4451,11 +4455,13 @@ async function autoDefend(id, tg) {
   for (let i = 0; i < 25 && w?.id !== id; i++) { await nap(200); w = sdWait(); }
   if (w?.id !== id || !testOn()) return;
   const a = defAttr(w), col = { Adroitness: 4, "Raw Strength": 3, Intellect: 5, Charm: 6 }[a] ?? 4;
+  if (!partyNow().length) await characterSheets().catch(() => {}); // fresh reload, Party view never opened
+  if (!monVals && monId()) { const r = await bridgeGet({ id: monId(), tab: "Extension Tracker" }).catch(() => null); if (r?.ok) monVals = r.values; }
   for (const n of tg || []) {
     if (!testOn() || tgtDown(n)) continue;
-    const c = (lastParty || []).find(x => sameName(pCell(x.values, "C3"), n));
+    const c = partyMatch(partyNow(), n);
     if (c) { await rollAs(c, num(pCell(c.values, ATTR_CELL[a] || "C7")) ?? 0, a + " · Defense · auto"); continue; }
-    const v = monVals || [], row = monRowOf(v, n); if (row < 0) { obrNote(`Couldn't find ${n} to roll its defense. Tap DEFEND for it.`, "WARNING"); continue; }
+    const v = monVals || [], row = monRowOf(v, n); if (row < 0) { obrNote(`Auto defense: no character or monster named "${n}". Roll its defense by hand.`, "WARNING"); continue; }
     const m = v[row], cc = (i) => String(m?.[i] ?? "").trim(), pen = !isMook(m) && [16, 17].some(i => cc(i)) ? -1 : 0;
     await rollQ; for (let i = 0; i < 40 && rollBusy; i++) await nap(100);
     await quickRoll(String(num(cc(col)) ?? 0), a + " · auto", n, "", pen, { db: cc(8), ab: cc(10) });

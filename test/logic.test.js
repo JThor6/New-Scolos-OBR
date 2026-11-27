@@ -140,3 +140,17 @@ test("monDown: KO or Dead box, or the Dead column; a mook's pre-marked KO box do
   assert.equal(monDown(monR("Grunt Mook", ["", "", "", "TRUE", "TRUE", "TRUE", "TRUE"])), true);
   assert.equal(monDown(monR("Hive Runner", ["", "", "", "", "", "FALSE", ""])), false);
 });
+
+// ---- Which party character a target / token name means (Nov 27: "couldn't find Tony")
+import { partyMatch } from "../logic/combat.js";
+const PC = (n) => ({ id: n, values: [[], [], ["", "", n]] });
+test("partyMatch: exact, loose (Raxx -> Raxx Veldt), or the part in brackets (Tony -> Test(Tony)); never a guess", () => {
+  const chars = [PC("Test(Tony)"), PC("Raxx Veldt"), PC("David Bowie"), PC("Mort")];
+  assert.equal(partyMatch(chars, "Test(Tony)")?.id, "Test(Tony)");
+  assert.equal(partyMatch(chars, "tony")?.id, "Test(Tony)");
+  assert.equal(partyMatch(chars, "Test")?.id, "Test(Tony)");
+  assert.equal(partyMatch(chars, "Raxx")?.id, "Raxx Veldt");
+  assert.equal(partyMatch(chars, "Hive Runner 1"), null);
+  assert.equal(partyMatch([PC("Test(Tony)"), PC("Test(Justin)")], "Test"), null); // two fit: don't guess
+  assert.equal(partyMatch(null, "Tony"), null);
+});

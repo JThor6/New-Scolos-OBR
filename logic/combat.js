@@ -1,6 +1,6 @@
 // Combat: Combat Options, which skills are attacks, monster attack text, who can defend. Pure.
 import { sameName } from "../shared.js";
-import { nm } from "./util.js";
+import { nm, pCell } from "./util.js";
 export const CO = {
   "acid touch": { s: "Auto hit by touch. For 3 rounds the target takes 1 extra wound each round (lightest box open).", fx: { end: "rounds", n: 3, foe: 1, t: "ACID TOUCH", x: "1 extra wound each round (lightest box open)" } },
   "attack twice": { roll: "atk", two: -1, s: "Two attacks. The second needs a second weapon and gets -1." },
@@ -57,4 +57,17 @@ export function monRowOf(v, name) {
   const ex = rows.findIndex((r, i) => i > hdr && nm(r?.[0]) === key); if (ex > 0) return ex;
   const loose = rows.map((r, i) => (i > hdr && sameName(r?.[0], name) ? i : -1)).filter(i => i > 0);
   return loose.length === 1 ? loose[0] : -1;
+}
+
+// Which party character does a target / token name mean? (Nov 27: a token "Tony" for the sheet "Test(Tony)" wasn't found.)
+// Exact name, then a loose match ("Raxx" -> "Raxx Veldt"), then the name inside or before brackets ("Tony" / "Test" ->
+// "Test(Tony)"). Each step only counts when exactly one character fits. null: not a party member.
+export function partyMatch(chars, name) {
+  const list = (chars || []).filter(c => c?.values), key = nm(name); if (!key) return null;
+  const nameOf = (c) => pCell(c.values, "C3");
+  const parts = (n) => String(n).split(/[()[\]]/).map(nm).filter(Boolean);
+  for (const fits of [(c) => nm(nameOf(c)) === key, (c) => sameName(nameOf(c), name), (c) => parts(nameOf(c)).some(p => p === key || sameName(p, name))]) {
+    const hit = list.filter(fits); if (hit.length === 1) return hit[0]; if (hit.length > 1) return null;
+  }
+  return null;
 }
