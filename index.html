@@ -869,6 +869,7 @@ import { fxAlive, fxMine, fxPlan, fxAct } from "./logic/effects.js";
 import { levelOf, ptMaxOf, copEmpty, newDayChanges, partySkills } from "./logic/sheet.js";
 import { ATTRS, ATTR_COST, ATTR_SETS, LEVEL_SLOTS, attrCostOf, chooseOpts, needsSpec, baseShort, specMissing } from "./logic/chargen.js";
 import { barTap, BAR_CONFIRM } from "./logic/confirm.js";
+import { turnKey as turnKeyOf, stepTurn, autoFirstTurn } from "./logic/turns.js";
 
 const $ = (id) => document.getElementById(id);
 let mod = 0, me = null, standalone = !OBR.isAvailable, localRolls = [];
@@ -3628,10 +3629,8 @@ async function skipDeadTurn() {
 let autoBusy = false;
 async function autoFirst() {
   if (!isGM || PARTYPOP || UPLINK || autoBusy) return;
-  const st = initMd[INIT]; if (!st?.open || (st.cur && !st.auto)) return;
-  const list = initEntries(initMd); if (!list.length) return;
-  const top = list[0].id; if (st.cur === top && !(st.sub || 0)) return;
-  autoBusy = true; try { await OBR.room.setMetadata({ [INIT]: { ...st, cur: top, sub: 0, round: st.round || 1, auto: 1 } }); } catch {} finally { autoBusy = false; }
+  const nx = autoFirstTurn(initMd); if (!nx) return;
+  autoBusy = true; try { await OBR.room.setMetadata({ [INIT]: nx }); } catch {} finally { autoBusy = false; }
 }
 let turnScrolled = ""; // the turn whose card was last scrolled to the top
 function markTurn() {
@@ -3666,11 +3665,16 @@ function drawInitList() {
   });
 }
 // Same as the ◀ / ▶ arrows on the initiative bar at the top: move the turn, and wrap to a new round after the last
+// Nov 26 fix: it only moves the turn that was on this screen when the button was tapped (logic/turns.js), so a late
+// START TURNS, a double tap or two screens tapping at once can't skip someone.
+let stepBusy = false;
 async function initStep(d) {
-  const m = await OBR.room.getMetadata(); if (!m[INIT]?.open) return;
-  // monster groups: one member at a time, skipping dead ones
-  let x = m, nx = null; for (let k = 0; k < 60; k++) { nx = initMove(x, d); if (!nx) break; x = { ...x, [INIT]: nx }; if (!(isGM && monDeadName(turnNames(x).cur))) break; }
-  if (nx) await OBR.room.setMetadata({ [INIT]: nx });
+  if (stepBusy) return; stepBusy = true;
+  try {
+    const seen = turnKeyOf((isGM ? initMd : lastMd)?.[INIT]), m = await OBR.room.getMetadata();
+    const nx = stepTurn(m, d, seen, (n) => isGM && monDeadName(n)); // monster groups: one member at a time, skipping dead ones
+    if (nx) await OBR.room.setMetadata({ [INIT]: nx });
+  } finally { setTimeout(() => { stepBusy = false; }, 600); }
 }
 async function callInitiative() {
   // A second tap within a minute, before turns start, keeps the same initiative instead of wiping everyone's rolls

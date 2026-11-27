@@ -16,12 +16,13 @@
 <body><button id="b" title="Done with your turn: pass to the next in order"><span class="h">END TURN ▶</span><span class="s">YOUR TURN</span></button>
 <script type="module">
   import OBR from "https://esm.sh/@owlbear-rodeo/sdk@3.1.0";
-  import { INIT, initMove } from "./shared.js";
+  import { INIT } from "./shared.js";
+  import { turnKey, stepTurn } from "./logic/turns.js";
   const b = document.getElementById("b");
   OBR.onReady(async () => {
     const me = await OBR.player.getId();
     b.onclick = async () => { b.disabled = true;
-      try { const m = await OBR.room.getMetadata(); if (m[INIT]?.cur === me) { const nx = initMove(m, 1); if (nx) await OBR.room.setMetadata({ [INIT]: nx }); } }
+      try { const m = await OBR.room.getMetadata(); if (m[INIT]?.cur === me) { const nx = stepTurn(m, 1, turnKey(m[INIT])); if (nx) await OBR.room.setMetadata({ [INIT]: nx }); } }
       finally { setTimeout(() => { b.disabled = false; }, 1500); } };
   });
 </script></body></html>
