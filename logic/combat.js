@@ -1,5 +1,6 @@
 // Combat: Combat Options, which skills are attacks, monster attack text, who can defend. Pure.
 import { sameName } from "../shared.js";
+import { nm } from "./util.js";
 export const CO = {
   "acid touch": { s: "Auto hit by touch. For 3 rounds the target takes 1 extra wound each round (lightest box open).", fx: { end: "rounds", n: 3, foe: 1, t: "ACID TOUCH", x: "1 extra wound each round (lightest box open)" } },
   "attack twice": { roll: "atk", two: -1, s: "Two attacks. The second needs a second weapon and gets -1." },
@@ -47,3 +48,13 @@ export function monAttacks(atk, off) {
 export const defAttr = (w) => w?.dfa || "Adroitness";
 export function canDefend(w, name) { if (!name || sameName(name, w.att) || (w.defs || []).some(d => sameName(d, name))) return false;
   return !w.tg?.length || w.tg.some(t => sameName(t, name)); }
+
+// Which row of the encounter's Extension Tracker is this name? Exact name first; otherwise a loose match ("Hive Runner 1"
+// against a row "Hive Runner"), but only when exactly one row matches. -1: not on the tracker. (Nov 27 fix)
+export function monRowOf(v, name) {
+  const rows = v || [], key = nm(name); if (!key) return -1;
+  const hdr = Math.max(0, rows.findIndex(r => String(r?.[0] || "").trim().toLowerCase() === "name"));
+  const ex = rows.findIndex((r, i) => i > hdr && nm(r?.[0]) === key); if (ex > 0) return ex;
+  const loose = rows.map((r, i) => (i > hdr && sameName(r?.[0], name) ? i : -1)).filter(i => i > 0);
+  return loose.length === 1 ? loose[0] : -1;
+}

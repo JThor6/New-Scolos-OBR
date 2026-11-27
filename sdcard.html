@@ -18,7 +18,7 @@
     color:#c9cede; font-size:12px; font-weight:900; line-height:1; cursor:pointer; font-family:inherit; }
   .b:hover:not(:disabled) { background:rgba(255,255,255,.18); color:#fff; } .b:disabled { opacity:.3; cursor:default; }
   .b.on { background:rgba(255,255,255,.2); border-color:rgba(255,255,255,.45); color:#fff; }
-  /* pin: STAY (solid, bright) = stays until closed; 20s (dim outline) = fades on its own */
+  /* pin: PINNED (solid, bright) = stays until closed; UNPINNED (dim dashed outline) = fades 20 s after the last result */
   .b.pin { display:flex; align-items:center; gap:3px; padding:0 5px; font-size:9.5px; letter-spacing:.5px; }
   .b.pin:not(.on) { color:#8a91a6; border-style:dashed; }
   .b.pin.on { background:#dfe4f2; border-color:#dfe4f2; color:#1e2130; }
@@ -144,7 +144,7 @@
     if (MINI && !big) document.getElementById("t").innerHTML = miniHtml(e, w, list, i, waitOnly); else
     document.getElementById("t").innerHTML =
       `<div class="top"><span class="k">${waitOnly ? "Δ · Waiting" : "Success Delta"}</span><span class="sp"></span>${nav}` +
-      `<button class="b pin ${pin ? "on" : ""}" id="pin" title="${pin ? "Stays up until you close it. Tap to make it fade 20 s after the last result" : "Fades 20 s after the last result. Tap to make it stay up until you close it"}">${PIN_SVG}<span>${pin ? "STAY" : "20s"}</span></button>` +
+      `<button class="b pin ${pin ? "on" : ""}" id="pin" title="${pin ? "Stays up until you close it. Tap to make it fade 20 s after the last result" : "Fades 20 s after the last result. Tap to make it stay up until you close it"}">${PIN_SVG}<span>${pin ? "PINNED" : "UNPINNED"}</span></button>` +
       `<button class="b" id="x" title="Close (opens again on the next attack, or from the DICE tab)">✕</button></div>` +
       (e ? resultHtml(e) + (e.ap ? `<div class="ap">${/^auto damage/i.test(e.ap) ? "" : "✓ "}${esc(e.ap)}</div>` : "") : "") + (w ? waitHtml(w, !!e) : "");
     const $ = (id) => document.getElementById(id);

@@ -864,9 +864,9 @@ document.head.insertAdjacentHTML("beforeend", `<style>${ROLL_CSS}${CLEAR_CSS}</s
 import { TYPES, SECTIONS, REF_GROUPS, getTab, sectionHtml } from "./rules.js";
 // Pure game logic, unit tested in test/ (npm test)
 import { num, sgn, nm, tc, pCell } from "./logic/util.js";
-import { BOX_START, BOX_NAME, WOUNDS, WOUND_DMG, pickWoundBox, woundSaid, trackOf, healTrack, isMook } from "./logic/wounds.js";
+import { BOX_START, BOX_NAME, WOUNDS, WOUND_DMG, pickWoundBox, woundSaid, trackOf, healTrack, isMook, pcDown, monDown } from "./logic/wounds.js";
 import { SPELL_SIZES, FUDGE, castOdds, schoolsFromNotes, spellMath, SPELL_FX, spellFx } from "./logic/spells.js";
-import { CO, coKey, coDef, copLeftOf, copLadder, W_MEL, W_RNG, KS_ATTACK, kindOfName, monAttacks, defAttr, canDefend } from "./logic/combat.js";
+import { CO, coKey, coDef, copLeftOf, copLadder, W_MEL, W_RNG, KS_ATTACK, kindOfName, monAttacks, defAttr, canDefend, monRowOf } from "./logic/combat.js";
 import { fxAlive, fxMine, fxPlan, fxAct } from "./logic/effects.js";
 import { levelOf, ptMaxOf, copEmpty, newDayChanges, partySkills } from "./logic/sheet.js";
 import { ATTRS, ATTR_COST, ATTR_SETS, LEVEL_SLOTS, attrCostOf, chooseOpts, needsSpec, baseShort, specMissing } from "./logic/chargen.js";
@@ -1065,9 +1065,12 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
     if (/^attack\b/i.test(label)) { r.atk = 1; if (db != null) { r.db = db; r.dbk = "offense"; } }
   }
   { const spl = !whoName ? pendingSpell : null; pendingSpell = null; if (spl) applySpell(r, spl); } // a spell from the spell window
+  let autoDef = false;
   if (r.atk && !standalone && testOn() && testTgt.length) { // test mode: the targets picked in the Party view, no map selection needed
-    const self = String(whoName || myChar() || ""), names = testTgt.filter(n => !sameName(n, self));
-    if (names.length) r.tg = names.slice(0, 12); else r.notg = 1;
+    const self = String(whoName || myChar() || ""), all = testTgt.filter(n => !sameName(n, self)), names = all.filter(n => !tgtDown(n));
+    if (names.length) { r.tg = names.slice(0, 12); autoDef = true; } else r.notg = 1;
+    const down = all.filter(n => tgtDown(n)); // KO'd / Dead: no defense roll, the GM marks the hit (Jake, Nov 27)
+    if (down.length) obrNote(`${down.join(", ")} ${down.length === 1 ? "is" : "are"} down: left out of the defense rolls. Mark the hit by hand.`, "INFO");
   } else if (r.atk && !standalone) { // 🎯 Targets on: the tokens this roller has selected are what the attack is aimed at
     try { if (tgtOn()) {
       const sel = (await OBR.player.getSelection()) || [], self = String(whoName || myChar() || "").toLowerCase();
@@ -1084,6 +1087,7 @@ async function doQuickRoll(modText, label, whoName, pen = 0, br = "", real = nul
   try { localStorage.setItem("ns.toastReq", JSON.stringify(r)); } catch {}
   const err = await saveRoll(r);
   if (err && $("sherr")) { $("sherr").hidden = false; $("sherr").textContent = err; }
+  if (autoDef && !err) { const id = r.id, tg = r.tg; setTimeout(() => autoDefend(id, tg).catch(x => obrNote("Auto defense didn't go through: " + (x?.message || x), "ERROR")), 2000); }
   if (initSid) {
     // Write it, read it back, and try up to 3 times (Jake, Nov 25: once in a while a player's roll didn't make the bar).
     // Only marked done once it's really in the room, so the banner / pop-up stay up to roll again if it never lands.
@@ -4429,6 +4433,30 @@ function testTurnDraw(refresh) {
   $("tside").querySelector("[data-tnext]").onclick = (e) => { e.stopPropagation(); initStep(1).catch(() => {}); };
 }
 
+// Test mode auto defense (Jake, Nov 27): an attack at picked targets rolls each target's defense by itself, about 2 s
+// after the attack (its dice have landed), one after another. Party members and monsters both; anyone KO'd or Dead is
+// left out (tgtDown). The defense is whatever the attack calls for (usually Adroitness).
+function tgtDown(n) {
+  const c = (lastParty || []).find(x => sameName(pCell(x.values, "C3"), n)); if (c) return pcDown(c.values);
+  const v = monVals || [], row = monRowOf(v, n); return row > 0 && monDown(v[row]);
+}
+const nap = (ms) => new Promise(r => setTimeout(r, ms));
+async function autoDefend(id, tg) {
+  let w = sdWait(); // wait (up to 5 s) for the background page to open the attack
+  for (let i = 0; i < 25 && w?.id !== id; i++) { await nap(200); w = sdWait(); }
+  if (w?.id !== id || !testOn()) return;
+  const a = defAttr(w), col = { Adroitness: 4, "Raw Strength": 3, Intellect: 5, Charm: 6 }[a] ?? 4;
+  for (const n of tg || []) {
+    if (!testOn() || tgtDown(n)) continue;
+    const c = (lastParty || []).find(x => sameName(pCell(x.values, "C3"), n));
+    if (c) { await rollAs(c, num(pCell(c.values, ATTR_CELL[a] || "C7")) ?? 0, a + " · Defense"); continue; }
+    const v = monVals || [], row = monRowOf(v, n); if (row < 0) { obrNote(`Couldn't find ${n} to roll its defense. Tap DEFEND for it.`, "WARNING"); continue; }
+    const m = v[row], cc = (i) => String(m?.[i] ?? "").trim(), pen = !isMook(m) && [16, 17].some(i => cc(i)) ? -1 : 0;
+    await rollQ; for (let i = 0; i < 40 && rollBusy; i++) await nap(100);
+    await quickRoll(String(num(cc(col)) ?? 0), a, n, "", pen, { db: cc(8), ab: cc(10) });
+  }
+}
+
 // DEFEND, everywhere at once (Jake, Nov 26: it has to be impossible to miss while clicking through a test fight).
 // While an attack waits, one big button per character or monster who can defend: on the top banner, above the middle of
 // the GM screen, and (as before) on their card / monster row. One tap rolls their defense.
@@ -5037,8 +5065,10 @@ async function autoDamage() {
 async function applyWound(name, w) {
   const pick = (marks) => pickWoundBox(marks, w), said = (i) => woundSaid(name, i, w);
   // a monster on the GM tab's encounter?
+  // (Nov 27 fix: "couldn't find Hive Runner 1": this page's copy of the encounter was old. Not found: read it again once.)
   if (!monVals && monId()) { const r = await bridgeGet({ id: monId(), tab: "Extension Tracker" }).catch(() => null); if (r?.ok) monVals = r.values; }
-  const v = monVals || [], row = v.findIndex((r, i) => i > 0 && nm(r?.[0]) === nm(name));
+  if (monRowOf(monVals, name) < 0 && monId()) { const r = await bridgeGet({ id: monId(), tab: "Extension Tracker" }).catch(() => null); if (r?.ok) monVals = r.values; }
+  const v = monVals || [], row = monRowOf(v, name);
   if (row > 0) {
     const r = v[row], on = (i) => !!String(r[i] ?? "").trim() && !/^false$/i.test(String(r[i]));
     const i = pick([12, 13, 14, 15, 16, 17, 18].map(on));

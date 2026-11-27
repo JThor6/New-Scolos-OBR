@@ -24,3 +24,7 @@ export function healTrack(was, full) {
 // Monster rows on an encounter's Extension Tracker tab: name in A, type in C, boxes M-S (12-18), Dead in T (19)
 export const isMook = (r) => /\b(mook|minion)s?\b/i.test(String(r?.[0] ?? "") + " " + String(r?.[2] ?? ""));
 export const monDeadCell = (r) => /^(true|x|yes|dead)$/i.test(String(r?.[19] ?? "").trim());
+// Down (KO'd or Dead): no defense roll for them (Jake, Nov 27). A mook's KO box comes pre-marked, so only Dead counts there.
+const onCell = (x) => !!String(x ?? "").trim() && !/^false$/i.test(String(x).trim());
+export const pcDown = (v) => { const t = trackOf(v); return t[5] || t[6]; };
+export const monDown = (r) => monDeadCell(r) || onCell(r?.[18]) || (!isMook(r) && onCell(r?.[17]));

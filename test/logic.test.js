@@ -113,3 +113,30 @@ test("Choose One skills", () => {
   assert.ok(specMissing({ base, name: "Knowledge" })); assert.ok(!specMissing({ base, name: "Knowledge Religion", spec: "Religion" }));
   assert.equal(chooseOpts("Sneak"), null);
 });
+
+// ---- Auto damage and test-mode auto defense (Jake, Nov 27)
+import { monRowOf } from "../logic/combat.js";
+import { pcDown, monDown } from "../logic/wounds.js";
+const TRACK = [["Name", "", "Kind"], ["Hive Runner", "", ""], ["Officer Vane", "", ""], ["Hive Runner 2", "", ""]];
+test("monRowOf: exact name first, then a single loose match (Hive Runner 1 -> row Hive Runner)", () => {
+  assert.equal(monRowOf(TRACK, "Hive Runner 2"), 3);
+  assert.equal(monRowOf(TRACK, "Hive Runner 1"), 1);
+  assert.equal(monRowOf(TRACK, "officer  vane"), 2);
+  assert.equal(monRowOf(TRACK, "Nobody"), -1);
+  assert.equal(monRowOf([["Name"], ["Hive Runner A"], ["Hive Runner B"]], "Hive Runner"), -1); // two loose matches: don't guess
+});
+const pcVals = (marks) => { const v = Array.from({ length: 16 }, () => []); v[15] = ["", ...marks]; return v; };
+test("pcDown: KO'd or Dead on the Vitality Track", () => {
+  assert.equal(pcDown(pcVals(["x", "", "", "", "", "", ""])), false);
+  assert.equal(pcDown(pcVals(["x", "x", "x", "x", "x", "x", ""])), true);
+  assert.equal(pcDown(pcVals(["", "", "", "", "", "", "x"])), true);
+});
+const monR = (name, boxes, dead = "") => { const r = [name, "", ""]; r.length = 20; boxes.forEach((b, i) => r[12 + i] = b); r[19] = dead; return r; };
+test("monDown: KO or Dead box, or the Dead column; a mook's pre-marked KO box doesn't count", () => {
+  assert.equal(monDown(monR("Hive Runner", ["TRUE", "", "", "", "", "", ""])), false);
+  assert.equal(monDown(monR("Hive Runner", ["", "", "", "", "", "TRUE", ""])), true);
+  assert.equal(monDown(monR("Hive Runner", ["", "", "", "", "", "", ""], "TRUE")), true);
+  assert.equal(monDown(monR("Grunt Mook", ["", "", "", "TRUE", "TRUE", "TRUE", ""])), false);
+  assert.equal(monDown(monR("Grunt Mook", ["", "", "", "TRUE", "TRUE", "TRUE", "TRUE"])), true);
+  assert.equal(monDown(monR("Hive Runner", ["", "", "", "", "", "FALSE", ""])), false);
+});
