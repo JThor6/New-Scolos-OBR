@@ -5,7 +5,7 @@
   html { margin:0; background:transparent; }
   body { margin:0; zoom:0.85; color:#f1f3f9; font-family:system-ui, sans-serif; box-sizing:border-box;
     background:#222639; border:1px solid rgba(255,255,255,.12); border-radius:12px; overflow:hidden auto; }
-  /* sized to the list (Jake, Nov 26): a short fight gets a short panel; a long one scrolls inside 75% of the screen */
+  /* sized to the list (Jake, Nov 26): a short fight gets a short panel; a long one scrolls inside half the screen */
   body.full { height:calc(100vh / 0.85); }
   header { display:flex; align-items:center; gap:6px; background:#000; padding:7px 10px; position:sticky; top:0; border-radius:12px 12px 0 0; }
   header h1 { flex:1; margin:0; font-family:'Bangers', Impact, sans-serif; font-weight:400; font-size:20px; letter-spacing:1px; color:#bb99ff; }
@@ -33,7 +33,7 @@ function draw(md) {
     : `<div class="empty">No combat right now.</div>`;
   fit();
 }
-// The popover's height follows the list: as tall as the rows need, never more than 75% of the screen
+// The popover's height follows the list: as tall as the rows need, never more than half the screen
 let lastH = 0, maxH = 600;
 function fit() {
   document.body.classList.remove("full");
@@ -41,8 +41,10 @@ function fit() {
   if (want > maxH) document.body.classList.add("full"); // a long fight: the panel stops growing and the list scrolls
   if (Math.abs(h - lastH) < 2) return; lastH = h;
   OBR.popover.setHeight("com.newscolos.initlist", h).catch(() => {});
+  try { localStorage.setItem("ns.spotH", String(h)); } catch {} OBR.popover.setHeight("com.newscolos.rules", h).catch(() => {}); // REFERENCE behind it matches
 }
-document.getElementById("x").onclick = () => { try { localStorage.setItem("ns.initList", ""); } catch {} OBR.popover.close("com.newscolos.initlist").catch(() => {}); };
-OBR.onReady(async () => { try { maxH = Math.round((await OBR.viewport.getHeight()) * 0.75); } catch {}
+const refFull = () => OBR.popover.setHeight("com.newscolos.rules", maxH).catch(() => {}); // REFERENCE back to 75%
+document.getElementById("x").onclick = () => { try { localStorage.setItem("ns.initList", ""); } catch {} refFull(); OBR.popover.close("com.newscolos.initlist").catch(() => {}); };
+OBR.onReady(async () => { try { maxH = Math.max(300, Math.round((await OBR.viewport.getHeight()) * 0.5)); } catch {}
   draw(await OBR.room.getMetadata()); OBR.room.onMetadataChange(draw); });
 </script></body></html>

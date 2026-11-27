@@ -4669,13 +4669,16 @@ $("size").onclick = () => { store.set("ns.size", (SIZES[store.get("ns.size")] ? 
 // ---------------- RULES TAB ----------------
 const POP_ICON = `<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 // Opens one rules section in its own see-through panel in the upper right; it stays up while you use the sheet.
-// The upper-right spot holds one pop-out at a time (Jake, Nov 26): REFERENCE / Roll History, the Party pop-out or the
-// initiative list. Opening one closes the others, so a short panel never shows another one peeking out underneath.
+// The upper-right spot (Jake, Nov 26): the initiative list and the Party pop-out size themselves to what's in them, and
+// REFERENCE / Roll History, open behind them, takes the same height so it never peeks out underneath. Only one of the
+// two sizing panels is open at a time. All of them stop at half the screen (Jake, Nov 26), then scroll.
 function spotClear(keep) {
   if (standalone) return;
-  const all = { rules: ["com.newscolos.rules", "ns.popOpen"], party: [PARTY_POP, "ns.partyPop"], init: ["com.newscolos.initlist", "ns.initList"] };
+  const all = { party: [PARTY_POP, "ns.partyPop"], init: ["com.newscolos.initlist", "ns.initList"] };
   for (const [k, [id, flag]] of Object.entries(all)) if (k !== keep) { try { localStorage.removeItem(flag); } catch {} OBR.popover.close(id).catch(() => {}); }
 }
+const spotOpen = () => store.get("ns.partyPop") === "1" || store.get("ns.initList") === "1";
+async function refFull() { if (standalone) return; try { OBR.popover.setHeight("com.newscolos.rules", Math.max(300, Math.round((await OBR.viewport.getHeight()) * 0.5))).catch(() => {}); } catch {} }
 async function popOut(k) {
   // Same button again while that section is showing: close the pop-out instead
   let open = ""; try { open = localStorage.getItem("ns.popOpen") || ""; } catch {}
@@ -4686,8 +4689,8 @@ async function popOut(k) {
   const ref = new URLSearchParams(location.search).get("obrref"); if (ref) u.searchParams.set("obrref", ref);
   u.searchParams.set("k", k);
   const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
-  spotClear("rules");
-  OBR.popover.open({ id: "com.newscolos.rules", url: u.href, width: 340, height: Math.max(360, Math.round(vh * 0.75)),
+  const sh = spotOpen() ? parseInt(store.get("ns.spotH")) || 0 : 0; // the initiative list or Party pop-out is up: same height
+  OBR.popover.open({ id: "com.newscolos.rules", url: u.href, width: 340, height: sh || Math.max(300, Math.round(vh * 0.5)),
     anchorReference: "POSITION", anchorPosition: { left: vw - 70, top: 70 },
     anchorOrigin: { horizontal: "RIGHT", vertical: "TOP" }, transformOrigin: { horizontal: "RIGHT", vertical: "TOP" },
     disableClickAway: true, hidePaper: true }).catch(() => {});
@@ -5196,22 +5199,23 @@ function gmsSd() {
   box.querySelectorAll(".sdlist [data-k]").forEach(el => el.onclick = () => go(+el.dataset.k));
 }
 // The Party pop-out sizes itself to the party (Jake, Nov 26): a few characters = a short panel; a big party or open roll
-// lists grow it up to 75% of the screen, then it scrolls
+// lists grow it up to half the screen, then it scrolls
 let ptyMaxH = 600, ptyLastH = 0;
 function ptyFit() {
   if (standalone || !PARTYPOP || GMS) return;
   const want = Math.ceil(document.body.getBoundingClientRect().height) + 2, h = Math.max(120, Math.min(want, ptyMaxH));
   if (Math.abs(h - ptyLastH) < 3) return; ptyLastH = h;
   OBR.popover.setHeight(PARTY_POP, h).catch(() => {});
+  store.set("ns.spotH", String(h)); OBR.popover.setHeight("com.newscolos.rules", h).catch(() => {}); // REFERENCE behind it matches
 }
 async function popParty() {
   if (standalone) return window.open("index.html?party=1");
-  if (store.get("ns.partyPop") === "1") { store.set("ns.partyPop", ""); return OBR.popover.close(PARTY_POP).catch(() => {}); } // same button again: close it
+  if (store.get("ns.partyPop") === "1") { store.set("ns.partyPop", ""); refFull(); return OBR.popover.close(PARTY_POP).catch(() => {}); } // same button again: close it
   const u = new URL("go.html", location.href); u.searchParams.set("p", "index"); u.searchParams.set("party", "1");
   const ref = new URLSearchParams(location.search).get("obrref"); if (ref) u.searchParams.set("obrref", ref);
   const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
   spotClear("party"); store.set("ns.partyPop", "1");
-  OBR.popover.open({ id: PARTY_POP, url: u.href, width: 340, height: 240, /* grows to fit the party (ptyFit), up to the REFERENCE pop-out's 75% */
+  OBR.popover.open({ id: PARTY_POP, url: u.href, width: 340, height: 240, /* grows to fit the party (ptyFit), up to half the screen */
     anchorReference: "POSITION", anchorPosition: { left: vw - 70, top: 70 },
     anchorOrigin: { horizontal: "RIGHT", vertical: "TOP" }, transformOrigin: { horizontal: "RIGHT", vertical: "TOP" },
     disableClickAway: true, hidePaper: true }).catch(() => {});
@@ -5220,12 +5224,12 @@ async function popParty() {
 // forward, they stay), Roll History, what's in play right now, and REFERENCE, side by side. Same page in a different mode.
 const GMS = new URLSearchParams(location.search).get("gm") === "1", GMS_ID = "com.newscolos.gmscreen";
 const PARTYPOP = GMS || new URLSearchParams(location.search).get("party") === "1";
-if (!standalone && PARTYPOP && !GMS) OBR.onReady(async () => { try { ptyMaxH = Math.round((await OBR.viewport.getHeight()) * 0.75); } catch {}
+if (!standalone && PARTYPOP && !GMS) OBR.onReady(async () => { try { ptyMaxH = Math.max(300, Math.round((await OBR.viewport.getHeight()) * 0.5)); } catch {}
   let t = 0; new ResizeObserver(() => { clearTimeout(t); t = setTimeout(ptyFit, 80); }).observe(document.body); ptyFit(); });
 if (PARTYPOP) {
   document.body.classList.add("pty");
-  window.addEventListener("pagehide", () => store.set("ns.partyPop", ""));
-  $("ptyx").onclick = () => { store.set("ns.partyPop", ""); standalone ? window.close() : OBR.popover.close(PARTY_POP).catch(() => {}); };
+  window.addEventListener("pagehide", () => { store.set("ns.partyPop", ""); refFull(); });
+  $("ptyx").onclick = () => { store.set("ns.partyPop", ""); refFull(); standalone ? window.close() : OBR.popover.close(PARTY_POP).catch(() => {}); };
 }
 if (GMS) gmsSetup();
 // Uplink mode: this page opened as the pop-out beside the map, showing only the Analog Dice Uplink.

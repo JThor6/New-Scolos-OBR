@@ -392,7 +392,10 @@ OBR.onReady(async () => {
     const key = n + (small ? "m" : "");
     if (key === barCount) return;
     barCount = key;
-    if (!n) { OBR.popover.close(BAR).catch(() => {}); OBR.popover.close("com.newscolos.initlist").catch(() => {}); try { localStorage.setItem("ns.initList", ""); } catch {} return; }
+    if (!n) { OBR.popover.close(BAR).catch(() => {});
+      try { if (localStorage.getItem("ns.initList") === "1") { OBR.popover.close("com.newscolos.initlist").catch(() => {}); // REFERENCE back to its full height
+        OBR.popover.setHeight("com.newscolos.rules", Math.max(300, Math.round((await OBR.viewport.getHeight()) * 0.5))).catch(() => {}); } } catch {}
+      try { localStorage.setItem("ns.initList", ""); } catch {} return; }
     let vw = 1200; try { vw = await OBR.viewport.getWidth(); } catch {}
     const url = new URL("go.html", location.href); url.searchParams.set("p", "initbar");
     const ref = new URLSearchParams(location.search).get("obrref"); if (ref) url.searchParams.set("obrref", ref);
