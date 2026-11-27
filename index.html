@@ -868,6 +868,7 @@ import { CO, coKey, coDef, copLeftOf, copLadder, W_MEL, W_RNG, KS_ATTACK, kindOf
 import { fxAlive, fxMine, fxPlan, fxAct } from "./logic/effects.js";
 import { levelOf, ptMaxOf, copEmpty, newDayChanges, partySkills } from "./logic/sheet.js";
 import { ATTRS, ATTR_COST, ATTR_SETS, LEVEL_SLOTS, attrCostOf, chooseOpts, needsSpec, baseShort, specMissing } from "./logic/chargen.js";
+import { barTap, BAR_CONFIRM } from "./logic/confirm.js";
 
 const $ = (id) => document.getElementById(id);
 let mod = 0, me = null, standalone = !OBR.isAvailable, localRolls = [];
@@ -4268,16 +4269,22 @@ function testBarUpdate() {
   if (b("init")) b("init").disabled = !need; if (b("def")) b("def").disabled = !defs;
   for (const k of ["prev", "next", "end"]) if (b(k)) b(k).disabled = !st?.open;
 }
+let tbarArm = { k: "", until: 0 };
+function tbarArmShow(bar) { if (!bar) return;
+  bar.querySelectorAll("button[data-t]").forEach(b => { if (!BAR_CONFIRM.has(b.dataset.t)) return; if (!b.dataset.lab) b.dataset.lab = b.textContent;
+    const on = tbarArm.k === b.dataset.t && Date.now() < tbarArm.until;
+    b.textContent = on ? (b.dataset.t === "end" ? "TAP AGAIN TO END" : "TAP AGAIN TO CONFIRM") : b.dataset.lab; }); }
 function bindTestBar(body) {
   const tg = body.querySelector("#ptyTest") || $("ptyTest");
   if (tg) tg.onclick = () => { store.set("ns.testMode", testOn() ? "" : "1"); testApply(); };
   const bar = body.querySelector("#tbar"); if (!bar) return;
   bar.querySelectorAll("button[data-t]").forEach(b => b.onclick = async (e) => { e.stopPropagation(); const k = b.dataset.t;
-    if ((k === "healall" || k === "day") && !b.dataset.arm) { const lab = b.textContent; b.dataset.arm = "1"; b.textContent = "TAP AGAIN TO CONFIRM";
-      setTimeout(() => { if (b.dataset.arm) { delete b.dataset.arm; b.textContent = lab; } }, 4000); b.dataset.lab = lab; return; }
-    if (b.dataset.arm) { delete b.dataset.arm; b.textContent = b.dataset.lab || b.textContent; }
-    if (k === "end") { if (!b.dataset.arm) { b.dataset.arm = "1"; b.textContent = "TAP AGAIN TO END"; setTimeout(() => { delete b.dataset.arm; b.textContent = "END COMBAT"; }, 4000); return; }
-      delete b.dataset.arm; b.textContent = "END COMBAT"; return endInitiative().catch(() => {}); }
+    // tap twice for END COMBAT, HEAL EVERYONE and NEW DAY (logic/confirm.js). The armed state lives in tbarArm, not on
+    // the button, because the Party list (and this bar with it) redraws often and would forget it between the two taps.
+    const tap = barTap(k, tbarArm.k === k && Date.now() < tbarArm.until);
+    if (tap.arm) { tbarArm = { k, until: Date.now() + 4000 }; tbarArmShow(bar); setTimeout(() => tbarArmShow(document.querySelector("#tbar")), 4100); return; }
+    tbarArm = { k: "", until: 0 }; tbarArmShow(bar);
+    if (k === "end") return endInitiative().catch(x => obrNote("Didn't go through: " + (x?.message || x), "ERROR"));
     b.disabled = true;
     try {
       if (k === "fight") { await startFight(); if (monVals?.length) await rollMonsterInit(); }
@@ -4301,6 +4308,7 @@ function bindTestBar(body) {
           await rollAs(c, num(pCell(c.values, ATTR_CELL[a] || "C7")) ?? 0, a + " · Defense"); } } }
     } catch (x) { obrNote("Didn't go through: " + (x?.message || x), "ERROR"); }
     finally { b.disabled = false; testBarUpdate(); } });
+  tbarArmShow(bar);
   testBarUpdate();
 }
 // after a party-wide change: redraw the list and any open sheet with the new values
