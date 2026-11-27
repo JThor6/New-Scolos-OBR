@@ -41,7 +41,7 @@
   /* GM SCREEN: full window, solid, four columns */
   html.gmsh, html.gmsh body { background:#191c2a !important; }
   body.gms { zoom:0.9; height:calc(100vh / 0.9); overflow:hidden; display:grid; grid-template-columns:minmax(300px,1.15fr) minmax(280px,1fr) minmax(260px,.95fr) minmax(280px,1fr); gap:10px; padding:10px; }
-  body.gms > *:not(#sheet):not(.gmsc) { display:none !important; }
+  body.gms > *:not(#sheet):not(.gmsc):not(.spov):not(.ptov):not(.pgov) { display:none !important; } /* pop-up windows (spell window, pictures) still open */
   body.gms #sheet, body.gms .gmsc { display:flex !important; flex-direction:column; min-height:0; overflow:hidden auto; background:#222639; border:1px solid #333a55; border-radius:10px; padding:0 10px 10px; }
   body.gms #sheet { padding-top:0; }
   .gmsc h2 { position:sticky; top:0; z-index:2; margin:0 -10px 6px; padding:7px 10px; background:#15172280; backdrop-filter:blur(4px); font-family:'Bangers', Impact, sans-serif; font-weight:400; font-size:20px; letter-spacing:1px; color:#bb99ff; display:flex; align-items:center; gap:6px; }
@@ -4501,7 +4501,10 @@ function partyRollsHtml(c) {
   const btn = (mod, label, txt, br = "", cls = "") => { const t = mod + pen;
     return `<button class="${cls}" data-rm="${mod}" data-rl="${esc2(label)}" data-rb="${esc2(br)}">${esc2(txt)} <b>${sgnP(t)}</b></button>`; };
   const at = ["Adroitness", "Raw Strength", "Intellect", "Charm"].map(a => btn(num(pCell(v, ATTR_CELL[a])) ?? 0, a, a)).join("");
-  const sk = partySkills(v).map(k => btn(k.t, k.n, k.n, k.br, k.atk ? "atk" : "")).join("");
+  const mage = /mage/i.test(pCell(v, "C4"));
+  const sk = partySkills(v).map(k => mage && /^spellcasting/i.test(k.n) // a Mage's Spellcasting opens the spell window on their sheet
+    ? `<button class="atk" data-spell="1" title="Open ${esc2(name)}'s sheet and the spell window">✦ Cast a spell <b>${sgnP(k.t + pen)}</b></button>`
+    : btn(k.t, k.n, k.n, k.br, k.atk ? "atk" : "")).join("");
   return `<div class="prh">ROLL FOR ${esc2(name.toUpperCase())}${pen ? ` <span style="color:#ff8f8f">(wounded ${pen})</span>` : ""}</div>
     <div class="prh">ATTRIBUTES</div><div class="prg">${at}</div>
     <div class="prh">SKILLS ${sk ? "· attacks first" : ""}</div><div class="prg">${sk || `<small style="color:var(--dim)">No skills on the sheet.</small>`}</div>
@@ -4542,6 +4545,10 @@ function bindRollBtns(root, c) {
   root.querySelectorAll("button[data-rm]").forEach(b => b.onclick = async (e) => { e.stopPropagation(); if (b.disabled) return;
     b.disabled = true; try { await rollAs(c, b.dataset.rm, b.dataset.rl, b.dataset.rb || ""); } finally { if (b.isConnected) b.disabled = false; } });
   root.querySelectorAll("button[data-open]").forEach(b => b.onclick = (e) => { e.stopPropagation(); gmOpenSheet(c.id); });
+  root.querySelectorAll("button[data-spell]").forEach(b => b.onclick = async (e) => { e.stopPropagation();
+    if (testSplit()) testOpen(c.id); else gmOpenSheet(c.id);
+    for (let i = 0; i < 80 && !(sheetVals && sheetId() === c.id && $("shbody")?.querySelector(".att")); i++) await new Promise(r => setTimeout(r, 100));
+    if (sheetId() === c.id) openSpell(); });
 }
 // OPEN FULL SHEET: the character's whole sheet, so the GM can use their powers, Combat Options, spells, Smite, wounds...
 // Everything on it acts as that character. In the panel it's the same as picking them in the dropdown; in the Party
