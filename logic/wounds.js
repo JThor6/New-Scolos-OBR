@@ -28,3 +28,5 @@ export const monDeadCell = (r) => /^(true|x|yes|dead)$/i.test(String(r?.[19] ?? 
 const onCell = (x) => !!String(x ?? "").trim() && !/^false$/i.test(String(x).trim());
 export const pcDown = (v) => { const t = trackOf(v); return t[5] || t[6]; };
 export const monDown = (r) => monDeadCell(r) || onCell(r?.[18]) || (!isMook(r) && onCell(r?.[17]));
+// Reset for Battle (Nov 27): every Vitality Track box off, Dead included. null when the track is already clean.
+export const battleReset = (v) => trackOf(v).some(Boolean) ? { track: Array(7).fill(false) } : null;

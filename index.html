@@ -864,7 +864,7 @@ document.head.insertAdjacentHTML("beforeend", `<style>${ROLL_CSS}${CLEAR_CSS}</s
 import { TYPES, SECTIONS, REF_GROUPS, getTab, sectionHtml } from "./rules.js";
 // Pure game logic, unit tested in test/ (npm test)
 import { num, sgn, nm, tc, pCell } from "./logic/util.js";
-import { BOX_START, BOX_NAME, WOUNDS, WOUND_DMG, pickWoundBox, woundSaid, trackOf, healTrack, isMook, pcDown, monDown } from "./logic/wounds.js";
+import { BOX_START, BOX_NAME, WOUNDS, WOUND_DMG, pickWoundBox, woundSaid, trackOf, healTrack, isMook, pcDown, monDown, battleReset } from "./logic/wounds.js";
 import { SPELL_SIZES, FUDGE, castOdds, schoolsFromNotes, spellMath, SPELL_FX, spellFx } from "./logic/spells.js";
 import { CO, coKey, coDef, copLeftOf, copLadder, W_MEL, W_RNG, KS_ATTACK, kindOfName, monAttacks, defAttr, canDefend, monRowOf, partyMatch } from "./logic/combat.js";
 import { fxAlive, fxMine, fxPlan, fxAct } from "./logic/effects.js";
@@ -2797,6 +2797,7 @@ document.addEventListener("click", (e) => { const b = e.target.closest(".tref, .
   if (b.id === "gmPty") return popParty(); // GM tab: pop out the Party view
   if (b.id === "gmHeal") return armed(b, "Sure? Tap again to clear all") ? healAllMon() : undefined;
   if (b.id === "gmClr") return clearConds(b); // GM tab: sweep every condition off the map (asks first)
+  if (b.id === "gmReset") { if (b.disabled) return; return armed(b, "Sure? Tap again to reset") ? resetBattle(b) : undefined; }
   // only buttons that name a section open the REFERENCE pop-out. Before (Nov 25), a quick second tap on Clear monster
   // wounds landed on its "Clear all monster wounds?" / "Clearing…" text, which opened REFERENCE with nothing picked.
   if (!b.dataset.k) return;
@@ -3487,7 +3488,7 @@ window.addEventListener("storage", (e) => { if (e.key === HID) hideDraw(); });
 function drawMonsters() {
   const v = monVals || [], c = (row, i) => String(v[row]?.[i] ?? "").trim();
   // INITIATIVE, then the tools in order of use (Jake, Nov 25). Auto-roll monsters moved to the bottom, under AUTO DAMAGE.
-  let html = `<div class="initbox"><div class="sec initsec">INITIATIVE<span class="inittools"><span id="gmHealW" style="display:inline-flex;align-items:center;gap:6px"><button id="gmHeal" class="sref hist" title="Clear every wound and Dead on every monster in this encounter (asks first)">✚ Clear monster wounds</button></span><button id="gmClr" class="sref hist" title="Take every condition (Dead, Unconscious, your own) off every token on this map">✕ Clear conditions</button><button id="gmPty" class="sref hist" title="Pop the Party view out beside the map (tap again to close it)">${REF_SVG}Party</button><button class="sref hist" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button></span></div>
+  let html = `<div class="initbox"><div class="sec initsec">INITIATIVE<span class="inittools"><span id="gmHealW" style="display:inline-flex;align-items:center;gap:6px"><button id="gmHeal" class="sref hist" title="Clear every wound and Dead on every monster in this encounter (asks first)">✚ Clear monster wounds</button></span><button id="gmClr" class="sref hist" title="Take every condition (Dead, Unconscious, your own) off every token on this map">✕ Clear conditions</button><button id="gmPty" class="sref hist" title="Pop the Party view out beside the map (tap again to close it)">${REF_SVG}Party</button><button class="sref hist" data-k="__rolls" title="Open Roll History beside the map">${REF_SVG}Roll History</button><button id="gmReset" class="sref hist" title="Fresh for a new fight (tap twice): every wound off (monsters and party, Dead too), every condition and Combat Option effect off, the fight ended, New Day for everyone, then COP to full">⟳ Reset for Battle</button></span></div>
     <div class="g2"><button id="iCall" class="sbtn" title="Start a fight: new initiative, everyone's COP to full, and the monsters roll">⚔ CALL FOR INITIATIVE &amp; ROLL MONSTERS</button><button id="iOrd" class="sbtn" title="Initiative order only, no monsters and no COP (out of combat: a chase, a race, who acts first)">CALL FOR INITIATIVE</button></div>
     <div id="iList"></div>
     <div id="iStep" class="istep" hidden><button id="iPrev" class="sbtn" title="Previous turn">◀</button><span id="iRound"></span><button id="iNext" class="sbtn">NEXT TURN ▶</button></div>
@@ -4943,6 +4944,28 @@ async function healAllMon() {
     cache.set("mon." + monId(), monVals); syncDeadGroups();
     healResetMon(`✓ Cleared ${n} monster${n === 1 ? "" : "s"}`);
   } catch { healResetMon("Couldn't clear all of them. Check the cards"); }
+}
+// GM tab: ⟳ Reset for Battle (Jake, Nov 27). One tap (after the tap-twice check) makes everything fresh for a new fight:
+// monster wounds and Dead off, every character's Vitality Track off (Dead too), condition labels off the map, lasting
+// Combat Option effects off, any fight ended, New Day for everyone (powers, invocations, spell points), then COP to full
+// (New Day empties COP, so it goes last). Progress shows on the button; anything that fails says so in the GM message line.
+async function resetBattle(b) {
+  const say = (t) => { if (b.isConnected) b.textContent = t; };
+  b.disabled = true; let ok = true;
+  const step = async (t, fn) => { say(t); try { await fn(); } catch (x) { ok = false; obrNote(`Reset for Battle: ${t.replace(/…$/, "")} didn't finish: ${x?.message || x}`, "WARNING"); } };
+  await step("Monsters…", async () => {
+    if (!monVals && monId()) { const r = await bridgeGet({ id: monId(), tab: "Extension Tracker" }).catch(() => null); if (r?.ok) monVals = r.values; }
+    if (monVals) await healAllMon(); });
+  await step("Party wounds…", () => gmAll("Reset for Battle: wounds", battleReset, (v, x) => { v[15] = v[15] || []; x.track.forEach((on, i) => v[15][i + 1] = on ? "X" : ""); }));
+  await step("Conditions…", async () => {
+    const marks = await OBR.scene.items.getItems(i => !!i.metadata?.[MARK_ITEM]); if (marks.length) await OBR.scene.items.deleteItems(marks.map(i => i.id));
+    await OBR.room.setMetadata({ [COFX]: null });
+    if ((await OBR.room.getMetadata())[INIT]?.open) await endInitiative(); });
+  await step("New Day…", () => newDayAll());
+  await step("COP…", () => fillAllCop("Reset for Battle: COP"));
+  try { afterGmAll(); } catch {}
+  say(ok ? "✓ Ready for battle" : "Done, with problems (see note)");
+  setTimeout(() => { if (b.isConnected) { b.disabled = false; b.innerHTML = "⟳ Reset for Battle"; delete b.dataset.label; } }, 3000);
 }
 // ---------------- AUTO DAMAGE (GM switch, bottom of the GM tab) ----------------
 // When it's on, every Success Delta that lands a wound marks it on the defender's character sheet or monster card,

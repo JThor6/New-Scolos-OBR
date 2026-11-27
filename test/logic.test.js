@@ -154,3 +154,10 @@ test("partyMatch: exact, loose (Raxx -> Raxx Veldt), or the part in brackets (To
   assert.equal(partyMatch([PC("Test(Tony)"), PC("Test(Justin)")], "Test"), null); // two fit: don't guess
   assert.equal(partyMatch(null, "Tony"), null);
 });
+
+// ---- Reset for Battle (Jake, Nov 27): every box off, Dead too
+import { battleReset } from "../logic/wounds.js";
+test("battleReset: clears the whole Vitality Track including Dead; nothing to do on a clean sheet", () => {
+  assert.deepEqual(battleReset(pcVals(["x", "", "", "x", "", "", "x"])), { track: Array(7).fill(false) });
+  assert.equal(battleReset(pcVals(["", "", "", "", "", "", ""])), null);
+});
