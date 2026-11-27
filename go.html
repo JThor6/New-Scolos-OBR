@@ -9,7 +9,8 @@
   const t = Date.now();
   try {
     let html = await (await fetch(page + ".html?t=" + t, { cache: "no-store" })).text();
-    html = html.replace(/(["'])\.\/(shared|rules)\.js\1/g, `$1./$2.js?t=${t}$1`);
+    // shared.js, rules.js and logic/*.js fresh too (Nov 27: a new page with an old cached logic file broke until a reload)
+    html = html.replace(/(["'])\.\/(shared|rules|logic\/[a-z]+)\.js\1/g, `$1./$2.js?t=${t}$1`);
     document.open(); document.write(html); document.close();
   } catch (e) {
     document.body.style.cssText = "color:#ff6b6b;font:14px system-ui;padding:10px";

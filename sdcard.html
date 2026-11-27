@@ -73,6 +73,7 @@
   import { sdResult, WOUND_STEPS, BONUS_NAME } from "./shared.js";
   const q = new URLSearchParams(location.search), room = q.get("room") || "";
   const ID = "com.newscolos.dice/delta", SDN = "com.newscolos.dice/sdn", SDCANCEL = "com.newscolos.dice/sdcancel";
+  const ALIVE = "ns.sdAlive:" + room + ":" + (new URLSearchParams(location.search).get("tab") || ""); // this tab's heartbeat
   const KEY = "ns.sd:" + room, PIN = "ns.sdPin", WAIT = 3 * 60e3, AUTO = 20000;
   const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const sg = (n) => n > 0 ? "+" + n : String(n);
@@ -87,7 +88,7 @@
   const MINI = q.get("mini") === "1", MW = Number(q.get("mw")) || 220; let big = false;
   let idx = -1, lastSig = "", lastH = 0, timer = 0, over = false, maxH = 0, sizeMode = "";
 
-  const close = () => { clearTimeout(timer); set("ns.sdAlive:" + room, "0"); ready.then(() => OBR.popover.close(ID)).catch(() => {}); };
+  const close = () => { clearTimeout(timer); set(ALIVE, "0"); ready.then(() => OBR.popover.close(ID)).catch(() => {}); };
   const liveWait = (s) => { const w = s.wait; return w && Date.now() - w.at0 < WAIT && (w.defs || []).length < (w.n || 1) ? w : null; };
 
   function resultHtml(e) {
@@ -196,7 +197,7 @@
   window.addEventListener("storage", (ev) => { if (ev.key === KEY) show(); else if (ev.key === PIN) render(); });
   setInterval(show, 5000);
   // tells the background page this card is up, so a new result updates it in place instead of reopening it
-  const alive = () => set("ns.sdAlive:" + room, String(Date.now())); alive(); setInterval(alive, 1500);
-  window.addEventListener("pagehide", () => set("ns.sdAlive:" + room, "0")); // a waiting attack runs out after 3 minutes even if nothing else happens
+  const alive = () => set(ALIVE, String(Date.now())); alive(); setInterval(alive, 1500);
+  window.addEventListener("pagehide", () => set(ALIVE, "0")); // a waiting attack runs out after 3 minutes even if nothing else happens
   show();
 </script></body></html>

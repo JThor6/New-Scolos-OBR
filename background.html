@@ -92,6 +92,7 @@ function rowLayout(vw, left) {
 // localStorage ("ns.sd:<room>"), so it updates in place; ‹ › pages through results; 📌 picks "stays up" or "fades after 30 s".
 // The defender's roll card spins about 2 seconds before its dice land; the Success Delta card shows up then, not before
 const REVEAL_MS = 2100;
+const TAB_ID = crypto.randomUUID().slice(0, 8); // this browser tab (its own Success Delta card heartbeat)
 const SD = "com.newscolos.dice/delta", SD_W = 280, ATTACK_WAIT = 3 * 60e3, SD_KEEP = 30;
 const SDCANCEL = "com.newscolos.dice/sdcancel"; // room metadata: { id } of an attack someone dropped with ✕
 const SDN = "com.newscolos.dice/sdn";           // room metadata: { id, n, ts } how many defenders an attack has
@@ -174,8 +175,10 @@ async function adWatch(e) {
 // Opens (or reopens) the card: just left of the roll cards, on the bottom row; if there's no room, at the left edge beside the panel.
 // It sizes itself to what it shows, growing upward.
 async function openCard() {
-  try { if (Date.now() - Number(localStorage.getItem("ns.sdAlive:" + OBR.room.id) || 0) < 3500) return; } catch {} // already showing
-  const url = new URL("go.html", location.href); url.searchParams.set("p", "sdcard"); url.searchParams.set("room", OBR.room.id);
+  // already showing in THIS tab (Nov 27 fix: the heartbeat was shared by every Owlbear tab in the browser, so a card open
+  // in one tab stopped the other tab from ever opening its own)
+  try { if (Date.now() - Number(localStorage.getItem("ns.sdAlive:" + OBR.room.id + ":" + TAB_ID) || 0) < 3500) return; } catch {}
+  const url = new URL("go.html", location.href); url.searchParams.set("p", "sdcard"); url.searchParams.set("room", OBR.room.id); url.searchParams.set("tab", TAB_ID);
   const ref = new URLSearchParams(location.search).get("obrref"); if (ref) url.searchParams.set("obrref", ref);
   const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
   let left = 0; try { if (await OBR.action.isOpen()) left = ((await OBR.action.getWidth()) || 520) + 40; } catch {}
