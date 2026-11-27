@@ -2656,8 +2656,10 @@ function fxSync(md) {
 const W_MEL = /melee|martial|\b(sword|knife|knives|blade|axe|club|spear|hammer|staff|brawl|boxing|kung fu|cqc|unarmed)/i;
 const W_RNG = /ranged|unconventional|\b(rifle|pistol|gun|blaster|laser|bow|shotgun|sniper|grenade|thrown)/i;
 const KS_ATTACK = /ranged weapon|melee weapon|martial art|unconventional weapon|\b(sword|knife|knives|blade|axe|club|spear|hammer|brawl|boxing|kung fu|cqc|unarmed|rifle|pistol|gun|blaster|laser|bow|shotgun|sniper|grenade|thrown)/i;
-const ksArmed = () => store.get(ck("ns.killShot")) === "1";
-function setKS(on) { store.set(ck("ns.killShot"), on ? "1" : ""); updateKS(); }
+// per character (Nov 26 fix): the GM in test mode opens many sheets, and Kill Shot armed on one must not fire on another
+const ksKey = () => ck("ns.killShot") + (isGM ? ":" + (sheetId() || "") : "");
+const ksArmed = () => store.get(ksKey()) === "1";
+function setKS(on) { store.set(ksKey(), on ? "1" : ""); updateKS(); }
 function updateKS() {
   const on = ksArmed(), bar = $("ksbar"); if (!bar) return;
   bar.hidden = !on;
@@ -5032,7 +5034,8 @@ function adMeta(md, first) {
   if (first) pingSeen = p?.ts || 0;
   else if (p?.ts && p.ts !== pingSeen) { pingSeen = p.ts;
     if (p.id === "*" && !mgrOn) { partyOn ? showParty() : sheetVals && loadSheet(true); }
-    else if (p.id && p.id === sheetId() && !mgrOn) {
+    else if (p.id && p.id !== sheetId() && (partyOn || testSplit())) hurtRefresh("pc", p.id); // the Party list / test list
+    else if (p.id && p.id === sheetId() && !mgrOn) { if (testSplit()) hurtRefresh("pc", "");
       const ad = actDef(); if (p.hurt && ad?.hurt) { setActive(""); endActive(ad.c === "rv" ? "Your body was hit. Your spirit snaps back." : "You took damage and reappear."); }
       loadSheet(true); } }
   if (!isGM || UPLINK) return;
@@ -5139,7 +5142,7 @@ async function applyWound(name, w) {
     const r = v[row], on = (i) => !!String(r[i] ?? "").trim() && !/^false$/i.test(String(r[i]));
     const i = pick([12, 13, 14, 15, 16, 17, 18].map(on));
     if (i >= 0) { await monSet(row + 1, 13 + i, true); if (i === 6 && !on(19)) await monSet(row + 1, 20, true); }
-    monCond(row + 1); return said(i);
+    monCond(row + 1); hurtPing("mon", name); return said(i);
   }
   // a character in this room's campaign?
   let chars = cache.get(ck("chars")) || [], c = chars.find(x => nm(x.name) === nm(name));
@@ -5159,6 +5162,23 @@ async function applyWound(name, w) {
   if (marks[6]) initDrop(name);
   return said(i);
 }
+// Auto damage marked a box (Nov 26 fix): the wound landed on the sheet / encounter card, but the other open pages (the GM
+// screen, the panel, the Party pop-out) still showed the old Vitality Track. Characters: SHEETPING (adMeta) redraws the
+// Party list / test list. Monsters: this page redraws now, the extension's other pages on the ns.hurt signal.
+function hurtRefresh(kind, id) {
+  if (kind === "mon") { try { drawMonsters(); } catch {} try { testBarUpdate(); } catch {} return; }
+  if (testSplit() && $("tlist")) characterSheets().then(ch => { if (testSplit() && $("tlist")) drawParty($("tlist"), ch); }).catch(() => {});
+  else if (partyOn) showParty();
+  if (id && sheetId() === id && !mgrOn) loadSheet(true);
+}
+function hurtPing(kind, id) { hurtRefresh(kind, id); store.set("ns.hurt", JSON.stringify({ kind, id, ts: Date.now() })); }
+window.addEventListener("storage", async (e) => {
+  if (e.key !== "ns.hurt" || standalone || !isGM) return;
+  let q = null; try { q = JSON.parse(e.newValue || "null"); } catch {} if (!q?.ts) return;
+  if (q.kind === "mon" && monId()) { const r = await bridgeGet({ id: monId(), tab: "Extension Tracker" }).catch(() => null);
+    if (r?.ok) { monVals = r.values; cache.set("mon." + monId(), monVals); } }
+  hurtRefresh(q.kind, q.id);
+});
 // Party pop-out (GM only): this same page opened beside the map, showing only the Party overview with the GM strip.
 const PTY_POP_ICON = `<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 const PARTY_POP = "com.newscolos.party";
