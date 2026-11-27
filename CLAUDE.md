@@ -12,6 +12,7 @@ Party pop-out; the other `.html` files are Owlbear pop-ups and the background pa
   - `effects.js`: the shared effects list: is an effect still on, and what it does to a roll (`fxPlan`, `fxAct`)
   - `sheet.js`: reading a character sheet's values (skills, New Day, COP, points)
   - `chargen.js`: Character Creator rules
+  - `sim.js`: fight simulator (party vs an encounter, many runs, difficulty rating)
 - `shared.js`, `rules.js`: shared by several pages (roll storage, Success Delta, initiative order, rules text).
 - Pages import from these. Put new rules math in `logic/` as a plain function and call it from the page.
 
@@ -21,6 +22,15 @@ Party pop-out; the other `.html` files are Owlbear pop-ups and the background pa
 - **Bug fixes: red, then green.** Write a test that shows the bug and run it: it must fail (red). Then fix, and run the
   whole suite: everything passes (green). Report both runs. If the bug lives in page / Owlbear code that can't be tested,
   first move the deciding logic into `logic/` so it can be, or say plainly why not.
+
+## Fight simulator
+- `node sim/run.js <fight.json> [runs] [seed]`. fight.json holds `party` (each character sheet's values, A1:H50 of
+  Main Sheet) and `tracker` (the encounter sheet's Extension Tracker tab values), plus optional `partyTactics`,
+  `foeTactics` ("focus" | "boss" | "random"), `maxRounds`, `currentWounds`.
+- Get the values with the Google Sheets connector. Main party sheets: Drive folder 1Xo4W8wxNKuMgYYFbIc0K98WTZHIQTbQa.
+- Plays weapon attacks, Adroitness defense, armor, wounds, wound penalty, KO and Dead, mooks, "any hit kills".
+  Does not play Combat Options, Extraordinary Powers, spells, Smite, healing, movement or monster specials: say so in
+  every report, and run each party tactic so Jake sees the spread.
 
 ## Other checks before pushing
 - ESLint (`no-undef`, `no-redeclare`) over every page's module script.
