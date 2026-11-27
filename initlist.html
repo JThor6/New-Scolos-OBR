@@ -3,8 +3,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Bangers&display=swap" rel="stylesheet">
 <style>
   html { margin:0; background:transparent; }
-  body { margin:0; zoom:0.85; color:#f1f3f9; font-family:system-ui, sans-serif; min-height:100vh; box-sizing:border-box;
+  body { margin:0; zoom:0.85; color:#f1f3f9; font-family:system-ui, sans-serif; box-sizing:border-box;
     background:#222639; border:1px solid rgba(255,255,255,.12); border-radius:12px; overflow:hidden auto; }
+  /* sized to the list (Jake, Nov 26): a short fight gets a short panel; a long one scrolls inside 75% of the screen */
+  body.full { height:calc(100vh / 0.85); }
   header { display:flex; align-items:center; gap:6px; background:#000; padding:7px 10px; position:sticky; top:0; border-radius:12px 12px 0 0; }
   header h1 { flex:1; margin:0; font-family:'Bangers', Impact, sans-serif; font-weight:400; font-size:20px; letter-spacing:1px; color:#bb99ff; }
   #x { background:transparent; border:2px solid #444a66; color:#f1f3f9; border-radius:6px; width:26px; height:26px; cursor:pointer; font-weight:800; }
@@ -29,7 +31,18 @@ function draw(md) {
   document.getElementById("list").innerHTML = list.length ? list.map((e, i) =>
     `<div class="row ${e.id === st.cur ? "cur" : ""}"><span class="n">${i + 1}</span><b>${esc(e.name)}</b><small>${e.pc ? "player" : ""}</small><span class="t">${fmt(e.total)}</span></div>`).join("")
     : `<div class="empty">No combat right now.</div>`;
+  fit();
+}
+// The popover's height follows the list: as tall as the rows need, never more than 75% of the screen
+let lastH = 0, maxH = 600;
+function fit() {
+  document.body.classList.remove("full");
+  const want = Math.ceil(document.body.getBoundingClientRect().height) + 2, h = Math.min(want, maxH);
+  if (want > maxH) document.body.classList.add("full"); // a long fight: the panel stops growing and the list scrolls
+  if (Math.abs(h - lastH) < 2) return; lastH = h;
+  OBR.popover.setHeight("com.newscolos.initlist", h).catch(() => {});
 }
 document.getElementById("x").onclick = () => { try { localStorage.setItem("ns.initList", ""); } catch {} OBR.popover.close("com.newscolos.initlist").catch(() => {}); };
-OBR.onReady(async () => { draw(await OBR.room.getMetadata()); OBR.room.onMetadataChange(draw); });
+OBR.onReady(async () => { try { maxH = Math.round((await OBR.viewport.getHeight()) * 0.75); } catch {}
+  draw(await OBR.room.getMetadata()); OBR.room.onMetadataChange(draw); });
 </script></body></html>

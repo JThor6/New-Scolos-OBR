@@ -75,11 +75,13 @@ markList();
 window.addEventListener("storage", (e) => { if (e.key === "ns.initList") markList(); });
 document.getElementById("lst").onclick = async () => {
   if (listOn()) { try { localStorage.setItem("ns.initList", ""); } catch {} markList(); return OBR.popover.close(LIST).catch(() => {}); }
-  try { localStorage.setItem("ns.initList", "1"); } catch {} markList();
+  try { localStorage.setItem("ns.initList", "1"); localStorage.removeItem("ns.popOpen"); localStorage.removeItem("ns.partyPop"); } catch {} markList();
+  // one pop-out at a time in the upper right: REFERENCE and the Party pop-out close so they don't peek out under the list
+  OBR.popover.close("com.newscolos.rules").catch(() => {}); OBR.popover.close("com.newscolos.party").catch(() => {});
   const u = new URL("go.html", location.href); u.searchParams.set("p", "initlist");
   const ref = new URLSearchParams(location.search).get("obrref"); if (ref) u.searchParams.set("obrref", ref);
   const vw = await OBR.viewport.getWidth(), vh = await OBR.viewport.getHeight();
-  OBR.popover.open({ id: LIST, url: u.href, width: 340, height: Math.max(360, Math.round(vh * 0.75)), hidePaper: true,
+  OBR.popover.open({ id: LIST, url: u.href, width: 340, height: 140, hidePaper: true, // grows to fit the list (initlist.html sets its own height)
     anchorReference: "POSITION", anchorPosition: { left: vw - 70, top: 70 },
     anchorOrigin: { horizontal: "RIGHT", vertical: "TOP" }, transformOrigin: { horizontal: "RIGHT", vertical: "TOP" },
     disableClickAway: true }).catch(() => {});
